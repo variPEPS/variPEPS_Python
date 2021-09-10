@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "peps-ad"
+version = "0.1.0"
+description = "Code to solve PEPS network using AD methods"
+authors = ["Jan Luca Naumann <j.naumann@fu-berlin.de>"]
+license = "GPL-3.0"
+readme = "README.md"
+packages = [{include = "peps_ad"}]
+
+[tool.poetry.dependencies]
+python = ">=3.7,<3.10"
+numpy = "^1.21.2"
+scipy = "^1.7.1"
+jax = {extras = ["cpu"], version = "^0.2.20"}
+
+[tool.poetry.dev-dependencies]
+black = "^21.8-beta.0"
+ipython = "^7.27.0"
+pylint = "^2.10.2"
+flake8 = "^3.9.2"
+mypy = "^0.910"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
