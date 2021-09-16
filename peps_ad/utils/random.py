@@ -5,7 +5,7 @@ Utility functions for initialize tensors randomly
 from __future__ import annotations
 
 import abc
-import os
+import random
 import warnings
 
 import numpy as np
@@ -124,7 +124,7 @@ class PEPS_Jax_Random(PEPS_Random_Impl):
 
     def __init__(self, seed: Optional[int] = None):
         if seed is None:
-            seed = int.from_bytes(os.getrandom(4), "little", signed=False)
+            seed = int.from_bytes(random.randbytes(4), "little", signed=False)
 
         self.key = jax.random.PRNGKey(seed)
 
