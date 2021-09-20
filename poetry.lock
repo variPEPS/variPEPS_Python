@@ -226,7 +226,7 @@ python-versions = ">=3.7"
 
 [package.dependencies]
 absl-py = "*"
-jaxlib = {version = "0.1.71", optional = true, markers = "extra == \"cpu\""}
+jaxlib = {version = "0.1.71+cuda111", optional = true, markers = "extra == \"cuda111\""}
 numpy = ">=1.18"
 opt_einsum = "*"
 scipy = ">=1.2.1"
@@ -240,7 +240,7 @@ tpu = ["jaxlib (==0.1.71)", "libtpu-nightly (==0.1.dev20210809)", "requests"]
 
 [[package]]
 name = "jaxlib"
-version = "0.1.71"
+version = "0.1.71+cuda111"
 description = "XLA library for JAX"
 category = "main"
 optional = false
@@ -251,6 +251,11 @@ absl-py = "*"
 flatbuffers = ">=1.12,<3.0"
 numpy = ">=1.18"
 scipy = "*"
+
+[package.source]
+type = "legacy"
+url = "https://janluca.github.io/pypi"
+reference = "jax-cuda"
 
 [[package]]
 name = "jedi"
@@ -582,7 +587,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<3.10"
-content-hash = "3642fd6a31f5cdad52ec90013afd91eb3acac09519e93396555beeebb8d55daf"
+content-hash = "30a2857f5cd71ded0276185c3c5138d3a6e589a65218b10bd1611b734481477f"
 
 [metadata.files]
 absl-py = [
@@ -661,12 +666,9 @@ jax = [
     {file = "jax-0.2.20.tar.gz", hash = "sha256:8900827ef1858df9cabd3c9ad58c42699683e327645bcf434c3ad07128d9ce56"},
 ]
 jaxlib = [
-    {file = "jaxlib-0.1.71-cp37-none-macosx_10_9_x86_64.whl", hash = "sha256:ad36895ceb68782bb74f0657da127cece06c19ce1e72ad9c660f79bce549618e"},
-    {file = "jaxlib-0.1.71-cp37-none-manylinux2010_x86_64.whl", hash = "sha256:059eb572121e3f13e3b841c07137a72f3d0aeb76dc6ddf178922a327994f60b8"},
-    {file = "jaxlib-0.1.71-cp38-none-macosx_10_9_x86_64.whl", hash = "sha256:c823b65c95aa7b6d8eb4a45bc6389d43c8d6dd20fe0c531345753819c70cff54"},
-    {file = "jaxlib-0.1.71-cp38-none-manylinux2010_x86_64.whl", hash = "sha256:8f4447d6053b55bab9565e365b60c80ff186b0cb05407146ea844d328eaba2bf"},
-    {file = "jaxlib-0.1.71-cp39-none-macosx_10_9_x86_64.whl", hash = "sha256:f5fc1873c25a7b07f9406bcb09540cef6e2b151aa139be52e34cf35f7b8390b0"},
-    {file = "jaxlib-0.1.71-cp39-none-manylinux2010_x86_64.whl", hash = "sha256:c66a1bdb57934093938fd6e1767216c198bd1a102b8f5636fdb1f9a5b0d11067"},
+    {file = "jaxlib-0.1.71+cuda111-cp37-none-manylinux2010_x86_64.whl", hash = "sha256:4ccc8f2267d171efcad4bfc3525487f1793b905cb2f001deac536945c17aaf25"},
+    {file = "jaxlib-0.1.71+cuda111-cp38-none-manylinux2010_x86_64.whl", hash = "sha256:0d0f4aba67352168e455ec934099d7f72db9ba6d77e600274218ad2582c4b2ce"},
+    {file = "jaxlib-0.1.71+cuda111-cp39-none-manylinux2010_x86_64.whl", hash = "sha256:09f1ccf320f4ea8c7ee77128f471a82cc6d8aa8f295d344223a8a6a9e5f7b318"},
 ]
 jedi = [
     {file = "jedi-0.18.0-py2.py3-none-any.whl", hash = "sha256:18456d83f65f400ab0c2d3319e48520420ef43b23a086fdc05dff34132f0fb93"},
