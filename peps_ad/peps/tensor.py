@@ -61,11 +61,14 @@ class PEPS_Tensor:
             if isinstance(evaled_type, typing._SpecialForm):
                 # No check for typing.Any, typing.Union, typing.ClassVar (without parameters)
                 continue
-            actual_type = typing.get_origin(evaled_type) or evaled_type
+            try:
+                actual_type = evaled_type.__origin__
+            except:
+                actual_type = evaled_type
             actual_value = getattr(self, field_name)
             if isinstance(actual_type, typing._SpecialForm):
                 # case of typing.Union[…] or typing.ClassVar[…]
-                actual_type = typing.get_args(evaled_type)
+                actual_type = evaled_type.__args__
             if not isinstance(actual_value, actual_type):
                 raise ValueError(
                     f"Invalid type for field '{field_name}'. Expected '{field_def.type}'"
