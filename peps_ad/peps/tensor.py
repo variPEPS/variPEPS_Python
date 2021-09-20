@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import jax.numpy as jnp
 
-from peps_ad.utils.random import PEPS_Random
+from peps_ad.utils.random import PEPS_Random_Number_Generator
 
 import typing
 from typing import TypeVar, Type, Union, Optional, Sequence
@@ -124,7 +124,7 @@ class PEPS_Tensor:
         if not all(isinstance(i, int) for i in D) or not len(D) == 4:
             raise ValueError("Invalid argument for D.")
 
-        rng = PEPS_Random.get_generator(seed, backend=backend)
+        rng = PEPS_Random_Number_Generator.get_generator(seed, backend=backend)
 
         tensor = rng.block((D[0], D[1], d, D[2], D[3]), dtype, normalize=normalize)
 

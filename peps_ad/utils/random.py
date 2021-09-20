@@ -16,7 +16,7 @@ from typing import Type, Sequence, Optional
 from peps_ad.typing import Tensor
 
 
-class PEPS_Random:
+class PEPS_Random_Number_Generator:
     """
     Class to maintain a global instance of random number generators
     """
@@ -48,7 +48,8 @@ class PEPS_Random:
                 cls.__instance_jax = PEPS_Jax_Random(seed)
             elif seed is not None:
                 warnings.warn(
-                    "There is already a random generator instance. The seed parameter is ignored."
+                    "There is already a random generator instance. The seed parameter is ignored. "
+                    "If you want to set a new seed, please call the destroy_state() method before."
                 )
             return cls.__instance_jax
         elif backend == "numpy":
@@ -56,11 +57,20 @@ class PEPS_Random:
                 cls.__instance_np = PEPS_Numpy_Random(seed)
             elif seed is not None:
                 warnings.warn(
-                    "There is already a random generator instance. The seed parameter is ignored."
+                    "There is already a random generator instance. The seed parameter is ignored. "
+                    "If you want to set a new seed, please call the destroy_state() method before."
                 )
             return cls.__instance_np
         else:
             raise ValueError("Unknown backend")
+
+    @classmethod
+    def destroy_state(cls) -> None:
+        """
+        Destroy the current state of the random number generator.
+        """
+        cls.__instance_jax = None
+        cls.__instance_np = None
 
 
 class PEPS_Random_Impl(abc.ABC):
@@ -124,7 +134,7 @@ class PEPS_Jax_Random(PEPS_Random_Impl):
 
     def __init__(self, seed: Optional[int] = None):
         if seed is None:
-            seed = int.from_bytes(random.randbytes(4), "little", signed=False)
+            seed = random.randint(0, 2**64-1)
 
         self.key = jax.random.PRNGKey(seed)
 
