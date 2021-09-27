@@ -100,6 +100,7 @@ class PEPS_Tensor:
         chi: int,
         dtype: Union[Type[np.number], Type[jnp.number]],
         *,
+        ctm_tensors_are_identities: bool = True,
         normalize: bool = True,
         seed: Optional[int] = None,
         backend: str = "jax",
@@ -113,6 +114,12 @@ class PEPS_Tensor:
           chi (int): Bond dimension for the environment tensors
           dtype (numpy or jax.numpy.dtype): Dtype of the generated tensors
         Keyword args:
+          ctm_tensors_are_identities (bool, optional): Flag if the CTM tensors
+                                                       are initialized as
+                                                       identities. Otherwise,
+                                                       they are initialized
+                                                       randomly.
+                                                       Default: True
           normalize (bool, optional): Flag if the generated tensors are
                                       normalized. Default: True
           seed (int, optional): Seed for the random number generator.
@@ -131,15 +138,26 @@ class PEPS_Tensor:
 
         tensor = rng.block((D[0], D[1], d, D[2], D[3]), dtype, normalize=normalize)
 
-        C1 = rng.block((chi, chi), dtype, normalize=normalize)
-        C2 = rng.block((chi, chi), dtype, normalize=normalize)
-        C3 = rng.block((chi, chi), dtype, normalize=normalize)
-        C4 = rng.block((chi, chi), dtype, normalize=normalize)
+        if ctm_tensors_are_identities:
+            C1 = jnp.ones((1, 1), dtype=dtype)
+            C2 = jnp.ones((1, 1), dtype=dtype)
+            C3 = jnp.ones((1, 1), dtype=dtype)
+            C4 = jnp.ones((1, 1), dtype=dtype)
 
-        T1 = rng.block((chi, D[3], D[3], chi), dtype, normalize=normalize)
-        T2 = rng.block((D[2], D[2], chi, chi), dtype, normalize=normalize)
-        T3 = rng.block((chi, chi, D[1], D[1]), dtype, normalize=normalize)
-        T4 = rng.block((chi, D[0], D[0], chi), dtype, normalize=normalize)
+            T1 = jnp.eye(D[3], dtype=dtype).reshape(1, D[3], D[3], 1)
+            T2 = jnp.eye(D[2], dtype=dtype).reshape(D[2], D[2], 1, 1)
+            T3 = jnp.eye(D[1], dtype=dtype).reshape(1, 1, D[1], D[1])
+            T4 = jnp.eye(D[0], dtype=dtype).reshape(1, D[0], D[0], 1)
+        else:
+            C1 = rng.block((chi, chi), dtype, normalize=normalize)
+            C2 = rng.block((chi, chi), dtype, normalize=normalize)
+            C3 = rng.block((chi, chi), dtype, normalize=normalize)
+            C4 = rng.block((chi, chi), dtype, normalize=normalize)
+
+            T1 = rng.block((chi, D[3], D[3], chi), dtype, normalize=normalize)
+            T2 = rng.block((D[2], D[2], chi, chi), dtype, normalize=normalize)
+            T3 = rng.block((chi, chi, D[1], D[1]), dtype, normalize=normalize)
+            T4 = rng.block((chi, D[0], D[0], chi), dtype, normalize=normalize)
 
         return cls(
             tensor=tensor,
