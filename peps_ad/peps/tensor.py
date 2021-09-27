@@ -56,7 +56,7 @@ class PEPS_Tensor:
 
     def __post_init__(self) -> None:
         # Copied from https://stackoverflow.com/questions/50563546/validating-detailed-types-in-python-dataclasses
-        for field_name, field_def in self.__dataclass_fields__.items(): # type: ignore
+        for field_name, field_def in self.__dataclass_fields__.items():  # type: ignore
             evaled_type = eval(field_def.type)
             if isinstance(evaled_type, typing._SpecialForm):
                 # No check for typing.Any, typing.Union, typing.ClassVar (without parameters)
