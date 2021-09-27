@@ -14,6 +14,8 @@ scipy = "^1.7.1"
 jax = {extras = ["cpu"], version = "^0.2.20"}
 tensornetwork = "^0.4.5"
 poethepoet = "^0.10.0"
+Sphinx = "^4.2.0"
+sphinx-rtd-theme = "^1.0.0"
 
 [tool.poetry.dev-dependencies]
 black = "^21.8-beta.0"

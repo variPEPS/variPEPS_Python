@@ -33,15 +33,16 @@ class PEPS_Random_Number_Generator:
         the specific backend
 
         Args:
-          seed (int, optional): Seed for the random number generator. If there
-                                is already a instance of the generator, this
-                                parameter is ignored.
+          seed (:obj:`int`, optional):
+            Seed for the random number generator. If there is already a instance
+            of the generator, this parameter is ignored.
         Keyword args:
-          backend (str, optional): Backend which should be used as random number
-                                   generator. May be "jax" or "numpy".
-                                   Default: "jax".
+          backend (:obj:`str`, optional):
+            Backend which should be used as random number generator. May be
+            ``jax`` or ``numpy``. Defaults to ``jax``.
         Returns:
-          Instance of random number generator implementation.
+          :obj:`PEPS_Jax_Random` or :obj:`PEPS_Numpy_Random`:
+            Instance of random number generator implementation.
         """
         if backend == "jax":
             if cls.__instance_jax is None:
@@ -86,11 +87,16 @@ class PEPS_Random_Impl(abc.ABC):
         Generate a tensor with random numbers.
 
         Args:
-          dim (sequence(int)): Sequence with the dimensions of the tensor
-          dtype (numpy or jax.numpy.dtype): Dtype of the generated tensors
+          dim (:term:`sequence` of :obj:`int`):
+            Sequence with the dimensions of the tensor
+          dtype (:obj:`numpy.dtype` or :obj:`jax.numpy.dtype`):
+            Dtype of the generated tensors
         Keyword args:
-          normalize (bool, optional): Flag if the generated tensors are
-                                      normalized. Default: True
+          normalize (:obj:`bool`, optional):
+            Flag if the generated tensors are  normalized. Defaults to True.
+        Returns:
+          :obj:`jax.numpy.ndarray` or :obj:`numpy.ndarray`:
+            Tensor with random numbers and the specified shape.
         """
         pass
 
@@ -100,7 +106,8 @@ class PEPS_Numpy_Random(PEPS_Random_Impl):
     Numpy implementation for the random number generator.
 
     Args:
-      seed (int, optional): Seed for the generator.
+      seed (:obj:`int`, optional):
+        Seed for the generator.
     """
 
     def __init__(self, seed: Optional[int] = None):
@@ -129,7 +136,8 @@ class PEPS_Jax_Random(PEPS_Random_Impl):
     Jax implementation for the random number generator.
 
     Args:
-      seed (int, optional): Seed for the generator.
+      seed (:obj:`int`, optional):
+        Seed for the generator.
     """
 
     def __init__(self, seed: Optional[int] = None):

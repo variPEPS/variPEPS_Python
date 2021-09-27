@@ -28,18 +28,28 @@ class PEPS_Tensor:
     Class to model a single a PEPS tensor with the corresponding CTM tensors.
 
     Args:
-      tensor (numpy.ndarray or jax.ndarray): PEPS tensor
-      C1 (numpy.ndarray or jax.ndarray): C1 tensor
-      C2 (numpy.ndarray or jax.ndarray): C2 tensor
-      C3 (numpy.ndarray or jax.ndarray): C3 tensor
-      C4 (numpy.ndarray or jax.ndarray): C4 tensor
-      T1 (numpy.ndarray or jax.ndarray): T1 tensor
-      T2 (numpy.ndarray or jax.ndarray): T2 tensor
-      T3 (numpy.ndarray or jax.ndarray): T3 tensor
-      T4 (numpy.ndarray or jax.ndarray): T4 tensor
-      d (int): Physical dimension of the PEPS tensor
-      D (sequence(int)): Sequence of the bond dimensions of the PEPS tensor
-      chi (int): Bond dimension for the CTM tensors
+      tensor (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        PEPS tensor
+      C1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        C1 tensor
+      C2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        C2 tensor
+      C3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        C3 tensor
+      C4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        C4 tensor
+      T1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T1 tensor
+      T2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T2 tensor
+      T3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T3 tensor
+      T4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T4 tensor
+      d (:obj:`int`): Physical dimension of the PEPS tensor
+      D (:term:`sequence` of :obj:`int`):
+        Sequence of the bond dimensions of the PEPS tensor
+      chi (:obj:`int`): Bond dimension for the CTM tensors
     """
 
     tensor: Tensor
@@ -120,24 +130,28 @@ class PEPS_Tensor:
         Randomly initialize a PEPS tensor with CTM tensors.
 
         Args:
-          d (int): Physical dimension
-          D (int or sequence(int)): Bond dimensions for the PEPS tensor
-          chi (int): Bond dimension for the environment tensors
-          dtype (numpy or jax.numpy.dtype): Dtype of the generated tensors
+          d (:obj:`int`):
+            Physical dimension
+          D (:obj:`int` or :term:`sequence` of :obj:`int`):
+            Bond dimensions for the PEPS tensor
+          chi (:obj:`int`):
+            Bond dimension for the environment tensors
+          dtype (:obj:`numpy.dtype` or :obj:`jax.numpy.dtype`):
+            Dtype of the generated tensors
         Keyword args:
-          ctm_tensors_are_identities (bool, optional): Flag if the CTM tensors
-                                                       are initialized as
-                                                       identities. Otherwise,
-                                                       they are initialized
-                                                       randomly.
-                                                       Default: True
-          normalize (bool, optional): Flag if the generated tensors are
-                                      normalized. Default: True
-          seed (int, optional): Seed for the random number generator.
-          backend (str, optional): Backend for the generated tensors (may be
-                                   "jax" or "numpy"). Default: "jax"
+          ctm_tensors_are_identities (:obj:`bool`, optional):
+            Flag if the CTM tensors are initialized as identities. Otherwise,
+            they are initialized randomly. Defaults to True.
+          normalize (:obj:`bool`, optional):
+            Flag if the generated tensors are normalized. Defaults to True.
+          seed (:obj:`int`, optional):
+            Seed for the random number generator.
+          backend (:obj:`str`, optional):
+            Backend for the generated tensors (may be ``jax`` or ``numpy``).
+            Defaults to ``jax``.
         Returns:
-          Instance of PEPS_Tensor with the randomly initialized tensors.
+          PEPS_Tensor:
+            Instance of PEPS_Tensor with the randomly initialized tensors.
         """
         if isinstance(D, int):
             D = (D,) * 4

@@ -29,37 +29,40 @@ class PEPS_Unit_Cell:
     the first index corresponding to the x-axis and the second one to the y-axis.
     The array consists of integer labeling the different unique peps tensors
     in one unit cell (either starting with 0 or 1).
-    For example for two rows with a AB/BA structure:
+    For example for two rows with a AB/BA structure::
 
-    structure = [[0, 1],
-                 [1, 0]]
+      structure = [[0, 1],
+                   [1, 0]]
 
     Args:
-      data (PEPS_Unit_Cell._Unit_Cell_Data): Instance of unit cell data class
-      real_ix (int): Which real x index of data.structure correspond to x = 0 of
-                     this unit cell instance.
-      real_iy (int): Which real y index of data.structure correspond to y = 0 of
-                     this unit cell instance.
+      data (:obj:`Unit_Cell_Data`):
+        Instance of unit cell data class
+      real_ix (:obj:`int`):
+        Which real x index of data.structure correspond to x = 0 of this unit
+        cell instance.
+      real_iy (:obj:`int`):
+        Which real y index of data.structure correspond to y = 0 of this unit
+        cell instance.
     """
 
-    data: _Unit_Cell_Data
+    data: PEPS_Unit_Cell.Unit_Cell_Data
 
     real_ix: int = 0
     real_iy: int = 0
 
     @dataclass
     @register_pytree_node_class
-    class _Unit_Cell_Data:
+    class Unit_Cell_Data:
         """
         Class to encapsulate the data of the unit cell which can be shared by
         more than one instance.
 
         Args:
-          peps_tensors (seq(PEPS_Tensor)): Sequence with the unique peps tensors
-          structure (2d jax.numpy.ndarray): Two dimensional array modeling the
-                                            structure of the unit cell. For
-                                            details see the description of the
-                                            parent unit cell class.
+          peps_tensors (:term:`sequence` of :obj:`PEPS_Tensor`):
+            Sequence with the unique peps tensors
+          structure (2d :obj:`jax.numpy.ndarray`):
+            Two dimensional array modeling the structure of the unit cell. For
+            details see the description of the parent unit cell class.
         """
 
         peps_tensors: Sequence[PEPS_Tensor]
@@ -141,23 +144,29 @@ class PEPS_Unit_Cell:
         structure given.
 
         Args:
-          structure (seq(seq(int)) or 2d array): Two dimensional array modeling
-                                                 the structure of the unit cell.
-                                                 For details see the description
-                                                 of the parent unit cell class.
-          d (int or seq(int)): Physical dimension. If sequence, physical of each
-                               unique PEPS tensor separately.
-          D (int or seq(seq(int))): Bond dimension of PEPS tensor. If sequence,
-                                    dimension of each unique PEPS tensor separately.
-          chi (int or seq(int)): Bond dimension of environment tensors. If sequence,
-                                 dimension of each unique PEPS tensor separately.
-          dtype (type(jax.numpy.number)): Data type of the PEPS tensors.
+          structure (:term:`sequence` of :term:`sequence` of :obj:`int` or 2d array):
+            Two dimensional array modeling the structure of the unit cell. For
+            details see the description of the parent unit cell class.
+          d (:obj:`int` or :term:`sequence` of :obj:`int`):
+            Physical dimension. If sequence, physical of each unique PEPS
+            tensor separately.
+          D (:obj:`int` or :term:`sequence` of :term:`sequence` of :obj:`int`):
+            Bond dimension of PEPS tensor. If sequence, dimension of each unique
+            PEPS tensor separately.
+          chi (:obj:`int` or :term:`sequence` of :obj:`int`):
+            Bond dimension of environment tensors. If sequence, dimension of
+            each unique PEPS tensor separately.
+          dtype (:term:`type` of :obj:`jax.numpy.number`):
+            Data type of the PEPS tensors.
         Keyword args:
-          seed (int, optional): Seed for random number generator
-          destroy_random_state (bool): Destroy state of random number generator
-                                       and reinitialize it. Defaults to true.
+          seed (:obj:`int`, optional):
+            Seed for random number generator
+          destroy_random_state (:obj:`bool`):
+            Destroy state of random number generator and reinitialize it.
+            Defaults to True.
         Returns:
-          New instance of PEPS unit cell with the initialized tensors.
+          PEPS_Unit_Cell:
+            New instance of PEPS unit cell with the initialized tensors.
         """
         structure_arr = jnp.asarray(structure)
 
@@ -205,7 +214,7 @@ class PEPS_Unit_Cell:
                 PEPS_Tensor.random(d=d[i], D=D[i], chi=chi[i], dtype=dtype, seed=seed)
             )
 
-        data = cls._Unit_Cell_Data(peps_tensors=peps_tensors, structure=structure_arr)
+        data = cls.Unit_Cell_Data(peps_tensors=peps_tensors, structure=structure_arr)
 
         return cls(data=data)
 
@@ -216,11 +225,12 @@ class PEPS_Unit_Cell:
         Get PEPS tensors according to unit cell structure.
 
         Args:
-          key (tuple with 2 elements): x and y coordinates to select. Can be
-                                       either integers or slices. Negative
-                                       numbers as selectors are supported.
+          key (:obj:`tuple` of 2 :obj:`int` or :obj:`slice` elements):
+            x and y coordinates to select. Can be either integers or slices.
+            Negative numbers as selectors are supported.
         Returns:
-          2d list with the selected PEPS tensor objects.
+          :obj:`list` of :obj:`list` of :obj:`PEPS_Tensor`:
+            2d list with the selected PEPS tensor objects.
         """
         if not isinstance(key, tuple) or not len(key) == 2:
             raise TypeError("Expect a tuple with coordinates x and y.")
@@ -274,10 +284,13 @@ class PEPS_Unit_Cell:
         object or the PEPS tensors.
 
         Args:
-          new_xi (int): New x origin coordinate relative to current origin
-          new_yi (int): New y origin coordinate relative to current origin
+          new_xi (:obj:`int`):
+            New x origin coordinate relative to current origin
+          new_yi (:obj:`int`):
+            New y origin coordinate relative to current origin
         Returns:
-          PEPS unit cell with shifted origin.
+          PEPS_Unit_Cell:
+            PEPS unit cell with shifted origin.
         """
         if not isinstance(new_xi, int) or not isinstance(new_yi, int):
             raise ValueError("New indices have to be integers.")
