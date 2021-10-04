@@ -4,21 +4,25 @@ Implementation of a single PEPS tensor
 
 from __future__ import annotations
 
+import collections
 from dataclasses import dataclass
 
 import numpy as np
+import jax
 import jax.numpy as jnp
+from jax.tree_util import register_pytree_node_class
 
 from peps_ad.utils.random import PEPS_Random_Number_Generator
 
 import typing
-from typing import TypeVar, Type, Union, Optional, Sequence
+from typing import TypeVar, Type, Union, Optional, Sequence, Tuple, Any
 from peps_ad.typing import Tensor
 
 T_PEPS_Tensor = TypeVar("T_PEPS_Tensor", bound="PEPS_Tensor")
 
 
 @dataclass
+@register_pytree_node_class
 class PEPS_Tensor:
     """
     Class to model a single a PEPS tensor with the corresponding CTM tensors.
@@ -51,12 +55,15 @@ class PEPS_Tensor:
     T4: Tensor
 
     d: int
-    D: Sequence[int]
+    D: Tuple[int, int, int, int]
     chi: int
 
     def __post_init__(self) -> None:
         # Copied from https://stackoverflow.com/questions/50563546/validating-detailed-types-in-python-dataclasses
         for field_name, field_def in self.__dataclass_fields__.items():  # type: ignore
+            actual_value = getattr(self, field_name)
+            if isinstance(actual_value, jax.core.Tracer):
+                continue
             evaled_type = eval(field_def.type)
             if isinstance(evaled_type, typing._SpecialForm):
                 # No check for typing.Any, typing.Union, typing.ClassVar (without parameters)
@@ -65,14 +72,18 @@ class PEPS_Tensor:
                 actual_type = evaled_type.__origin__
             except:
                 actual_type = evaled_type
-            actual_value = getattr(self, field_name)
             if isinstance(actual_type, typing._SpecialForm):
                 # case of typing.Union[…] or typing.ClassVar[…]
                 actual_type = evaled_type.__args__
             if not isinstance(actual_value, actual_type):
                 raise ValueError(
-                    f"Invalid type for field '{field_name}'. Expected '{field_def.type}'"
+                    f"Invalid type for field '{field_name}'. Expected '{field_def.type}', got '{type(field_name)}.'"
                 )
+
+        if not len(self.D) == 4:
+            raise ValueError(
+                "The bond dimension of the PEPS tensor has to be a tuple of four entries."
+            )
 
         if (
             self.tensor.shape[0] != self.D[0]
@@ -129,7 +140,9 @@ class PEPS_Tensor:
           Instance of PEPS_Tensor with the randomly initialized tensors.
         """
         if isinstance(D, int):
-            D = [D] * 4
+            D = (D,) * 4
+        elif isinstance(D, collections.abc.Sequence) and not isinstance(D, tuple):
+            D = tuple(D)
 
         if not all(isinstance(i, int) for i in D) or not len(D) == 4:
             raise ValueError("Invalid argument for D.")
@@ -173,3 +186,15 @@ class PEPS_Tensor:
             D=D,
             chi=chi,
         )
+
+    def tree_flatten(self) -> Tuple[Tuple[...], Tuple[...]]:
+        field_names = tuple(self.__dataclass_fields__.keys())
+        field_values = tuple(getattr(self, name) for name in field_names)
+
+        return (field_values, field_names)
+
+    @classmethod
+    def tree_unflatten(
+        cls: T_PEPS_Tensor, aux_data: Tuple[...], children: Sequence[Any]
+    ) -> T_PEPS_Tensor:
+        return cls(**dict(jax.util.safe_zip(aux_data, children)))

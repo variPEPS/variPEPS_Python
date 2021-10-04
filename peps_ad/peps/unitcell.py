@@ -6,18 +6,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import jax
 import jax.numpy as jnp
+from jax.tree_util import register_pytree_node_class
 
 from .tensor import PEPS_Tensor
 from peps_ad.utils.random import PEPS_Random_Number_Generator
 
-from typing import TypeVar, Type, Union, Optional, Sequence, Tuple, List
+from typing import TypeVar, Type, Union, Optional, Sequence, Tuple, List, Any
 from peps_ad.typing import Tensor
 
 T_PEPS_Unit_Cell = TypeVar("T_PEPS_Unit_Cell", bound="PEPS_Unit_Cell")
 
 
 @dataclass
+@register_pytree_node_class
 class PEPS_Unit_Cell:
     """
     Class to model a unit cell of a PEPS structure.
@@ -45,6 +48,7 @@ class PEPS_Unit_Cell:
     real_iy: int = 0
 
     @dataclass
+    @register_pytree_node_class
     class _Unit_Cell_Data:
         """
         Class to encapsulate the data of the unit cell which can be shared by
@@ -61,6 +65,20 @@ class PEPS_Unit_Cell:
         peps_tensors: Sequence[PEPS_Tensor]
 
         structure: jnp.ndarray
+
+        def tree_flatten(self) -> Tuple[Tuple[...], Tuple[...]]:
+            field_names = tuple(self.__dataclass_fields__.keys())
+            field_values = tuple(getattr(self, name) for name in field_names)
+
+            return (field_values, field_names)
+
+        @classmethod
+        def tree_unflatten(
+            cls: Type[PEPS_Unit_Cell._Unit_Cell_Data],
+            aux_data: Tuple[...],
+            children: Sequence[Any],
+        ) -> PEPS_Unit_Cell._Unit_Cell_Data:
+            return cls(**dict(jax.util.safe_zip(aux_data, children)))
 
     def __post_init__(self):
         self._check_structure(self.data.structure)
@@ -155,7 +173,7 @@ class PEPS_Unit_Cell:
             )
 
         if isinstance(D, int):
-            D = [[D, D, D, D] for _ in range(tensors_i.size)]
+            D = [(D, D, D, D) for _ in range(tensors_i.size)]
 
         if (
             not all(isinstance(j, int) for i in D for j in i)
@@ -272,3 +290,15 @@ class PEPS_Unit_Cell:
             real_ix=(self.real_ix + new_xi) % unit_cell_len_x,
             real_iy=(self.real_iy + new_yi) % unit_cell_len_y,
         )
+
+    def tree_flatten(self) -> Tuple[Tuple[...], Tuple[...]]:
+        field_names = tuple(self.__dataclass_fields__.keys())
+        field_values = tuple(getattr(self, name) for name in field_names)
+
+        return (field_values, field_names)
+
+    @classmethod
+    def tree_unflatten(
+        cls: T_PEPS_Unit_Cell, aux_data: Tuple[...], children: Sequence[Any]
+    ) -> T_PEPS_Unit_Cell:
+        return cls(**dict(jax.util.safe_zip(aux_data, children)))
