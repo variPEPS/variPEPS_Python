@@ -13,6 +13,7 @@ numpy = "^1.21.2"
 scipy = "^1.7.1"
 jax = {extras = ["cpu"], version = "^0.2.20"}
 tensornetwork = "^0.4.5"
+poethepoet = "^0.10.0"
 
 [tool.poetry.dev-dependencies]
 black = "^21.8-beta.0"
@@ -24,3 +25,6 @@ mypy = "^0.910"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poe.tasks]
+use-cuda111 = "pip install --upgrade 'jax[cuda111]' -f https://storage.googleapis.com/jax-releases/jax_releases.html"
