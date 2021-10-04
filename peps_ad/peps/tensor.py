@@ -80,7 +80,7 @@ class PEPS_Tensor:
                 continue
             try:
                 actual_type = evaled_type.__origin__
-            except:
+            except AttributeError:
                 actual_type = evaled_type
             if isinstance(actual_type, typing._SpecialForm):
                 # case of typing.Union[…] or typing.ClassVar[…]
