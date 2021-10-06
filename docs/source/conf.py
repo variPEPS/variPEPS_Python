@@ -45,9 +45,10 @@ autodoc_type_aliases = {
     "T_PEPS_Unit_Cell": "PEPS_Unit_Cell",
     "T_PEPS_Tensor": "PEPS_Tensor",
     "PEPS_Unit_Cell.Unit_Cell_Data": "peps_ad.peps.PEPS_Unit_Cell.Unit_Cell_Data",
+    "jax._src.numpy.lax_numpy.ndarray": "jax.numpy.ndarray",
 }
 
-autodoc_mock_imports = ["jax"]
+#autodoc_mock_imports = ["jax"]
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
