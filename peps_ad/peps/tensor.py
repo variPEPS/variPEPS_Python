@@ -21,7 +21,7 @@ from peps_ad.typing import Tensor
 T_PEPS_Tensor = TypeVar("T_PEPS_Tensor", bound="PEPS_Tensor")
 
 
-@dataclass
+@dataclass(frozen=True)
 @register_pytree_node_class
 class PEPS_Tensor:
     """

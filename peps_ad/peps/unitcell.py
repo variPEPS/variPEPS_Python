@@ -19,7 +19,7 @@ from peps_ad.typing import Tensor
 T_PEPS_Unit_Cell = TypeVar("T_PEPS_Unit_Cell", bound="PEPS_Unit_Cell")
 
 
-@dataclass
+@dataclass(frozen=True)
 @register_pytree_node_class
 class PEPS_Unit_Cell:
     """
@@ -50,7 +50,7 @@ class PEPS_Unit_Cell:
     real_ix: int = 0
     real_iy: int = 0
 
-    @dataclass
+    @dataclass(frozen=True)
     @register_pytree_node_class
     class Unit_Cell_Data:
         """
