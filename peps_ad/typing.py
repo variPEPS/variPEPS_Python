@@ -10,7 +10,9 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 
-Tensor = Union[np.ndarray, jax.numpy.ndarray]  #: Typing object for a numpy or jax tensor
+Tensor = Union[
+    np.ndarray, jax.numpy.ndarray
+]  #: Typing object for a numpy or jax tensor
 
 
 def is_tensor(a: Any) -> bool:

@@ -4,6 +4,7 @@ Helpers to apply contractions.
 
 import collections
 
+import jax
 import jax.numpy as jnp
 import tensornetwork as tn
 
@@ -16,7 +17,8 @@ from typing import Sequence
 
 def apply_contraction(
     name: str,
-    peps_tensors: Sequence[PEPS_Tensor],
+    peps_tensors: Sequence[jnp.ndarray],
+    peps_tensor_objs: Sequence[PEPS_Tensor],
     additional_tensors: Sequence[jnp.ndarray],
 ) -> jnp.ndarray:
     """
@@ -29,14 +31,29 @@ def apply_contraction(
       name (:obj:`str`):
         Name of the contraction. Must be a class attribute of the class
         :class:`peps_ad.contractions.Definitions`.
-      peps_tensors (:term:`sequence` of :obj:`PEPS_Tensor`):
-        The PEPS tensor objects that should be contracted.
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The PEPS tensor arrays that should be contracted.
+      peps_tensor_objs (:term:`sequence` of :obj:`~peps_ad.peps.PEPS_Tensor`):
+        The PEPS tensor objects corresponding the the arrays. These arguments are
+        split up due to limitation of the jax library.
       additional_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
         Additional non-PEPS tensors which should be contracted (e.g. gates).
     Returns:
       jax.numpy.ndarray:
         The contracted tensor.
     """
+    if len(peps_tensors) != len(peps_tensor_objs):
+        raise ValueError(
+            "Number of PEPS tensors have to match number of PEPS tensor objects."
+        )
+
+    if not all(isinstance(t, jax.core.Tracer) for t in peps_tensors) and not all(
+        peps_tensors[i] is peps_tensor_objs[i].tensor for i in range(len(peps_tensors))
+    ):
+        raise ValueError(
+            "Sequence of PEPS tensors mismatch the objects sequence. Please check your code!"
+        )
+
     contraction = getattr(Definitions, name)
 
     filter_peps_tensors = []
@@ -92,10 +109,12 @@ def apply_contraction(
 
     for ti, t_filter in enumerate(filter_peps_tensors):
         for f in t_filter:
-            if f == "tensor_conj":
-                tensors.append(getattr(peps_tensors[ti], "tensor").conj())
+            if f == "tensor":
+                tensors.append(peps_tensors[ti])
+            elif f == "tensor_conj":
+                tensors.append(peps_tensors[ti].conj())
             else:
-                tensors.append(getattr(peps_tensors[ti], f))
+                tensors.append(getattr(peps_tensor_objs[ti], f))
 
     tensors += additional_tensors
 

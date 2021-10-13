@@ -1,4 +1,5 @@
 from . import contractions
+from . import expectation
 from . import models
 from . import peps
 from . import typing
