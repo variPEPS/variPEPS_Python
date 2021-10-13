@@ -133,3 +133,55 @@ class Definitions:
             ]
         ],
     }
+
+    ctmrg_top_left = {
+        "tensors": [["tensor", "tensor_conj", "T4", "C1", "T1"]],
+        "network": [
+            [
+                (3, -2, 7, -5, 4),  # tensor
+                (5, -3, 7, -6, 6),  # tensor_conj
+                (-1, 5, 3, 1),  # T4
+                (1, 2),  # C1
+                (2, 4, 6, -4),  # T1
+            ]
+        ],
+    }
+
+    ctmrg_top_right = {
+        "tensors": [["tensor", "tensor_conj", "T1", "C2", "T2"]],
+        "network": [
+            [
+                (-2, -6, 7, 4, 3),  # tensor
+                (-3, -5, 7, 6, 5),  # tensor_conj
+                (-1, 3, 5, 1),  # T1
+                (1, 2),  # C2
+                (4, 6, -4, 2),  # T2
+            ]
+        ],
+    }
+
+    ctmrg_bottom_left = {
+        "tensors": [["tensor", "tensor_conj", "T3", "C4", "T4"]],
+        "network": [
+            [
+                (3, 4, 7, -3, -5),  # tensor
+                (5, 6, 7, -2, -6),  # tensor_conj
+                (2, -1, 6, 4),  # T3
+                (2, 1),  # C4
+                (1, 5, 3, -4),  # T4
+            ]
+        ],
+    }
+
+    ctmrg_bottom_right = {
+        "tensors": [["tensor", "tensor_conj", "T2", "T3", "C3"]],
+        "network": [
+            [
+                (-6, 3, 7, 4, -3),  # tensor
+                (-5, 5, 7, 6, -2),  # tensor_conj
+                (4, 6, 2, -1),  # T2
+                (-4, 1, 5, 3),  # T3
+                (1, 2),  # C3
+            ]
+        ],
+    }
