@@ -136,7 +136,7 @@ def calc_two_sites_vertical_multiple_gates(
     )
 
     density_matrix_2 = apply_contraction(
-        "density_matrix_two_sites_buttom", [peps_tensors[1]], [peps_tensor_objs[1]], []
+        "density_matrix_two_sites_bottom", [peps_tensors[1]], [peps_tensor_objs[1]], []
     )
 
     real_result = all(jnp.allclose(g, jnp.real(g)) for g in gates)

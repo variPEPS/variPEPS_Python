@@ -75,16 +75,16 @@ class Definitions:
     }
 
     density_matrix_two_sites_left = {
-        "tensors": [["tensor", "tensor_conj", "C1", "T1", "T4", "C4", "T3"]],
+        "tensors": [["tensor", "tensor_conj", "C1", "T1", "T3", "C4", "T4"]],
         "network": [
             [
                 (5, 9, -1, -4, 4),  # tensor
                 (7, 10, -2, -5, 6),  # tensor_conj
                 (1, 3),  # C1
                 (3, 4, 6, -3),  # T1
-                (8, 7, 5, 1),  # T4
-                (2, 8),  # C4
                 (2, -6, 10, 9),  # T3
+                (2, 8),  # C4
+                (8, 7, 5, 1),  # T4
             ]
         ],
     }
@@ -105,7 +105,7 @@ class Definitions:
     }
 
     density_matrix_two_sites_top = {
-        "tensors": [["tensor", "tensor_conj", "C1", "T1", "C2", "T4", "T2"]],
+        "tensors": [["tensor", "tensor_conj", "C1", "T1", "C2", "T2", "T4"]],
         "network": [
             [
                 (8, -4, -1, 4, 5),  # tensor
@@ -113,23 +113,23 @@ class Definitions:
                 (2, 10),  # C1
                 (10, 5, 7, 1),  # T1
                 (1, 3),  # C2
-                (-3, 9, 8, 2),  # T4
                 (4, 6, -6, 3),  # T2
+                (-3, 9, 8, 2),  # T4
             ]
         ],
     }
 
-    density_matrix_two_sites_buttom = {
-        "tensors": [["tensor", "tensor_conj", "T4", "T2", "C4", "T3", "C3"]],
+    density_matrix_two_sites_bottom = {
+        "tensors": [["tensor", "tensor_conj", "T2", "C3", "T3", "C4", "T4"]],
         "network": [
             [
                 (4, 5, -5, 8, -2),  # tensor
                 (6, 7, -6, 9, -3),  # tensor_conj
-                (3, 6, 4, -1),  # T4
                 (8, 9, 2, -4),  # T2
-                (1, 3),  # C4
-                (1, 10, 7, 5),  # T3
                 (10, 2),  # C3
+                (1, 10, 7, 5),  # T3
+                (1, 3),  # C4
+                (3, 6, 4, -1),  # T4
             ]
         ],
     }
