@@ -12,6 +12,7 @@ This reference documents the public API of the :mod:`peps_ad` module.
    :maxdepth: 2
 
    contractions/index
+   ctmrg/index
    expectation/index
    peps/index
    typing
