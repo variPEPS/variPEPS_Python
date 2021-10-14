@@ -10,7 +10,7 @@ from typing import Sequence, List, Tuple
 def _two_site_workhorse_body(
     density_matrix_1: jnp.ndarray,
     density_matrix_2: jnp.ndarray,
-    gates: Tuple[jnp.ndarray],
+    gates: Tuple[jnp.ndarray, ...],
     real_result: bool = False,
 ) -> List[jnp.ndarray]:
     density_matrix = jnp.tensordot(
@@ -103,7 +103,7 @@ def calc_two_sites_horizontal_single_gate(
       :obj:`list` of :obj:`jax.numpy.ndarray`:
         Calculated expectation value of the gate.
     """
-    return calc_two_site_horizontal_multiple_gates(
+    return calc_two_sites_horizontal_multiple_gates(
         peps_tensors, peps_tensor_objs, [gate]
     )[0]
 
@@ -171,6 +171,6 @@ def calc_two_sites_vertical_single_gate(
       :obj:`list` of :obj:`jax.numpy.ndarray`:
         Calculated expectation value of the gate.
     """
-    return calc_two_site_vertical_multiple_gates(
+    return calc_two_sites_vertical_multiple_gates(
         peps_tensors, peps_tensor_objs, [gate]
     )[0]

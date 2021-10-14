@@ -8,7 +8,9 @@ from typing import Sequence, List, Tuple
 
 
 def _one_site_workhorse_body(
-    density_matrix: jnp.ndarray, gates: Tuple[jnp.ndarray], real_result: bool = False
+    density_matrix: jnp.ndarray,
+    gates: Tuple[jnp.ndarray, ...],
+    real_result: bool = False,
 ) -> List[jnp.ndarray]:
     norm = jnp.trace(density_matrix)
 
@@ -96,7 +98,9 @@ def calc_one_site_multi_gates_obj(
       :obj:`list` of :obj:`jax.numpy.ndarray`:
         List with the calculated expectation values of each gate.
     """
-    return calc_one_site_multi_gates(peps_tensor_obj.tensor, peps_tensor_obj, gates)
+    return calc_one_site_multi_gates(
+        jnp.asarray(peps_tensor_obj.tensor), peps_tensor_obj, gates
+    )
 
 
 def calc_one_site_single_gate_obj(
@@ -117,4 +121,6 @@ def calc_one_site_single_gate_obj(
       :obj:`jax.numpy.ndarray`:
         Expectation value for the gate.
     """
-    return calc_one_site_single_gate(peps_tensor_obj.tensor, peps_tensor_obj, gate)
+    return calc_one_site_single_gate(
+        jnp.asarray(peps_tensor_obj.tensor), peps_tensor_obj, gate
+    )

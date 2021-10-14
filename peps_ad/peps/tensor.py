@@ -197,7 +197,7 @@ class PEPS_Tensor:
             T3=T3,
             T4=T4,
             d=d,
-            D=D,
+            D=D,  # type: ignore
             chi=chi,
         )
 
@@ -227,14 +227,14 @@ class PEPS_Tensor:
             chi=self.chi,
         )
 
-    def tree_flatten(self) -> Tuple[Tuple[...], Tuple[...]]:
-        field_names = tuple(self.__dataclass_fields__.keys())
+    def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
+        field_names = tuple(self.__dataclass_fields__.keys())  # type: ignore
         field_values = tuple(getattr(self, name) for name in field_names)
 
         return (field_values, field_names)
 
     @classmethod
     def tree_unflatten(
-        cls: T_PEPS_Tensor, aux_data: Tuple[...], children: Sequence[Any]
+        cls: Type[T_PEPS_Tensor], aux_data: Tuple[str, ...], children: Sequence[Any]
     ) -> T_PEPS_Tensor:
         return cls(**dict(jax.util.safe_zip(aux_data, children)))

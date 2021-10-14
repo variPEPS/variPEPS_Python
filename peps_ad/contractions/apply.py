@@ -12,7 +12,7 @@ from peps_ad.peps import PEPS_Tensor
 
 from .definitions import Definitions
 
-from typing import Sequence
+from typing import Sequence, List, Tuple
 
 
 def apply_contraction(
@@ -56,11 +56,11 @@ def apply_contraction(
 
     contraction = getattr(Definitions, name)
 
-    filter_peps_tensors = []
-    filter_additional_tensors = []
+    filter_peps_tensors: List[Sequence[str]] = []
+    filter_additional_tensors: List[str] = []
 
-    network_peps_tensors = []
-    network_additional_tensors = []
+    network_peps_tensors: List[List[Tuple[int, ...]]] = []
+    network_additional_tensors: List[Tuple[int, ...]] = []
 
     for t in contraction["tensors"]:
         if isinstance(t, collections.abc.Sequence):
@@ -78,11 +78,11 @@ def apply_contraction(
             if len(network_additional_tensors) != 0:
                 raise ValueError("Invalid specification for contraction.")
 
-            network_peps_tensors.append(n)
+            network_peps_tensors.append(n)  # type: ignore
         elif isinstance(n, collections.abc.Sequence) and all(
             isinstance(ni, int) for ni in n
         ):
-            network_additional_tensors.append(n)
+            network_additional_tensors.append(n)  # type: ignore
         else:
             raise ValueError("Invalid specification for contraction.")
 

@@ -69,18 +69,18 @@ class PEPS_Unit_Cell:
 
         structure: jnp.ndarray
 
-        def tree_flatten(self) -> Tuple[Tuple[...], Tuple[...]]:
-            field_names = tuple(self.__dataclass_fields__.keys())
+        def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
+            field_names = tuple(self.__dataclass_fields__.keys())  # type: ignore
             field_values = tuple(getattr(self, name) for name in field_names)
 
             return (field_values, field_names)
 
         @classmethod
         def tree_unflatten(
-            cls: Type[PEPS_Unit_Cell._Unit_Cell_Data],
-            aux_data: Tuple[...],
+            cls: Type[PEPS_Unit_Cell.Unit_Cell_Data],
+            aux_data: Tuple[str, ...],
             children: Sequence[Any],
-        ) -> PEPS_Unit_Cell._Unit_Cell_Data:
+        ) -> PEPS_Unit_Cell.Unit_Cell_Data:
             return cls(**dict(jax.util.safe_zip(aux_data, children)))
 
     def __post_init__(self):
@@ -304,14 +304,14 @@ class PEPS_Unit_Cell:
             real_iy=(self.real_iy + new_yi) % unit_cell_len_y,
         )
 
-    def tree_flatten(self) -> Tuple[Tuple[...], Tuple[...]]:
-        field_names = tuple(self.__dataclass_fields__.keys())
+    def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
+        field_names = tuple(self.__dataclass_fields__.keys())  # type: ignore
         field_values = tuple(getattr(self, name) for name in field_names)
 
         return (field_values, field_names)
 
     @classmethod
     def tree_unflatten(
-        cls: T_PEPS_Unit_Cell, aux_data: Tuple[...], children: Sequence[Any]
+        cls: Type[T_PEPS_Unit_Cell], aux_data: Tuple[str, ...], children: Sequence[Any]
     ) -> T_PEPS_Unit_Cell:
         return cls(**dict(jax.util.safe_zip(aux_data, children)))
