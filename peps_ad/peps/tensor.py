@@ -201,6 +201,32 @@ class PEPS_Tensor:
             chi=chi,
         )
 
+    def replace_tensor(self: T_PEPS_Tensor, new_tensor: Tensor) -> T_PEPS_Tensor:
+        """
+        Replace the PEPS tensor and returns new object of the class.
+
+        Args:
+          new_tensor (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New PEPS tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensor replaced.
+        """
+        return type(self)(
+            tensor=new_tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
     def tree_flatten(self) -> Tuple[Tuple[...], Tuple[...]]:
         field_names = tuple(self.__dataclass_fields__.keys())
         field_values = tuple(getattr(self, name) for name in field_names)
