@@ -13,7 +13,7 @@ from jax.tree_util import register_pytree_node_class
 from .tensor import PEPS_Tensor
 from peps_ad.utils.random import PEPS_Random_Number_Generator
 
-from typing import TypeVar, Type, Union, Optional, Sequence, Tuple, List, Any
+from typing import TypeVar, Type, Union, Optional, Sequence, Tuple, List, Any, Iterator
 from peps_ad.typing import Tensor
 
 T_PEPS_Unit_Cell = TypeVar("T_PEPS_Unit_Cell", bound="PEPS_Unit_Cell")
@@ -303,6 +303,92 @@ class PEPS_Unit_Cell:
             real_ix=(self.real_ix + new_xi) % unit_cell_len_x,
             real_iy=(self.real_iy + new_yi) % unit_cell_len_y,
         )
+
+    def iter_one_column(
+        self: T_PEPS_Unit_Cell, fixed_y: int
+    ) -> Iterator[T_PEPS_Unit_Cell]:
+        """
+        Get a iterator over a single column with a fixed y value.
+
+        Args:
+          fixed_y (int):
+            Fixed y value.
+        Returns:
+          :term:`iterator`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
+            Iterator over one column of the unit cell with the current PEPS
+            tensor at moved position (0, 0).
+        """
+        unit_cell_len_x = self.data.structure.shape[0]
+
+        for x in range(unit_cell_len_x):
+            yield self.move(x, fixed_y)
+
+    def iter_all_columns(
+        self: T_PEPS_Unit_Cell, *, reverse: bool = False
+    ) -> Iterator[Iterator[T_PEPS_Unit_Cell]]:
+        """
+        Get a iterator over all columns.
+
+        This function calls :obj:`~peps_ad.peps.PEPS_Unit_Cell.iter_one_column`
+        for all columns and yields the resulting iterator.
+
+        Returns:
+          :term:`iterator`\ (:term:`iterator`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`)):
+            Iterator for all columns over the iterator for single column with
+            the current PEPS tensor at moved position (0, 0).
+        """
+        unit_cell_len_y = self.data.structure.shape[1]
+
+        if reverse:
+            yiter = range(unit_cell_len_y - 1, -1, -1)
+        else:
+            yiter = range(unit_cell_len_y)
+
+        for y in yiter:
+            yield self.iter_one_column(y)
+
+    def iter_one_row(
+        self: T_PEPS_Unit_Cell, fixed_x: int
+    ) -> Iterator[T_PEPS_Unit_Cell]:
+        """
+        Get a iterator over a single row with a fixed x value.
+
+        Args:
+          fixed_x (int):
+            Fixed x value.
+        Returns:
+          :term:`iterator`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
+            Iterator over one row of the unit cell with the current PEPS
+            tensor at moved position (0, 0).
+        """
+        unit_cell_len_y = self.data.structure.shape[1]
+
+        for y in range(unit_cell_len_y):
+            yield self.move(fixed_x, y)
+
+    def iter_all_rows(
+        self: T_PEPS_Unit_Cell, *, reverse: bool = False
+    ) -> Iterator[Iterator[T_PEPS_Unit_Cell]]:
+        """
+        Get a iterator over all rows.
+
+        This function calls :obj:`~peps_ad.peps.PEPS_Unit_Cell.iter_one_row`
+        for all rows and yields the resulting iterator.
+
+        Returns:
+          :term:`iterator`\ (:term:`iterator`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`)):
+            Iterator for all rows over the iterator for single row with
+            the current PEPS tensor at moved position (0, 0).
+        """
+        unit_cell_len_x = self.data.structure.shape[0]
+
+        if reverse:
+            xiter = range(unit_cell_len_x - 1, -1, -1)
+        else:
+            xiter = range(unit_cell_len_x)
+
+        for x in xiter:
+            yield self.iter_one_column(x)
 
     def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
         field_names = tuple(self.__dataclass_fields__.keys())  # type: ignore
