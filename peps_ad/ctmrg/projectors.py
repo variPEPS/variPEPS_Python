@@ -1,3 +1,5 @@
+from functools import partial
+
 import jax.numpy as jnp
 from jax import jit
 
@@ -40,17 +42,16 @@ def _calc_ctmrg_quarters(
 
 
 def _truncated_SVD(
-    matrix: jnp.ndarray, chi: int, eps: float = 1e-8
+    matrix: jnp.ndarray, chi: int, *, eps: float = 1e-8
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     U, S, Vh = jnp.linalg.svd(matrix, full_matrices=False)
 
     # Truncate the singular values
-    newChi = jnp.sum((S[:chi] / S[0]) > eps)
-    S = S[:newChi]
-    U = U[:, :newChi]
-    Vh = Vh[:newChi, :]
+    S = S[:chi]
+    U = U[:, :chi]
+    Vh = Vh[:chi, :]
 
-    S_inv_sqrt = 1 / jnp.sqrt(S)
+    S_inv_sqrt = jnp.where((S / S[0]) > eps, 1 / jnp.sqrt(S), 0)
 
     return S_inv_sqrt, U, Vh
 
@@ -123,7 +124,7 @@ def _vertical_cut(
     )
 
 
-@jit
+@partial(jit, static_argnums=(4,))
 def _left_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -182,7 +183,7 @@ def calc_left_projectors(
     )
 
 
-@jit
+@partial(jit, static_argnums=(4,))
 def _right_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -241,7 +242,7 @@ def calc_right_projectors(
     )
 
 
-@jit
+@partial(jit, static_argnums=(4,))
 def _top_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -300,7 +301,7 @@ def calc_top_projectors(
     )
 
 
-@jit
+@partial(jit, static_argnums=(4,))
 def _bottom_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
