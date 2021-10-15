@@ -185,3 +185,159 @@ class Definitions:
             ]
         ],
     }
+
+    ctmrg_absorption_left_C1 = {
+        "tensors": [["C1", "T1"], "projector_left_bottom"],
+        "network": [
+            [
+                (2, 1),  # C1
+                (1, 3, 4, -2),  # T1
+            ],
+            (-1, 2, 3, 4),  # projector_left_bottom
+        ],
+    }
+
+    ctmrg_absorption_left_T4 = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T4"],
+            "projector_left_top",
+            "projector_left_bottom",
+        ],
+        "network": [
+            [
+                (3, 8, 6, -3, 2),  # tensor
+                (4, 9, 6, -2, 5),  # tensor_conj
+                (7, 4, 3, 1),  # T4
+            ],
+            (1, 2, 5, -4),  # projector_left_top
+            (-1, 7, 8, 9),  # projector_left_bottom
+        ],
+    }
+
+    ctmrg_absorption_left_C4 = {
+        "tensors": [["T3", "C4"], "projector_left_top"],
+        "network": [
+            [
+                (1, -1, 4, 3),  # T3
+                (1, 2),  # C4
+            ],
+            (2, 3, 4, -2),  # projector_left_top
+        ],
+    }
+
+    ctmrg_absorption_right_C2 = {
+        "tensors": [["T1", "C2"], "projector_right_bottom"],
+        "network": [
+            [
+                (-1, 3, 4, 1),  # T1
+                (1, 2),  # C2
+            ],
+            (2, 4, 3, -2),  # projector_right_bottom
+        ],
+    }
+
+    ctmrg_absorption_right_T2 = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T2"],
+            "projector_right_top",
+            "projector_right_bottom",
+        ],
+        "network": [
+            [
+                (-1, 8, 6, 3, 2),  # tensor
+                (-2, 9, 6, 5, 4),  # tensor_conj
+                (3, 5, 7, 1),  # T2
+            ],
+            (-4, 1, 4, 2),  # projector_right_top
+            (7, 9, 8, -3),  # projector_right_bottom
+        ],
+    }
+
+    ctmrg_absorption_right_C3 = {
+        "tensors": [["C3", "T3"], "projector_right_top"],
+        "network": [
+            [
+                (1, 2),  # C3
+                (-1, 1, 4, 3),  # T3
+            ],
+            (-2, 2, 4, 3),  # projector_right_top
+        ],
+    }
+
+    ctmrg_absorption_top_C1 = {
+        "tensors": [["T4", "C1"], "projector_top_right"],
+        "network": [
+            [
+                (-1, 4, 3, 1),  # T4
+                (1, 2),  # C1
+            ],
+            (2, 3, 4, -2),  # projector_top_right
+        ],
+    }
+
+    ctmrg_absorption_top_T1 = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T1"],
+            "projector_top_left",
+            "projector_top_right",
+        ],
+        "network": [
+            [
+                (3, -2, 6, 8, 2),  # tensor
+                (5, -3, 6, 9, 4),  # tensor_conj
+                (1, 2, 4, 7),  # T1
+            ],
+            (-1, 1, 3, 5),  # projector_top_left
+            (7, 8, 9, -4),  # projector_top_right
+        ],
+    }
+
+    ctmrg_absorption_top_C2 = {
+        "tensors": [["C2", "T2"], "projector_top_left"],
+        "network": [
+            [
+                (2, 1),  # C2
+                (3, 4, -2, 1),  # T2
+            ],
+            (-1, 2, 3, 4),  # projector_top_left
+        ],
+    }
+
+    ctmrg_absorption_bottom_C4 = {
+        "tensors": [["C4", "T4"], "projector_bottom_right"],
+        "network": [
+            [
+                (2, 1),  # C4
+                (1, 4, 3, -2),  # T4
+            ],
+            (-1, 2, 4, 3),  # projector_bottom_right
+        ],
+    }
+
+    ctmrg_absorption_bottom_T3 = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T3"],
+            "projector_bottom_left",
+            "projector_bottom_right",
+        ],
+        "network": [
+            [
+                (3, 2, 6, 8, -4),  # tensor
+                (5, 4, 6, 9, -3),  # tensor_conj
+                (1, 7, 4, 2),  # T3
+            ],
+            (1, 5, 3, -1),  # projector_bottom_left
+            (-2, 7, 9, 8),  # projector_bottom_right
+        ],
+    }
+
+    ctmrg_absorption_bottom_C3 = {
+        "tensors": [["T2", "C3"], "projector_bottom_left"],
+        "network": [
+            [
+                (3, 4, 1, -2),  # T2
+                (2, 1),  # C3
+            ],
+            (2, 4, 3, -1),  # projector_bottom_left
+        ],
+    }
