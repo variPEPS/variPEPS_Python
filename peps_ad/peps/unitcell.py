@@ -19,7 +19,7 @@ from peps_ad.typing import Tensor
 T_PEPS_Unit_Cell = TypeVar("T_PEPS_Unit_Cell", bound="PEPS_Unit_Cell")
 
 
-@dataclass(frozen=True)
+@dataclass
 @register_pytree_node_class
 class PEPS_Unit_Cell:
     """
@@ -50,7 +50,7 @@ class PEPS_Unit_Cell:
     real_ix: int = 0
     real_iy: int = 0
 
-    @dataclass(frozen=True)
+    @dataclass
     @register_pytree_node_class
     class Unit_Cell_Data:
         """
@@ -65,9 +65,22 @@ class PEPS_Unit_Cell:
             details see the description of the parent unit cell class.
         """
 
-        peps_tensors: Sequence[PEPS_Tensor]
+        peps_tensors: List[PEPS_Tensor]
 
         structure: jnp.ndarray
+
+        def copy(self) -> PEPS_Unit_Cell.Unit_Cell_Data:
+            """
+            Creates a (flat) copy of the unit cell data.
+
+            Returns:
+              ~peps_ad.peps.PEPS_Unit_Cell.Unit_Cell_Data:
+                New instance of the unit cell data class.
+            """
+            return type(self)(
+                peps_tensors=[i for i in self.peps_tensors],
+                structure=jnp.array(self.structure, copy=True),
+            )
 
         def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
             field_names = tuple(self.__dataclass_fields__.keys())  # type: ignore
@@ -218,19 +231,29 @@ class PEPS_Unit_Cell:
 
         return cls(data=data)
 
-    def __getitem__(
-        self, key: Tuple[Union[int, slice], Union[int, slice]]
-    ) -> List[List[PEPS_Tensor]]:
+    def get_size(self) -> Tuple[int, int]:
         """
-        Get PEPS tensors according to unit cell structure.
+        Returns the size of the unit cell as tuple (x_size, y_size).
+
+        Returns:
+          :obj:`tuple`\ (:obj:`int`, :obj:`int`):
+            Size of the unit cell as tuple (x_size, y_size).
+        """
+        return (self.data.structure.shape[0], self.data.structure.shape[1])
+
+    def get_indices(
+        self, key: Tuple[Union[int, slice], Union[int, slice]]
+    ) -> Sequence[Sequence[int]]:
+        """
+        Get indices of PEPS tensors according to unit cell structure.
 
         Args:
           key (:obj:`tuple` of 2 :obj:`int` or :obj:`slice` elements):
             x and y coordinates to select. Can be either integers or slices.
             Negative numbers as selectors are supported.
         Returns:
-          :obj:`list` of :obj:`list` of :obj:`PEPS_Tensor`:
-            2d list with the selected PEPS tensor objects.
+          :term:`sequence` of :term:`sequence` of :obj:`~PEPS_Tensor`:
+            2d sequence with the indices of the selected PEPS tensor objects.
         """
         if not isinstance(key, tuple) or not len(key) == 2:
             raise TypeError("Expect a tuple with coordinates x and y.")
@@ -272,9 +295,48 @@ class PEPS_Unit_Cell:
         xarr = (self.real_ix + xarr) % unit_cell_len_x
         yarr = (self.real_iy + yarr) % unit_cell_len_y
 
-        indices = (self.data.structure[xi, yarr] for xi in xarr)
+        return tuple(self.data.structure[xi, yarr] for xi in xarr)
+
+    def __getitem__(
+        self, key: Tuple[Union[int, slice], Union[int, slice]]
+    ) -> List[List[PEPS_Tensor]]:
+        """
+        Get PEPS tensors according to unit cell structure.
+
+        Args:
+          key (:obj:`tuple` of 2 :obj:`int` or :obj:`slice` elements):
+            x and y coordinates to select. Can be either integers or slices.
+            Negative numbers as selectors are supported.
+        Returns:
+          :obj:`list` of :obj:`list` of :obj:`PEPS_Tensor`:
+            2d list with the selected PEPS tensor objects.
+        """
+        indices = self.get_indices(key)
 
         return [[self.data.peps_tensors[ty] for ty in tx] for tx in indices]
+
+    def __setitem__(self, key: Tuple[int, int], value: PEPS_Tensor) -> None:
+        """
+        Set PEPS tensors according to unit cell structure.
+
+        Args:
+          key (:obj:`tuple` of 2 :obj:`int` elements):
+            x and y coordinates to select. Have to be a single integer.
+          value (:obj:`~peps_ad.peps.PEPS_Tensor`):
+            New PEPS tensor object to be set.
+        """
+        if not isinstance(value, PEPS_Tensor):
+            raise TypeError("Invalid type for value. Expected PEPS_Tensor.")
+
+        x, y = key
+
+        unit_cell_len_x = self.data.structure.shape[0]
+        unit_cell_len_y = self.data.structure.shape[1]
+
+        x = (self.real_ix + x) % unit_cell_len_x
+        y = (self.real_iy + y) % unit_cell_len_y
+
+        self.data.peps_tensors[self.data.structure[x, y]] = value
 
     def move(self: T_PEPS_Unit_Cell, new_xi: int, new_yi: int) -> T_PEPS_Unit_Cell:
         """
@@ -306,7 +368,7 @@ class PEPS_Unit_Cell:
 
     def iter_one_column(
         self: T_PEPS_Unit_Cell, fixed_y: int
-    ) -> Iterator[T_PEPS_Unit_Cell]:
+    ) -> Tuple[int, Iterator[T_PEPS_Unit_Cell]]:
         """
         Get a iterator over a single column with a fixed y value.
 
@@ -321,11 +383,11 @@ class PEPS_Unit_Cell:
         unit_cell_len_x = self.data.structure.shape[0]
 
         for x in range(unit_cell_len_x):
-            yield self.move(x, fixed_y)
+            yield x, self.move(x, fixed_y)
 
     def iter_all_columns(
         self: T_PEPS_Unit_Cell, *, reverse: bool = False
-    ) -> Iterator[Iterator[T_PEPS_Unit_Cell]]:
+    ) -> Tuple[int, Iterator[Iterator[T_PEPS_Unit_Cell]]]:
         """
         Get a iterator over all columns.
 
@@ -345,11 +407,11 @@ class PEPS_Unit_Cell:
             yiter = range(unit_cell_len_y)
 
         for y in yiter:
-            yield self.iter_one_column(y)
+            yield y, self.iter_one_column(y)
 
     def iter_one_row(
         self: T_PEPS_Unit_Cell, fixed_x: int
-    ) -> Iterator[T_PEPS_Unit_Cell]:
+    ) -> Tuple[int, Iterator[T_PEPS_Unit_Cell]]:
         """
         Get a iterator over a single row with a fixed x value.
 
@@ -364,11 +426,11 @@ class PEPS_Unit_Cell:
         unit_cell_len_y = self.data.structure.shape[1]
 
         for y in range(unit_cell_len_y):
-            yield self.move(fixed_x, y)
+            yield y, self.move(fixed_x, y)
 
     def iter_all_rows(
         self: T_PEPS_Unit_Cell, *, reverse: bool = False
-    ) -> Iterator[Iterator[T_PEPS_Unit_Cell]]:
+    ) -> Tuple[int, Iterator[Iterator[T_PEPS_Unit_Cell]]]:
         """
         Get a iterator over all rows.
 
@@ -388,7 +450,19 @@ class PEPS_Unit_Cell:
             xiter = range(unit_cell_len_x)
 
         for x in xiter:
-            yield self.iter_one_column(x)
+            yield x, self.iter_one_row(x)
+
+    def copy(self: T_PEPS_Unit_Cell) -> T_PEPS_Unit_Cell:
+        """
+        Performs a (flat) copy of the PEPS unit cell.
+
+        Returns:
+          ~peps_ad.peps.PEPS_Unit_Cell:
+            Copied instance of the unit cell.
+        """
+        return type(self)(
+            data=self.data.copy(), real_ix=self.real_ix, real_iy=self.real_iy
+        )
 
     def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
         field_names = tuple(self.__dataclass_fields__.keys())  # type: ignore

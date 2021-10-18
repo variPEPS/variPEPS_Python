@@ -227,6 +227,134 @@ class PEPS_Tensor:
             chi=self.chi,
         )
 
+    def replace_left_env_tensors(
+        self: T_PEPS_Tensor, new_C1: Tensor, new_T4: Tensor, new_C4: Tensor
+    ) -> T_PEPS_Tensor:
+        """
+        Replace the left CTMRG tensors and returns new object of the class.
+
+        Args:
+          new_C1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C1 tensor.
+          new_T4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New T4 tensor.
+          new_C4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C4 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=new_C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=new_C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=new_T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    def replace_right_env_tensors(
+        self: T_PEPS_Tensor, new_C2: Tensor, new_T2: Tensor, new_C3: Tensor
+    ) -> T_PEPS_Tensor:
+        """
+        Replace the right CTMRG tensors and returns new object of the class.
+
+        Args:
+          new_C2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C2 tensor.
+          new_T2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New T2 tensor.
+          new_C3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C3 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=new_C2,
+            C3=new_C3,
+            C4=self.C4,
+            T1=self.T1,
+            T2=new_T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    def replace_top_env_tensors(
+        self: T_PEPS_Tensor, new_C1: Tensor, new_T1: Tensor, new_C2: Tensor
+    ) -> T_PEPS_Tensor:
+        """
+        Replace the top CTMRG tensors and returns new object of the class.
+
+        Args:
+          new_C1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C1 tensor.
+          new_T1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New T1 tensor.
+          new_C2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C2 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=new_C1,
+            C2=new_C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1=new_T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    def replace_bottom_env_tensors(
+        self: T_PEPS_Tensor, new_C4: Tensor, new_T3: Tensor, new_C3: Tensor
+    ) -> T_PEPS_Tensor:
+        """
+        Replace the bottom CTMRG tensors and returns new object of the class.
+
+        Args:
+          new_C4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C4 tensor.
+          new_T3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New T3 tensor.
+          new_C3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C3 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=new_C3,
+            C4=new_C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=new_T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
     def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
         field_names = tuple(self.__dataclass_fields__.keys())  # type: ignore
         field_values = tuple(getattr(self, name) for name in field_names)

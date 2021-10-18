@@ -1,3 +1,4 @@
+from collections import namedtuple
 from functools import partial
 
 import jax.numpy as jnp
@@ -6,7 +7,17 @@ from jax import jit
 from peps_ad.peps import PEPS_Tensor
 from peps_ad.contractions import apply_contraction
 
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, TypeVar
+
+
+Left_Projectors = namedtuple("Left_Projectors", ("top", "bottom"))
+Right_Projectors = namedtuple("Right_Projectors", ("top", "bottom"))
+Top_Projectors = namedtuple("Top_Projectors", ("left", "right"))
+Bottom_Projectors = namedtuple("Bottom_Projectors", ("left", "right"))
+
+T_Projector = TypeVar(
+    "T_Projector", Left_Projectors, Right_Projectors, Top_Projectors, Bottom_Projectors
+)
 
 
 def _check_chi(peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]]) -> int:
@@ -131,7 +142,7 @@ def _left_projectors_workhorse(
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
     chi: int,
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> Left_Projectors:
     top_matrix, bottom_matrix = _horizontal_cut(
         top_left, top_right, bottom_left, bottom_right
     )
@@ -146,19 +157,25 @@ def _left_projectors_workhorse(
     )
 
     projector_left_top = projector_left_top.reshape(
-        top_left.shape[0], top_left.shape[1], top_left.shape[2], chi
+        top_left.shape[0],
+        top_left.shape[1],
+        top_left.shape[2],
+        projector_left_top.shape[1],
     )
     projector_left_bottom = projector_left_bottom.reshape(
-        chi, bottom_left.shape[3], bottom_left.shape[4], bottom_left.shape[5]
+        projector_left_bottom.shape[0],
+        bottom_left.shape[3],
+        bottom_left.shape[4],
+        bottom_left.shape[5],
     )
 
-    return projector_left_bottom, projector_left_top
+    return Left_Projectors(top=projector_left_top, bottom=projector_left_bottom)
 
 
 def calc_left_projectors(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> Left_Projectors:
     """
     Calculate the left projectors for the CTMRG method.
 
@@ -190,7 +207,7 @@ def _right_projectors_workhorse(
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
     chi: int,
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> Right_Projectors:
     top_matrix, bottom_matrix = _horizontal_cut(
         top_left, top_right, bottom_left, bottom_right
     )
@@ -205,19 +222,25 @@ def _right_projectors_workhorse(
     projector_right_bottom = jnp.dot(bottom_matrix, Vh.transpose().conj() * S_inv_sqrt)
 
     projector_right_top = projector_right_top.reshape(
-        chi, top_right.shape[3], top_right.shape[4], top_right.shape[5]
+        projector_right_top.shape[0],
+        top_right.shape[3],
+        top_right.shape[4],
+        top_right.shape[5],
     )
     projector_right_bottom = projector_right_bottom.reshape(
-        bottom_right.shape[0], bottom_right.shape[1], bottom_right.shape[2], chi
+        bottom_right.shape[0],
+        bottom_right.shape[1],
+        bottom_right.shape[2],
+        projector_right_bottom.shape[1],
     )
 
-    return projector_right_bottom, projector_right_top
+    return Right_Projectors(top=projector_right_top, bottom=projector_right_bottom)
 
 
 def calc_right_projectors(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> Right_Projectors:
     """
     Calculate the right projectors for the CTMRG method.
 
@@ -249,7 +272,7 @@ def _top_projectors_workhorse(
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
     chi: int,
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> Top_Projectors:
     left_matrix, right_matrix = _vertical_cut(
         top_left, top_right, bottom_left, bottom_right
     )
@@ -264,19 +287,25 @@ def _top_projectors_workhorse(
     projector_top_right = jnp.dot(right_matrix, Vh.transpose().conj() * S_inv_sqrt)
 
     projector_top_left = projector_top_left.reshape(
-        chi, top_left.shape[3], top_left.shape[4], top_left.shape[5]
+        projector_top_left.shape[0],
+        top_left.shape[3],
+        top_left.shape[4],
+        top_left.shape[5],
     )
     projector_top_right = projector_top_right.reshape(
-        top_right.shape[0], top_right.shape[1], top_right.shape[2], chi
+        top_right.shape[0],
+        top_right.shape[1],
+        top_right.shape[2],
+        projector_top_right.shape[1],
     )
 
-    return projector_top_left, projector_top_right
+    return Top_Projectors(left=projector_top_left, right=projector_top_right)
 
 
 def calc_top_projectors(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> Top_Projectors:
     """
     Calculate the top projectors for the CTMRG method.
 
@@ -308,7 +337,7 @@ def _bottom_projectors_workhorse(
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
     chi: int,
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> Bottom_Projectors:
     left_matrix, right_matrix = _vertical_cut(
         top_left, top_right, bottom_left, bottom_right
     )
@@ -323,19 +352,25 @@ def _bottom_projectors_workhorse(
     )
 
     projector_bottom_left = projector_bottom_left.reshape(
-        bottom_left.shape[0], bottom_left.shape[1], bottom_left.shape[2], chi
+        bottom_left.shape[0],
+        bottom_left.shape[1],
+        bottom_left.shape[2],
+        projector_bottom_left.shape[1],
     )
     projector_bottom_right = projector_bottom_right.reshape(
-        chi, bottom_right.shape[3], bottom_right.shape[4], bottom_right.shape[5]
+        projector_bottom_right.shape[0],
+        bottom_right.shape[3],
+        bottom_right.shape[4],
+        bottom_right.shape[5],
     )
 
-    return projector_bottom_left, projector_bottom_right
+    return Bottom_Projectors(left=projector_bottom_left, right=projector_bottom_right)
 
 
 def calc_bottom_projectors(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> Bottom_Projectors:
     """
     Calculate the bottom projectors for the CTMRG method.
 
