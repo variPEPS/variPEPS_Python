@@ -140,19 +140,19 @@ def _left_projectors_workhorse(
 
     S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi)
 
-    rho_left_top = jnp.dot(top_matrix, Vh.transpose().conj() * S_inv_sqrt)
-    rho_left_bottom = jnp.dot(
+    projector_left_top = jnp.dot(top_matrix, Vh.transpose().conj() * S_inv_sqrt)
+    projector_left_bottom = jnp.dot(
         U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], bottom_matrix
     )
 
-    rho_left_top = rho_left_top.reshape(
+    projector_left_top = projector_left_top.reshape(
         top_left.shape[0], top_left.shape[1], top_left.shape[2], chi
     )
-    rho_left_bottom = rho_left_bottom.reshape(
+    projector_left_bottom = projector_left_bottom.reshape(
         chi, bottom_left.shape[3], bottom_left.shape[4], bottom_left.shape[5]
     )
 
-    return rho_left_bottom, rho_left_top
+    return projector_left_bottom, projector_left_top
 
 
 def calc_left_projectors(
@@ -199,19 +199,19 @@ def _right_projectors_workhorse(
 
     S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi)
 
-    rho_right_top = jnp.dot(
+    projector_right_top = jnp.dot(
         U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], top_matrix
     )
-    rho_right_bottom = jnp.dot(bottom_matrix, Vh.transpose().conj() * S_inv_sqrt)
+    projector_right_bottom = jnp.dot(bottom_matrix, Vh.transpose().conj() * S_inv_sqrt)
 
-    rho_right_top = rho_right_top.reshape(
+    projector_right_top = projector_right_top.reshape(
         chi, top_right.shape[3], top_right.shape[4], top_right.shape[5]
     )
-    rho_right_bottom = rho_right_bottom.reshape(
+    projector_right_bottom = projector_right_bottom.reshape(
         bottom_right.shape[0], bottom_right.shape[1], bottom_right.shape[2], chi
     )
 
-    return rho_right_bottom, rho_right_top
+    return projector_right_bottom, projector_right_top
 
 
 def calc_right_projectors(
@@ -258,19 +258,19 @@ def _top_projectors_workhorse(
 
     S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi)
 
-    rho_top_left = jnp.dot(
+    projector_top_left = jnp.dot(
         U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], left_matrix
     )
-    rho_top_right = jnp.dot(right_matrix, Vh.transpose().conj() * S_inv_sqrt)
+    projector_top_right = jnp.dot(right_matrix, Vh.transpose().conj() * S_inv_sqrt)
 
-    rho_top_left = rho_top_left.reshape(
+    projector_top_left = projector_top_left.reshape(
         chi, top_left.shape[3], top_left.shape[4], top_left.shape[5]
     )
-    rho_top_right = rho_top_right.reshape(
+    projector_top_right = projector_top_right.reshape(
         top_right.shape[0], top_right.shape[1], top_right.shape[2], chi
     )
 
-    return rho_top_left, rho_top_right
+    return projector_top_left, projector_top_right
 
 
 def calc_top_projectors(
@@ -317,19 +317,19 @@ def _bottom_projectors_workhorse(
 
     S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi)
 
-    rho_bottom_left = jnp.dot(left_matrix, Vh.transpose().conj() * S_inv_sqrt)
-    rho_bottom_right = jnp.dot(
+    projector_bottom_left = jnp.dot(left_matrix, Vh.transpose().conj() * S_inv_sqrt)
+    projector_bottom_right = jnp.dot(
         U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], right_matrix
     )
 
-    rho_bottom_left = rho_bottom_left.reshape(
+    projector_bottom_left = projector_bottom_left.reshape(
         bottom_left.shape[0], bottom_left.shape[1], bottom_left.shape[2], chi
     )
-    rho_bottom_right = rho_bottom_right.reshape(
+    projector_bottom_right = projector_bottom_right.reshape(
         chi, bottom_right.shape[3], bottom_right.shape[4], bottom_right.shape[5]
     )
 
-    return rho_bottom_left, rho_bottom_right
+    return projector_bottom_left, projector_bottom_right
 
 
 def calc_bottom_projectors(
