@@ -63,7 +63,7 @@ def apply_contraction(
     network_additional_tensors: List[Tuple[int, ...]] = []
 
     for t in contraction["tensors"]:
-        if isinstance(t, collections.abc.Sequence):
+        if isinstance(t, (list, tuple)):
             if len(filter_additional_tensors) != 0:
                 raise ValueError("Invalid specification for contraction.")
 
@@ -72,28 +72,26 @@ def apply_contraction(
             filter_additional_tensors.append(t)
 
     for n in contraction["network"]:
-        if isinstance(n, collections.abc.Sequence) and all(
-            isinstance(ni, collections.abc.Sequence) for ni in n
+        if isinstance(n, (list, tuple)) and all(
+            isinstance(ni, (list, tuple)) for ni in n
         ):
             if len(network_additional_tensors) != 0:
                 raise ValueError("Invalid specification for contraction.")
 
             network_peps_tensors.append(n)  # type: ignore
-        elif isinstance(n, collections.abc.Sequence) and all(
-            isinstance(ni, int) for ni in n
-        ):
+        elif isinstance(n, (list, tuple)) and all(isinstance(ni, int) for ni in n):
             network_additional_tensors.append(n)  # type: ignore
         else:
             raise ValueError("Invalid specification for contraction.")
 
     if len(filter_peps_tensors) != len(peps_tensors):
         raise ValueError(
-            "Number of PEPS tensor objects does not fit the expected number."
+            f"Number of PEPS tensor ({len(peps_tensors)}) objects does not fit the expected number ({len(filter_peps_tensors)})."
         )
 
     if len(filter_additional_tensors) != len(additional_tensors):
         raise ValueError(
-            "Number of additional tensor objects does not fit the expected number."
+            f"Number of additional tensor ({len(additional_tensors)}) objects does not fit the expected number ({len(filter_additional_tensors)})."
         )
 
     if len(network_peps_tensors) != len(filter_peps_tensors) or not all(
