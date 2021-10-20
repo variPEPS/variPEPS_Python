@@ -29,4 +29,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poe.tasks]
-use-cuda111 = "pip install --upgrade 'jax[cuda111]' -f https://storage.googleapis.com/jax-releases/jax_releases.html"
+use-cuda = "pip install --upgrade 'jax[cuda]' -f https://storage.googleapis.com/jax-releases/jax_releases.html"
