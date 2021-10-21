@@ -116,6 +116,11 @@ class PEPS_Unit_Cell:
         ):
             raise ValueError("Invalid value for real x index.")
 
+        if not all(
+            self.data.peps_tensors[0].chi == i.chi for i in self.data.peps_tensors[1:]
+        ):
+            raise ValueError("CTMRG bond dimension has to be the same for all tensors.")
+
     @staticmethod
     def _check_structure(structure: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
         if structure.ndim != 2 or not jnp.issubdtype(structure.dtype, jnp.integer):
@@ -241,6 +246,9 @@ class PEPS_Unit_Cell:
         """
         return (self.data.structure.shape[0], self.data.structure.shape[1])
 
+    def get_len_unique_tensors(self) -> int:
+        return len(self.data.peps_tensors)
+
     def get_indices(
         self, key: Tuple[Union[int, slice], Union[int, slice]]
     ) -> Sequence[Sequence[int]]:
@@ -337,6 +345,9 @@ class PEPS_Unit_Cell:
         y = (self.real_iy + y) % unit_cell_len_y
 
         self.data.peps_tensors[self.data.structure[x, y]] = value
+
+    def get_unique_tensors(self) -> List[PEPS_Tensor]:
+        return self.data.peps_tensors
 
     def move(self: T_PEPS_Unit_Cell, new_xi: int, new_yi: int) -> T_PEPS_Unit_Cell:
         """

@@ -68,7 +68,12 @@ class PEPS_Tensor:
     D: Tuple[int, int, int, int]
     chi: int
 
+    sanity_checks: bool = True
+
     def __post_init__(self) -> None:
+        if not self.sanity_checks:
+            return
+
         # Copied from https://stackoverflow.com/questions/50563546/validating-detailed-types-in-python-dataclasses
         for field_name, field_def in self.__dataclass_fields__.items():  # type: ignore
             actual_value = getattr(self, field_name)
@@ -356,7 +361,9 @@ class PEPS_Tensor:
         )
 
     def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
-        field_names = tuple(self.__dataclass_fields__.keys())  # type: ignore
+        field_names = tuple(
+            i for i in self.__dataclass_fields__.keys() if i != "sanity_checks"
+        )
         field_values = tuple(getattr(self, name) for name in field_names)
 
         return (field_values, field_names)
@@ -365,4 +372,4 @@ class PEPS_Tensor:
     def tree_unflatten(
         cls: Type[T_PEPS_Tensor], aux_data: Tuple[str, ...], children: Sequence[Any]
     ) -> T_PEPS_Tensor:
-        return cls(**dict(jax.util.safe_zip(aux_data, children)))
+        return cls(**dict(jax.util.safe_zip(aux_data, children)), sanity_checks=False)
