@@ -46,6 +46,26 @@ def calc_ctmrg_env(
     eps: float = 1e-8,
     max_steps: int = 200,
 ) -> Tuple[PEPS_Unit_Cell, List[jnp.ndarray]]:
+    """
+    Calculate the new converged CTMRG tensors for the unitcell.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The sequence of unique PEPS tensors the unitcell consists of.
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_cell`):
+        The unitcell to work on.
+    Keyword args:
+      eps (:obj:`float`):
+        The convergence criterion.
+      max_steps (:obj:`int`):
+        Maximal number of steps before abort the routine.
+    Returns:
+      :obj:`tuple`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`list`\ (:obj:`jax.numpy.ndarray`)):
+        New instance of the unitcell with all updated converged CTMRG tensors of
+        all elements of the unitcell.
+        Additionally, the tensor with the singular values of all corner matrices
+        for each step is returned.
+    """
     shape_corner_svd = (unitcell.get_len_unique_tensors(), 4, unitcell[0, 0][0][0].chi)
     corner_singular_values = [
         _calc_corner_svds(unitcell.get_unique_tensors(), shape_corner_svd)

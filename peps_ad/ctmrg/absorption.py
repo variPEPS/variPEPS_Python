@@ -91,6 +91,20 @@ def _get_ctmrg_2x2_structure(
 def do_left_absorption(
     peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
 ) -> PEPS_Unit_Cell:
+    """
+    Calculate the left CTMRG tensors after one absorption step and returns
+    the updated unitcell.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The sequence of unique PEPS tensors the unitcell consists of.
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_cell`):
+        The unitcell to work on.
+    Returns:
+      :obj:`~peps_ad.peps.PEPS_Unit_cell`:
+        New instance of the unitcell with the updated left CTMRG tensors of
+        all elements of the unitcell.
+    """
     max_x, max_y = unitcell.get_size()
     left_projectors = _Projector_Dict(max_x=max_x, max_y=max_y)
 
@@ -151,6 +165,20 @@ def do_left_absorption(
 def do_right_absorption(
     peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
 ) -> PEPS_Unit_Cell:
+    """
+    Calculate the right CTMRG tensors after one absorption step and returns
+    the updated unitcell.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The sequence of unique PEPS tensors the unitcell consists of.
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_cell`):
+        The unitcell to work on.
+    Returns:
+      :obj:`~peps_ad.peps.PEPS_Unit_cell`:
+        New instance of the unitcell with the updated right CTMRG tensors of
+        all elements of the unitcell.
+    """
     max_x, max_y = unitcell.get_size()
     right_projectors = _Projector_Dict(max_x=max_x, max_y=max_y)
 
@@ -211,6 +239,20 @@ def do_right_absorption(
 def do_top_absorption(
     peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
 ) -> PEPS_Unit_Cell:
+    """
+    Calculate the top CTMRG tensors after one absorption step and returns
+    the updated unitcell.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The sequence of unique PEPS tensors the unitcell consists of.
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_cell`):
+        The unitcell to work on.
+    Returns:
+      :obj:`~peps_ad.peps.PEPS_Unit_cell`:
+        New instance of the unitcell with the updated top CTMRG tensors of
+        all elements of the unitcell.
+    """
     max_x, max_y = unitcell.get_size()
     top_projectors = _Projector_Dict(max_x=max_x, max_y=max_y)
 
@@ -271,6 +313,20 @@ def do_top_absorption(
 def do_bottom_absorption(
     peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
 ) -> PEPS_Unit_Cell:
+    """
+    Calculate the bottom CTMRG tensors after one absorption step and returns
+    the updated unitcell.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The sequence of unique PEPS tensors the unitcell consists of.
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_cell`):
+        The unitcell to work on.
+    Returns:
+      :obj:`~peps_ad.peps.PEPS_Unit_cell`:
+        New instance of the unitcell with the updated bottom CTMRG tensors of
+        all elements of the unitcell.
+    """
     max_x, max_y = unitcell.get_size()
     bottom_projectors = _Projector_Dict(max_x=max_x, max_y=max_y)
 
@@ -331,6 +387,20 @@ def do_bottom_absorption(
 def do_absorption_step(
     peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
 ) -> PEPS_Unit_Cell:
+    """
+    Calculate the all CTMRG tensors after one absorption step and returns
+    the updated unitcell.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The sequence of unique PEPS tensors the unitcell consists of.
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_cell`):
+        The unitcell to work on.
+    Returns:
+      :obj:`~peps_ad.peps.PEPS_Unit_cell`:
+        New instance of the unitcell with the all updated CTMRG tensors of
+        all elements of the unitcell.
+    """
     result = do_left_absorption(peps_tensors, unitcell)
     result = do_top_absorption(peps_tensors, result)
     result = do_right_absorption(peps_tensors, result)

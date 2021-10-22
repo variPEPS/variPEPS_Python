@@ -247,6 +247,14 @@ class PEPS_Unit_Cell:
         return (self.data.structure.shape[0], self.data.structure.shape[1])
 
     def get_len_unique_tensors(self) -> int:
+        """
+        Return the length of the list of the unique tensors the unit cell
+        consists of.
+
+        Returns:
+          :obj:`int`:
+            Length of list of unique tensors
+        """
         return len(self.data.peps_tensors)
 
     def get_indices(
@@ -347,6 +355,13 @@ class PEPS_Unit_Cell:
         self.data.peps_tensors[self.data.structure[x, y]] = value
 
     def get_unique_tensors(self) -> List[PEPS_Tensor]:
+        """
+        Get the list of unique tensors the unit cell consists of.
+
+        Returns:
+          :obj:`list` of :obj:`~peps_ad.peps.PEPS_Tensor`:
+            List of unique tensors.
+        """
         return self.data.peps_tensors
 
     def move(self: T_PEPS_Unit_Cell, new_xi: int, new_yi: int) -> T_PEPS_Unit_Cell:

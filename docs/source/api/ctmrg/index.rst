@@ -10,7 +10,9 @@ CTMRG method (:mod:`peps_ad.ctmrg`)
 .. toctree::
    :maxdepth: 2
 
+   absorption
    projectors
+   routine
 
 .. automodule:: peps_ad.ctmrg
    :members:
