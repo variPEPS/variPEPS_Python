@@ -1,10 +1,13 @@
+from dataclasses import dataclass
+
 import jax.numpy as jnp
 from jax import jit
 
-from peps_ad.peps import PEPS_Tensor
+from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
 from peps_ad.contractions import apply_contraction
+from .model import Expectation_Model
 
-from typing import Sequence, List, Tuple
+from typing import Sequence, List, Tuple, Union
 
 
 def _two_site_workhorse_body(
@@ -174,3 +177,81 @@ def calc_two_sites_vertical_single_gate(
     return calc_two_sites_vertical_multiple_gates(
         peps_tensors, peps_tensor_objs, [gate]
     )[0]
+
+
+@dataclass
+class Two_Sites_Expectation_Value(Expectation_Model):
+    horizontal_gates: Sequence[jnp.ndarray]
+    vertical_gates: Sequence[jnp.ndarray]
+
+    def __post_init__(self) -> None:
+        if (
+            len(self.horizontal_gates) > 0
+            and len(self.horizontal_gates) > 0
+            and len(self.horizontal_gates) != len(self.vertical_gates)
+        ):
+            raise ValueError("Length of horizontal and vertical gates mismatch.")
+
+    def __call__(
+        self,
+        peps_tensors: Sequence[jnp.ndarray],
+        unitcell: PEPS_Unit_Cell,
+        *,
+        normalize_by_size: bool = True,
+        only_unique: bool = True,
+    ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
+        result_type = (
+            jnp.float64
+            if all(jnp.allclose(g, jnp.real(g)) for g in self.horizontal_gates)
+            and all(jnp.allclose(g, jnp.real(g)) for g in self.vertical_gates)
+            else jnp.complex128
+        )
+        result = [
+            jnp.array(0, dtype=result_type)
+            for _ in range(max(len(self.horizontal_gates), len(self.vertical_gates)))
+        ]
+
+        for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
+            for y, view in iter_rows:
+                if len(self.horizontal_gates) > 0:
+                    horizontal_tensors_i = view.get_indices((0, slice(0, 2, None)))
+                    horizontal_tensors = [
+                        peps_tensors[i] for i in horizontal_tensors_i[0]
+                    ]
+                    horizontal_tensor_objs = view[0, :2][0]
+
+                    step_result_horizontal = calc_two_sites_horizontal_multiple_gates(
+                        horizontal_tensors,
+                        horizontal_tensor_objs,
+                        self.horizontal_gates,
+                    )
+
+                    for sr_i, sr in enumerate(step_result_horizontal):
+                        result[sr_i] += sr
+
+                if len(self.vertical_gates) > 0:
+                    vertical_tensors_i = view.get_indices((slice(0, 2, None), 0))
+                    vertical_tensors = [
+                        peps_tensors[vertical_tensors_i[0][0]],
+                        peps_tensors[vertical_tensors_i[1][0]],
+                    ]
+                    vertical_tensor_objs = [view[0, 0][0][0], view[1, 0][0][0]]
+
+                    step_result_vertical = calc_two_sites_vertical_multiple_gates(
+                        vertical_tensors, vertical_tensor_objs, self.vertical_gates
+                    )
+
+                    for sr_i, sr in enumerate(step_result_vertical):
+                        result[sr_i] += sr
+
+        if normalize_by_size:
+            if only_unique:
+                size = unitcell.get_len_unique_tensors()
+            else:
+                size = unitcell.get_size()[0] * unitcell.get_size()[1]
+            result = [r / size for r in result]
+
+        if len(result) == 1:
+            return result[0]
+        else:
+            return result

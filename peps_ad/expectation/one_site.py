@@ -1,10 +1,13 @@
+from dataclasses import dataclass
+
 import jax.numpy as jnp
 from jax import jit
 
-from peps_ad.peps import PEPS_Tensor
+from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
 from peps_ad.contractions import apply_contraction
+from .model import Expectation_Model
 
-from typing import Sequence, List, Tuple
+from typing import Sequence, List, Tuple, Union
 
 
 def _one_site_workhorse_body(
@@ -124,3 +127,47 @@ def calc_one_site_single_gate_obj(
     return calc_one_site_single_gate(
         jnp.asarray(peps_tensor_obj.tensor), peps_tensor_obj, gate
     )
+
+
+@dataclass
+class One_Site_Expectation_Value(Expectation_Model):
+    gates: Sequence[jnp.ndarray]
+
+    def __call__(
+        self,
+        peps_tensors: Sequence[jnp.ndarray],
+        unitcell: PEPS_Unit_Cell,
+        *,
+        normalize_by_size: bool = True,
+        only_unique: bool = True,
+    ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
+        result_type = (
+            jnp.float64
+            if all(jnp.allclose(g, jnp.real(g)) for g in self.gates)
+            else jnp.complex128
+        )
+        result = [jnp.array(0, dtype=result_type) for _ in range(len(self.gates))]
+
+        for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
+            for y, view in iter_rows:
+                working_tensor = peps_tensors[view.get_indices((0, 0))[0][0]]
+                working_tensor_obj = view[0, 0][0][0]
+
+                step_result = calc_one_site_multi_gates(
+                    working_tensor, working_tensor_obj, self.gates
+                )
+
+                for sr_i, sr in enumerate(step_result):
+                    result[sr_i] += sr
+
+        if normalize_by_size:
+            if only_unique:
+                size = unitcell.get_len_unique_tensors()
+            else:
+                size = unitcell.get_size()[0] * unitcell.get_size()[1]
+            result = [r / size for r in result]
+
+        if len(result) == 1:
+            return result[0]
+        else:
+            return result
