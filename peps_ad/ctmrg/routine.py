@@ -86,6 +86,4 @@ def calc_ctmrg_env(
 
         count += 1
 
-        print(f"{count}: {conv}")
-
     return working_unitcell, corner_singular_values
