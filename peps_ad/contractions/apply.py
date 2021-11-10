@@ -3,17 +3,31 @@ Helpers to apply contractions.
 """
 
 import collections
+from functools import partial
 
 import jax
 import jax.numpy as jnp
 import tensornetwork as tn
 
 from peps_ad.peps import PEPS_Tensor
+from peps_ad import peps_ad_config
+from peps_ad.utils.func_cache import Checkpointing_Cache
 
 from .definitions import Definitions
 
 from typing import Sequence, List, Tuple
 
+
+class _Contraction_Cache:
+    _cache = None
+
+    def __class_getitem__(cls, name: str) -> Checkpointing_Cache:
+        name = f"_{name}"
+        obj = getattr(cls, name)
+        if obj is None:
+            obj = Checkpointing_Cache(peps_ad_config.checkpointing_ncon)
+            setattr(cls, name, obj)
+        return obj
 
 def apply_contraction(
     name: str,
@@ -129,4 +143,9 @@ def apply_contraction(
 
     network = [j for i in network_peps_tensors for j in i] + network_additional_tensors
 
-    return tn.ncon(tensors, network, backend="jax")
+    if name not in _Contraction_Cache["cache"]:
+        _Contraction_Cache["cache"][name] = partial(
+            tn.ncon, network_structure=network, backend="jax"
+        )
+
+    return _Contraction_Cache["cache"][name](tensors)

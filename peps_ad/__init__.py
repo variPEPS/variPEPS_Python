@@ -1,3 +1,7 @@
+# First import config so it is usable in other parts of the module
+from . import config
+from .config import config as peps_ad_config
+
 from . import contractions
 from . import ctmrg
 from . import expectation

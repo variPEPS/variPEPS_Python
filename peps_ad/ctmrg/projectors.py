@@ -6,6 +6,8 @@ from jax import jit, vmap, checkpoint
 
 from peps_ad.peps import PEPS_Tensor
 from peps_ad.contractions import apply_contraction
+from peps_ad import peps_ad_config
+from peps_ad.utils.func_cache import Checkpointing_Cache
 
 from typing import Sequence, Tuple, TypeVar
 
@@ -21,10 +23,18 @@ T_Projector = TypeVar(
 
 
 class _Projectors_Func_Cache:
-    left = dict()
-    right = dict()
-    top = dict()
-    bottom = dict()
+    _left = None
+    _right = None
+    _top = None
+    _bottom = None
+
+    def __class_getitem__(cls, name: str) -> Checkpointing_Cache:
+        name = f"_{name}"
+        obj = getattr(cls, name)
+        if obj is None:
+            obj = Checkpointing_Cache(peps_ad_config.checkpointing_projectors)
+            setattr(cls, name, obj)
+        return obj
 
 
 def _check_chi(peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]]) -> int:
@@ -210,10 +220,10 @@ def calc_left_projectors(
         peps_tensors, peps_tensor_objs
     )
 
-    if chi not in _Projectors_Func_Cache.left:
-        _Projectors_Func_Cache.left[chi] = checkpoint(partial(_left_projectors_workhorse, chi=chi))
+    if chi not in _Projectors_Func_Cache["left"]:
+        _Projectors_Func_Cache["left"][chi] = partial(_left_projectors_workhorse, chi=chi)
 
-    return _Projectors_Func_Cache.left[chi](
+    return _Projectors_Func_Cache["left"][chi](
         top_left, top_right, bottom_left, bottom_right
     )
 
@@ -278,10 +288,12 @@ def calc_right_projectors(
         peps_tensors, peps_tensor_objs
     )
 
-    if chi not in _Projectors_Func_Cache.right:
-        _Projectors_Func_Cache.right[chi] = checkpoint(partial(_right_projectors_workhorse, chi=chi))
+    if chi not in _Projectors_Func_Cache["right"]:
+        _Projectors_Func_Cache["right"][chi] = partial(
+            _right_projectors_workhorse, chi=chi
+        )
 
-    return _Projectors_Func_Cache.right[chi](
+    return _Projectors_Func_Cache["right"][chi](
         top_left, top_right, bottom_left, bottom_right
     )
 
@@ -346,10 +358,10 @@ def calc_top_projectors(
         peps_tensors, peps_tensor_objs
     )
 
-    if chi not in _Projectors_Func_Cache.top:
-        _Projectors_Func_Cache.top[chi] = checkpoint(partial(_top_projectors_workhorse, chi=chi))
+    if chi not in _Projectors_Func_Cache["top"]:
+        _Projectors_Func_Cache["top"][chi] = partial(_top_projectors_workhorse, chi=chi)
 
-    return _Projectors_Func_Cache.top[chi](
+    return _Projectors_Func_Cache["top"][chi](
         top_left, top_right, bottom_left, bottom_right
     )
 
@@ -414,9 +426,11 @@ def calc_bottom_projectors(
         peps_tensors, peps_tensor_objs
     )
 
-    if chi not in _Projectors_Func_Cache.bottom:
-        _Projectors_Func_Cache.bottom[chi] = checkpoint(partial(_bottom_projectors_workhorse, chi=chi))
+    if chi not in _Projectors_Func_Cache["bottom"]:
+        _Projectors_Func_Cache["bottom"][chi] = partial(
+            _bottom_projectors_workhorse, chi=chi
+        )
 
-    return _Projectors_Func_Cache.bottom[chi](
+    return _Projectors_Func_Cache["bottom"][chi](
         top_left, top_right, bottom_left, bottom_right
     )
