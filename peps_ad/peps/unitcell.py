@@ -14,7 +14,7 @@ from .tensor import PEPS_Tensor
 from peps_ad.utils.random import PEPS_Random_Number_Generator
 
 from typing import TypeVar, Type, Union, Optional, Sequence, Tuple, List, Any, Iterator
-from peps_ad.typing import Tensor
+from peps_ad.typing import Tensor, is_int
 
 T_PEPS_Unit_Cell = TypeVar("T_PEPS_Unit_Cell", bound="PEPS_Unit_Cell")
 
@@ -103,14 +103,14 @@ class PEPS_Unit_Cell:
         unit_cell_len_y = self.data.structure.shape[1]
 
         if (
-            not isinstance(self.real_ix, int)
+            not is_int(self.real_ix)
             or self.real_ix < 0
             or self.real_ix >= unit_cell_len_x
         ):
             raise ValueError("Invalid value for real x index.")
 
         if (
-            not isinstance(self.real_iy, int)
+            not is_int(self.real_iy)
             or self.real_iy < 0
             or self.real_iy >= unit_cell_len_y
         ):

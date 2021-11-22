@@ -26,3 +26,33 @@ def is_tensor(a: Any) -> bool:
         True if object is a numpy or jax.ndarray. False otherwise.
     """
     return isinstance(a, (np.ndarray, jnp.ndarray))
+
+
+def is_int(a: Any) -> bool:
+    """
+    Test if object is a integer.
+
+    Args:
+      a: Object to be tested
+    Returns:
+      bool:
+        True if object is a integer. False otherwise.
+    """
+    if isinstance(a, int):
+        return True
+
+    if (
+        isinstance(a, np.ndarray)
+        and np.isscalar(a)
+        and np.issubdtype(a.dtype, np.integer)
+    ):
+        return True
+
+    if (
+        isinstance(a, jnp.ndarray)
+        and jnp.isscalar(a)
+        and jnp.issubdtype(a.dtype, jnp.integer)
+    ):
+        return True
+
+    return False
