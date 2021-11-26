@@ -45,6 +45,7 @@ def calc_ctmrg_env(
     *,
     eps: float = 1e-8,
     max_steps: int = 200,
+    print_steps: bool = False,
 ) -> Tuple[PEPS_Unit_Cell, List[jnp.ndarray]]:
     """
     Calculate the new converged CTMRG tensors for the unitcell.
@@ -59,6 +60,8 @@ def calc_ctmrg_env(
         The convergence criterion.
       max_steps (:obj:`int`):
         Maximal number of steps before abort the routine.
+      print_steps (obj:`bool`):
+        Print the step counter and the convergence measure after each step.
     Returns:
       :obj:`tuple`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`list`\ (:obj:`jax.numpy.ndarray`)):
         New instance of the unitcell with all updated converged CTMRG tensors of
@@ -85,5 +88,8 @@ def calc_ctmrg_env(
         conv = jnp.linalg.norm(corner_singular_values[-1] - corner_singular_values[-2])
 
         count += 1
+
+        if print_steps:
+            print(f"{count}: {conv}")
 
     return working_unitcell, corner_singular_values
