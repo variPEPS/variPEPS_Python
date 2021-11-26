@@ -2,7 +2,7 @@ from collections import namedtuple
 from functools import partial
 
 import jax.numpy as jnp
-from jax import jit
+from jax import jit, vmap
 
 from peps_ad.peps import PEPS_Tensor
 from peps_ad.contractions import apply_contraction
@@ -63,6 +63,12 @@ def _truncated_SVD(
     Vh = Vh[:chi, :]
 
     S_inv_sqrt = jnp.where((S / S[0]) > eps, 1 / jnp.sqrt(S), 0)
+
+    # Fix the gauge of the SVD
+    i_max = jnp.argmax(jnp.abs(U), axis=0)
+    phases = vmap(lambda M, ci: M[ci] / jnp.abs(M[ci]), in_axes=(1, 0))(U, i_max)
+    U = U * phases.conj()[jnp.newaxis, :]
+    Vh = Vh * phases[:, jnp.newaxis]
 
     return S_inv_sqrt, U, Vh
 
