@@ -29,6 +29,7 @@ class _Contraction_Cache:
             setattr(cls, name, obj)
         return obj
 
+
 def apply_contraction(
     name: str,
     peps_tensors: Sequence[jnp.ndarray],

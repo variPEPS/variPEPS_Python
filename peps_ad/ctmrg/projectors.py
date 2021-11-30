@@ -224,7 +224,9 @@ def calc_left_projectors(
     )
 
     if chi not in _Projectors_Func_Cache["left"]:
-        _Projectors_Func_Cache["left"][chi] = partial(_left_projectors_workhorse, chi=chi)
+        _Projectors_Func_Cache["left"][chi] = partial(
+            _left_projectors_workhorse, chi=chi
+        )
 
     return _Projectors_Func_Cache["left"][chi](
         top_left, top_right, bottom_left, bottom_right

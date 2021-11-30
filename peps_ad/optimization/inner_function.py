@@ -23,7 +23,9 @@ def calc_ctmrg_expectation(
     return expectation_func(peps_tensors, new_unitcell), (new_unitcell, corner_svds)
 
 
-calc_ctmrg_expectation_value_and_grad = value_and_grad(calc_ctmrg_expectation, has_aux=True)
+calc_ctmrg_expectation_value_and_grad = value_and_grad(
+    calc_ctmrg_expectation, has_aux=True
+)
 
 
 def calc_preconverged_ctmrg_value_and_grad(
