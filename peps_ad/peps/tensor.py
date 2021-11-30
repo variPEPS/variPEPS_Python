@@ -306,31 +306,63 @@ class PEPS_Tensor:
             chi=chi,
         )
 
-    def replace_tensor(self: T_PEPS_Tensor, new_tensor: Tensor) -> T_PEPS_Tensor:
+    def replace_tensor(
+        self: T_PEPS_Tensor,
+        new_tensor: Tensor,
+        *,
+        reinitialize_env_as_identities: bool = True,
+    ) -> T_PEPS_Tensor:
         """
         Replace the PEPS tensor and returns new object of the class.
 
         Args:
           new_tensor (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
             New PEPS tensor.
+        Keyword args:
+          reinitialize_env_as_identities (:obj:`bool`):
+            Reinitialize the CTM tensors as identities.
         Returns:
           :obj:`~peps_ad.peps.PEPS_Tensor`:
             New instance of the class with the tensor replaced.
         """
-        return type(self)(
-            tensor=new_tensor,
-            C1=self.C1,
-            C2=self.C2,
-            C3=self.C3,
-            C4=self.C4,
-            T1=self.T1,
-            T2=self.T2,
-            T3=self.T3,
-            T4=self.T4,
-            d=self.d,
-            D=self.D,
-            chi=self.chi,
-        )
+        if reinitialize_env_as_identities:
+            return type(self)(
+                tensor=new_tensor,
+                C1=jnp.ones((1, 1), dtype=self.C1.dtype),
+                C2=jnp.ones((1, 1), dtype=self.C2.dtype),
+                C3=jnp.ones((1, 1), dtype=self.C3.dtype),
+                C4=jnp.ones((1, 1), dtype=self.C4.dtype),
+                T1=jnp.eye(self.D[3], dtype=self.T1.dtype).reshape(
+                    1, self.D[3], self.D[3], 1
+                ),
+                T2=jnp.eye(self.D[2], dtype=self.T2.dtype).reshape(
+                    self.D[2], self.D[2], 1, 1
+                ),
+                T3=jnp.eye(self.D[1], dtype=self.T3.dtype).reshape(
+                    1, 1, self.D[1], self.D[1]
+                ),
+                T4=jnp.eye(self.D[0], dtype=self.T4.dtype).reshape(
+                    1, self.D[0], self.D[0], 1
+                ),
+                d=self.d,
+                D=self.D,
+                chi=self.chi,
+            )
+        else:
+            return type(self)(
+                tensor=new_tensor,
+                C1=self.C1,
+                C2=self.C2,
+                C3=self.C3,
+                C4=self.C4,
+                T1=self.T1,
+                T2=self.T2,
+                T3=self.T3,
+                T4=self.T4,
+                d=self.d,
+                D=self.D,
+                chi=self.chi,
+            )
 
     def replace_left_env_tensors(
         self: T_PEPS_Tensor, new_C1: Tensor, new_T4: Tensor, new_C4: Tensor

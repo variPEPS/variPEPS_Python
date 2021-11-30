@@ -93,6 +93,21 @@ class PEPS_Unit_Cell:
                 structure=jnp.array(self.structure, copy=True),
             )
 
+        def replace_peps_tensors(
+            self, new_peps_tensors: List[PEPS_Tensor]
+        ) -> PEPS_Unit_Cell.Unit_Cell_Data:
+            """
+            Return new instance with the list of peps tensors replaced.
+
+            Returns:
+              ~peps_ad.peps.PEPS_Unit_Cell.Unit_Cell_Data:
+                New instance of the unit cell data class with the list replaced.
+            """
+            return type(self)(
+                peps_tensors=new_peps_tensors,
+                structure=self.structure,
+            )
+
         def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
             field_names = tuple(self.__dataclass_fields__.keys())  # type: ignore
             field_values = tuple(getattr(self, name) for name in field_names)
@@ -393,6 +408,23 @@ class PEPS_Unit_Cell:
             List of unique tensors.
         """
         return self.data.peps_tensors
+
+    def replace_unique_tensors(
+        self: T_PEPS_Unit_Cell, new_unique_tensors: List[PEPS_Tensor]
+    ) -> T_PEPS_Unit_Cell:
+        """
+        Replace the list of unique tensors the unit cell consists of.
+
+        Returns:
+          PEPS_Unit_Cell:
+            New instance of PEPS unit cell with the new unique tensor list.
+        """
+        if len(self.data.peps_tensors) != len(new_unique_tensors):
+            raise ValueError("Length of old and new list mismatches.")
+
+        new_data = self.data.replace_peps_tensors(new_unique_tensors)
+
+        return type(self)(data=new_data, real_ix=self.real_ix, real_iy=self.real_iy)
 
     def move(self: T_PEPS_Unit_Cell, new_xi: int, new_yi: int) -> T_PEPS_Unit_Cell:
         """
