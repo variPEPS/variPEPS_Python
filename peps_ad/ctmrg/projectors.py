@@ -21,8 +21,8 @@ T_Projector = TypeVar(
 
 
 def _check_chi(peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]]) -> int:
-    chi = peps_tensor_objs[0][0].chi
-    if not all(j.chi == chi for i in peps_tensor_objs for j in i):
+    chi = int(peps_tensor_objs[0][0].chi)  # in the backward pass chi is a traced ConcreteArray
+    if not all(int(j.chi) == chi for i in peps_tensor_objs for j in i):
         raise ValueError(
             "Environment bond dimension not the same over the whole network."
         )

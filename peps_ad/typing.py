@@ -50,7 +50,7 @@ def is_int(a: Any) -> bool:
 
     if (
         isinstance(a, jnp.ndarray)
-        and jnp.isscalar(a)
+        and a.ndim == 0
         and jnp.issubdtype(a.dtype, jnp.integer)
     ):
         return True
