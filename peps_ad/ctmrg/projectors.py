@@ -81,7 +81,10 @@ def _truncated_SVD(
     U = U[:, :chi]
     Vh = Vh[:chi, :]
 
-    S_inv_sqrt = jnp.where((S / S[0]) > eps, 1 / jnp.sqrt(S), 0)
+    relevant_S_values = (S / S[0]) > eps
+    S_inv_sqrt = jnp.where(
+        relevant_S_values, 1 / jnp.sqrt(jnp.where(relevant_S_values, S, 1)), 0
+    )
 
     # Fix the gauge of the SVD
     i_max = jnp.argmax(jnp.abs(U), axis=0)
