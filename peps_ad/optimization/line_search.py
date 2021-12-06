@@ -16,7 +16,7 @@ def simple_line_search(
     descent_direction: Sequence[jnp.ndarray],
     current_value: float,
     *,
-    ctmrg_eps: float = 1e-6,
+    ctmrg_eps: float = 1e-5,
     ctmrg_max_steps: int = 50,
     initial_step_size: float = 1.0,
     reduction_factor: float = 0.5,
@@ -32,7 +32,7 @@ def simple_line_search(
 
     new_tensors_func = jit(
         lambda p_t, des_dir, alpha: [
-            p_t[i] - alpha * des_dir[i] for i in range(len(p_t))
+            p_t[i] + alpha * des_dir[i] for i in range(len(p_t))
         ]
     )
 
