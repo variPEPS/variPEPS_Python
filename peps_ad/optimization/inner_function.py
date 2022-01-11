@@ -33,14 +33,22 @@ def calc_preconverged_ctmrg_value_and_grad(
     unitcell: PEPS_Unit_Cell,
     expectation_func: Expectation_Model,
     *,
+    calc_preconverged: bool = True,
     preconverged_eps: float = 1e-5,
     final_eps: float = 1e-8,
     preconverged_max_steps: int = 100,
     final_max_steps: int = 10,
 ) -> jnp.ndarray:
-    preconverged_unitcell, preconverged_corner_svds = calc_ctmrg_env(
-        peps_tensors, unitcell, eps=preconverged_eps, max_steps=preconverged_max_steps
-    )
+    if calc_preconverged:
+        preconverged_unitcell, preconverged_corner_svds = calc_ctmrg_env(
+            peps_tensors,
+            unitcell,
+            eps=preconverged_eps,
+            max_steps=preconverged_max_steps,
+        )
+    else:
+        preconverged_unitcell = unitcell
+        preconverged_corner_svds = []
 
     (
         expectation_value,

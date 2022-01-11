@@ -49,7 +49,10 @@ def optimize_peps_network(
             working_value,
             (working_unitcell, _, _),
         ), working_gradient = calc_preconverged_ctmrg_value_and_grad(
-            working_tensors, working_unitcell, expectation_func
+            working_tensors,
+            working_unitcell,
+            expectation_func,
+            calc_preconverged=(count == 0),
         )
 
         print(f"{count} before: Value {working_value}")
