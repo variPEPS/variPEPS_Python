@@ -392,8 +392,32 @@ class PEPS_Unit_Cell:
             real_iy=(self.real_iy + new_yi) % unit_cell_len_y,
         )
 
+    def _iter_one_column_impl(
+        self,
+        fixed_y: int,
+        *,
+        only_unique: bool = False,
+        unique_memory: Optional[List[int]] = None
+    ):
+        unit_cell_len_x = self.data.structure.shape[0]
+
+        if only_unique and unique_memory is None:
+            unique_memory = set()
+
+        for x in range(unit_cell_len_x):
+            view = self.move(x, fixed_y)
+
+            if only_unique:
+                ind_up_left = int(view.get_indices((0, 0))[0][0])
+                if ind_up_left in unique_memory:
+                    continue
+                else:
+                    unique_memory.add(ind_up_left)
+
+            yield x, view
+
     def iter_one_column(
-        self: T_PEPS_Unit_Cell, fixed_y: int
+        self: T_PEPS_Unit_Cell, fixed_y: int, *, only_unique: bool = False
     ) -> Tuple[int, Iterator[T_PEPS_Unit_Cell]]:
         """
         Get a iterator over a single column with a fixed y value.
@@ -401,18 +425,19 @@ class PEPS_Unit_Cell:
         Args:
           fixed_y (int):
             Fixed y value.
+        Keyword args:
+          only_unique (bool):
+            Return only views where each unique PEPS tensor in the unitcell
+            is only once at index (0, 0).
         Returns:
           :term:`iterator`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
             Iterator over one column of the unit cell with the current PEPS
             tensor at moved position (0, 0).
         """
-        unit_cell_len_x = self.data.structure.shape[0]
-
-        for x in range(unit_cell_len_x):
-            yield x, self.move(x, fixed_y)
+        return self._iter_one_column_impl(fixed_y, only_unique=only_unique)
 
     def iter_all_columns(
-        self: T_PEPS_Unit_Cell, *, reverse: bool = False
+        self: T_PEPS_Unit_Cell, *, reverse: bool = False, only_unique: bool = False
     ) -> Tuple[int, Iterator[Iterator[T_PEPS_Unit_Cell]]]:
         """
         Get a iterator over all columns.
@@ -420,6 +445,12 @@ class PEPS_Unit_Cell:
         This function calls :obj:`~peps_ad.peps.PEPS_Unit_Cell.iter_one_column`
         for all columns and yields the resulting iterator.
 
+        Keyword args:
+          reverse (bool):
+            Reverse the order of the iteration.
+          only_unique (bool):
+            Return only views where each unique PEPS tensor in the unitcell
+            is only once at index (0, 0).
         Returns:
           :term:`iterator`\ (:term:`iterator`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`)):
             Iterator for all columns over the iterator for single column with
@@ -432,11 +463,39 @@ class PEPS_Unit_Cell:
         else:
             yiter = range(unit_cell_len_y)
 
+        unique_memory = set() if only_unique else None
+
         for y in yiter:
-            yield y, self.iter_one_column(y)
+            yield y, self._iter_one_column_impl(
+                y, only_unique=only_unique, unique_memory=unique_memory
+            )
+
+    def _iter_one_row_impl(
+        self,
+        fixed_x: int,
+        *,
+        only_unique: bool = False,
+        unique_memory: Optional[List[int]] = None
+    ):
+        unit_cell_len_y = self.data.structure.shape[1]
+
+        if only_unique and unique_memory is None:
+            unique_memory = set()
+
+        for y in range(unit_cell_len_y):
+            view = self.move(fixed_x, y)
+
+            if only_unique:
+                ind_up_left = int(view.get_indices((0, 0))[0][0])
+                if ind_up_left in unique_memory:
+                    continue
+                else:
+                    unique_memory.add(ind_up_left)
+
+            yield y, view
 
     def iter_one_row(
-        self: T_PEPS_Unit_Cell, fixed_x: int
+        self: T_PEPS_Unit_Cell, fixed_x: int, *, only_unique: bool = False
     ) -> Tuple[int, Iterator[T_PEPS_Unit_Cell]]:
         """
         Get a iterator over a single row with a fixed x value.
@@ -444,18 +503,19 @@ class PEPS_Unit_Cell:
         Args:
           fixed_x (int):
             Fixed x value.
+        Keyword args:
+          only_unique (bool):
+            Return only views where each unique PEPS tensor in the unitcell
+            is only once at index (0, 0).
         Returns:
           :term:`iterator`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
             Iterator over one row of the unit cell with the current PEPS
             tensor at moved position (0, 0).
         """
-        unit_cell_len_y = self.data.structure.shape[1]
-
-        for y in range(unit_cell_len_y):
-            yield y, self.move(fixed_x, y)
+        return self._iter_one_row_impl(fixed_x, only_unique=only_unique)
 
     def iter_all_rows(
-        self: T_PEPS_Unit_Cell, *, reverse: bool = False
+        self: T_PEPS_Unit_Cell, *, reverse: bool = False, only_unique: bool = False
     ) -> Tuple[int, Iterator[Iterator[T_PEPS_Unit_Cell]]]:
         """
         Get a iterator over all rows.
@@ -463,6 +523,12 @@ class PEPS_Unit_Cell:
         This function calls :obj:`~peps_ad.peps.PEPS_Unit_Cell.iter_one_row`
         for all rows and yields the resulting iterator.
 
+        Keyword args:
+          reverse (bool):
+            Reverse the order of the iteration.
+          only_unique (bool):
+            Return only views where each unique PEPS tensor in the unitcell
+            is only once at index (0, 0).
         Returns:
           :term:`iterator`\ (:term:`iterator`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`)):
             Iterator for all rows over the iterator for single row with
@@ -475,8 +541,12 @@ class PEPS_Unit_Cell:
         else:
             xiter = range(unit_cell_len_x)
 
+        unique_memory = set() if only_unique else None
+
         for x in xiter:
-            yield x, self.iter_one_row(x)
+            yield x, self._iter_one_row_impl(
+                x, only_unique=only_unique, unique_memory=unique_memory
+            )
 
     def copy(self: T_PEPS_Unit_Cell) -> T_PEPS_Unit_Cell:
         """

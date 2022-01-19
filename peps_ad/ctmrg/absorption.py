@@ -110,7 +110,7 @@ def do_left_absorption(
 
     working_unitcell = unitcell.copy()
 
-    for y, iter_columns in working_unitcell.iter_all_columns():
+    for y, iter_columns in working_unitcell.iter_all_columns(only_unique=True):
         column_views = [view for view in iter_columns]
 
         for x, view in column_views:
@@ -184,7 +184,9 @@ def do_right_absorption(
 
     working_unitcell = unitcell.copy()
 
-    for y, iter_columns in working_unitcell.iter_all_columns(reverse=True):
+    for y, iter_columns in working_unitcell.iter_all_columns(
+        reverse=True, only_unique=True
+    ):
         column_views = [view for view in iter_columns]
 
         for x, view in column_views:
@@ -258,7 +260,7 @@ def do_top_absorption(
 
     working_unitcell = unitcell.copy()
 
-    for x, iter_rows in working_unitcell.iter_all_rows():
+    for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
         row_views = [view for view in iter_rows]
 
         for y, view in row_views:
@@ -332,7 +334,7 @@ def do_bottom_absorption(
 
     working_unitcell = unitcell.copy()
 
-    for x, iter_rows in working_unitcell.iter_all_rows(reverse=True):
+    for x, iter_rows in working_unitcell.iter_all_rows(reverse=True, only_unique=True):
         row_views = [view for view in iter_rows]
 
         for y, view in row_views:
