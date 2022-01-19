@@ -19,12 +19,15 @@ Optimizing_Methods = Literal["steepest", "cg"]
 def _cg_workhorse(new_gradient, old_gradient, old_descent_dir):
     dx = -new_gradient
     dx_old = -old_gradient
+    dx_real = jnp.concatenate((jnp.real(dx), jnp.imag(dx)))
+    dx_old_real = jnp.concatenate((jnp.real(dx_old), jnp.imag(dx_old)))
+    old_des_dir_real = jnp.concatenate((jnp.real(old_descent_dir), jnp.imag(old_descent_dir)))
     # PRP
-    # beta = jnp.sum(dx.conj() * (dx - dx_old)) / jnp.sum(dx_old.conj() * dx_old)
+    # beta = jnp.sum(dx_real * (dx_real - dx_old_real)) / jnp.sum(dx_old_real * dx_old_real)
     # LS parameter
-    beta = jnp.sum(dx.conj() * (dx_old - dx)) / jnp.sum(old_descent_dir.conj() * dx_old)
+    beta = jnp.sum(dx_real * (dx_old_real - dx_real)) / jnp.sum(old_des_dir_real * dx_old_real)
     beta = jnp.fmax(0, beta)
-    return dx + beta * old_descent_dir
+    return dx + beta * old_descent_dir, beta
 
 
 def optimize_peps_network(
@@ -60,15 +63,19 @@ def optimize_peps_network(
         working_gradient = jnp.asarray([elem.conj() for elem in working_gradient])
         gradient_list.append(working_gradient)
 
-        if method == "steepest":
+        if method.lower() == "steepest":
             descent_dirs.append(-working_gradient)
-        elif method == "cg":
+        elif method.lower() == "cg":
             if len(descent_dirs) == 0:
                 descent_dirs.append(-working_gradient)
             else:
+                tmp, beta = _cg_workhorse(working_gradient, gradient_list[-2], descent_dirs[-1])
                 descent_dirs.append(
-                    _cg_workhorse(working_gradient, gradient_list[-2], descent_dirs[-1])
+                   tmp
                 )
+                print(beta)
+        elif method.lower() == "bfgs":
+            pass
         else:
             raise ValueError("Unknown optimization method.")
 
@@ -82,7 +89,8 @@ def optimize_peps_network(
             method=line_search_method,
         )
 
-        if jnp.linalg.norm(working_gradient) < eps:
+        conv = jnp.linalg.norm(working_gradient)
+        if conv < eps:
             working_value, (working_unitcell, _) = calc_ctmrg_expectation(
                 working_tensors, working_unitcell, expectation_func
             )
@@ -90,6 +98,6 @@ def optimize_peps_network(
 
         count += 1
 
-        print(f"{count} after: Value {working_value}")
+        print(f"{count} after: Value {working_value}, Conv: {conv}")
 
     return working_unitcell, working_value
