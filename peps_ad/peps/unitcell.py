@@ -13,7 +13,18 @@ from jax.tree_util import register_pytree_node_class
 from .tensor import PEPS_Tensor
 from peps_ad.utils.random import PEPS_Random_Number_Generator
 
-from typing import TypeVar, Type, Union, Optional, Sequence, Tuple, List, Any, Iterator
+from typing import (
+    TypeVar,
+    Type,
+    Union,
+    Optional,
+    Sequence,
+    Tuple,
+    List,
+    Any,
+    Iterator,
+    Set,
+)
 from peps_ad.typing import Tensor, is_int
 
 T_PEPS_Unit_Cell = TypeVar("T_PEPS_Unit_Cell", bound="PEPS_Unit_Cell")
@@ -397,11 +408,11 @@ class PEPS_Unit_Cell:
         fixed_y: int,
         *,
         only_unique: bool = False,
-        unique_memory: Optional[List[int]] = None
+        unique_memory: Optional[Set[int]] = None
     ):
         unit_cell_len_x = self.data.structure.shape[0]
 
-        if only_unique and unique_memory is None:
+        if unique_memory is None:
             unique_memory = set()
 
         for x in range(unit_cell_len_x):
@@ -418,7 +429,7 @@ class PEPS_Unit_Cell:
 
     def iter_one_column(
         self: T_PEPS_Unit_Cell, fixed_y: int, *, only_unique: bool = False
-    ) -> Tuple[int, Iterator[T_PEPS_Unit_Cell]]:
+    ) -> Iterator[Tuple[int, T_PEPS_Unit_Cell]]:
         """
         Get a iterator over a single column with a fixed y value.
 
@@ -438,7 +449,7 @@ class PEPS_Unit_Cell:
 
     def iter_all_columns(
         self: T_PEPS_Unit_Cell, *, reverse: bool = False, only_unique: bool = False
-    ) -> Tuple[int, Iterator[Iterator[T_PEPS_Unit_Cell]]]:
+    ) -> Iterator[Tuple[int, Iterator[Tuple[int, T_PEPS_Unit_Cell]]]]:
         """
         Get a iterator over all columns.
 
@@ -463,7 +474,7 @@ class PEPS_Unit_Cell:
         else:
             yiter = range(unit_cell_len_y)
 
-        unique_memory = set() if only_unique else None
+        unique_memory: Set[int] = set()
 
         for y in yiter:
             yield y, self._iter_one_column_impl(
@@ -475,11 +486,11 @@ class PEPS_Unit_Cell:
         fixed_x: int,
         *,
         only_unique: bool = False,
-        unique_memory: Optional[List[int]] = None
+        unique_memory: Optional[Set[int]] = None
     ):
         unit_cell_len_y = self.data.structure.shape[1]
 
-        if only_unique and unique_memory is None:
+        if unique_memory is None:
             unique_memory = set()
 
         for y in range(unit_cell_len_y):
@@ -496,7 +507,7 @@ class PEPS_Unit_Cell:
 
     def iter_one_row(
         self: T_PEPS_Unit_Cell, fixed_x: int, *, only_unique: bool = False
-    ) -> Tuple[int, Iterator[T_PEPS_Unit_Cell]]:
+    ) -> Iterator[Tuple[int, T_PEPS_Unit_Cell]]:
         """
         Get a iterator over a single row with a fixed x value.
 
@@ -516,7 +527,7 @@ class PEPS_Unit_Cell:
 
     def iter_all_rows(
         self: T_PEPS_Unit_Cell, *, reverse: bool = False, only_unique: bool = False
-    ) -> Tuple[int, Iterator[Iterator[T_PEPS_Unit_Cell]]]:
+    ) -> Iterator[Tuple[int, Iterator[Tuple[int, T_PEPS_Unit_Cell]]]]:
         """
         Get a iterator over all rows.
 
@@ -541,7 +552,7 @@ class PEPS_Unit_Cell:
         else:
             xiter = range(unit_cell_len_x)
 
-        unique_memory = set() if only_unique else None
+        unique_memory: Set[int] = set()
 
         for x in xiter:
             yield x, self._iter_one_row_impl(

@@ -362,7 +362,7 @@ class PEPS_Tensor:
 
     def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
         field_names = tuple(
-            i for i in self.__dataclass_fields__.keys() if i != "sanity_checks"
+            i for i in self.__dataclass_fields__.keys() if i != "sanity_checks"  # type: ignore
         )
         field_values = tuple(getattr(self, name) for name in field_names)
 
