@@ -134,6 +134,58 @@ class Definitions:
         ],
     }
 
+    density_matrix_four_sites_top_left = {
+        "tensors": [["tensor", "tensor_conj", "T4", "C1", "T1"]],
+        "network": [
+            [
+                (3, -4, -1, -7, 4),  # tensor
+                (5, -5, -2, -8, 6),  # tensor_conj
+                (-3, 5, 3, 1),  # T4
+                (1, 2),  # C1
+                (2, 4, 6, -6),  # T1
+            ]
+        ],
+    }
+
+    density_matrix_four_sites_top_right = {
+        "tensors": [["tensor", "tensor_conj", "T1", "C2", "T2"]],
+        "network": [
+            [
+                (-4, -8, -1, 4, 3),  # tensor
+                (-5, -7, -2, 6, 5),  # tensor_conj
+                (-3, 3, 5, 1),  # T1
+                (1, 2),  # C2
+                (4, 6, -6, 2),  # T2
+            ]
+        ],
+    }
+
+    density_matrix_four_sites_bottom_left = {
+        "tensors": [["tensor", "tensor_conj", "T3", "C4", "T4"]],
+        "network": [
+            [
+                (3, 4, -1, -5, -7),  # tensor
+                (5, 6, -2, -4, -8),  # tensor_conj
+                (2, -3, 6, 4),  # T3
+                (2, 1),  # C4
+                (1, 5, 3, -6),  # T4
+            ]
+        ],
+    }
+
+    density_matrix_four_sites_bottom_right = {
+        "tensors": [["tensor", "tensor_conj", "T2", "T3", "C3"]],
+        "network": [
+            [
+                (-8, 3, -1, 4, -5),  # tensor
+                (-7, 5, -2, 6, -4),  # tensor_conj
+                (4, 6, 2, -3),  # T2
+                (-6, 1, 5, 3),  # T3
+                (1, 2),  # C3
+            ]
+        ],
+    }
+
     ctmrg_top_left = {
         "tensors": [["tensor", "tensor_conj", "T4", "C1", "T1"]],
         "network": [

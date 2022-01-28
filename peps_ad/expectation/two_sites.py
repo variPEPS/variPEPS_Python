@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import partial
 
 import jax.numpy as jnp
 from jax import jit
@@ -10,7 +11,8 @@ from .model import Expectation_Model
 from typing import Sequence, List, Tuple, Union
 
 
-def _two_site_workhorse_body(
+@partial(jit, static_argnums=(3,))
+def _two_site_workhorse(
     density_matrix_1: jnp.ndarray,
     density_matrix_2: jnp.ndarray,
     gates: Tuple[jnp.ndarray, ...],
@@ -40,7 +42,43 @@ def _two_site_workhorse_body(
         ]
 
 
-_two_site_workhorse = jit(_two_site_workhorse_body, static_argnums=(3,))
+@partial(jit, static_argnums=(5,))
+def _two_site_diagonal_workhorse(
+    density_matrix_1: jnp.ndarray,
+    density_matrix_2: jnp.ndarray,
+    traced_density_matrix_1: jnp.ndarray,
+    traced_density_matrix_2: jnp.ndarray,
+    gates: Tuple[jnp.ndarray, ...],
+    real_result: bool = False,
+) -> List[jnp.ndarray]:
+    tmp_tensor_1 = jnp.tensordot(
+        density_matrix_1, traced_density_matrix_1, ((5, 6, 7), (0, 1, 2))
+    )
+    tmp_tensor_2 = jnp.tensordot(
+        density_matrix_2, traced_density_matrix_2, ((5, 6, 7), (0, 1, 2))
+    )
+
+    density_matrix = jnp.tensordot(
+        tmp_tensor_1, tmp_tensor_2, ((2, 3, 4, 5, 6, 7), (5, 6, 7, 2, 3, 4))
+    )
+
+    density_matrix = density_matrix.transpose((0, 2, 1, 3))
+    density_matrix = density_matrix.reshape(
+        density_matrix.shape[0] * density_matrix.shape[1],
+        density_matrix.shape[2] * density_matrix.shape[3],
+    )
+
+    norm = jnp.trace(density_matrix)
+
+    if real_result:
+        return [
+            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
+            for g in gates
+        ]
+    else:
+        return [
+            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
+        ]
 
 
 def calc_two_sites_horizontal_multiple_gates(
@@ -176,6 +214,194 @@ def calc_two_sites_vertical_single_gate(
     """
     return calc_two_sites_vertical_multiple_gates(
         peps_tensors, peps_tensor_objs, [gate]
+    )[0]
+
+
+def calc_two_sites_diagonal_top_left_bottom_right_multiple_gates(
+    peps_tensors: Sequence[jnp.ndarray],
+    peps_tensor_objs: Sequence[PEPS_Tensor],
+    gates: Sequence[jnp.ndarray],
+) -> List[jnp.ndarray]:
+    """
+    Calculate the two site expectation values for two from top left to bottom
+    right diagonal ordered PEPS tensor and their environment.
+
+    The order of the PEPS sequence have to be
+    [top-left, top-right, bottom-left, bottom-right].
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The PEPS tensor arrays. Have to be the same objects as the tensor
+        attribute of the `peps_tensor_obj` argument.
+      peps_tensor_objs (:term:`sequence` of :obj:`~peps_ad.peps.PEPS_Tensor`):
+        PEPS tensor objects.
+      gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates which should be applied to the PEPS tensors.
+        Gates are expected to be a matrix with first axis corresponding to
+        the Hilbert space and the second axis corresponding to the dual room.
+    Returns:
+      :obj:`list` of :obj:`jax.numpy.ndarray`:
+        List with the calculated expectation values of each gate.
+    """
+    density_matrix_top_left = apply_contraction(
+        "density_matrix_four_sites_top_left",
+        [peps_tensors[0]],
+        [peps_tensor_objs[0]],
+        [],
+    )
+
+    traced_density_matrix_top_right = apply_contraction(
+        "ctmrg_top_right", [peps_tensors[1]], [peps_tensor_objs[1]], []
+    )
+
+    traced_density_matrix_bottom_left = apply_contraction(
+        "ctmrg_bottom_left", [peps_tensors[2]], [peps_tensor_objs[2]], []
+    )
+
+    density_matrix_bottom_right = apply_contraction(
+        "density_matrix_four_sites_bottom_right",
+        [peps_tensors[3]],
+        [peps_tensor_objs[3]],
+        [],
+    )
+
+    real_result = all(jnp.allclose(g, jnp.real(g)) for g in gates)
+
+    return _two_site_diagonal_workhorse(
+        density_matrix_top_left,
+        density_matrix_bottom_right,
+        traced_density_matrix_top_right,
+        traced_density_matrix_bottom_left,
+        tuple(gates),
+        real_result,
+    )
+
+
+def calc_two_sites_diagonal_top_left_bottom_right_single_gate(
+    peps_tensors: Sequence[jnp.ndarray],
+    peps_tensor_objs: Sequence[PEPS_Tensor],
+    gate: jnp.ndarray,
+) -> jnp.ndarray:
+    """
+    Calculate the two site expectation value for two from top left to bottom
+    right diagonal ordered PEPS tensor and their environment.
+
+    The order of the PEPS sequence have to be
+    [top-left, top-right, bottom-left, bottom-right].
+
+    This function just wraps
+    :obj:`~peps_ad.expectation.two_sites.calc_two_sites_diagonal_top_left_bottom_right_multiple_gates`.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The PEPS tensor arrays. Have to be the same objects as the tensor
+        attribute of the `peps_tensor_obj` argument.
+      peps_tensor_objs (:term:`sequence` of :obj:`~peps_ad.peps.PEPS_Tensor`):
+        PEPS tensor objects.
+      gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Gate which should be applied to the PEPS tensors.
+        The gate is expected to be a matrix with first axis corresponding to
+        the Hilbert space and the second axis corresponding to the dual room.
+    Returns:
+      :obj:`jax.numpy.ndarray`:
+        Calculated expectation value of the gate.
+    """
+    return calc_two_sites_diagonal_top_left_bottom_right_multiple_gates(
+        peps_tensors, peps_tensor_objs, (gate,)
+    )[0]
+
+
+def calc_two_sites_diagonal_top_right_bottom_left_multiple_gates(
+    peps_tensors: Sequence[jnp.ndarray],
+    peps_tensor_objs: Sequence[PEPS_Tensor],
+    gates: Sequence[jnp.ndarray],
+) -> List[jnp.ndarray]:
+    """
+    Calculate the two site expectation values for two from top left to bottom
+    right diagonal ordered PEPS tensor and their environment.
+
+    The order of the PEPS sequence have to be
+    [top-left, top-right, bottom-left, bottom-right].
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The PEPS tensor arrays. Have to be the same objects as the tensor
+        attribute of the `peps_tensor_obj` argument.
+      peps_tensor_objs (:term:`sequence` of :obj:`~peps_ad.peps.PEPS_Tensor`):
+        PEPS tensor objects.
+      gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates which should be applied to the PEPS tensors.
+        Gates are expected to be a matrix with first axis corresponding to
+        the Hilbert space and the second axis corresponding to the dual room.
+    Returns:
+      :obj:`list` of :obj:`jax.numpy.ndarray`:
+        List with the calculated expectation values of each gate.
+    """
+    traced_density_matrix_top_left = apply_contraction(
+        "ctmrg_top_left", [peps_tensors[0]], [peps_tensor_objs[0]], []
+    )
+
+    density_matrix_top_right = apply_contraction(
+        "density_matrix_four_sites_top_right",
+        [peps_tensors[1]],
+        [peps_tensor_objs[1]],
+        [],
+    )
+
+    density_matrix_bottom_left = apply_contraction(
+        "density_matrix_four_sites_bottom_left",
+        [peps_tensors[2]],
+        [peps_tensor_objs[2]],
+        [],
+    )
+
+    traced_density_matrix_bottom_right = apply_contraction(
+        "ctmrg_bottom_right", [peps_tensors[3]], [peps_tensor_objs[3]], []
+    )
+
+    real_result = all(jnp.allclose(g, jnp.real(g)) for g in gates)
+
+    return _two_site_diagonal_workhorse(
+        density_matrix_top_right,
+        density_matrix_bottom_left,
+        traced_density_matrix_bottom_right,
+        traced_density_matrix_top_left,
+        tuple(gates),
+        real_result,
+    )
+
+
+def calc_two_sites_diagonal_top_right_bottom_left_single_gate(
+    peps_tensors: Sequence[jnp.ndarray],
+    peps_tensor_objs: Sequence[PEPS_Tensor],
+    gate: jnp.ndarray,
+) -> jnp.ndarray:
+    """
+    Calculate the two site expectation value for two from top right to bottom
+    left diagonal ordered PEPS tensor and their environment.
+
+    The order of the PEPS sequence have to be
+    [top-left, top-right, bottom-left, bottom-right].
+
+    This function just wraps
+    :obj:`~peps_ad.expectation.two_sites.calc_two_sites_diagonal_top_right_bottom_left_multiple_gates`.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The PEPS tensor arrays. Have to be the same objects as the tensor
+        attribute of the `peps_tensor_obj` argument.
+      peps_tensor_objs (:term:`sequence` of :obj:`~peps_ad.peps.PEPS_Tensor`):
+        PEPS tensor objects.
+      gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Gate which should be applied to the PEPS tensors.
+        The gate is expected to be a matrix with first axis corresponding to
+        the Hilbert space and the second axis corresponding to the dual room.
+    Returns:
+      :obj:`jax.numpy.ndarray`:
+        Calculated expectation value of the gate.
+    """
+    return calc_two_sites_diagonal_top_right_bottom_left_multiple_gates(
+        peps_tensors, peps_tensor_objs, (gate,)
     )[0]
 
 
