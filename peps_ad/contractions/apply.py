@@ -20,6 +20,8 @@ def apply_contraction(
     peps_tensors: Sequence[jnp.ndarray],
     peps_tensor_objs: Sequence[PEPS_Tensor],
     additional_tensors: Sequence[jnp.ndarray],
+    *,
+    disable_identity_check: bool = False,
 ) -> jnp.ndarray:
     """
     Apply a contraction to a list of tensors.
@@ -38,6 +40,10 @@ def apply_contraction(
         split up due to limitation of the jax library.
       additional_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
         Additional non-PEPS tensors which should be contracted (e.g. gates).
+    Keyword args:
+      disable_identity_check (:obj:`bool`):
+        Disable the check if the tensor is identical to the one of the
+        corresponding object.
     Returns:
       jax.numpy.ndarray:
         The contracted tensor.
@@ -47,8 +53,13 @@ def apply_contraction(
             "Number of PEPS tensors have to match number of PEPS tensor objects."
         )
 
-    if not all(isinstance(t, jax.core.Tracer) for t in peps_tensors) and not all(
-        peps_tensors[i] is peps_tensor_objs[i].tensor for i in range(len(peps_tensors))
+    if (
+        not disable_identity_check
+        and not all(isinstance(t, jax.core.Tracer) for t in peps_tensors)
+        and not all(
+            peps_tensors[i] is peps_tensor_objs[i].tensor
+            for i in range(len(peps_tensors))
+        )
     ):
         raise ValueError(
             "Sequence of PEPS tensors mismatch the objects sequence. Please check your code!"

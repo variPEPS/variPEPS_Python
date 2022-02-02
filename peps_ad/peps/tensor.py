@@ -16,7 +16,7 @@ from peps_ad.utils.random import PEPS_Random_Number_Generator
 
 import typing
 from typing import TypeVar, Type, Union, Optional, Sequence, Tuple, Any
-from peps_ad.typing import Tensor
+from peps_ad.typing import Tensor, is_tensor
 
 T_PEPS_Tensor = TypeVar("T_PEPS_Tensor", bound="PEPS_Tensor")
 
@@ -117,6 +117,106 @@ class PEPS_Tensor:
             raise ValueError(
                 "At least one transfer tensors mismatch bond dimensions of PEPS tensor."
             )
+
+    @classmethod
+    def from_tensor(
+        cls: Type[T_PEPS_Tensor],
+        tensor: Tensor,
+        d: int,
+        D: Union[int, Sequence[int]],
+        chi: int,
+        *,
+        ctm_tensors_are_identities: bool = True,
+        normalize: bool = True,
+        seed: Optional[int] = None,
+        backend: str = "jax",
+    ) -> T_PEPS_Tensor:
+        """
+        Initialize a PEPS tensor object with a given tensor and new CTM tensors.
+
+        Args:
+          tensor (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            PEPS tensor to initialize the object with
+          d (:obj:`int`):
+            Physical dimension
+          D (:obj:`int` or :term:`sequence` of :obj:`int`):
+            Bond dimensions for the PEPS tensor
+          chi (:obj:`int`):
+            Bond dimension for the environment tensors
+        Keyword args:
+          ctm_tensors_are_identities (:obj:`bool`, optional):
+            Flag if the CTM tensors are initialized as identities. Otherwise,
+            they are initialized randomly. Defaults to True.
+          normalize (:obj:`bool`, optional):
+            Flag if the generated tensors are normalized. Defaults to True.
+          seed (:obj:`int`, optional):
+            Seed for the random number generator.
+          backend (:obj:`str`, optional):
+            Backend for the generated tensors (may be ``jax`` or ``numpy``).
+            Defaults to ``jax``.
+        Returns:
+          PEPS_Tensor:
+            Instance of PEPS_Tensor with the randomly initialized tensors.
+        """
+        if not is_tensor(tensor):
+            raise ValueError("Invalid argument for tensor.")
+
+        if isinstance(D, int):
+            D = (D,) * 4
+        elif isinstance(D, collections.abc.Sequence) and not isinstance(D, tuple):
+            D = tuple(D)
+
+        if not all(isinstance(i, int) for i in D) or not len(D) == 4:
+            raise ValueError("Invalid argument for D.")
+
+        if (
+            tensor.shape[0] != D[0]
+            or tensor.shape[1] != D[1]
+            or tensor.shape[3] != D[2]
+            or tensor.shape[4] != D[3]
+            or tensor.shape[2] != d
+        ):
+            raise ValueError("Tensor dimensions mismatch the dimension arguments.")
+
+        dtype = tensor.dtype
+
+        if ctm_tensors_are_identities:
+            C1 = jnp.ones((1, 1), dtype=dtype)
+            C2 = jnp.ones((1, 1), dtype=dtype)
+            C3 = jnp.ones((1, 1), dtype=dtype)
+            C4 = jnp.ones((1, 1), dtype=dtype)
+
+            T1 = jnp.eye(D[3], dtype=dtype).reshape(1, D[3], D[3], 1)
+            T2 = jnp.eye(D[2], dtype=dtype).reshape(D[2], D[2], 1, 1)
+            T3 = jnp.eye(D[1], dtype=dtype).reshape(1, 1, D[1], D[1])
+            T4 = jnp.eye(D[0], dtype=dtype).reshape(1, D[0], D[0], 1)
+        else:
+            rng = PEPS_Random_Number_Generator.get_generator(seed, backend=backend)
+
+            C1 = rng.block((chi, chi), dtype, normalize=normalize)
+            C2 = rng.block((chi, chi), dtype, normalize=normalize)
+            C3 = rng.block((chi, chi), dtype, normalize=normalize)
+            C4 = rng.block((chi, chi), dtype, normalize=normalize)
+
+            T1 = rng.block((chi, D[3], D[3], chi), dtype, normalize=normalize)
+            T2 = rng.block((D[2], D[2], chi, chi), dtype, normalize=normalize)
+            T3 = rng.block((chi, chi, D[1], D[1]), dtype, normalize=normalize)
+            T4 = rng.block((chi, D[0], D[0], chi), dtype, normalize=normalize)
+
+        return cls(
+            tensor=tensor,
+            C1=C1,
+            C2=C2,
+            C3=C3,
+            C4=C4,
+            T1=T1,
+            T2=T2,
+            T3=T3,
+            T4=T4,
+            d=d,
+            D=D,  # type: ignore
+            chi=chi,
+        )
 
     @classmethod
     def random(

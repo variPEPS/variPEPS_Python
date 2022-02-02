@@ -186,6 +186,16 @@ class Definitions:
         ],
     }
 
+    density_matrix_three_sites_triangle_without_top_left = {
+        "tensors": ["top-left", "top-right", "bottom-left", "bottom-right"],
+        "network": [
+            (10, 11, 12, 1, 2, 3),  # top-left
+            (-1, -4, 1, 2, 3, 4, 5, 6),  # top-right
+            (-2, -5, 7, 8, 9, 10, 11, 12),  # bottom-left
+            (-3, -6, 4, 5, 6, 7, 8, 9),  # bottom-right
+        ],
+    }
+
     ctmrg_top_left = {
         "tensors": [["tensor", "tensor_conj", "T4", "C1", "T1"]],
         "network": [
@@ -391,5 +401,55 @@ class Definitions:
                 (2, 1),  # C3
             ],
             (2, 4, 3, -1),  # projector_bottom_left
+        ],
+    }
+
+    kagome_pess3_single_site_mapping = {
+        "tensors": ["up_simplex", "down_simplex", "site1", "site2", "site3"],
+        "network": [
+            (1, 2, 3),  # up_simplex
+            (-1, -7, 4),  # down_simplex
+            (4, -3, 1),  # site1
+            (-2, -4, 2),  # site2
+            (-6, -5, 3),  # site3
+        ],
+    }
+
+    kagome_downward_triangle_top_right = {
+        "tensors": [["tensor", "tensor_conj", "T1", "C2", "T2"]],
+        "network": [
+            [
+                (-4, -8, 7, -1, 8, 4, 3),  # tensor
+                (-5, -7, 7, -2, 8, 6, 5),  # tensor_conj
+                (-3, 3, 5, 1),  # T1
+                (1, 2),  # C2
+                (4, 6, -6, 2),  # T2
+            ]
+        ],
+    }
+
+    kagome_downward_triangle_bottom_left = {
+        "tensors": [["tensor", "tensor_conj", "T3", "C4", "T4"]],
+        "network": [
+            [
+                (3, 4, 7, 8, -1, -5, -7),  # tensor
+                (5, 6, 7, 8, -2, -4, -8),  # tensor_conj
+                (2, -3, 6, 4),  # T3
+                (2, 1),  # C4
+                (1, 5, 3, -6),  # T4
+            ]
+        ],
+    }
+
+    kagome_downward_triangle_bottom_right = {
+        "tensors": [["tensor", "tensor_conj", "T2", "T3", "C3"]],
+        "network": [
+            [
+                (-8, 3, -1, 7, 8, 4, -5),  # tensor
+                (-7, 5, -2, 7, 8, 6, -4),  # tensor_conj
+                (4, 6, 2, -3),  # T2
+                (-6, 1, 5, 3),  # T3
+                (1, 2),  # C3
+            ]
         ],
     }

@@ -157,6 +157,25 @@ class PEPS_Unit_Cell:
         return structure, tensors_i
 
     @classmethod
+    def from_tensor_list(
+        cls: Type[T_PEPS_Unit_Cell],
+        tensor_list: Sequence[PEPS_Tensor],
+        structure: Union[Sequence[Sequence[int]], Tensor],
+    ) -> T_PEPS_Unit_Cell:
+        structure_arr = jnp.asarray(structure)
+
+        structure_arr, tensors_i = cls._check_structure(structure_arr)
+
+        if tensors_i.size != len(tensor_list):
+            raise ValueError("Structure and tensor list mismatch.")
+
+        data = cls.Unit_Cell_Data(
+            peps_tensors=list(tensor_list), structure=structure_arr
+        )
+
+        return cls(data=data)
+
+    @classmethod
     def random(
         cls: Type[T_PEPS_Unit_Cell],
         structure: Union[Sequence[Sequence[int]], Tensor],
