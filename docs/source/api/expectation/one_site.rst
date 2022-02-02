@@ -5,10 +5,8 @@
 Calculation of one site expectation values
 ==========================================
 
-.. autofunction:: calc_one_site_multi_gates
-
-.. autofunction:: calc_one_site_single_gate
-
-.. autofunction:: calc_one_site_multi_gates_obj
-
-.. autofunction:: calc_one_site_single_gate_obj
+.. automodule:: peps_ad.expectation.one_site
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __call__

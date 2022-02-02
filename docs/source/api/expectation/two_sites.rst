@@ -5,10 +5,8 @@
 Calculation of two sites expectation values
 ===========================================
 
-.. autofunction:: calc_two_sites_horizontal_multiple_gates
-
-.. autofunction:: calc_two_sites_horizontal_single_gate
-
-.. autofunction:: calc_two_sites_vertical_multiple_gates
-
-.. autofunction:: calc_two_sites_vertical_single_gate
+.. automodule:: peps_ad.expectation.two_sites
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __call__
