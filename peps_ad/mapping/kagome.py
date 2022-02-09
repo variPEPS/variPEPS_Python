@@ -10,7 +10,9 @@ from peps_ad.expectation.one_site import calc_one_site_multi_gates
 from peps_ad.expectation.three_sites import _three_site_triangle_workhorse
 from peps_ad.typing import Tensor
 
-from typing import Sequence, Union, List
+from typing import Sequence, Union, List, Callable, TypeVar, Optional
+
+T_float_complex = TypeVar("T_float_complex", float, complex)
 
 
 @dataclass
@@ -35,6 +37,7 @@ class Kagome_PESS3_Expectation_Value(Expectation_Model):
     upward_triangle_gates: Sequence[jnp.ndarray]
     downward_triangle_gates: Sequence[jnp.ndarray]
     normalization_factor: int = 3
+    operation_before_sum: Optional[Callable[[T_float_complex], T_float_complex]] = None
 
     def __post_init__(self) -> None:
         if (
@@ -81,6 +84,8 @@ class Kagome_PESS3_Expectation_Value(Expectation_Model):
                     )
 
                     for sr_i, sr in enumerate(step_result_upward):
+                        if self.operation_before_sum is not None:
+                            sr = self.operation_before_sum(sr)
                         result[sr_i] += sr
 
                 if len(self.downward_triangle_gates) > 0:
@@ -147,6 +152,8 @@ class Kagome_PESS3_Expectation_Value(Expectation_Model):
                     )
 
                     for sr_i, sr in enumerate(step_result_downward):
+                        if self.operation_before_sum is not None:
+                            sr = self.operation_before_sum(sr)
                         result[sr_i] += sr
 
         if normalize_by_size:
