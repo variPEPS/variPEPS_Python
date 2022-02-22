@@ -1,3 +1,5 @@
+from functools import partial
+
 from jax import jit
 import jax.numpy as jnp
 
@@ -21,13 +23,54 @@ def _cg_workhorse(new_gradient, old_gradient, old_descent_dir):
     dx_old = -old_gradient
     dx_real = jnp.concatenate((jnp.real(dx), jnp.imag(dx)))
     dx_old_real = jnp.concatenate((jnp.real(dx_old), jnp.imag(dx_old)))
-    old_des_dir_real = jnp.concatenate((jnp.real(old_descent_dir), jnp.imag(old_descent_dir)))
+    old_des_dir_real = jnp.concatenate(
+        (jnp.real(old_descent_dir), jnp.imag(old_descent_dir))
+    )
     # PRP
     # beta = jnp.sum(dx_real * (dx_real - dx_old_real)) / jnp.sum(dx_old_real * dx_old_real)
     # LS parameter
-    beta = jnp.sum(dx_real * (dx_old_real - dx_real)) / jnp.sum(old_des_dir_real * dx_old_real)
+    beta = jnp.sum(dx_real * (dx_old_real - dx_real)) / jnp.sum(
+        old_des_dir_real * dx_old_real
+    )
     beta = jnp.fmax(0, beta)
     return dx + beta * old_descent_dir, beta
+
+
+@partial(jit, static_argnums=(5,))
+def _bfgs_workhorse(
+    new_gradient, old_gradient, old_descent_dir, old_alpha, B_inv, calc_new_B_inv
+):
+    new_grad_vec = jnp.concatenate((jnp.real(new_gradient), jnp.imag(new_gradient)))
+    new_grad_vec = jnp.ravel(new_grad_vec)
+
+    if calc_new_B_inv:
+        old_grad_vec = jnp.concatenate((jnp.real(old_gradient), jnp.imag(old_gradient)))
+        old_grad_vec = jnp.ravel(old_grad_vec)
+        old_descent_dir_vec = jnp.concatenate(
+            (jnp.real(old_descent_dir), jnp.imag(old_descent_dir))
+        )
+        old_descent_dir_vec = jnp.ravel(old_descent_dir_vec)
+
+        sk = old_alpha * old_descent_dir_vec
+        yk = new_grad_vec - old_grad_vec
+
+        skyk_scalar = jnp.dot(sk, yk)
+        B_inv_yk = jnp.dot(B_inv, yk)
+
+        new_B_inv = (
+            B_inv
+            + ((skyk_scalar + jnp.dot(yk, B_inv_yk)) / (skyk_scalar ** 2))
+            * jnp.outer(sk, sk)
+            - (jnp.outer(B_inv_yk, sk) + jnp.outer(sk, B_inv_yk)) / skyk_scalar
+        )
+    else:
+        new_B_inv = B_inv
+
+    result_vec = -jnp.dot(new_B_inv, new_grad_vec)
+
+    result = result_vec[: new_gradient.size] + 1j * result_vec[new_gradient.size :]
+
+    return result.reshape(new_gradient.shape), new_B_inv
 
 
 def optimize_peps_network(
@@ -42,10 +85,15 @@ def optimize_peps_network(
     working_tensors = [i.tensor for i in unitcell.get_unique_tensors()]
     working_unitcell = unitcell
 
-    gradient_list = []
-    descent_dirs = []
+    old_gradient = None
+    old_descent_dir = None
+    descent_dir = None
+
+    if method.lower() == "bfgs":
+        bfgs_B_inv = jnp.eye(2 * sum([t.size for t in working_tensors]))
 
     count = 0
+    linesearch_step = 0
 
     while count < max_steps:
         (
@@ -61,30 +109,40 @@ def optimize_peps_network(
         print(f"{count} before: Value {working_value}")
 
         working_gradient = jnp.asarray([elem.conj() for elem in working_gradient])
-        gradient_list.append(working_gradient)
 
         if method.lower() == "steepest":
-            descent_dirs.append(-working_gradient)
+            descent_dir = -working_gradient
         elif method.lower() == "cg":
-            if len(descent_dirs) == 0:
-                descent_dirs.append(-working_gradient)
+            if count == 0:
+                descent_dir = -working_gradient
             else:
-                tmp, beta = _cg_workhorse(working_gradient, gradient_list[-2], descent_dirs[-1])
-                descent_dirs.append(
-                   tmp
+                descent_dir, beta = _cg_workhorse(
+                    working_gradient, old_gradient, old_descent_dir
                 )
                 print(beta)
         elif method.lower() == "bfgs":
-            pass
+            if count == 0:
+                descent_dir, _ = _bfgs_workhorse(
+                    working_gradient, None, None, None, bfgs_B_inv, False
+                )
+            else:
+                descent_dir, bfgs_B_inv = _bfgs_workhorse(
+                    working_gradient,
+                    old_gradient,
+                    old_descent_dir,
+                    linesearch_step,
+                    bfgs_B_inv,
+                    True,
+                )
         else:
             raise ValueError("Unknown optimization method.")
 
-        working_tensors, working_unitcell, working_value = line_search(
+        working_tensors, working_unitcell, working_value, linesearch_step = line_search(
             working_tensors,
             working_unitcell,
             expectation_func,
             working_gradient,
-            descent_dirs[-1],
+            descent_dir,
             working_value,
             method=line_search_method,
         )
@@ -96,8 +154,10 @@ def optimize_peps_network(
             )
             break
 
+        old_descent_dir = descent_dir
+        old_gradient = working_gradient
         count += 1
 
-        print(f"{count} after: Value {working_value}, Conv: {conv}")
+        print(f"{count} after: Value {working_value}, Conv: {conv}, Alpha: {linesearch_step}")
 
     return working_unitcell, working_value

@@ -20,7 +20,9 @@ def _line_search_new_tensors(peps_tensors, descent_dir, alpha):
 def _armijo_value(current_val, descent_dir, gradient, alpha, const_factor):
     descent_dir_real = jnp.concatenate((jnp.real(descent_dir), jnp.imag(descent_dir)))
     gradient_real = jnp.concatenate((jnp.real(gradient), jnp.imag(gradient)))
-    return current_val + const_factor * alpha * jnp.sum(descent_dir_real * gradient_real)
+    return current_val + const_factor * alpha * jnp.sum(
+        descent_dir_real * gradient_real
+    )
 
 
 def line_search(
@@ -35,7 +37,7 @@ def line_search(
     ctmrg_eps: float = 1e-5,
     ctmrg_max_steps: int = 20,
     initial_step_size: float = 1.0,
-    reduction_factor: float = 0.25,
+    reduction_factor: float = 0.5,
     max_steps: int = 20,
     armijo_constant_factor: float = 1e-4,
     wolfe_curvature_factor: float = 0.1,
@@ -97,4 +99,4 @@ def line_search(
     if count == max_steps:
         raise RuntimeError("Line search does not find a suitable step size.")
 
-    return new_tensors, new_unitcell, new_value
+    return new_tensors, new_unitcell, new_value, alpha
