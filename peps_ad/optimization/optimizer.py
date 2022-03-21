@@ -79,6 +79,7 @@ def optimize_peps_network(
     *,
     method: Optimizing_Methods = "steepest",
     line_search_method: Line_Search_Methods = "simple",
+    initial_step_size: float = 1.0,
     max_steps: int = 100,
     eps: float = 1e-5,
 ):
@@ -93,7 +94,7 @@ def optimize_peps_network(
         bfgs_B_inv = jnp.eye(2 * sum([t.size for t in working_tensors]))
 
     count = 0
-    linesearch_step = 0
+    linesearch_step = initial_step_size
 
     while count < max_steps:
         (
@@ -144,7 +145,9 @@ def optimize_peps_network(
             working_gradient,
             descent_dir,
             working_value,
+            linesearch_step,
             method=line_search_method,
+            initial_step_size=initial_step_size,
         )
 
         conv = jnp.linalg.norm(working_gradient)
@@ -156,8 +159,11 @@ def optimize_peps_network(
 
         old_descent_dir = descent_dir
         old_gradient = working_gradient
+
         count += 1
 
-        print(f"{count} after: Value {working_value}, Conv: {conv}, Alpha: {linesearch_step}")
+        print(
+            f"{count} after: Value {working_value}, Conv: {conv}, Alpha: {linesearch_step}"
+        )
 
     return working_unitcell, working_value

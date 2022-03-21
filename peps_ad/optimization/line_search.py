@@ -32,6 +32,7 @@ def line_search(
     gradient: Sequence[jnp.ndarray],
     descent_direction: Sequence[jnp.ndarray],
     current_value: float,
+    last_step_size: float,
     *,
     method: Line_Search_Methods = "simple",
     ctmrg_eps: float = 1e-5,
@@ -48,7 +49,9 @@ def line_search(
     ):
         raise ValueError("PEPS tensor sequence mismatches the unitcell.")
 
-    alpha = initial_step_size
+    alpha = last_step_size if last_step_size is not None else initial_step_size
+    has_been_increased = False
+    incrementation_not_helped = False
 
     count = 0
     while count < max_steps:
@@ -78,8 +81,7 @@ def line_search(
             raise ValueError("Unknown line search method.")
 
         if method == "simple":
-            if new_value < current_value:
-                break
+            smaller_value_found = new_value < current_value
         elif method == "armijo":
             cmp_value = _armijo_value(
                 current_value,
@@ -88,12 +90,22 @@ def line_search(
                 alpha,
                 armijo_constant_factor,
             )
-            if new_value < cmp_value:
-                break
+            smaller_value_found = new_value < cmp_value
         elif method == "wolfe":
             pass
 
-        alpha = reduction_factor * alpha
+        if smaller_value_found:
+            if alpha >= initial_step_size or incrementation_not_helped:
+                break
+
+            has_been_increased = True
+            alpha /= reduction_factor
+        else:
+            if has_been_increased:
+                incrementation_not_helped = True
+
+            alpha = reduction_factor * alpha
+
         count += 1
 
     if count == max_steps:
