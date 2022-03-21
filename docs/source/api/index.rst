@@ -15,6 +15,7 @@ This reference documents the public API of the :mod:`peps_ad` module.
    ctmrg/index
    expectation/index
    mapping/index
+   optimization/index
    peps/index
    typing
    utils/index
