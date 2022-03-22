@@ -12,6 +12,7 @@
 #
 import os
 import sys
+import importlib.metadata
 
 sys.path.insert(0, os.path.abspath(".."))
 
@@ -23,7 +24,7 @@ copyright = "2021, Philipp Schmoll, Augustine Kshetrimayum, Frederik Wilde, Jan 
 author = "Philipp Schmoll, Augustine Kshetrimayum, Frederik Wilde, Jan Naumann"
 
 # The full version, including alpha/beta/rc tags
-release = "0.1.0"
+release = importlib.metadata.version("peps_ad")
 
 
 # -- General configuration ---------------------------------------------------
