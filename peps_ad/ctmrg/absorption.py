@@ -98,10 +98,10 @@ def do_left_absorption(
     Args:
       peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
         The sequence of unique PEPS tensors the unitcell consists of.
-      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_cell`):
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
     Returns:
-      :obj:`~peps_ad.peps.PEPS_Unit_cell`:
+      :obj:`~peps_ad.peps.PEPS_Unit_Cell`:
         New instance of the unitcell with the updated left CTMRG tensors of
         all elements of the unitcell.
     """
@@ -172,10 +172,10 @@ def do_right_absorption(
     Args:
       peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
         The sequence of unique PEPS tensors the unitcell consists of.
-      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_cell`):
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
     Returns:
-      :obj:`~peps_ad.peps.PEPS_Unit_cell`:
+      :obj:`~peps_ad.peps.PEPS_Unit_Cell`:
         New instance of the unitcell with the updated right CTMRG tensors of
         all elements of the unitcell.
     """
@@ -248,10 +248,10 @@ def do_top_absorption(
     Args:
       peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
         The sequence of unique PEPS tensors the unitcell consists of.
-      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_cell`):
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
     Returns:
-      :obj:`~peps_ad.peps.PEPS_Unit_cell`:
+      :obj:`~peps_ad.peps.PEPS_Unit_Cell`:
         New instance of the unitcell with the updated top CTMRG tensors of
         all elements of the unitcell.
     """
@@ -322,10 +322,10 @@ def do_bottom_absorption(
     Args:
       peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
         The sequence of unique PEPS tensors the unitcell consists of.
-      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_cell`):
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
     Returns:
-      :obj:`~peps_ad.peps.PEPS_Unit_cell`:
+      :obj:`~peps_ad.peps.PEPS_Unit_Cell`:
         New instance of the unitcell with the updated bottom CTMRG tensors of
         all elements of the unitcell.
     """
@@ -396,10 +396,10 @@ def do_absorption_step(
     Args:
       peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
         The sequence of unique PEPS tensors the unitcell consists of.
-      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_cell`):
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
     Returns:
-      :obj:`~peps_ad.peps.PEPS_Unit_cell`:
+      :obj:`~peps_ad.peps.PEPS_Unit_Cell`:
         New instance of the unitcell with the all updated CTMRG tensors of
         all elements of the unitcell.
     """

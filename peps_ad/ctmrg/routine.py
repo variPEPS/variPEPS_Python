@@ -53,7 +53,7 @@ def calc_ctmrg_env(
     Args:
       peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
         The sequence of unique PEPS tensors the unitcell consists of.
-      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_cell`):
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
     Keyword args:
       eps (:obj:`float`):
