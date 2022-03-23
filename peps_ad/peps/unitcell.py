@@ -200,7 +200,7 @@ class PEPS_Unit_Cell:
         dtype: Type[jnp.number],
         *,
         seed: Optional[int] = None,
-        destroy_random_state: bool = True
+        destroy_random_state: bool = True,
     ) -> T_PEPS_Unit_Cell:
         """
         Randomly initialize the unit cell and its PEPS tensors according to the
@@ -459,7 +459,7 @@ class PEPS_Unit_Cell:
         fixed_y: int,
         *,
         only_unique: bool = False,
-        unique_memory: Optional[Set[int]] = None
+        unique_memory: Optional[Set[int]] = None,
     ):
         unit_cell_len_x = self.data.structure.shape[0]
 
@@ -537,7 +537,7 @@ class PEPS_Unit_Cell:
         fixed_x: int,
         *,
         only_unique: bool = False,
-        unique_memory: Optional[Set[int]] = None
+        unique_memory: Optional[Set[int]] = None,
     ):
         unit_cell_len_y = self.data.structure.shape[1]
 

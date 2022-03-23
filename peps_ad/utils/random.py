@@ -142,7 +142,7 @@ class PEPS_Jax_Random(PEPS_Random_Impl):
 
     def __init__(self, seed: Optional[int] = None):
         if seed is None:
-            seed = jnp.uint64(random.randint(0, 2 ** 64 - 1))
+            seed = jnp.uint64(random.randint(0, 2**64 - 1))
 
         self.key = jax.random.PRNGKey(seed)
 

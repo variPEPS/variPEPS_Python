@@ -64,7 +64,7 @@ def _bfgs_workhorse(
 
         new_B_inv = (
             B_inv
-            + ((skyk_scalar + jnp.dot(yk, B_inv_yk)) / (skyk_scalar ** 2))
+            + ((skyk_scalar + jnp.dot(yk, B_inv_yk)) / (skyk_scalar**2))
             * jnp.outer(sk, sk)
             - (jnp.outer(B_inv_yk, sk) + jnp.outer(sk, B_inv_yk)) / skyk_scalar
         )

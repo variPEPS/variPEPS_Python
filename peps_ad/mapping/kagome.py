@@ -284,7 +284,7 @@ class iPESS3_Single_PEPS_Site:
             jnp.asarray(site_3),
         )
 
-        peps_tensor_obj = PEPS_Tensor.from_tensor(peps_tensor, d ** 3, D, chi)
+        peps_tensor_obj = PEPS_Tensor.from_tensor(peps_tensor, d**3, D, chi)
 
         return PEPS_Unit_Cell.from_tensor_list((peps_tensor_obj,), ((0,),))
 
@@ -431,7 +431,7 @@ class iPESS3_9Sites_Three_PEPS_Site:
             jnp.asarray(site_B1),
             jnp.asarray(site_C1),
         )
-        peps_tensor_obj_1 = PEPS_Tensor.from_tensor(peps_tensor_1, d ** 3, D, chi)
+        peps_tensor_obj_1 = PEPS_Tensor.from_tensor(peps_tensor_1, d**3, D, chi)
 
         peps_tensor_2 = _kagome_mapping_workhorse(
             jnp.asarray(up_simplex_3),
@@ -440,7 +440,7 @@ class iPESS3_9Sites_Three_PEPS_Site:
             jnp.asarray(site_B3),
             jnp.asarray(site_C2),
         )
-        peps_tensor_obj_2 = PEPS_Tensor.from_tensor(peps_tensor_2, d ** 3, D, chi)
+        peps_tensor_obj_2 = PEPS_Tensor.from_tensor(peps_tensor_2, d**3, D, chi)
 
         peps_tensor_3 = _kagome_mapping_workhorse(
             jnp.asarray(up_simplex_2),
@@ -449,7 +449,7 @@ class iPESS3_9Sites_Three_PEPS_Site:
             jnp.asarray(site_B2),
             jnp.asarray(site_C3),
         )
-        peps_tensor_obj_3 = PEPS_Tensor.from_tensor(peps_tensor_3, d ** 3, D, chi)
+        peps_tensor_obj_3 = PEPS_Tensor.from_tensor(peps_tensor_3, d**3, D, chi)
 
         return PEPS_Unit_Cell.from_tensor_list(
             (peps_tensor_obj_1, peps_tensor_obj_2, peps_tensor_obj_3),
