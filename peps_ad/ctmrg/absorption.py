@@ -7,6 +7,8 @@ from jax import jit
 
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
 from peps_ad.contractions import apply_contraction
+from peps_ad.utils.svd import gauge_fixed_svd
+from peps_ad.utils.periodic_indices import calculate_periodic_indices
 from .projectors import (
     calc_left_projectors,
     calc_right_projectors,
@@ -14,6 +16,8 @@ from .projectors import (
     calc_bottom_projectors,
     T_Projector,
 )
+from peps_ad.expectation.one_site import calc_one_site_single_gate_obj
+
 
 from typing import Sequence, Tuple, List, Dict, Literal
 
@@ -386,6 +390,105 @@ def do_bottom_absorption(
     return working_unitcell
 
 
+def gauge_fix_ctmrg_tensors(
+    peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
+) -> PEPS_Unit_Cell:
+    left_unitaries = []
+    right_unitaries = []
+    top_unitaries = []
+    bottom_unitaries = []
+
+    working_unitcell = unitcell.copy()
+
+    for ti, working_tensor_obj in enumerate(working_unitcell.get_unique_tensors()):
+        C1_U, C1_S, C1_Vh = gauge_fixed_svd(working_tensor_obj.C1)
+        C3_U, C3_S, C3_Vh = gauge_fixed_svd(working_tensor_obj.C3)
+
+        left_unitaries.append(C1_U)
+        top_unitaries.append(C1_Vh)
+        bottom_unitaries.append(C3_U)
+        right_unitaries.append(C3_Vh)
+
+        working_unitcell.data.peps_tensors[ti] = working_tensor_obj.replace_C1_C3(
+            jnp.diag(C1_S), jnp.diag(C3_S)
+        )
+
+    for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
+        for y, view in iter_rows:
+            working_tensor = peps_tensors[view.get_indices((0, 0))[0][0]]
+            working_tensor_obj = view[0, 0][0][0]
+
+            i_0_0 = calculate_periodic_indices((0, 0), view.data.structure, x, y)[0][0]
+            i_0_1 = calculate_periodic_indices((0, 1), view.data.structure, x, y)[0][0]
+            i_0_neg1 = calculate_periodic_indices((0, -1), view.data.structure, x, y)[
+                0
+            ][0]
+            i_1_0 = calculate_periodic_indices((1, 0), view.data.structure, x, y)[0][0]
+            i_neg1_0 = calculate_periodic_indices((-1, 0), view.data.structure, x, y)[
+                0
+            ][0]
+
+            T1_left_unitary = top_unitaries[i_0_0]
+            T1_right_unitary = top_unitaries[i_0_1].conj()
+            new_T1 = apply_contraction(
+                "ctmrg_gauge_fix_T1",
+                [working_tensor],
+                [working_tensor_obj],
+                [T1_left_unitary, T1_right_unitary],
+            )
+
+            C2_left_unitary = top_unitaries[i_0_1]
+            C2_bottom_unitary = right_unitaries[i_neg1_0]
+            new_C2 = apply_contraction(
+                "ctmrg_gauge_fix_C2",
+                [working_tensor],
+                [working_tensor_obj],
+                [C2_left_unitary, C2_bottom_unitary],
+            )
+
+            T2_top_unitary = right_unitaries[i_neg1_0].conj()
+            T2_bottom_unitary = right_unitaries[i_0_0]
+            new_T2 = apply_contraction(
+                "ctmrg_gauge_fix_T2",
+                [working_tensor],
+                [working_tensor_obj],
+                [T2_top_unitary, T2_bottom_unitary],
+            )
+
+            T3_left_unitary = bottom_unitaries[i_0_neg1].conj()
+            T3_right_unitary = bottom_unitaries[i_0_0]
+            new_T3 = apply_contraction(
+                "ctmrg_gauge_fix_T3",
+                [working_tensor],
+                [working_tensor_obj],
+                [T3_left_unitary, T3_right_unitary],
+            )
+
+            C4_top_unitary = left_unitaries[i_1_0]
+            C4_right_unitary = bottom_unitaries[i_0_neg1]
+            new_C4 = apply_contraction(
+                "ctmrg_gauge_fix_C4",
+                [working_tensor],
+                [working_tensor_obj],
+                [C4_top_unitary, C4_right_unitary],
+            )
+
+            T4_top_unitary = left_unitaries[i_0_0]
+            T4_bottom_unitary = left_unitaries[i_1_0].conj()
+            new_T4 = apply_contraction(
+                "ctmrg_gauge_fix_T4",
+                [working_tensor],
+                [working_tensor_obj],
+                [T4_top_unitary, T4_bottom_unitary],
+            )
+
+            view[0, 0] = working_tensor_obj.replace_T1_C2_T2_T3_C4_T4(
+                new_T1, new_C2, new_T2, new_T3, new_C4, new_T4
+            )
+
+    return working_unitcell
+
+
 def do_absorption_step(
     peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
 ) -> PEPS_Unit_Cell:
@@ -407,4 +510,5 @@ def do_absorption_step(
     result = do_top_absorption(peps_tensors, result)
     result = do_right_absorption(peps_tensors, result)
     result = do_bottom_absorption(peps_tensors, result)
+    # result = gauge_fix_ctmrg_tensors(peps_tensors, result)
     return result

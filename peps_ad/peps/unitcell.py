@@ -12,6 +12,7 @@ from jax.tree_util import register_pytree_node_class
 
 from .tensor import PEPS_Tensor
 from peps_ad.utils.random import PEPS_Random_Number_Generator
+from peps_ad.utils.periodic_indices import calculate_periodic_indices
 
 from typing import (
     TypeVar,
@@ -316,47 +317,9 @@ class PEPS_Unit_Cell:
           :term:`sequence` of :term:`sequence` of :obj:`~PEPS_Tensor`:
             2d sequence with the indices of the selected PEPS tensor objects.
         """
-        if not isinstance(key, tuple) or not len(key) == 2:
-            raise TypeError("Expect a tuple with coordinates x and y.")
-
-        x, y = key
-
-        if isinstance(x, int):
-            x = slice(x, x + 1, None)
-        if isinstance(y, int):
-            y = slice(y, y + 1, None)
-
-        if not isinstance(x, slice) or not isinstance(y, slice):
-            raise TypeError("Key elements have to be integers or slices.")
-
-        unit_cell_len_x = self.data.structure.shape[0]
-        unit_cell_len_y = self.data.structure.shape[1]
-
-        if x.start is not None and x.start < 0:
-            shift = (-x.start // unit_cell_len_x + 1) * unit_cell_len_x
-            x = slice(x.start + shift, x.stop + shift, x.step)
-
-        if x.start is None and x.stop < 0:
-            x = slice(None, x.stop + unit_cell_len_x, x.step)
-
-        if y.start is not None and y.start < 0:
-            shift = (-y.start // unit_cell_len_y + 1) * unit_cell_len_y
-            y = slice(y.start + shift, y.stop + shift, y.step)
-
-        if y.start is None and y.stop < 0:
-            y = slice(None, y.stop + unit_cell_len_y, y.step)
-
-        xarr = jnp.arange(
-            x.start or 0, x.stop if x.stop is not None else unit_cell_len_x, x.step
+        return calculate_periodic_indices(
+            key, self.data.structure, self.real_ix, self.real_iy
         )
-        yarr = jnp.arange(
-            y.start or 0, y.stop if y.stop is not None else unit_cell_len_y, y.step
-        )
-
-        xarr = (self.real_ix + xarr) % unit_cell_len_x
-        yarr = (self.real_iy + yarr) % unit_cell_len_y
-
-        return tuple(self.data.structure[xi, yarr] for xi in xarr)
 
     def __getitem__(
         self, key: Tuple[Union[int, slice], Union[int, slice]]

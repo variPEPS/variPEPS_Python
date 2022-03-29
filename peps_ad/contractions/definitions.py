@@ -404,6 +404,52 @@ class Definitions:
         ],
     }
 
+    ctmrg_gauge_fix_T1 = {
+        "tensors": [["T1"], "left_unitary", "right_unitary"],
+        "network": [
+            [(1, -2, -3, 2)],  # T1
+            (-1, 1),  # left_unitary
+            (-4, 2),  # right_unitary
+        ],
+    }
+
+    ctmrg_gauge_fix_C2 = {
+        "tensors": [["C2"], "left_unitary", "bottom_unitary"],
+        "network": [[(1, 2)], (-1, 1), (-2, 2)],  # C2  # left_unitary  # bottom_unitary
+    }
+
+    ctmrg_gauge_fix_T2 = {
+        "tensors": [["T2"], "top_unitary", "bottom_unitary"],
+        "network": [
+            [(-1, -2, 1, 2)],  # T2
+            (-4, 2),  # top_unitary
+            (-3, 1),  # bottom_unitary
+        ],
+    }
+
+    ctmrg_gauge_fix_T3 = {
+        "tensors": [["T3"], "left_unitary", "right_unitary"],
+        "network": [
+            [(1, 2, -3, -4)],  # T3
+            (1, -1),  # left_unitary
+            (2, -2),  # right_unitary
+        ],
+    }
+
+    ctmrg_gauge_fix_C4 = {
+        "tensors": [["C4"], "top_unitary", "right_unitary"],
+        "network": [[(1, 2)], (2, -2), (1, -1)],  # C4  # top_unitary  # right_unitary
+    }
+
+    ctmrg_gauge_fix_T4 = {
+        "tensors": [["T4"], "top_unitary", "bottom_unitary"],
+        "network": [
+            [(1, -2, -3, 2)],  # T4
+            (2, -4),  # top_unitary
+            (1, -1),  # bottom_unitary
+        ],
+    }
+
     kagome_pess3_single_site_mapping = {
         "tensors": ["up_simplex", "down_simplex", "site1", "site2", "site3"],
         "network": [

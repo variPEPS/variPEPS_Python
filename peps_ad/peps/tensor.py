@@ -492,6 +492,288 @@ class PEPS_Tensor:
             chi=self.chi,
         )
 
+    def replace_C1(self: T_PEPS_Tensor, new_C1: Tensor) -> T_PEPS_Tensor:
+        """
+        Replace the C1 and returns new object of the class.
+
+        Args:
+          new_C1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C1 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=new_C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    def replace_C2(self: T_PEPS_Tensor, new_C2: Tensor) -> T_PEPS_Tensor:
+        """
+        Replace the C2 and returns new object of the class.
+
+        Args:
+          new_C2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C2 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=new_C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    def replace_C3(self: T_PEPS_Tensor, new_C3: Tensor) -> T_PEPS_Tensor:
+        """
+        Replace the C3 and returns new object of the class.
+
+        Args:
+          new_C3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C3 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=new_C3,
+            C4=self.C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    def replace_C4(self: T_PEPS_Tensor, new_C4: Tensor) -> T_PEPS_Tensor:
+        """
+        Replace the C4 and returns new object of the class.
+
+        Args:
+          new_C4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C4 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=new_C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    def replace_T1(self: T_PEPS_Tensor, new_T1: Tensor) -> T_PEPS_Tensor:
+        """
+        Replace the T1 and returns new object of the class.
+
+        Args:
+          new_T1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New T1 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1=new_T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    def replace_T2(self: T_PEPS_Tensor, new_T2: Tensor) -> T_PEPS_Tensor:
+        """
+        Replace the T2 and returns new object of the class.
+
+        Args:
+          new_T2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New T2 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1=self.T1,
+            T2=new_T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    def replace_T3(self: T_PEPS_Tensor, new_T3: Tensor) -> T_PEPS_Tensor:
+        """
+        Replace the T3 and returns new object of the class.
+
+        Args:
+          new_T3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New T3 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=new_T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    def replace_T4(self: T_PEPS_Tensor, new_T4: Tensor) -> T_PEPS_Tensor:
+        """
+        Replace the T4 and returns new object of the class.
+
+        Args:
+          new_T4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New T4 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=new_T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    def replace_C1_C3(
+        self: T_PEPS_Tensor, new_C1: Tensor, new_C3: Tensor
+    ) -> T_PEPS_Tensor:
+        """
+        Replace C1 and C3 tensors and returns new object of the class.
+
+        Args:
+          new_C1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C1 tensor.
+          new_C3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C4 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=new_C1,
+            C2=self.C2,
+            C3=new_C3,
+            C4=self.C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    def replace_T1_C2_T2_T3_C4_T4(
+        self: T_PEPS_Tensor,
+        new_T1: Tensor,
+        new_C2: Tensor,
+        new_T2: Tensor,
+        new_T3: Tensor,
+        new_C4: Tensor,
+        new_T4: Tensor,
+    ) -> T_PEPS_Tensor:
+        """
+        Replace all but C1 and C3 tensors and returns new object of the class.
+
+        Args:
+          new_T1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New T1 tensor.
+          new_C2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C2 tensor.
+          new_T2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New T2 tensor.
+          new_T3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New T3 tensor.
+          new_C4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C4 tensor.
+          new_T4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New T4 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=new_C2,
+            C3=self.C3,
+            C4=new_C4,
+            T1=new_T1,
+            T2=new_T2,
+            T3=new_T3,
+            T4=new_T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
     def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
         field_names = tuple(
             i for i in self.__dataclass_fields__.keys() if i != "sanity_checks"  # type: ignore
