@@ -133,7 +133,7 @@ def optimize_peps_network(
     while count < max_steps:
         (
             working_value,
-            (working_unitcell, _, _),
+            working_unitcell,
         ), working_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
             working_tensors,
             working_unitcell,

@@ -125,7 +125,7 @@ def line_search(
         )
 
         if method is Line_Search_Methods.SIMPLE or method is Line_Search_Methods.ARMIJO:
-            new_value, (new_unitcell, _) = calc_ctmrg_expectation(
+            new_value, new_unitcell = calc_ctmrg_expectation(
                 new_tensors,
                 new_unitcell,
                 expectation_func,

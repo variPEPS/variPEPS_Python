@@ -5,7 +5,7 @@ from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
 from peps_ad.ctmrg import calc_ctmrg_env
 
-from typing import Sequence, Tuple, Union, List, cast
+from typing import Sequence, Tuple, cast
 
 
 def calc_ctmrg_expectation(
@@ -15,7 +15,7 @@ def calc_ctmrg_expectation(
     *,
     eps: float = 1e-8,
     max_steps: int = 200,
-) -> Tuple[jnp.ndarray, Tuple[PEPS_Unit_Cell, List[jnp.ndarray]]]:
+) -> Tuple[jnp.ndarray, PEPS_Unit_Cell]:
     """
     Calculate the CTMRG environment and the (energy) expectation value for a
     iPEPS unitcell.
@@ -33,19 +33,12 @@ def calc_ctmrg_expectation(
       max_steps (:obj:`int`):
         Maximal number of CTMRG steps.
     Returns:
-      :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`tuple`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`list`\ (:obj:`jax.numpy.ndarray`))):
-        Tuple consisting of the calculated expectation value and another tuple
-        with the new unitcell and the singular values of the corner matrices
-        (used for the convergence calculation).
+      :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~peps_ad.peps.PEPS_Unit_Cell`):
+        Tuple consisting of the calculated expectation value and the new unitcell.
     """
-    new_unitcell, corner_svds = calc_ctmrg_env(
-        peps_tensors, unitcell, eps=eps, max_steps=max_steps
-    )
+    new_unitcell = calc_ctmrg_env(peps_tensors, unitcell, eps=eps, max_steps=max_steps)
 
-    return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), (
-        new_unitcell,
-        corner_svds,
-    )
+    return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), new_unitcell
 
 
 calc_ctmrg_expectation_value_and_grad = value_and_grad(
@@ -63,10 +56,7 @@ def calc_preconverged_ctmrg_value_and_grad(
     final_eps: float = 1e-8,
     preconverged_max_steps: int = 100,
     final_max_steps: int = 10,
-) -> Tuple[
-    Tuple[jnp.ndarray, Tuple[PEPS_Unit_Cell, List[jnp.ndarray], List[jnp.ndarray]]],
-    Sequence[jnp.ndarray],
-]:
+) -> Tuple[Tuple[jnp.ndarray, PEPS_Unit_Cell], Sequence[jnp.ndarray]]:
     """
     Calculate the CTMRG environment and the (energy) expectation value as well
     as the gradient of this steps for a iPEPS unitcell.
@@ -100,16 +90,14 @@ def calc_preconverged_ctmrg_value_and_grad(
         Maximal number of CTMRG steps used in the calculation
         of gradient.
     Returns:
-      :obj:`tuple`\ (:obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`tuple`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`list`\ (:obj:`jax.numpy.ndarray`))), :obj:`jax.numpy.ndarray`):
+      :obj:`tuple`\ (:obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~peps_ad.peps.PEPS_Unit_Cell`), :obj:`tuple`\ (:obj:`jax.numpy.ndarray`)):
         Tuple with two element:
-        1. Tuple consisting of the calculated expectation value and another tuple
-        with the new unitcell and the singular values of the corner matrices
-        for the preconverged and the final CTMRG calculation (used for the
-        convergence calculation).
+        1. Tuple consisting of the calculated expectation value and the new
+        unitcell.
         2. The calculated gradient.
     """
     if calc_preconverged:
-        preconverged_unitcell, preconverged_corner_svds = calc_ctmrg_env(
+        preconverged_unitcell = calc_ctmrg_env(
             peps_tensors,
             unitcell,
             eps=preconverged_eps,
@@ -117,11 +105,10 @@ def calc_preconverged_ctmrg_value_and_grad(
         )
     else:
         preconverged_unitcell = unitcell
-        preconverged_corner_svds = []
 
     (
         expectation_value,
-        (final_unitcell, final_corner_svds),
+        final_unitcell,
     ), gradient = calc_ctmrg_expectation_value_and_grad(
         peps_tensors,
         preconverged_unitcell,
@@ -130,7 +117,4 @@ def calc_preconverged_ctmrg_value_and_grad(
         max_steps=final_max_steps,
     )
 
-    return (
-        expectation_value,
-        (final_unitcell, preconverged_corner_svds, final_corner_svds),
-    ), gradient
+    return (expectation_value, final_unitcell), gradient
