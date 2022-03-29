@@ -3,7 +3,7 @@ from jax import value_and_grad
 
 from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
-from peps_ad.ctmrg import calc_ctmrg_env
+from peps_ad.ctmrg import calc_ctmrg_env, calc_ctmrg_env_custom_rule
 
 from typing import Sequence, Tuple, cast
 
@@ -15,6 +15,7 @@ def calc_ctmrg_expectation(
     *,
     eps: float = 1e-8,
     max_steps: int = 200,
+    enforce_elementwise_convergence: bool = True,
 ) -> Tuple[jnp.ndarray, PEPS_Unit_Cell]:
     """
     Calculate the CTMRG environment and the (energy) expectation value for a
@@ -36,7 +37,13 @@ def calc_ctmrg_expectation(
       :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         Tuple consisting of the calculated expectation value and the new unitcell.
     """
-    new_unitcell = calc_ctmrg_env(peps_tensors, unitcell, eps=eps, max_steps=max_steps)
+    new_unitcell = calc_ctmrg_env(
+        peps_tensors,
+        unitcell,
+        eps=eps,
+        max_steps=max_steps,
+        enforce_elementwise_convergence=enforce_elementwise_convergence,
+    )
 
     return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), new_unitcell
 
@@ -118,3 +125,18 @@ def calc_preconverged_ctmrg_value_and_grad(
     )
 
     return (expectation_value, final_unitcell), gradient
+
+
+def calc_ctmrg_expectation_custom(
+    peps_tensors: Sequence[jnp.ndarray],
+    unitcell: PEPS_Unit_Cell,
+    expectation_func: Expectation_Model,
+) -> Tuple[jnp.ndarray, PEPS_Unit_Cell]:
+    new_unitcell = calc_ctmrg_env_custom_rule(peps_tensors, unitcell)
+
+    return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), new_unitcell
+
+
+calc_ctmrg_expectation_custom_value_and_grad = value_and_grad(
+    calc_ctmrg_expectation_custom, has_aux=True
+)

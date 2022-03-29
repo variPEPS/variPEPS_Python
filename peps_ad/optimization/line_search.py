@@ -48,6 +48,7 @@ def line_search(
     max_steps: int = 20,
     armijo_constant_factor: float = 1e-4,
     wolfe_curvature_factor: float = 0.1,
+    enforce_elementwise_convergence: bool = True
 ) -> Tuple[
     List[jnp.ndarray],
     PEPS_Unit_Cell,
@@ -131,6 +132,7 @@ def line_search(
                 expectation_func,
                 eps=ctmrg_eps,
                 max_steps=ctmrg_max_steps,
+                enforce_elementwise_convergence=enforce_elementwise_convergence,
             )
         elif method is Line_Search_Methods.WOLFE:
             raise NotImplementedError("Wolfe condition not implemented yet.")

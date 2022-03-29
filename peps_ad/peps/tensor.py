@@ -774,16 +774,87 @@ class PEPS_Tensor:
             chi=self.chi,
         )
 
-    def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
-        field_names = tuple(
-            i for i in self.__dataclass_fields__.keys() if i != "sanity_checks"  # type: ignore
-        )
-        field_values = tuple(getattr(self, name) for name in field_names)
+    def __add__(self: T_PEPS_Tensor, other: T_PEPS_Tensor) -> T_PEPS_Tensor:
+        if (
+            self.tensor is not other.tensor
+            or self.d != other.d
+            or self.D != other.D
+            or self.chi != other.chi
+        ):
+            raise ValueError(
+                "Both PEPS tensors must have the same tensor, d, D and chi values."
+            )
 
-        return (field_values, field_names)
+        return PEPS_Tensor(
+            tensor=self.tensor,
+            C1=self.C1 + other.C1,
+            C2=self.C2 + other.C2,
+            C3=self.C3 + other.C3,
+            C4=self.C4 + other.C4,
+            T1=self.T1 + other.T1,
+            T2=self.T2 + other.T2,
+            T3=self.T3 + other.T3,
+            T4=self.T4 + other.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+        )
+
+    @classmethod
+    def zeros_like(cls: Type[T_PEPS_Tensor], t: T_PEPS_Tensor) -> T_PEPS_Tensor:
+        return cls(
+            tensor=jnp.zeros_like(t.tensor),
+            C1=jnp.zeros_like(t.C1),
+            C2=jnp.zeros_like(t.C2),
+            C3=jnp.zeros_like(t.C3),
+            C4=jnp.zeros_like(t.C4),
+            T1=jnp.zeros_like(t.T1),
+            T2=jnp.zeros_like(t.T2),
+            T3=jnp.zeros_like(t.T3),
+            T4=jnp.zeros_like(t.T4),
+            d=t.d,
+            D=t.D,
+            chi=t.chi,
+        )
+
+    def zeros_like_self(self: T_PEPS_Tensor) -> T_PEPS_Tensor:
+        return type(self).zeros_like(self)
+
+    def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
+        data = (
+            self.tensor,
+            self.C1,
+            self.C2,
+            self.C3,
+            self.C4,
+            self.T1,
+            self.T2,
+            self.T3,
+            self.T4,
+        )
+        aux_data = (self.d, self.D, self.chi)
+
+        return (data, aux_data)
 
     @classmethod
     def tree_unflatten(
-        cls: Type[T_PEPS_Tensor], aux_data: Tuple[str, ...], children: Sequence[Any]
+        cls: Type[T_PEPS_Tensor], aux_data: Tuple[Any, ...], children: Tuple[Any, ...]
     ) -> T_PEPS_Tensor:
-        return cls(**dict(jax.util.safe_zip(aux_data, children)), sanity_checks=False)
+        tensor, C1, C2, C3, C4, T1, T2, T3, T4 = children
+        d, D, chi = aux_data
+
+        return cls(
+            tensor=tensor,
+            C1=C1,
+            C2=C2,
+            C3=C3,
+            C4=C4,
+            T1=T1,
+            T2=T2,
+            T3=T3,
+            T4=T4,
+            d=d,
+            D=D,
+            chi=chi,
+            sanity_checks=False,
+        )

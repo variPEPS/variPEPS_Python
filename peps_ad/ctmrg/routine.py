@@ -2,7 +2,8 @@ from functools import partial
 import enum
 
 import jax.numpy as jnp
-from jax import jit
+from jax import jit, custom_vjp, vjp
+import jax.util
 
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
 from .absorption import do_absorption_step
@@ -214,3 +215,74 @@ def calc_ctmrg_env(
                 print(verbose_data)
 
     return working_unitcell
+
+
+@custom_vjp
+def calc_ctmrg_env_custom_rule(
+    peps_tensors: Sequence[jnp.ndarray],
+    unitcell: PEPS_Unit_Cell,
+) -> PEPS_Unit_Cell:
+    return calc_ctmrg_env(
+        peps_tensors, unitcell, enforce_elementwise_convergence=True
+    )
+
+
+def calc_ctmrg_env_fwd(
+    peps_tensors: Sequence[jnp.ndarray],
+    unitcell: PEPS_Unit_Cell,
+) -> Tuple[PEPS_Unit_Cell, Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell]]:
+    new_unitcell = calc_ctmrg_env_custom_rule(peps_tensors, unitcell)
+    return new_unitcell, (peps_tensors, new_unitcell)
+
+
+def calc_ctmrg_env_rev(res, unitcell_bar):
+    peps_tensors, new_unitcell = res
+
+    _, vjp_peps_tensors = vjp(
+        lambda t: do_absorption_step(t, new_unitcell), peps_tensors
+    )
+
+    _, vjp_env = vjp(lambda u: do_absorption_step(peps_tensors, u), new_unitcell)
+
+    converged = False
+    count = 0
+    env_fixed_point = unitcell_bar
+    env_bar_tensors = unitcell_bar.get_unique_tensors()
+
+    while not converged and count < 100:
+        env_fixed_point_last_step = env_fixed_point
+
+        new_env_bar = vjp_env(env_fixed_point)[0]
+        new_tensors = new_env_bar.get_unique_tensors()
+
+        env_fixed_point = env_fixed_point.replace_unique_tensors(
+            [
+                t_old + t_new
+                for t_old, t_new in jax.util.safe_zip(env_bar_tensors, new_tensors)
+            ]
+        )
+
+        converged, measure, verbose_data = _is_element_wise_converged(
+            env_fixed_point_last_step.get_unique_tensors(),
+            env_fixed_point.get_unique_tensors(),
+            1e-8,
+            verbose=True,
+        )
+
+        count += 1
+
+        # print(f"{count}: {measure}")
+        # verbose_data = [
+        #     (int(ti), CTM_Enum(ctm_enum_i).name, float(diff))
+        #     for ti, ctm_enum_i, diff in verbose_data
+        # ]
+        # print(verbose_data)
+
+    (t_bar,) = vjp_peps_tensors(env_fixed_point)
+
+    empty_t = [t.zeros_like_self() for t in new_unitcell.get_unique_tensors()]
+
+    return t_bar, new_unitcell.replace_unique_tensors(empty_t)
+
+
+calc_ctmrg_env_custom_rule.defvjp(calc_ctmrg_env_fwd, calc_ctmrg_env_rev)

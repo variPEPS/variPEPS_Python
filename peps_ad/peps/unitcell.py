@@ -109,21 +109,25 @@ class PEPS_Unit_Cell:
                 structure=self.structure,
             )
 
-        def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
-            field_names = tuple(self.__dataclass_fields__.keys())  # type: ignore
-            field_values = tuple(getattr(self, name) for name in field_names)
-
-            return (field_values, field_names)
+        def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
+            structure_tuple = tuple(tuple(i) for i in self.structure)
+            return ((self.peps_tensors,), (structure_tuple,))
 
         @classmethod
         def tree_unflatten(
             cls: Type[PEPS_Unit_Cell.Unit_Cell_Data],
-            aux_data: Tuple[str, ...],
-            children: Sequence[Any],
+            aux_data: Tuple[Any, ...],
+            children: Tuple[Any, ...],
         ) -> PEPS_Unit_Cell.Unit_Cell_Data:
-            return cls(**dict(jax.util.safe_zip(aux_data, children)))
+            (peps_tensors,) = children
+            (structure_tuple,) = aux_data
+            structure = jnp.asarray(structure_tuple)
+            return cls(structure=structure, peps_tensors=peps_tensors)
 
     def __post_init__(self):
+        if self.data.structure is None:
+            return
+
         self._check_structure(self.data.structure)
 
         unit_cell_len_x = self.data.structure.shape[0]
@@ -585,14 +589,18 @@ class PEPS_Unit_Cell:
             data=self.data.copy(), real_ix=self.real_ix, real_iy=self.real_iy
         )
 
-    def tree_flatten(self) -> Tuple[Tuple[str, ...], Tuple[Any, ...]]:
-        field_names = tuple(self.__dataclass_fields__.keys())  # type: ignore
-        field_values = tuple(getattr(self, name) for name in field_names)
+    def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
+        aux_data = (self.real_ix, self.real_iy)
 
-        return (field_values, field_names)
+        return ((self.data,), aux_data)
 
     @classmethod
     def tree_unflatten(
-        cls: Type[T_PEPS_Unit_Cell], aux_data: Tuple[str, ...], children: Sequence[Any]
+        cls: Type[T_PEPS_Unit_Cell],
+        aux_data: Tuple[Any, ...],
+        children: Tuple[Any, ...],
     ) -> T_PEPS_Unit_Cell:
-        return cls(**dict(jax.util.safe_zip(aux_data, children)))
+        real_ix, real_iy = aux_data
+        (data,) = children
+
+        return cls(data=data, real_ix=real_ix, real_iy=real_iy)

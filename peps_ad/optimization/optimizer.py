@@ -10,6 +10,7 @@ from peps_ad.expectation import Expectation_Model
 from .inner_function import (
     calc_ctmrg_expectation,
     calc_preconverged_ctmrg_value_and_grad,
+    calc_ctmrg_expectation_custom_value_and_grad,
 )
 from .line_search import line_search, Line_Search_Methods
 
@@ -87,6 +88,7 @@ def optimize_peps_network(
     initial_step_size: float = 1.0,
     max_steps: int = 100,
     eps: float = 1e-5,
+    use_custom_vjp: bool = True,
 ) -> Tuple[PEPS_Unit_Cell, Union[float, jnp.ndarray]]:
     """
     Optimize a PEPS unitcell using a variational method.
@@ -131,15 +133,25 @@ def optimize_peps_network(
     working_value: Union[float, jnp.ndarray]
 
     while count < max_steps:
-        (
-            working_value,
-            working_unitcell,
-        ), working_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
-            working_tensors,
-            working_unitcell,
-            expectation_func,
-            calc_preconverged=(count == 0),
-        )
+        if use_custom_vjp:
+            (
+                working_value,
+                working_unitcell,
+            ), working_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
+                working_tensors,
+                working_unitcell,
+                expectation_func,
+            )
+        else:
+            (
+                working_value,
+                working_unitcell,
+            ), working_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
+                working_tensors,
+                working_unitcell,
+                expectation_func,
+                calc_preconverged=(count == 0),
+            )
 
         print(f"{count} before: Value {working_value}")
 
@@ -182,12 +194,16 @@ def optimize_peps_network(
             linesearch_step,
             method=line_search_method,
             initial_step_size=initial_step_size,
+            enforce_elementwise_convergence=use_custom_vjp,
         )
 
         conv = jnp.linalg.norm(working_gradient)
         if conv < eps:
             working_value, (working_unitcell, _) = calc_ctmrg_expectation(
-                working_tensors, working_unitcell, expectation_func
+                working_tensors,
+                working_unitcell,
+                expectation_func,
+                enforce_elementwise_convergence=use_custom_vjp,
             )
             break
 
