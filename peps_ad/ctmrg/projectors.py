@@ -8,6 +8,7 @@ from peps_ad.peps import PEPS_Tensor
 from peps_ad.contractions import apply_contraction
 from peps_ad import peps_ad_config
 from peps_ad.utils.func_cache import Checkpointing_Cache
+from peps_ad.utils.svd import gauge_fixed_svd
 
 from typing import Sequence, Tuple, TypeVar
 
@@ -74,7 +75,7 @@ def _calc_ctmrg_quarters(
 def _truncated_SVD(
     matrix: jnp.ndarray, chi: int, *, eps: float = 1e-8
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    U, S, Vh = jnp.linalg.svd(matrix, full_matrices=False)
+    U, S, Vh = gauge_fixed_svd(matrix)
 
     # Truncate the singular values
     S = S[:chi]
@@ -85,12 +86,6 @@ def _truncated_SVD(
     S_inv_sqrt = jnp.where(
         relevant_S_values, 1 / jnp.sqrt(jnp.where(relevant_S_values, S, 1)), 0
     )
-
-    # Fix the gauge of the SVD
-    i_max = jnp.argmax(jnp.abs(U), axis=0)
-    phases = vmap(lambda M, ci: M[ci] / jnp.abs(M[ci]), in_axes=(1, 0))(U, i_max)
-    U = U * phases.conj()[jnp.newaxis, :]
-    Vh = Vh * phases[:, jnp.newaxis]
 
     return S_inv_sqrt, U, Vh
 
