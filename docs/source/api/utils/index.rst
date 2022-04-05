@@ -10,7 +10,9 @@ Utility functions (:mod:`peps_ad.utils`)
 .. toctree::
    :maxdepth: 2
 
+   periodic_indices
    random
+   svd
 
 .. automodule:: peps_ad.utils
    :members:

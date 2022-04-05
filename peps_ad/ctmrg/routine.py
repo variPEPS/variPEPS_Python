@@ -157,12 +157,13 @@ def calc_ctmrg_env(
         Maximal number of steps before abort the routine.
       print_steps (obj:`bool`):
         Print the step counter and the convergence measure after each step.
+      enforce_elementwise_convergence (obj:`bool`):
+        Enforce elementwise convergence of the CTM tensors instead of only
+        convergence of the singular values of the corners.
     Returns:
-      :obj:`tuple`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`list`\ (:obj:`jax.numpy.ndarray`)):
+      :obj:`~peps_ad.peps.PEPS_Unit_Cell`:
         New instance of the unitcell with all updated converged CTMRG tensors of
         all elements of the unitcell.
-        Additionally, the tensor with the singular values of all corner matrices
-        for each step is returned.
     """
     if enforce_elementwise_convergence:
         last_step_tensors = unitcell.get_unique_tensors()
@@ -222,20 +223,42 @@ def calc_ctmrg_env_custom_rule(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
 ) -> PEPS_Unit_Cell:
-    return calc_ctmrg_env(
-        peps_tensors, unitcell, enforce_elementwise_convergence=True
-    )
+    """
+    Wrapper function of :obj:`~peps_ad.ctmrg.routine.calc_ctmrg_env` which
+    enables the use of the custom VJP for the calculation of the gradient.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The sequence of unique PEPS tensors the unitcell consists of.
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
+        The unitcell to work on.
+    Returns:
+      :obj:`~peps_ad.peps.PEPS_Unit_Cell`:
+        New instance of the unitcell with all updated converged CTMRG tensors of
+        all elements of the unitcell.
+    """
+    return calc_ctmrg_env(peps_tensors, unitcell, enforce_elementwise_convergence=True)
 
 
 def calc_ctmrg_env_fwd(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
 ) -> Tuple[PEPS_Unit_Cell, Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell]]:
+    """
+    Internal helper function of custom VJP to calculate the values in
+    the forward sweep.
+    """
     new_unitcell = calc_ctmrg_env_custom_rule(peps_tensors, unitcell)
     return new_unitcell, (peps_tensors, new_unitcell)
 
 
-def calc_ctmrg_env_rev(res, unitcell_bar):
+def calc_ctmrg_env_rev(
+    res: Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell], unitcell_bar: PEPS_Unit_Cell
+) -> Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell]:
+    """
+    Internal helper function of custom VJP to calculate the gradient in
+    the backward sweep.
+    """
     peps_tensors, new_unitcell = res
 
     _, vjp_peps_tensors = vjp(

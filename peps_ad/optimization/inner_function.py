@@ -132,6 +132,21 @@ def calc_ctmrg_expectation_custom(
     unitcell: PEPS_Unit_Cell,
     expectation_func: Expectation_Model,
 ) -> Tuple[jnp.ndarray, PEPS_Unit_Cell]:
+    """
+    Calculate the CTMRG environment and the (energy) expectation value for a
+    iPEPS unitcell using the custom VJP rule implementation.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence of the unique PEPS tensors the unitcell consists of.
+      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
+        The PEPS unitcell to work on.
+      expectation_func (:obj:`~peps_ad.expectation.Expectation_Model`):
+        Callable to calculate the expectation value.
+    Returns:
+      :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~peps_ad.peps.PEPS_Unit_Cell`):
+        Tuple consisting of the calculated expectation value and the new unitcell.
+    """
     new_unitcell = calc_ctmrg_env_custom_rule(peps_tensors, unitcell)
 
     return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), new_unitcell

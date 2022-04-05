@@ -11,6 +11,21 @@ from typing import Tuple
 def gauge_fixed_svd(
     matrix: jnp.ndarray, eps: float = 1e-4
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    """
+    Calculate the gauge-fixed (also called sign-fixed) SVD. To this end, each
+    singular vector are rotate in the way that the first element bigger than
+    some numerical stability threshold (parameter eps) is ensured to be along
+    the positive real axis.
+
+    Args:
+      matrix (:obj:`jnp.ndarray`):
+        Matrix to calculate SVD for.
+      eps (:obj:`float`):
+        Numerical stability threshold for sign fixing.
+    Returns:
+      :obj:`tuple`\\ (:obj:`jnp.ndarray`, :obj:`jnp.ndarray`, :obj:`jnp.ndarray`):
+        Tuple with sign-fixed U, S and Vh of the SVD.
+    """
     U, S, Vh = jnp.linalg.svd(matrix, full_matrices=False)
 
     # Fix the gauge of the SVD
