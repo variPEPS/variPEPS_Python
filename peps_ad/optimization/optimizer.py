@@ -1,9 +1,10 @@
 from functools import partial
-from enum import Enum, auto
 
 from jax import jit
 import jax.numpy as jnp
 
+from peps_ad import peps_ad_config
+from peps_ad.config import Optimizing_Methods
 from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
 
@@ -12,15 +13,9 @@ from .inner_function import (
     calc_preconverged_ctmrg_value_and_grad,
     calc_ctmrg_expectation_custom_value_and_grad,
 )
-from .line_search import line_search, Line_Search_Methods
+from .line_search import line_search
 
-from typing import Literal, List, Union, Tuple, cast
-
-
-class Optimizing_Methods(Enum):
-    STEEPEST = auto()
-    CG = auto()
-    BFGS = auto()
+from typing import List, Union, Tuple, cast
 
 
 @jit
@@ -82,13 +77,6 @@ def _bfgs_workhorse(
 def optimize_peps_network(
     unitcell: PEPS_Unit_Cell,
     expectation_func: Expectation_Model,
-    *,
-    method: Optimizing_Methods = Optimizing_Methods.BFGS,
-    line_search_method: Line_Search_Methods = Line_Search_Methods.ARMIJO,
-    initial_step_size: float = 1.0,
-    max_steps: int = 100,
-    eps: float = 1e-5,
-    use_custom_vjp: bool = True,
 ) -> Tuple[PEPS_Unit_Cell, Union[float, jnp.ndarray]]:
     """
     Optimize a PEPS unitcell using a variational method.
@@ -101,17 +89,6 @@ def optimize_peps_network(
       expectation_func (:obj:`~peps_ad.expectation.Expectation_Model`):
         Callable to calculate one expectation value which is used as loss
         loss function of the model. Likely the function to calculate the energy.
-    Keyword args:
-      method (:obj:`~Optimizing_Methods`):
-        Parameter which optimization method should be used.
-      line_search_method (:obj:`~peps_ad.optimization.line_search.Line_Search_Methods`):
-        Parameter which line search method should be used.
-      initial_step_size (:obj:`float`):
-        Initial step used in the line search method.
-      max_steps (:obj:`int`):
-        Maximal number of steps for the optimization method.
-      eps (:obj:`float`):
-        Convergence criterion.
     Returns:
       :obj:`tuple`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`float`):
         Tuple with the optimized network and the final expectation value.
@@ -125,15 +102,17 @@ def optimize_peps_network(
     old_descent_dir = None
     descent_dir = None
 
-    if method is Optimizing_Methods.BFGS:
+    if peps_ad_config.optimizer_method is Optimizing_Methods.BFGS:
         bfgs_B_inv = jnp.eye(2 * sum([t.size for t in working_tensors]))
 
     count = 0
-    linesearch_step: Union[float, jnp.ndarray] = initial_step_size
+    linesearch_step: Union[
+        float, jnp.ndarray
+    ] = peps_ad_config.line_search_initial_step_size
     working_value: Union[float, jnp.ndarray]
 
-    while count < max_steps:
-        if use_custom_vjp:
+    while count < peps_ad_config.optimizer_max_steps:
+        if peps_ad_config.ad_use_custom_vjp:
             (
                 working_value,
                 working_unitcell,
@@ -157,9 +136,9 @@ def optimize_peps_network(
 
         working_gradient = jnp.asarray([elem.conj() for elem in working_gradient_seq])
 
-        if method is Optimizing_Methods.STEEPEST:
+        if peps_ad_config.optimizer_method is Optimizing_Methods.STEEPEST:
             descent_dir = -working_gradient
-        elif method is Optimizing_Methods.CG:
+        elif peps_ad_config.optimizer_method is Optimizing_Methods.CG:
             if count == 0:
                 descent_dir = -working_gradient
             else:
@@ -167,7 +146,7 @@ def optimize_peps_network(
                     working_gradient, old_gradient, old_descent_dir
                 )
                 print(beta)
-        elif method is Optimizing_Methods.BFGS:
+        elif peps_ad_config.optimizer_method is Optimizing_Methods.BFGS:
             if count == 0:
                 descent_dir, _ = _bfgs_workhorse(
                     working_gradient, None, None, None, bfgs_B_inv, False
@@ -192,18 +171,15 @@ def optimize_peps_network(
             descent_dir,
             working_value,
             linesearch_step,
-            method=line_search_method,
-            initial_step_size=initial_step_size,
-            enforce_elementwise_convergence=use_custom_vjp,
         )
 
         conv = jnp.linalg.norm(working_gradient)
-        if conv < eps:
+        if conv < peps_ad_config.optimizer_convergence_eps:
             working_value, (working_unitcell, _) = calc_ctmrg_expectation(
                 working_tensors,
                 working_unitcell,
                 expectation_func,
-                enforce_elementwise_convergence=use_custom_vjp,
+                enforce_elementwise_convergence=peps_ad_config.ad_use_custom_vjp,
             )
             break
 

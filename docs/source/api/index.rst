@@ -11,6 +11,7 @@ This reference documents the public API of the :mod:`peps_ad` module.
 .. toctree::
    :maxdepth: 2
 
+   config
    contractions/index
    ctmrg/index
    expectation/index

@@ -13,7 +13,7 @@ six = "*"
 name = "alabaster"
 version = "0.7.12"
 description = "A configurable sidebar-enabled Sphinx theme"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 
@@ -57,7 +57,7 @@ test = ["astroid", "pytest"]
 name = "babel"
 version = "2.9.1"
 description = "Internationalization utilities"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
@@ -98,7 +98,7 @@ uvloop = ["uvloop (>=0.15.2)"]
 name = "certifi"
 version = "2021.10.8"
 description = "Python package for providing Mozilla's CA Bundle."
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 
@@ -106,7 +106,7 @@ python-versions = "*"
 name = "charset-normalizer"
 version = "2.0.12"
 description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.5.0"
 
@@ -128,7 +128,7 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 name = "colorama"
 version = "0.4.4"
 description = "Cross-platform colored terminal text."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
@@ -155,7 +155,7 @@ graph = ["objgraph (>=1.7.2)"]
 name = "docutils"
 version = "0.17.1"
 description = "Docutils -- Python Documentation Utilities"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
@@ -216,7 +216,7 @@ numpy = ">=1.14.5"
 name = "idna"
 version = "3.3"
 description = "Internationalized Domain Names in Applications (IDNA)"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.5"
 
@@ -224,7 +224,7 @@ python-versions = ">=3.5"
 name = "imagesize"
 version = "1.3.0"
 description = "Getting image size from png/jpeg/jpeg2000/gif file"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
@@ -232,7 +232,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 name = "importlib-metadata"
 version = "4.11.3"
 description = "Read metadata from Python packages"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.7"
 
@@ -296,7 +296,7 @@ plugins = ["setuptools"]
 
 [[package]]
 name = "jax"
-version = "0.3.4"
+version = "0.3.5"
 description = "Differentiate, compile, and transform Numpy code."
 category = "main"
 optional = false
@@ -304,7 +304,7 @@ python-versions = ">=3.7"
 
 [package.dependencies]
 absl-py = "*"
-jaxlib = {version = "0.3.2", optional = true, markers = "extra == \"cpu\""}
+jaxlib = {version = "0.3.5", optional = true, markers = "extra == \"cpu\""}
 numpy = ">=1.19"
 opt_einsum = "*"
 scipy = ">=1.2.1"
@@ -312,16 +312,16 @@ typing_extensions = "*"
 
 [package.extras]
 ci = ["jaxlib (==0.3.2)"]
-cpu = ["jaxlib (==0.3.2)"]
-cuda = ["jaxlib (==0.3.2+cuda11.cudnn82)"]
-cuda11_cudnn805 = ["jaxlib (==0.3.2+cuda11.cudnn805)"]
-cuda11_cudnn82 = ["jaxlib (==0.3.2+cuda11.cudnn82)"]
+cpu = ["jaxlib (==0.3.5)"]
+cuda = ["jaxlib (==0.3.5+cuda11.cudnn82)"]
+cuda11_cudnn805 = ["jaxlib (==0.3.5+cuda11.cudnn805)"]
+cuda11_cudnn82 = ["jaxlib (==0.3.5+cuda11.cudnn82)"]
 minimum-jaxlib = ["jaxlib (==0.3.0)"]
-tpu = ["jaxlib (==0.3.2)", "libtpu-nightly (==0.1.dev20220315)", "requests"]
+tpu = ["jaxlib (==0.3.5)", "libtpu-nightly (==0.1.dev20220407)", "requests"]
 
 [[package]]
 name = "jaxlib"
-version = "0.3.2"
+version = "0.3.5"
 description = "XLA library for JAX"
 category = "main"
 optional = false
@@ -352,7 +352,7 @@ testing = ["Django (<3.1)", "colorama", "docopt", "pytest (<7.0.0)"]
 name = "jinja2"
 version = "3.1.1"
 description = "A very fast and expressive template engine."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.7"
 
@@ -374,7 +374,7 @@ python-versions = ">=3.6"
 name = "markupsafe"
 version = "2.1.1"
 description = "Safely add untrusted strings to HTML/XML markup."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.7"
 
@@ -450,7 +450,7 @@ tests = ["pytest", "pytest-cov", "pytest-pep8"]
 name = "packaging"
 version = "21.3"
 description = "Core utilities for Python packages"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.6"
 
@@ -581,7 +581,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 name = "pygments"
 version = "2.11.2"
 description = "Pygments is a syntax highlighting package written in Python."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.5"
 
@@ -610,7 +610,7 @@ testutil = ["gitpython (>3)"]
 name = "pyparsing"
 version = "3.0.7"
 description = "Python parsing module"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.6"
 
@@ -621,7 +621,7 @@ diagrams = ["jinja2", "railroad-diagrams"]
 name = "pytz"
 version = "2022.1"
 description = "World timezone definitions, modern and historical"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 
@@ -629,7 +629,7 @@ python-versions = "*"
 name = "requests"
 version = "2.27.1"
 description = "Python HTTP for Humans."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 
@@ -679,7 +679,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 name = "snowballstemmer"
 version = "2.2.0"
 description = "This package provides 29 stemmers for 28 languages generated from Snowball algorithms."
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 
@@ -687,7 +687,7 @@ python-versions = "*"
 name = "sphinx"
 version = "4.5.0"
 description = "Python documentation generator"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.6"
 
@@ -716,10 +716,25 @@ lint = ["flake8 (>=3.5.0)", "isort", "mypy (>=0.931)", "docutils-stubs", "types-
 test = ["pytest", "pytest-cov", "html5lib", "cython", "typed-ast"]
 
 [[package]]
+name = "sphinx-autodoc-defaultargs"
+version = "0.1.2"
+description = "Automatic generation of default arguments for the Sphinx autodoc extension."
+category = "dev"
+optional = false
+python-versions = ">=3.5"
+
+[package.dependencies]
+Sphinx = ">=3.0"
+
+[package.extras]
+test = ["pytest (>=3.1.0)", "typing-extensions (>=3.5)", "sphobjinv (>=2.0)", "Sphinx (>=3.2.0)", "dataclasses"]
+type_comments = ["typed-ast (>=1.4.0)"]
+
+[[package]]
 name = "sphinx-rtd-theme"
 version = "1.0.0"
 description = "Read the Docs theme for Sphinx"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*"
 
@@ -734,7 +749,7 @@ dev = ["transifex-client", "sphinxcontrib-httpdomain", "bump2version"]
 name = "sphinxcontrib-applehelp"
 version = "1.0.2"
 description = "sphinxcontrib-applehelp is a sphinx extension which outputs Apple help books"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.5"
 
@@ -746,7 +761,7 @@ test = ["pytest"]
 name = "sphinxcontrib-devhelp"
 version = "1.0.2"
 description = "sphinxcontrib-devhelp is a sphinx extension which outputs Devhelp document."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.5"
 
@@ -758,7 +773,7 @@ test = ["pytest"]
 name = "sphinxcontrib-htmlhelp"
 version = "2.0.0"
 description = "sphinxcontrib-htmlhelp is a sphinx extension which renders HTML help files"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.6"
 
@@ -770,7 +785,7 @@ test = ["pytest", "html5lib"]
 name = "sphinxcontrib-jsmath"
 version = "1.0.1"
 description = "A sphinx extension which renders display math in HTML via JavaScript"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.5"
 
@@ -781,7 +796,7 @@ test = ["pytest", "flake8", "mypy"]
 name = "sphinxcontrib-qthelp"
 version = "1.0.3"
 description = "sphinxcontrib-qthelp is a sphinx extension which outputs QtHelp document."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.5"
 
@@ -793,7 +808,7 @@ test = ["pytest"]
 name = "sphinxcontrib-serializinghtml"
 version = "1.1.5"
 description = "sphinxcontrib-serializinghtml is a sphinx extension which outputs \"serialized\" HTML files (json and pickle)."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.5"
 
@@ -863,7 +878,7 @@ python-versions = ">=3.6"
 name = "urllib3"
 version = "1.26.9"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4"
 
@@ -892,7 +907,7 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
 name = "zipp"
 version = "3.8.0"
 description = "Backport of pathlib-compatible object wrapper for zip files"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.7"
 
@@ -903,7 +918,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.9,<3.11"
-content-hash = "c34db0018a400dceb0c934b7fee495b66d3d74934a37db512342c8f230d89924"
+content-hash = "8c57a1ddcb081b25e4acd02fff3d296f51599eb12d099750fefeb57e89356740"
 
 [metadata.files]
 absl-py = [
@@ -1042,20 +1057,20 @@ isort = [
     {file = "isort-5.10.1.tar.gz", hash = "sha256:e8443a5e7a020e9d7f97f1d7d9cd17c88bcb3bc7e218bf9cf5095fe550be2951"},
 ]
 jax = [
-    {file = "jax-0.3.4.tar.gz", hash = "sha256:f26854ea8f5449493fadc2f70936c57b7e07b5eb91f81f710748e93e97ec785a"},
+    {file = "jax-0.3.5.tar.gz", hash = "sha256:bde2adb9c8b3abc10cadeab4199a0a8fe04de4dd39fac160140f4375fe24ce30"},
 ]
 jaxlib = [
-    {file = "jaxlib-0.3.2-cp310-none-macosx_10_9_x86_64.whl", hash = "sha256:338daac14405104b1d193ff8b7ab1e91eb8cdfdf6329cd189f6d041e29a57355"},
-    {file = "jaxlib-0.3.2-cp310-none-macosx_11_0_arm64.whl", hash = "sha256:6bc65f76c96dbeb8f2d5dc6a0fb7c0ab39642bec3e6fc6de00eb1f2a41401b91"},
-    {file = "jaxlib-0.3.2-cp310-none-manylinux2010_x86_64.whl", hash = "sha256:b8314f9ee62642d899d286456e83ad4de819e539f6100383a83d532b0ef0b97e"},
-    {file = "jaxlib-0.3.2-cp37-none-macosx_10_9_x86_64.whl", hash = "sha256:0a425b09836ed682dcdfc88e79595cbcd2987b55ac6219c382826f9ce4a7eb47"},
-    {file = "jaxlib-0.3.2-cp37-none-manylinux2010_x86_64.whl", hash = "sha256:8c1a670d868ffc0df217ff0faffca8c1855c5c844773f771ef70a68725ccff89"},
-    {file = "jaxlib-0.3.2-cp38-none-macosx_10_9_x86_64.whl", hash = "sha256:d1149dd4bb1f66d0a3e76337a59dcbd864ca98cabdc559e548b95fc874368200"},
-    {file = "jaxlib-0.3.2-cp38-none-macosx_11_0_arm64.whl", hash = "sha256:21506c98bdd50e3feb21fac3d245a632ff71eed76ceac7d00b5e9ad9e9ce36f4"},
-    {file = "jaxlib-0.3.2-cp38-none-manylinux2010_x86_64.whl", hash = "sha256:3a42055bea0737d1559c79c0307f6510722a9b26b3c4b93f8efc043ec9d02502"},
-    {file = "jaxlib-0.3.2-cp39-none-macosx_10_9_x86_64.whl", hash = "sha256:455ed3749a50b105cbd4010f3c2b3e11378ce6ca828d90a3e69f6f7fc2af9bc9"},
-    {file = "jaxlib-0.3.2-cp39-none-macosx_11_0_arm64.whl", hash = "sha256:a9db5f072b463f5ebc1d792ea41a8acc0821876f90c8fdf7c3d4e38e09b7ca64"},
-    {file = "jaxlib-0.3.2-cp39-none-manylinux2010_x86_64.whl", hash = "sha256:159ef0ec9afa7d0d6b4d1ef18aa49825db15173a86fe7bb879c2ecbbace4d9a9"},
+    {file = "jaxlib-0.3.5-cp310-none-macosx_10_9_x86_64.whl", hash = "sha256:7226370fe68517de3bb8aa125996d4bdf30a850a130b1f743b93abee31f0fdbd"},
+    {file = "jaxlib-0.3.5-cp310-none-macosx_11_0_arm64.whl", hash = "sha256:5c549c2cc248a45409c5b9cb0e67e69bc86f5447f6e7154eeb8588ac60f98818"},
+    {file = "jaxlib-0.3.5-cp310-none-manylinux2010_x86_64.whl", hash = "sha256:b6831e55e86a8ee2844c155b0cb6e95c042b1a79a0fd1110e66a9d6c65d321cd"},
+    {file = "jaxlib-0.3.5-cp37-none-macosx_10_9_x86_64.whl", hash = "sha256:156af754040034c7c9261416eaffabd7d84baa457ae2a102fa2e1ba52cedf878"},
+    {file = "jaxlib-0.3.5-cp37-none-manylinux2010_x86_64.whl", hash = "sha256:db24f91e721bdb76fbe4e8387c2b224a6d8d310ec13a7850ebad04385198600c"},
+    {file = "jaxlib-0.3.5-cp38-none-macosx_10_9_x86_64.whl", hash = "sha256:89d3166663990a2f52ce2a4f56995d9ae471b7dbcbff73bbcf4902b87979dd8b"},
+    {file = "jaxlib-0.3.5-cp38-none-macosx_11_0_arm64.whl", hash = "sha256:66b396b78ff1149e05f0b0e9fa2128f5aaa2e33b20bdcaaba3c86fcc29def92c"},
+    {file = "jaxlib-0.3.5-cp38-none-manylinux2010_x86_64.whl", hash = "sha256:bd2c13bcd40f61ef78de9be6763028438ed1d4d576485cec041ae09e9324383a"},
+    {file = "jaxlib-0.3.5-cp39-none-macosx_10_9_x86_64.whl", hash = "sha256:c14309e823a8233bdf840cdd88643b15b7a849a96bb88dface08a9c33bc410c1"},
+    {file = "jaxlib-0.3.5-cp39-none-macosx_11_0_arm64.whl", hash = "sha256:816e937d01449fb892db89797257a7e6c912080718b244359c5d238fe008d1c4"},
+    {file = "jaxlib-0.3.5-cp39-none-manylinux2010_x86_64.whl", hash = "sha256:0f52894ae10e5f2a64254a93edc8736e805086d049a920a2b47645b91646930a"},
 ]
 jedi = [
     {file = "jedi-0.18.1-py2.py3-none-any.whl", hash = "sha256:637c9635fcf47945ceb91cd7f320234a7be540ded6f3e99a50cb6febdfd1ba8d"},
@@ -1321,6 +1336,10 @@ snowballstemmer = [
 sphinx = [
     {file = "Sphinx-4.5.0-py3-none-any.whl", hash = "sha256:ebf612653238bcc8f4359627a9b7ce44ede6fdd75d9d30f68255c7383d3a6226"},
     {file = "Sphinx-4.5.0.tar.gz", hash = "sha256:7bf8ca9637a4ee15af412d1a1d9689fec70523a68ca9bb9127c2f3eeb344e2e6"},
+]
+sphinx-autodoc-defaultargs = [
+    {file = "sphinx-autodoc-defaultargs-0.1.2.tar.gz", hash = "sha256:b11cd9ac43510c1f1e9a3f9469a370e6bbe2bc2cb9e67cb79987f4dcd3be5be3"},
+    {file = "sphinx_autodoc_defaultargs-0.1.2-py3-none-any.whl", hash = "sha256:1513b1aea8c20348f1763dbfd7ff11f86cd77f2ce3246c73e1405a2a67fea3ff"},
 ]
 sphinx-rtd-theme = [
     {file = "sphinx_rtd_theme-1.0.0-py2.py3-none-any.whl", hash = "sha256:4d35a56f4508cfee4c4fb604373ede6feae2a306731d533f409ef5c3496fdbd8"},

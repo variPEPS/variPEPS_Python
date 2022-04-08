@@ -11,8 +11,8 @@ from . import peps
 from . import typing
 from . import utils
 
+from .__version__ import __version__
+
 from jax.config import config as jax_config
 
 jax_config.update("jax_enable_x64", True)
-
-from .__version__ import __version__

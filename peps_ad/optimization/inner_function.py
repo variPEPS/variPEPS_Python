@@ -1,11 +1,12 @@
 import jax.numpy as jnp
 from jax import value_and_grad
 
+from peps_ad import peps_ad_config
 from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
 from peps_ad.ctmrg import calc_ctmrg_env, calc_ctmrg_env_custom_rule
 
-from typing import Sequence, Tuple, cast
+from typing import Sequence, Tuple, cast, Optional
 
 
 def calc_ctmrg_expectation(
@@ -13,9 +14,7 @@ def calc_ctmrg_expectation(
     unitcell: PEPS_Unit_Cell,
     expectation_func: Expectation_Model,
     *,
-    eps: float = 1e-8,
-    max_steps: int = 200,
-    enforce_elementwise_convergence: bool = True,
+    enforce_elementwise_convergence: Optional[bool] = None,
 ) -> Tuple[jnp.ndarray, PEPS_Unit_Cell]:
     """
     Calculate the CTMRG environment and the (energy) expectation value for a
@@ -29,10 +28,9 @@ def calc_ctmrg_expectation(
       expectation_func (:obj:`~peps_ad.expectation.Expectation_Model`):
         Callable to calculate the expectation value.
     Keyword args:
-      eps (:obj:`float`):
-        The convergence criterion for the CTMRG routine.
-      max_steps (:obj:`int`):
-        Maximal number of CTMRG steps.
+      enforce_elementwise_convergence (obj:`bool`):
+        Enforce elementwise convergence of the CTM tensors instead of only
+        convergence of the singular values of the corners.
     Returns:
       :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         Tuple consisting of the calculated expectation value and the new unitcell.
@@ -40,8 +38,6 @@ def calc_ctmrg_expectation(
     new_unitcell = calc_ctmrg_env(
         peps_tensors,
         unitcell,
-        eps=eps,
-        max_steps=max_steps,
         enforce_elementwise_convergence=enforce_elementwise_convergence,
     )
 
@@ -59,10 +55,6 @@ def calc_preconverged_ctmrg_value_and_grad(
     expectation_func: Expectation_Model,
     *,
     calc_preconverged: bool = True,
-    preconverged_eps: float = 1e-5,
-    final_eps: float = 1e-8,
-    preconverged_max_steps: int = 100,
-    final_max_steps: int = 10,
 ) -> Tuple[Tuple[jnp.ndarray, PEPS_Unit_Cell], Sequence[jnp.ndarray]]:
     """
     Calculate the CTMRG environment and the (energy) expectation value as well
@@ -84,18 +76,6 @@ def calc_preconverged_ctmrg_value_and_grad(
       calc_preconverged (:obj:`bool`):
         Flag if the above described procedure to calculate a pre-converged
         environment should be used.
-      preconverged_eps (:obj:`float`):
-        The convergence criterion for the CTMRG routine used in the pre-converged
-        procedure.
-      final_eps (:obj:`float`):
-        The convergence criterion for the CTMRG routine used in the calculation
-        of gradient.
-      preconverged_max_steps (:obj:`int`):
-        Maximal number of CTMRG steps used in the pre-converged
-        procedure.
-      final_max_steps (:obj:`int`):
-        Maximal number of CTMRG steps used in the calculation
-        of gradient.
     Returns:
       :obj:`tuple`\ (:obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~peps_ad.peps.PEPS_Unit_Cell`), :obj:`tuple`\ (:obj:`jax.numpy.ndarray`)):
         Tuple with two element:
@@ -107,8 +87,7 @@ def calc_preconverged_ctmrg_value_and_grad(
         preconverged_unitcell = calc_ctmrg_env(
             peps_tensors,
             unitcell,
-            eps=preconverged_eps,
-            max_steps=preconverged_max_steps,
+            eps=peps_ad_config.optimizer_ctmrg_preconverged_eps,
         )
     else:
         preconverged_unitcell = unitcell
@@ -120,8 +99,6 @@ def calc_preconverged_ctmrg_value_and_grad(
         peps_tensors,
         preconverged_unitcell,
         expectation_func,
-        eps=final_eps,
-        max_steps=final_max_steps,
     )
 
     return (expectation_value, final_unitcell), gradient

@@ -2,7 +2,7 @@ from collections import namedtuple
 from functools import partial
 
 import jax.numpy as jnp
-from jax import jit, vmap, checkpoint
+from jax import jit
 
 from peps_ad.peps import PEPS_Tensor
 from peps_ad.contractions import apply_contraction
@@ -73,7 +73,7 @@ def _calc_ctmrg_quarters(
 
 
 def _truncated_SVD(
-    matrix: jnp.ndarray, chi: int, *, eps: float = 1e-8
+    matrix: jnp.ndarray, chi: int
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     U, S, Vh = gauge_fixed_svd(matrix)
 
@@ -82,7 +82,7 @@ def _truncated_SVD(
     U = U[:, :chi]
     Vh = Vh[:chi, :]
 
-    relevant_S_values = (S / S[0]) > eps
+    relevant_S_values = (S / S[0]) > peps_ad_config.ctmrg_truncation_eps
     S_inv_sqrt = jnp.where(
         relevant_S_values, 1 / jnp.sqrt(jnp.where(relevant_S_values, S, 1)), 0
     )

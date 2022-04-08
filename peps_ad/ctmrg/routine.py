@@ -5,6 +5,7 @@ import jax.numpy as jnp
 from jax import jit, custom_vjp, vjp
 import jax.util
 
+from peps_ad import peps_ad_config
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
 from .absorption import do_absorption_step
 
@@ -137,10 +138,8 @@ def calc_ctmrg_env(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
     *,
-    eps: float = 1e-8,
-    max_steps: int = 200,
-    print_steps: bool = False,
-    enforce_elementwise_convergence: bool = False,
+    eps: Optional[float] = None,
+    enforce_elementwise_convergence: Optional[bool] = None,
 ) -> PEPS_Unit_Cell:
     """
     Calculate the new converged CTMRG tensors for the unitcell.
@@ -153,10 +152,6 @@ def calc_ctmrg_env(
     Keyword args:
       eps (:obj:`float`):
         The convergence criterion.
-      max_steps (:obj:`int`):
-        Maximal number of steps before abort the routine.
-      print_steps (obj:`bool`):
-        Print the step counter and the convergence measure after each step.
       enforce_elementwise_convergence (obj:`bool`):
         Enforce elementwise convergence of the CTM tensors instead of only
         convergence of the singular values of the corners.
@@ -165,6 +160,13 @@ def calc_ctmrg_env(
         New instance of the unitcell with all updated converged CTMRG tensors of
         all elements of the unitcell.
     """
+    eps = eps if eps is not None else peps_ad_config.ctmrg_convergence_eps
+    enforce_elementwise_convergence = (
+        enforce_elementwise_convergence
+        if enforce_elementwise_convergence is not None
+        else peps_ad_config.ctmrg_enforce_elementwise_convergence
+    )
+
     if enforce_elementwise_convergence:
         last_step_tensors = unitcell.get_unique_tensors()
     else:
@@ -181,7 +183,7 @@ def calc_ctmrg_env(
     count = 0
     converged = False
 
-    while not converged and count < max_steps:
+    while not converged and count < peps_ad_config.ctmrg_max_steps:
         working_unitcell = do_absorption_step(peps_tensors, working_unitcell)
 
         if enforce_elementwise_convergence:
@@ -189,7 +191,7 @@ def calc_ctmrg_env(
                 last_step_tensors,
                 working_unitcell.get_unique_tensors(),
                 eps,
-                verbose=print_steps,
+                verbose=peps_ad_config.ctmrg_verbose_output,
             )
             last_step_tensors = working_unitcell.get_unique_tensors()
         else:
@@ -206,9 +208,9 @@ def calc_ctmrg_env(
 
         count += 1
 
-        if print_steps:
-            print(f"{count}: {measure}")
-            if enforce_elementwise_convergence:
+        if peps_ad_config.ctmrg_print_steps:
+            print(f"CTMRG: {count}: {measure}")
+            if peps_ad_config.ctmrg_verbose_output:
                 verbose_data = [
                     (int(ti), CTM_Enum(ctm_enum_i).name, float(diff))
                     for ti, ctm_enum_i, diff in verbose_data
@@ -272,7 +274,7 @@ def calc_ctmrg_env_rev(
     env_fixed_point = unitcell_bar
     env_bar_tensors = unitcell_bar.get_unique_tensors()
 
-    while not converged and count < 100:
+    while not converged and count < peps_ad_config.ad_custom_max_steps:
         env_fixed_point_last_step = env_fixed_point
 
         new_env_bar = vjp_env(env_fixed_point)[0]
@@ -288,18 +290,20 @@ def calc_ctmrg_env_rev(
         converged, measure, verbose_data = _is_element_wise_converged(
             env_fixed_point_last_step.get_unique_tensors(),
             env_fixed_point.get_unique_tensors(),
-            1e-8,
-            verbose=True,
+            peps_ad_config.ad_custom_convergence_eps,
+            verbose=peps_ad_config.ad_custom_verbose_output,
         )
 
         count += 1
 
-        # print(f"{count}: {measure}")
-        # verbose_data = [
-        #     (int(ti), CTM_Enum(ctm_enum_i).name, float(diff))
-        #     for ti, ctm_enum_i, diff in verbose_data
-        # ]
-        # print(verbose_data)
+        if peps_ad_config.ad_custom_print_steps:
+            print(f"Custom VJP: {count}: {measure}")
+            if peps_ad_config.ad_custom_verbose_output:
+                verbose_data = [
+                    (int(ti), CTM_Enum(ctm_enum_i).name, float(diff))
+                    for ti, ctm_enum_i, diff in verbose_data
+                ]
+                print(verbose_data)
 
     (t_bar,) = vjp_peps_tensors(env_fixed_point)
 

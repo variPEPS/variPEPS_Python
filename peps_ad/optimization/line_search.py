@@ -1,20 +1,14 @@
-from enum import Enum, auto
-
 import jax.numpy as jnp
 from jax import jit
 
+from peps_ad import peps_ad_config
+from peps_ad.config import Line_Search_Methods
 from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
 
 from .inner_function import calc_ctmrg_expectation
 
-from typing import Sequence, Tuple, List, Literal, Union
-
-
-class Line_Search_Methods(Enum):
-    SIMPLE = auto()
-    ARMIJO = auto()
-    WOLFE = auto()
+from typing import Sequence, Tuple, List, Union
 
 
 @jit
@@ -39,16 +33,6 @@ def line_search(
     descent_direction: jnp.ndarray,
     current_value: Union[float, jnp.ndarray],
     last_step_size: Union[float, jnp.ndarray],
-    *,
-    method: Line_Search_Methods = Line_Search_Methods.SIMPLE,
-    ctmrg_eps: float = 1e-5,
-    ctmrg_max_steps: int = 20,
-    initial_step_size: float = 1.0,
-    reduction_factor: float = 0.5,
-    max_steps: int = 20,
-    armijo_constant_factor: float = 1e-4,
-    wolfe_curvature_factor: float = 0.1,
-    enforce_elementwise_convergence: bool = True
 ) -> Tuple[
     List[jnp.ndarray],
     PEPS_Unit_Cell,
@@ -75,23 +59,6 @@ def line_search(
         The current value of the evaluation of the expectation function.
       last_step_size (:obj:`float` or :obj:`jax.numpy.ndarray`):
         The step size found in the last line search.
-    Keyword args:
-      method (:obj:`~Line_Search_Methods`):
-        Flag which line search method should be used.
-      ctmrg_eps (:obj:`float`):
-        Convergence criterion for CTMRG call used during line search.
-      ctmrg_max_steps (:obj:`int`):
-        Maximal steps for the CTMRG routine.
-      initial_step_size (:obj:`float`):
-        Initial step size used in the line search.
-      reduction_factor (:obj:`float`):
-        Factor to reduce the step size if no minimization can be found.
-      max_steps (:obj:`int`):
-        Maximal steps for the line search method.
-      armijo_constant_factor (:obj:`float`):
-        Constant factor used in the Armijo criterion.
-      wolfe_curvature_factor (:obj:`float`):
-        Constant factor used in the Wolfe criterion.
     Returns:
       :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`float`, :obj:`float`):
         Tuple with the optimized tensors, the new unitcell, the reduced
@@ -107,12 +74,20 @@ def line_search(
     ):
         raise ValueError("PEPS tensor sequence mismatches the unitcell.")
 
-    alpha = last_step_size if last_step_size is not None else initial_step_size
+    alpha = (
+        last_step_size
+        if last_step_size is not None
+        else peps_ad_config.line_search_initial_step_size
+    )
     has_been_increased = False
     incrementation_not_helped = False
+    enforce_elementwise_convergence = (
+        peps_ad_config.ctmrg_enforce_elementwise_convergence
+        or peps_ad_config.ad_use_custom_vjp
+    )
 
     count = 0
-    while count < max_steps:
+    while count < peps_ad_config.line_search_max_steps:
         new_tensors = _line_search_new_tensors(peps_tensors, descent_direction, alpha)
 
         unitcell_tensors = unitcell.get_unique_tensors()
@@ -125,49 +100,53 @@ def line_search(
             ]
         )
 
-        if method is Line_Search_Methods.SIMPLE or method is Line_Search_Methods.ARMIJO:
+        if (
+            peps_ad_config.line_search_method is Line_Search_Methods.SIMPLE
+            or peps_ad_config.line_search_method is Line_Search_Methods.ARMIJO
+        ):
             new_value, new_unitcell = calc_ctmrg_expectation(
                 new_tensors,
                 new_unitcell,
                 expectation_func,
-                eps=ctmrg_eps,
-                max_steps=ctmrg_max_steps,
                 enforce_elementwise_convergence=enforce_elementwise_convergence,
             )
-        elif method is Line_Search_Methods.WOLFE:
+        elif peps_ad_config.line_search_method is Line_Search_Methods.WOLFE:
             raise NotImplementedError("Wolfe condition not implemented yet.")
         else:
             raise ValueError("Unknown line search method.")
 
-        if method is Line_Search_Methods.SIMPLE:
+        if peps_ad_config.line_search_method is Line_Search_Methods.SIMPLE:
             smaller_value_found = new_value < current_value
-        elif method is Line_Search_Methods.ARMIJO:
+        elif peps_ad_config.line_search_method is Line_Search_Methods.ARMIJO:
             cmp_value = _armijo_value(
                 current_value,
                 descent_direction,
                 gradient,
                 alpha,
-                armijo_constant_factor,
+                peps_ad_config.line_search_armijo_const,
             )
             smaller_value_found = new_value < cmp_value
-        elif method is Line_Search_Methods.WOLFE:
+        elif peps_ad_config.line_search_method is Line_Search_Methods.WOLFE:
             pass
 
         if smaller_value_found:
-            if alpha >= initial_step_size or incrementation_not_helped:
+            if (
+                alpha >= peps_ad_config.line_search_initial_step_size
+                or incrementation_not_helped
+            ):
                 break
 
             has_been_increased = True
-            alpha /= reduction_factor
+            alpha /= peps_ad_config.line_search_reduction_factor
         else:
             if has_been_increased:
                 incrementation_not_helped = True
 
-            alpha = reduction_factor * alpha
+            alpha = peps_ad_config.line_search_reduction_factor * alpha
 
         count += 1
 
-    if count == max_steps:
+    if count == peps_ad_config.line_search_max_steps:
         raise RuntimeError("Line search does not find a suitable step size.")
 
     return new_tensors, new_unitcell, new_value, alpha

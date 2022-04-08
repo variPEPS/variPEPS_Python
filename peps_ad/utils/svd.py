@@ -4,24 +4,24 @@ import jax.numpy as jnp
 from jax.lax import scan
 from jax import jit
 
+from peps_ad import peps_ad_config
+
 from typing import Tuple
 
 
 @partial(jit, inline=True, static_argnums=(1,))
 def gauge_fixed_svd(
-    matrix: jnp.ndarray, eps: float = 1e-4
+    matrix: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """
     Calculate the gauge-fixed (also called sign-fixed) SVD. To this end, each
     singular vector are rotate in the way that the first element bigger than
-    some numerical stability threshold (parameter eps) is ensured to be along
-    the positive real axis.
+    some numerical stability threshold (config parameter eps) is ensured to be
+    along the positive real axis.
 
     Args:
       matrix (:obj:`jnp.ndarray`):
         Matrix to calculate SVD for.
-      eps (:obj:`float`):
-        Numerical stability threshold for sign fixing.
     Returns:
       :obj:`tuple`\\ (:obj:`jnp.ndarray`, :obj:`jnp.ndarray`, :obj:`jnp.ndarray`):
         Tuple with sign-fixed U, S and Vh of the SVD.
@@ -40,7 +40,7 @@ def gauge_fixed_svd(
         already_found = carry[0]
         last_step_result = carry[1]
 
-        cond = normalized_U_row >= eps
+        cond = normalized_U_row >= peps_ad_config.svd_sign_fix_eps
 
         result = jnp.where(
             already_found, last_step_result, jnp.where(cond, U_row, last_step_result)

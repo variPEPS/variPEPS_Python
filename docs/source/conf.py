@@ -38,6 +38,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
+    "sphinx_autodoc_defaultargs",
 ]
 
 napoleon_include_private_with_doc = True
@@ -78,3 +79,8 @@ html_theme = "sphinx_rtd_theme"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+
+rst_prolog = """
+.. |default| raw:: html
+
+    <div class="default-value-section"> <span class="default-value-label">Default:</span>"""
