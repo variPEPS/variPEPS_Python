@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "peps-ad"
-version = "0.1.3"
+version = "0.1.4"
 description = "Code to solve PEPS network using AD methods"
 authors = ["Philipp Schmoll", "Augustine Kshetrimayum", "Frederik Wilde", "Jan Naumann <j.naumann@fu-berlin.de>"]
 license = "GPL-3.0"
