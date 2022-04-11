@@ -3,15 +3,15 @@ from enum import Enum, auto
 
 
 class Optimizing_Methods(Enum):
-    STEEPEST = auto()
-    CG = auto()
-    BFGS = auto()
+    STEEPEST = auto()  #: Steepest gradient descent
+    CG = auto()  #: Conjugate gradient method
+    BFGS = auto()  #: BFGS method
 
 
 class Line_Search_Methods(Enum):
-    SIMPLE = auto()
-    ARMIJO = auto()
-    WOLFE = auto()
+    SIMPLE = auto()  #: Simple line search method
+    ARMIJO = auto()  #: Armijo line search method
+    WOLFE = auto()  #: Wolfe line search method
 
 
 @dataclass
