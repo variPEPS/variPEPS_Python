@@ -67,7 +67,11 @@ def _is_element_wise_converged(
     verbose_data = [] if verbose else None
 
     for ti in range(len(old_peps_tensors)):
-        diff = jnp.abs(new_peps_tensors[ti].C1 - old_peps_tensors[ti].C1)
+        old_shape = old_peps_tensors[ti].C1.shape
+        diff = jnp.abs(
+            new_peps_tensors[ti].C1[: old_shape[0], : old_shape[1]]
+            - old_peps_tensors[ti].C1
+        )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 0].set(
             jnp.mean(diff), indices_are_sorted=True, unique_indices=True
@@ -75,7 +79,11 @@ def _is_element_wise_converged(
         if verbose:
             verbose_data.append((ti, CTM_Enum.C1, jnp.amax(diff)))
 
-        diff = jnp.abs(new_peps_tensors[ti].C2 - old_peps_tensors[ti].C2)
+        old_shape = old_peps_tensors[ti].C2.shape
+        diff = jnp.abs(
+            new_peps_tensors[ti].C2[: old_shape[0], : old_shape[1]]
+            - old_peps_tensors[ti].C2
+        )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 1].set(
             jnp.mean(diff), indices_are_sorted=True, unique_indices=True
@@ -83,7 +91,11 @@ def _is_element_wise_converged(
         if verbose:
             verbose_data.append((ti, CTM_Enum.C2, jnp.amax(diff)))
 
-        diff = jnp.abs(new_peps_tensors[ti].C3 - old_peps_tensors[ti].C3)
+        old_shape = old_peps_tensors[ti].C3.shape
+        diff = jnp.abs(
+            new_peps_tensors[ti].C3[: old_shape[0], : old_shape[1]]
+            - old_peps_tensors[ti].C3
+        )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 2].set(
             jnp.mean(diff), indices_are_sorted=True, unique_indices=True
@@ -91,7 +103,11 @@ def _is_element_wise_converged(
         if verbose:
             verbose_data.append((ti, CTM_Enum.C3, jnp.amax(diff)))
 
-        diff = jnp.abs(new_peps_tensors[ti].C4 - old_peps_tensors[ti].C4)
+        old_shape = old_peps_tensors[ti].C4.shape
+        diff = jnp.abs(
+            new_peps_tensors[ti].C4[: old_shape[0], : old_shape[1]]
+            - old_peps_tensors[ti].C4
+        )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 3].set(
             jnp.mean(diff), indices_are_sorted=True, unique_indices=True
@@ -99,7 +115,13 @@ def _is_element_wise_converged(
         if verbose:
             verbose_data.append((ti, CTM_Enum.C4, jnp.amax(diff)))
 
-        diff = jnp.abs(new_peps_tensors[ti].T1 - old_peps_tensors[ti].T1)
+        old_shape = old_peps_tensors[ti].T1.shape
+        diff = jnp.abs(
+            new_peps_tensors[ti].T1[
+                : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
+            ]
+            - old_peps_tensors[ti].T1
+        )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 4].set(
             jnp.mean(diff), indices_are_sorted=True, unique_indices=True
@@ -107,7 +129,13 @@ def _is_element_wise_converged(
         if verbose:
             verbose_data.append((ti, CTM_Enum.T1, jnp.amax(diff)))
 
-        diff = jnp.abs(new_peps_tensors[ti].T2 - old_peps_tensors[ti].T2)
+        old_shape = old_peps_tensors[ti].T2.shape
+        diff = jnp.abs(
+            new_peps_tensors[ti].T2[
+                : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
+            ]
+            - old_peps_tensors[ti].T2
+        )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 5].set(
             jnp.mean(diff), indices_are_sorted=True, unique_indices=True
@@ -115,7 +143,13 @@ def _is_element_wise_converged(
         if verbose:
             verbose_data.append((ti, CTM_Enum.T2, jnp.amax(diff)))
 
-        diff = jnp.abs(new_peps_tensors[ti].T3 - old_peps_tensors[ti].T3)
+        old_shape = old_peps_tensors[ti].T3.shape
+        diff = jnp.abs(
+            new_peps_tensors[ti].T3[
+                : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
+            ]
+            - old_peps_tensors[ti].T3
+        )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 6].set(
             jnp.mean(diff), indices_are_sorted=True, unique_indices=True
@@ -123,7 +157,13 @@ def _is_element_wise_converged(
         if verbose:
             verbose_data.append((ti, CTM_Enum.T3, jnp.amax(diff)))
 
-        diff = jnp.abs(new_peps_tensors[ti].T4 - old_peps_tensors[ti].T4)
+        old_shape = old_peps_tensors[ti].T4.shape
+        diff = jnp.abs(
+            new_peps_tensors[ti].T4[
+                : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
+            ]
+            - old_peps_tensors[ti].T4
+        )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 7].set(
             jnp.mean(diff), indices_are_sorted=True, unique_indices=True
