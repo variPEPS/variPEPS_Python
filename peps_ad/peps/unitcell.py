@@ -5,8 +5,11 @@ PEPS unit cell
 from __future__ import annotations
 
 from dataclasses import dataclass
+import pathlib
+from os import PathLike
 
-import jax
+import h5py
+
 import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
 
@@ -108,6 +111,42 @@ class PEPS_Unit_Cell:
                 peps_tensors=new_peps_tensors,
                 structure=self.structure,
             )
+
+        def save_to_group(self, grp: h5py.Group) -> None:
+            """
+            Store the unit cell data into a HDF5 group.
+
+            Args:
+              grp (:obj:`h5py.Group`):
+                HDF5 group object to save the data into.
+            """
+            grp.create_dataset("structure", data=self.structure)
+
+            grp_tensors = grp.create_group("peps_tensors", track_order=True)
+            grp_tensors.attrs["len"] = len(self.peps_tensors)
+
+            for ti, t in enumerate(self.peps_tensors):
+                grp_ti = grp_tensors.create_group(f"t_{ti:d}")
+                t.save_to_group(grp_ti)
+
+        @classmethod
+        def load_from_group(
+            cls: Type[PEPS_Unit_Cell.Unit_Cell_Data], grp: h5py.Group
+        ) -> PEPS_Unit_Cell.Unit_Cell_Data:
+            """
+            Load the unit cell data from a HDF5 group.
+
+            Args:
+              grp (:obj:`h5py.Group`):
+                HDF5 group object to load the data from.
+            """
+            structure = jnp.asarray(grp["structure"])
+            peps_tensors = [
+                PEPS_Tensor.load_from_group(grp["peps_tensors"][f"t_{ti:d}"])
+                for ti in range(grp["peps_tensors"].attrs["len"])
+            ]
+
+            return cls(structure=structure, peps_tensors=peps_tensors)
 
         def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
             structure_tuple = tuple(tuple(i) for i in self.structure)
@@ -588,6 +627,71 @@ class PEPS_Unit_Cell:
         return type(self)(
             data=self.data.copy(), real_ix=self.real_ix, real_iy=self.real_iy
         )
+
+    def save_to_file(self, path: PathLike) -> None:
+        """
+        Save unit cell to a HDF5 file.
+
+        This function creates a single group "unitcell" in the file and pass
+        this group to the method :obj:`~PEPS_Unit_Cell.save_to_group` then.
+
+        Args:
+          path (:obj:`os.PathLike`):
+            Path of the new file. Caution: The file will overwritten if existing.
+        """
+        with h5py.File(path, "w", libver=("earliest", "v110")) as f:
+            grp = f.create_group("unitcell")
+
+            self.save_to_group(grp)
+
+    def save_to_group(self, grp: h5py.Group) -> None:
+        """
+        Save unit cell to a HDF5 group which is be passed to the method.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to store the data into.
+        """
+        grp.attrs["real_ix"] = self.real_ix
+        grp.attrs["real_iy"] = self.real_iy
+
+        grp_data = grp.create_group("data")
+
+        self.data.save_to_group(grp_data)
+
+    @classmethod
+    def load_from_file(cls: Type[T_PEPS_Unit_Cell], path: PathLike) -> T_PEPS_Unit_Cell:
+        """
+        Load unit cell from a HDF5 file.
+
+        This function read the group "unitcell" from the file and pass
+        this group to the method :obj:`~PEPS_Unit_Cell.load_from_group` then.
+
+        Args:
+          path (:obj:`os.PathLike`):
+            Path of the HDF5 file.
+        """
+        with h5py.File(path, "r") as f:
+            unitcell = cls.load_from_group(f["unitcell"])
+
+        return unitcell
+
+    @classmethod
+    def load_from_group(
+        cls: Type[T_PEPS_Unit_Cell], grp: h5py.Group
+    ) -> T_PEPS_Unit_Cell:
+        """
+        Load the unit cell from a HDF5 group which is be passed to the method.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to load the data from.
+        """
+        data = cls.Unit_Cell_Data.load_from_group(grp["data"])
+        real_ix = int(grp.attrs["real_ix"])
+        real_iy = int(grp.attrs["real_iy"])
+
+        return cls(data=data, real_ix=real_ix, real_iy=real_iy)
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
         aux_data = (self.real_ix, self.real_iy)

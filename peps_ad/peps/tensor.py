@@ -11,6 +11,7 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
+import h5py
 
 from peps_ad.utils.random import PEPS_Random_Number_Generator
 
@@ -819,6 +820,67 @@ class PEPS_Tensor:
 
     def zeros_like_self(self: T_PEPS_Tensor) -> T_PEPS_Tensor:
         return type(self).zeros_like(self)
+
+    def save_to_group(self, grp: h5py.Group) -> None:
+        """
+        Store the PEPS tensor into a HDF5 group.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to save the data into.
+        """
+        grp.attrs["d"] = self.d
+        grp.attrs["D"] = self.D
+        grp.attrs["chi"] = self.chi
+        grp.create_dataset(
+            "tensor", data=self.tensor, compression="gzip", compression_opts=6
+        )
+        grp.create_dataset("C1", data=self.C1, compression="gzip", compression_opts=6)
+        grp.create_dataset("C2", data=self.C2, compression="gzip", compression_opts=6)
+        grp.create_dataset("C3", data=self.C3, compression="gzip", compression_opts=6)
+        grp.create_dataset("C4", data=self.C4, compression="gzip", compression_opts=6)
+        grp.create_dataset("T1", data=self.T1, compression="gzip", compression_opts=6)
+        grp.create_dataset("T2", data=self.T2, compression="gzip", compression_opts=6)
+        grp.create_dataset("T3", data=self.T3, compression="gzip", compression_opts=6)
+        grp.create_dataset("T4", data=self.T4, compression="gzip", compression_opts=6)
+
+    @classmethod
+    def load_from_group(cls: Type[T_PEPS_Tensor], grp: h5py.Group) -> T_PEPS_Tensor:
+        """
+        Load the PEPS tensor from a HDF5 group.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to load the data from.
+        """
+        d = int(grp.attrs["d"])
+        D = tuple(grp.attrs["D"])
+        chi = int(grp.attrs["chi"])
+
+        tensor = jnp.asarray(grp["tensor"])
+        C1 = jnp.asarray(grp["C1"])
+        C2 = jnp.asarray(grp["C2"])
+        C3 = jnp.asarray(grp["C3"])
+        C4 = jnp.asarray(grp["C4"])
+        T1 = jnp.asarray(grp["T1"])
+        T2 = jnp.asarray(grp["T2"])
+        T3 = jnp.asarray(grp["T3"])
+        T4 = jnp.asarray(grp["T4"])
+
+        return cls(
+            tensor=tensor,
+            C1=C1,
+            C2=C2,
+            C3=C3,
+            C4=C4,
+            T1=T1,
+            T2=T2,
+            T3=T3,
+            T4=T4,
+            d=d,
+            D=D,
+            chi=chi,
+        )
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
         data = (
