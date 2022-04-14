@@ -776,6 +776,16 @@ class PEPS_Tensor:
         )
 
     def __add__(self: T_PEPS_Tensor, other: T_PEPS_Tensor) -> T_PEPS_Tensor:
+        """
+        Add the environment tensors of two PEPS tensors.
+
+        Args:
+          other (:obj:`~peps_ad.peps.PEPS_Tensor`):
+            Other PEPS tensor object which should be added to this one.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance with the added env tensors.
+        """
         if (
             self.tensor is not other.tensor
             or self.d != other.d
@@ -803,6 +813,17 @@ class PEPS_Tensor:
 
     @classmethod
     def zeros_like(cls: Type[T_PEPS_Tensor], t: T_PEPS_Tensor) -> T_PEPS_Tensor:
+        """
+        Create a PEPS tensor with same shape as another one but with zeros
+        everywhere.
+
+        Args:
+          t (:obj:`~peps_ad.peps.PEPS_Tensor`):
+            Other PEPS tensor object whose shape should be copied.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance with the zero initialized tensors.
+        """
         return cls(
             tensor=jnp.zeros_like(t.tensor),
             C1=jnp.zeros_like(t.C1),
@@ -819,6 +840,10 @@ class PEPS_Tensor:
         )
 
     def zeros_like_self(self: T_PEPS_Tensor) -> T_PEPS_Tensor:
+        """
+        Wrapper around :obj:`~peps_ad.peps.PEPS_Tensor.zeros_like` with the
+        self object as argument. For details see there.
+        """
         return type(self).zeros_like(self)
 
     def save_to_group(self, grp: h5py.Group) -> None:

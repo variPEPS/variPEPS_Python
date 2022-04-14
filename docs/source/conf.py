@@ -49,6 +49,7 @@ autodoc_type_aliases = {
     "T_PEPS_Tensor": "PEPS_Tensor",
     "PEPS_Unit_Cell.Unit_Cell_Data": "peps_ad.peps.PEPS_Unit_Cell.Unit_Cell_Data",
     "jax._src.numpy.lax_numpy.ndarray": "jax.numpy.ndarray",
+    "h5py._hl.group.Group": "h5py.Group",
 }
 
 # autodoc_mock_imports = ["jax"]
@@ -57,6 +58,7 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "h5py": ("https://docs.h5py.org/en/stable/", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.

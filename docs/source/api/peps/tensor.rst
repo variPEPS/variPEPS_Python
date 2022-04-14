@@ -9,3 +9,4 @@ Single PEPS tensor (:class:`peps_ad.peps.PEPS_Tensor`)
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __add__
