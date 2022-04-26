@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import abc
 import os
+import sys
 import warnings
 
 import numpy as np
@@ -142,7 +143,7 @@ class PEPS_Jax_Random(PEPS_Random_Impl):
 
     def __init__(self, seed: Optional[int] = None):
         if seed is None:
-            seed = int.from_bytes(os.urandom(4), "little")
+            seed = int.from_bytes(os.urandom(4), sys.byteorder)
 
         self.key = jax.random.PRNGKey(seed)
 
