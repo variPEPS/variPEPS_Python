@@ -25,6 +25,10 @@ def _armijo_value(current_val, descent_dir, gradient, alpha, const_factor):
     )
 
 
+class NoSuitableStepSizeError(Exception):
+    pass
+
+
 def line_search(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
@@ -147,6 +151,6 @@ def line_search(
         count += 1
 
     if count == peps_ad_config.line_search_max_steps:
-        raise RuntimeError("Line search does not find a suitable step size.")
+        raise NoSuitableStepSizeError
 
     return new_tensors, new_unitcell, new_value, alpha

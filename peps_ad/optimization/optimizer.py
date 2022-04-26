@@ -13,7 +13,7 @@ from .inner_function import (
     calc_preconverged_ctmrg_value_and_grad,
     calc_ctmrg_expectation_custom_value_and_grad,
 )
-from .line_search import line_search
+from .line_search import line_search, NoSuitableStepSizeError
 
 from typing import List, Union, Tuple, cast
 
@@ -163,19 +163,30 @@ def optimize_peps_network(
         else:
             raise ValueError("Unknown optimization method.")
 
-        working_tensors, working_unitcell, working_value, linesearch_step = line_search(
-            working_tensors,
-            working_unitcell,
-            expectation_func,
-            working_gradient,
-            descent_dir,
-            working_value,
-            linesearch_step,
-        )
+        try:
+            (
+                working_tensors,
+                working_unitcell,
+                working_value,
+                linesearch_step,
+            ) = line_search(
+                working_tensors,
+                working_unitcell,
+                expectation_func,
+                working_gradient,
+                descent_dir,
+                working_value,
+                linesearch_step,
+            )
+        except NoSuitableStepSizeError:
+            if peps_ad_config.optimizer_fail_if_no_step_size_found:
+                raise
+            else:
+                conv = 0
 
         conv = jnp.linalg.norm(working_gradient)
         if conv < peps_ad_config.optimizer_convergence_eps:
-            working_value, (working_unitcell, _) = calc_ctmrg_expectation(
+            working_value, working_unitcell = calc_ctmrg_expectation(
                 working_tensors,
                 working_unitcell,
                 expectation_func,

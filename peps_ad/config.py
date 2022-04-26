@@ -61,6 +61,10 @@ class PEPS_AD_Config:
       optimizer_ctmrg_preconverged_eps (:obj:`float`):
         Convergence criterion for the optimization routine using the gradient
         calculations with the preconverged environment.
+      optimizer_fail_if_no_step_size_found (:obj:`bool`):
+        Flag if the optimizer routine should fail with an error if no step size
+        can be found before the gradient norm is below the convergence
+        threshold. If disabled, the result converged so far is returned.
       line_search_method (:obj:`Line_Search_Methods`):
         Method used for the line search routine.
       line_search_initial_step_size (:obj:`float`):
@@ -100,6 +104,7 @@ class PEPS_AD_Config:
     optimizer_max_steps: int = 300
     optimizer_convergence_eps: float = 1e-4
     optimizer_ctmrg_preconverged_eps: float = 1e-5
+    optimizer_fail_if_no_step_size_found: bool = False
 
     # Line search
     line_search_method: Line_Search_Methods = Line_Search_Methods.ARMIJO
