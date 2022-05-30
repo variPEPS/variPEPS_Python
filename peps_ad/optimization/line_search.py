@@ -20,8 +20,9 @@ def _line_search_new_tensors(peps_tensors, descent_dir, alpha):
 def _armijo_value(current_val, descent_dir, gradient, alpha, const_factor):
     descent_dir_real = jnp.concatenate((jnp.real(descent_dir), jnp.imag(descent_dir)))
     gradient_real = jnp.concatenate((jnp.real(gradient), jnp.imag(gradient)))
-    return current_val + const_factor * alpha * jnp.sum(
-        descent_dir_real * gradient_real
+    return jnp.fmin(
+        current_val,
+        current_val + const_factor * alpha * jnp.sum(descent_dir_real * gradient_real),
     )
 
 
