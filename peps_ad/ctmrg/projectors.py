@@ -53,21 +53,47 @@ def _calc_ctmrg_quarters(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    top_left = apply_contraction(
-        "ctmrg_top_left", [peps_tensors[0][0]], [peps_tensor_objs[0][0]], []
-    )
+    if peps_tensor_objs[0][0].d > peps_tensor_objs[0][0].chi:
+        top_left = apply_contraction(
+            "ctmrg_top_left_large_d", [peps_tensors[0][0]], [peps_tensor_objs[0][0]], []
+        )
 
-    top_right = apply_contraction(
-        "ctmrg_top_right", [peps_tensors[0][1]], [peps_tensor_objs[0][1]], []
-    )
+        top_right = apply_contraction(
+            "ctmrg_top_right_large_d",
+            [peps_tensors[0][1]],
+            [peps_tensor_objs[0][1]],
+            [],
+        )
 
-    bottom_left = apply_contraction(
-        "ctmrg_bottom_left", [peps_tensors[1][0]], [peps_tensor_objs[1][0]], []
-    )
+        bottom_left = apply_contraction(
+            "ctmrg_bottom_left_large_d",
+            [peps_tensors[1][0]],
+            [peps_tensor_objs[1][0]],
+            [],
+        )
 
-    bottom_right = apply_contraction(
-        "ctmrg_bottom_right", [peps_tensors[1][1]], [peps_tensor_objs[1][1]], []
-    )
+        bottom_right = apply_contraction(
+            "ctmrg_bottom_right_large_d",
+            [peps_tensors[1][1]],
+            [peps_tensor_objs[1][1]],
+            [],
+        )
+    else:
+        top_left = apply_contraction(
+            "ctmrg_top_left", [peps_tensors[0][0]], [peps_tensor_objs[0][0]], []
+        )
+
+        top_right = apply_contraction(
+            "ctmrg_top_right", [peps_tensors[0][1]], [peps_tensor_objs[0][1]], []
+        )
+
+        bottom_left = apply_contraction(
+            "ctmrg_bottom_left", [peps_tensors[1][0]], [peps_tensor_objs[1][0]], []
+        )
+
+        bottom_right = apply_contraction(
+            "ctmrg_bottom_right", [peps_tensors[1][1]], [peps_tensor_objs[1][1]], []
+        )
 
     return top_left, top_right, bottom_left, bottom_right
 
