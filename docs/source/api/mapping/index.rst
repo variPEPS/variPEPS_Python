@@ -11,6 +11,7 @@ Mapping of other structures to PEPS unitcells (:mod:`peps_ad.mapping`)
    :maxdepth: 2
 
    kagome
+   square_kagome
 
 .. automodule:: peps_ad.mapping
    :members:

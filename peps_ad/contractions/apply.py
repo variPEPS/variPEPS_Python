@@ -15,7 +15,18 @@ from peps_ad.utils.func_cache import Checkpointing_Cache
 
 from .definitions import Definitions
 
-from typing import Sequence, List, Tuple
+from typing import Sequence, List, Tuple, Dict, Union, Optional
+
+Definition = Optional[
+    Dict[
+        str,
+        List[
+            Union[
+                List[Union[str, List[str]]], List[Union[Tuple[int], List[Tuple[int]]]]
+            ]
+        ],
+    ]
+]
 
 
 class _Contraction_Cache:
@@ -37,6 +48,7 @@ def apply_contraction(
     additional_tensors: Sequence[jnp.ndarray],
     *,
     disable_identity_check: bool = False,
+    custom_definition: Definition = None,
 ) -> jnp.ndarray:
     """
     Apply a contraction to a list of tensors.
@@ -81,7 +93,10 @@ def apply_contraction(
             "Sequence of PEPS tensors mismatch the objects sequence. Please check your code!"
         )
 
-    contraction = getattr(Definitions, name)
+    if custom_definition is not None:
+        contraction = custom_definition
+    else:
+        contraction = getattr(Definitions, name)
 
     filter_peps_tensors: List[Sequence[str]] = []
     filter_additional_tensors: List[str] = []
