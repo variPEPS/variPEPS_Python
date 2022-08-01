@@ -1,7 +1,9 @@
+from collections import deque
 from functools import partial
 
 from jax import jit
 import jax.numpy as jnp
+from jax.lax import scan
 
 from peps_ad import peps_ad_config
 from peps_ad.config import Optimizing_Methods
@@ -13,7 +15,7 @@ from .inner_function import (
     calc_preconverged_ctmrg_value_and_grad,
     calc_ctmrg_expectation_custom_value_and_grad,
 )
-from .line_search import line_search, NoSuitableStepSizeError
+from .line_search import line_search, NoSuitableStepSizeError, _scalar_descent_grad
 
 from typing import List, Union, Tuple, cast
 
@@ -74,6 +76,52 @@ def _bfgs_workhorse(
     return result.reshape(new_gradient.shape), new_B_inv
 
 
+@jit
+def _l_bfgs_workhorse(value_tuple, gradient_tuple):
+    value_arr = jnp.asarray(
+        [jnp.ravel(jnp.concatenate((jnp.real(e), jnp.imag(e)))) for e in value_tuple]
+    )
+    gradient_arr = jnp.asarray(
+        [jnp.ravel(jnp.concatenate((jnp.real(e), jnp.imag(e)))) for e in gradient_tuple]
+    )
+
+    s_arr = -jnp.diff(value_arr, axis=0)
+    y_arr = -jnp.diff(gradient_arr, axis=0)
+    pho_arr = 1 / jnp.sum(y_arr * s_arr, axis=1)
+
+    def first_loop(q, x):
+        pho_s, y = x
+        alpha_i = jnp.sum(pho_s * q)
+        return q - alpha_i * y, alpha_i
+
+    q, alpha_arr = scan(
+        first_loop,
+        gradient_arr[0],
+        (pho_arr[:, jnp.newaxis] * s_arr, y_arr),
+    )
+
+    gamma = jnp.sum(s_arr[0] * y_arr[0]) / jnp.sum(y_arr[0] * y_arr[0])
+
+    z_result = gamma * q
+
+    def second_loop(z, x):
+        pho_y, s, alpha_i = x
+        beta_i = jnp.sum(pho_y * z)
+        return z + s * (alpha_i - beta_i), None
+
+    z_result, _ = scan(
+        second_loop,
+        z_result,
+        (pho_arr[:, jnp.newaxis] * y_arr, s_arr, alpha_arr),
+    )
+
+    z_result = -z_result
+    z_result = (
+        z_result[: gradient_tuple[0].size] + 1j * z_result[gradient_tuple[0].size :]
+    )
+    return z_result.reshape(gradient_tuple[0].shape)
+
+
 def optimize_peps_network(
     unitcell: PEPS_Unit_Cell,
     expectation_func: Expectation_Model,
@@ -104,6 +152,9 @@ def optimize_peps_network(
 
     if peps_ad_config.optimizer_method is Optimizing_Methods.BFGS:
         bfgs_B_inv = jnp.eye(2 * sum([t.size for t in working_tensors]))
+    elif peps_ad_config.optimizer_method is Optimizing_Methods.L_BFGS:
+        l_bfgs_x_cache = deque(maxlen=peps_ad_config.optimizer_l_bfgs_maxlen + 1)
+        l_bfgs_grad_cache = deque(maxlen=peps_ad_config.optimizer_l_bfgs_maxlen + 1)
 
     count = 0
     linesearch_step: Union[
@@ -160,8 +211,24 @@ def optimize_peps_network(
                     bfgs_B_inv,
                     True,
                 )
+        elif peps_ad_config.optimizer_method is Optimizing_Methods.L_BFGS:
+            l_bfgs_x_cache.appendleft(jnp.asarray(working_tensors))
+            l_bfgs_grad_cache.appendleft(working_gradient)
+
+            if count == 0:
+                descent_dir = -working_gradient
+            else:
+                descent_dir = _l_bfgs_workhorse(
+                    tuple(l_bfgs_x_cache), tuple(l_bfgs_grad_cache)
+                )
         else:
             raise ValueError("Unknown optimization method.")
+
+        if _scalar_descent_grad(descent_dir, working_gradient) > 0:
+            print("Found bad descent dir. Reset to negative gradient!")
+            descent_dir = -working_gradient
+
+        conv = jnp.linalg.norm(working_gradient)
 
         try:
             (
@@ -184,7 +251,6 @@ def optimize_peps_network(
             else:
                 conv = 0
 
-        conv = jnp.linalg.norm(working_gradient)
         if conv < peps_ad_config.optimizer_convergence_eps:
             working_value, working_unitcell = calc_ctmrg_expectation(
                 working_tensors,

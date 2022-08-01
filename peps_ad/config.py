@@ -6,6 +6,7 @@ class Optimizing_Methods(Enum):
     STEEPEST = auto()  #: Steepest gradient descent
     CG = auto()  #: Conjugate gradient method
     BFGS = auto()  #: BFGS method
+    L_BFGS = auto()  #: L-BFGS method
 
 
 class Line_Search_Methods(Enum):
@@ -65,6 +66,8 @@ class PEPS_AD_Config:
         Flag if the optimizer routine should fail with an error if no step size
         can be found before the gradient norm is below the convergence
         threshold. If disabled, the result converged so far is returned.
+      optimizer_l_bfgs_maxlen (:obj:`int`):
+        Maximal number of previous steps used for the L-BFGS method.
       line_search_method (:obj:`Line_Search_Methods`):
         Method used for the line search routine.
       line_search_initial_step_size (:obj:`float`):
@@ -77,6 +80,9 @@ class PEPS_AD_Config:
         Constant used in Armijo line search method.
       line_search_wolfe_const (:obj:`float`):
         Constant used in Wolfe line search method.
+      line_search_use_last_step_size (:obj:`bool`):
+        Flag if the line search should start from the step size of the
+        previous optimizer step.
     """
 
     # AD config
@@ -84,7 +90,7 @@ class PEPS_AD_Config:
     ad_custom_print_steps: bool = False
     ad_custom_verbose_output: bool = False
     ad_custom_convergence_eps: float = 1e-7
-    ad_custom_max_steps: int = 100
+    ad_custom_max_steps: int = 150
     checkpointing_ncon: bool = False
     checkpointing_projectors: bool = False
 
@@ -97,22 +103,24 @@ class PEPS_AD_Config:
     ctmrg_truncation_eps: float = 1e-8
 
     # SVD
-    svd_sign_fix_eps: float = 1e-4
+    svd_sign_fix_eps: float = 1e-2
 
     # Optimizer
     optimizer_method: Optimizing_Methods = Optimizing_Methods.BFGS
     optimizer_max_steps: int = 300
-    optimizer_convergence_eps: float = 1e-4
+    optimizer_convergence_eps: float = 1e-5
     optimizer_ctmrg_preconverged_eps: float = 1e-5
     optimizer_fail_if_no_step_size_found: bool = False
+    optimizer_l_bfgs_maxlen: int = 50
 
     # Line search
-    line_search_method: Line_Search_Methods = Line_Search_Methods.ARMIJO
+    line_search_method: Line_Search_Methods = Line_Search_Methods.WOLFE
     line_search_initial_step_size: float = 1.0
     line_search_reduction_factor: float = 0.5
-    line_search_max_steps: int = 20
+    line_search_max_steps: int = 50
     line_search_armijo_const: float = 1e-4
-    line_search_wolfe_const: float = 0.1
+    line_search_wolfe_const: float = 0.9
+    line_search_use_last_step_size: bool = False
 
 
 config = PEPS_AD_Config()

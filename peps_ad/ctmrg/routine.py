@@ -24,6 +24,21 @@ class CTM_Enum(enum.IntEnum):
     T4 = enum.auto()
 
 
+class CTMRGNotConvergedError(Exception):
+    """
+    Exception if the CTM routine does not converge.
+    """
+    pass
+
+
+class CTMRGGradientNotConvergedError(Exception):
+    """
+    Exception if the custom rule for the gradient of the the CTM routine does
+    not converge.
+    """
+    pass
+
+
 @partial(jit, static_argnums=(1,))
 def _calc_corner_svds(
     peps_tensors: List[PEPS_Tensor], tensor_shape: Tuple[int, int, int]
@@ -257,6 +272,9 @@ def calc_ctmrg_env(
                 ]
                 print(verbose_data)
 
+    if count == peps_ad_config.ctmrg_max_steps and not converged:
+        raise CTMRGNotConvergedError
+
     return working_unitcell
 
 
@@ -344,6 +362,9 @@ def calc_ctmrg_env_rev(
                     for ti, ctm_enum_i, diff in verbose_data
                 ]
                 print(verbose_data)
+
+    if count == peps_ad_config.ad_custom_max_steps and not converged:
+        raise CTMRGGradientNotConvergedError
 
     (t_bar,) = vjp_peps_tensors(env_fixed_point)
 

@@ -60,7 +60,7 @@ def _svd_jvp_rule(primals, tangents):
     return (U, s, Vt), (dU, ds, _H(dV))
 
 
-@partial(jit, inline=True, static_argnums=(1,))
+@partial(jit, inline=True)
 def gauge_fixed_svd(
     matrix: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
