@@ -51,6 +51,10 @@ class PEPS_AD_Config:
       ctmrg_truncation_eps (:obj:`float`):
         Value for cut off of singular values compared to the biggest one. Used
         in calculation of CTMRG projectors.
+      ctmrg_fail_if_not_converged (:obj:`bool`):
+        Flag if the CTMRG routine should fail with an error if no convergence
+        can be reached within the maximal number of steps.
+        If disabled, the result converged so far is returned.
       svd_sign_fix_eps (:obj:`float`):
         Value for numerical stability threshold in sign-fixed SVD.
       optimizer_method (:obj:`Optimizing_Methods`):
@@ -101,9 +105,10 @@ class PEPS_AD_Config:
     ctmrg_print_steps: bool = False
     ctmrg_verbose_output: bool = False
     ctmrg_truncation_eps: float = 1e-8
+    ctmrg_fail_if_not_converged: bool = True
 
     # SVD
-    svd_sign_fix_eps: float = 1e-2
+    svd_sign_fix_eps: float = 1e-1
 
     # Optimizer
     optimizer_method: Optimizing_Methods = Optimizing_Methods.BFGS
@@ -117,7 +122,7 @@ class PEPS_AD_Config:
     line_search_method: Line_Search_Methods = Line_Search_Methods.WOLFE
     line_search_initial_step_size: float = 1.0
     line_search_reduction_factor: float = 0.5
-    line_search_max_steps: int = 50
+    line_search_max_steps: int = 20
     line_search_armijo_const: float = 1e-4
     line_search_wolfe_const: float = 0.9
     line_search_use_last_step_size: bool = False

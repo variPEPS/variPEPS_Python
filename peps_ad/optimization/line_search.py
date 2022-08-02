@@ -290,7 +290,9 @@ def line_search(
                 alpha = peps_ad_config.line_search_reduction_factor * alpha
         elif peps_ad_config.line_search_method is Line_Search_Methods.WOLFE:
             if wolfe_upper_bound is None and wolfe_lower_bound is None:
-                if not wolfe_cond_1 or (
+                if jnp.isinf(new_value):
+                    alpha /= peps_ad_config.line_search_reduction_factor
+                elif not wolfe_cond_1 or (
                     count > 0 and new_value >= wolfe_value_last_step
                 ):
                     wolfe_lower_bound = wolfe_alpha_last_step
@@ -331,6 +333,8 @@ def line_search(
                 else:
                     wolfe_alpha_last_step = alpha
                     alpha /= peps_ad_config.line_search_reduction_factor
+            elif jnp.isinf(new_value):
+                alpha = alpha + (wolfe_upper_bound - alpha) / 2
             else:
                 if new_value > cmp_value or new_value >= wolfe_lower_bound_value:
                     wolfe_upper_bound = alpha
