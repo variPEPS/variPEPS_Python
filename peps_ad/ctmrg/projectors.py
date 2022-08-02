@@ -6,7 +6,7 @@ from jax import jit
 
 from peps_ad.peps import PEPS_Tensor
 from peps_ad.contractions import apply_contraction
-from peps_ad import peps_ad_config
+from peps_ad import peps_ad_config, peps_ad_global_state
 from peps_ad.utils.func_cache import Checkpointing_Cache
 from peps_ad.utils.svd import gauge_fixed_svd
 
@@ -99,7 +99,7 @@ def _calc_ctmrg_quarters(
 
 
 def _truncated_SVD(
-    matrix: jnp.ndarray, chi: int
+    matrix: jnp.ndarray, chi: int, truncation_eps: float
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     U, S, Vh = gauge_fixed_svd(matrix)
 
@@ -108,7 +108,7 @@ def _truncated_SVD(
     U = U[:, :chi]
     Vh = Vh[:chi, :]
 
-    relevant_S_values = (S / S[0]) > peps_ad_config.ctmrg_truncation_eps
+    relevant_S_values = (S / S[0]) > truncation_eps
     S_inv_sqrt = jnp.where(
         relevant_S_values, 1 / jnp.sqrt(jnp.where(relevant_S_values, S, 1)), 0
     )
@@ -184,12 +184,13 @@ def _vertical_cut(
     )
 
 
-@partial(jit, static_argnums=(4,))
+@partial(jit, static_argnums=(4, 5))
 def _left_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
+    truncation_eps: float,
     chi: int,
 ) -> Left_Projectors:
     top_matrix, bottom_matrix = _horizontal_cut(
@@ -198,7 +199,7 @@ def _left_projectors_workhorse(
 
     product_matrix = jnp.dot(bottom_matrix, top_matrix)
 
-    S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi)
+    S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi, truncation_eps)
 
     projector_left_top = jnp.dot(top_matrix, Vh.transpose().conj() * S_inv_sqrt)
     projector_left_bottom = jnp.dot(
@@ -250,16 +251,23 @@ def calc_left_projectors(
         )
 
     return _Projectors_Func_Cache["left"][chi](
-        top_left, top_right, bottom_left, bottom_right
+        top_left,
+        top_right,
+        bottom_left,
+        bottom_right,
+        peps_ad_config.ctmrg_truncation_eps
+        if peps_ad_global_state.ctmrg_effective_truncation_eps is None
+        else peps_ad_global_state.ctmrg_effective_truncation_eps,
     )
 
 
-@partial(jit, static_argnums=(4,))
+@partial(jit, static_argnums=(4, 5))
 def _right_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
+    truncation_eps: float,
     chi: int,
 ) -> Right_Projectors:
     top_matrix, bottom_matrix = _horizontal_cut(
@@ -268,7 +276,7 @@ def _right_projectors_workhorse(
 
     product_matrix = jnp.dot(top_matrix, bottom_matrix)
 
-    S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi)
+    S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi, truncation_eps)
 
     projector_right_top = jnp.dot(
         U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], top_matrix
@@ -320,16 +328,23 @@ def calc_right_projectors(
         )
 
     return _Projectors_Func_Cache["right"][chi](
-        top_left, top_right, bottom_left, bottom_right
+        top_left,
+        top_right,
+        bottom_left,
+        bottom_right,
+        peps_ad_config.ctmrg_truncation_eps
+        if peps_ad_global_state.ctmrg_effective_truncation_eps is None
+        else peps_ad_global_state.ctmrg_effective_truncation_eps,
     )
 
 
-@partial(jit, static_argnums=(4,))
+@partial(jit, static_argnums=(4, 5))
 def _top_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
+    truncation_eps: float,
     chi: int,
 ) -> Top_Projectors:
     left_matrix, right_matrix = _vertical_cut(
@@ -338,7 +353,7 @@ def _top_projectors_workhorse(
 
     product_matrix = jnp.dot(left_matrix, right_matrix)
 
-    S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi)
+    S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi, truncation_eps)
 
     projector_top_left = jnp.dot(
         U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], left_matrix
@@ -388,16 +403,23 @@ def calc_top_projectors(
         _Projectors_Func_Cache["top"][chi] = partial(_top_projectors_workhorse, chi=chi)
 
     return _Projectors_Func_Cache["top"][chi](
-        top_left, top_right, bottom_left, bottom_right
+        top_left,
+        top_right,
+        bottom_left,
+        bottom_right,
+        peps_ad_config.ctmrg_truncation_eps
+        if peps_ad_global_state.ctmrg_effective_truncation_eps is None
+        else peps_ad_global_state.ctmrg_effective_truncation_eps,
     )
 
 
-@partial(jit, static_argnums=(4,))
+@partial(jit, static_argnums=(4, 5))
 def _bottom_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
+    truncation_eps: float,
     chi: int,
 ) -> Bottom_Projectors:
     left_matrix, right_matrix = _vertical_cut(
@@ -406,7 +428,7 @@ def _bottom_projectors_workhorse(
 
     product_matrix = jnp.dot(right_matrix, left_matrix)
 
-    S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi)
+    S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi, truncation_eps)
 
     projector_bottom_left = jnp.dot(left_matrix, Vh.transpose().conj() * S_inv_sqrt)
     projector_bottom_right = jnp.dot(
@@ -458,5 +480,11 @@ def calc_bottom_projectors(
         )
 
     return _Projectors_Func_Cache["bottom"][chi](
-        top_left, top_right, bottom_left, bottom_right
+        top_left,
+        top_right,
+        bottom_left,
+        bottom_right,
+        peps_ad_config.ctmrg_truncation_eps
+        if peps_ad_global_state.ctmrg_effective_truncation_eps is None
+        else peps_ad_global_state.ctmrg_effective_truncation_eps,
     )

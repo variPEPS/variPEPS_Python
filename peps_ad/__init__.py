@@ -1,6 +1,7 @@
 # First import config so it is usable in other parts of the module
 from . import config
 from .config import config as peps_ad_config
+from .global_state import global_state as peps_ad_global_state
 
 from . import contractions
 from . import ctmrg
