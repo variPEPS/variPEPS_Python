@@ -28,6 +28,7 @@ class CTMRGNotConvergedError(Exception):
     """
     Exception if the CTM routine does not converge.
     """
+
     pass
 
 
@@ -36,6 +37,7 @@ class CTMRGGradientNotConvergedError(Exception):
     Exception if the custom rule for the gradient of the the CTM routine does
     not converge.
     """
+
     pass
 
 
@@ -272,7 +274,11 @@ def calc_ctmrg_env(
                 ]
                 print(verbose_data)
 
-    if peps_ad_config.ctmrg_fail_if_not_converged and count == peps_ad_config.ctmrg_max_steps and not converged:
+    if (
+        peps_ad_config.ctmrg_fail_if_not_converged
+        and count == peps_ad_config.ctmrg_max_steps
+        and not converged
+    ):
         raise CTMRGNotConvergedError
 
     return working_unitcell

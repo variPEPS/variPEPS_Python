@@ -93,7 +93,11 @@ def _wolfe_new_alpha(
         descent_grad - descent_last_grad + 2 * d2
     )
     return jnp.where(
-        jnp.isinf(value) | jnp.isinf(last_value) | (new_alpha <= lower_bound) | (new_alpha >= upper_bound) | jnp.isnan(new_alpha),
+        jnp.isinf(value)
+        | jnp.isinf(last_value)
+        | (new_alpha <= lower_bound)
+        | (new_alpha >= upper_bound)
+        | jnp.isnan(new_alpha),
         lower_bound + (upper_bound - lower_bound) / 2,
         new_alpha,
     )

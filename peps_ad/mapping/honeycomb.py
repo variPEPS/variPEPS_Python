@@ -14,6 +14,7 @@ from peps_ad.typing import Tensor
 
 from typing import Sequence, Union, List, Callable, TypeVar, Optional, Tuple
 
+
 @dataclass
 class Square_Kagome_Expectation_Value(Expectation_Model):
     """
@@ -41,7 +42,8 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
     normalization_factor: int = 2
 
     def __post_init__(self) -> None:
-        if ((
+        if (
+            (
                 len(self.x_gates) > 0
                 and len(self.y_gates) > 0
                 and len(self.x_gates) != len(self.y_gates)
