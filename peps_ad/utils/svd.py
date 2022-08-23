@@ -85,11 +85,9 @@ def gauge_fixed_svd(
     normalized_U = abs_U / max_per_vector[jnp.newaxis, :]
 
     def phase_f(carry, x):
-        U_row = x[0, :]
-        normalized_U_row = x[1, :]
+        U_row, normalized_U_row = x
 
-        already_found = carry[0]
-        last_step_result = carry[1]
+        already_found, last_step_result = carry
 
         cond = normalized_U_row >= peps_ad_config.svd_sign_fix_eps
 
@@ -101,8 +99,8 @@ def gauge_fixed_svd(
 
     phases, _ = scan(
         phase_f,
-        (jnp.zeros(U.shape[0], dtype=bool), U[0, :]),
-        jnp.stack((U, normalized_U), axis=1),
+        (jnp.zeros(U.shape[1], dtype=bool), U[0, :]),
+        (U, normalized_U),
     )
     phases = phases[1]
     phases /= jnp.abs(phases)
