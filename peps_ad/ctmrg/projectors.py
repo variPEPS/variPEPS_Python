@@ -1,4 +1,5 @@
 from collections import namedtuple
+import enum
 from functools import partial
 
 import jax.numpy as jnp
@@ -9,6 +10,7 @@ from peps_ad.contractions import apply_contraction
 from peps_ad import peps_ad_config, peps_ad_global_state
 from peps_ad.utils.func_cache import Checkpointing_Cache
 from peps_ad.utils.svd import gauge_fixed_svd
+from peps_ad.config import Projector_Method
 
 from typing import Sequence, Tuple, TypeVar
 
@@ -185,18 +187,31 @@ def _vertical_cut(
     )
 
 
-@partial(jit, static_argnums=(4, 5))
+@partial(jit, static_argnums=(4, 5, 6))
 def _left_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
     truncation_eps: float,
+    projector_method: Projector_Method,
     chi: int,
 ) -> Left_Projectors:
-    top_matrix, bottom_matrix = _horizontal_cut(
-        top_left, top_right, bottom_left, bottom_right
-    )
+    if projector_method is Projector_Method.FULL:
+        top_matrix, bottom_matrix = _horizontal_cut(
+            top_left, top_right, bottom_left, bottom_right
+        )
+    elif projector_method is Projector_Method.HALF:
+        (
+            top_matrix,
+            _,
+            bottom_matrix,
+            _,
+        ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+        top_matrix /= jnp.linalg.norm(top_matrix)
+        bottom_matrix /= jnp.linalg.norm(top_matrix)
+    else:
+        raise ValueError("Invalid projector method!")
 
     product_matrix = jnp.dot(bottom_matrix, top_matrix)
 
@@ -259,21 +274,37 @@ def calc_left_projectors(
         peps_ad_config.ctmrg_truncation_eps
         if peps_ad_global_state.ctmrg_effective_truncation_eps is None
         else peps_ad_global_state.ctmrg_effective_truncation_eps,
+        Projector_Method.FULL
+        if peps_ad_global_state.ctmrg_projector_method is None
+        else peps_ad_global_state.ctmrg_projector_method,
     )
 
 
-@partial(jit, static_argnums=(4, 5))
+@partial(jit, static_argnums=(4, 5, 6))
 def _right_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
     truncation_eps: float,
+    projector_method: Projector_Method,
     chi: int,
 ) -> Right_Projectors:
-    top_matrix, bottom_matrix = _horizontal_cut(
-        top_left, top_right, bottom_left, bottom_right
-    )
+    if projector_method is Projector_Method.FULL:
+        top_matrix, bottom_matrix = _horizontal_cut(
+            top_left, top_right, bottom_left, bottom_right
+        )
+    elif projector_method is Projector_Method.HALF:
+        (
+            _,
+            top_matrix,
+            _,
+            bottom_matrix,
+        ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+        top_matrix /= jnp.linalg.norm(top_matrix)
+        bottom_matrix /= jnp.linalg.norm(top_matrix)
+    else:
+        raise ValueError("Invalid projector method!")
 
     product_matrix = jnp.dot(top_matrix, bottom_matrix)
 
@@ -336,21 +367,37 @@ def calc_right_projectors(
         peps_ad_config.ctmrg_truncation_eps
         if peps_ad_global_state.ctmrg_effective_truncation_eps is None
         else peps_ad_global_state.ctmrg_effective_truncation_eps,
+        Projector_Method.FULL
+        if peps_ad_global_state.ctmrg_projector_method is None
+        else peps_ad_global_state.ctmrg_projector_method,
     )
 
 
-@partial(jit, static_argnums=(4, 5))
+@partial(jit, static_argnums=(4, 5, 6))
 def _top_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
     truncation_eps: float,
+    projector_method: Projector_Method,
     chi: int,
 ) -> Top_Projectors:
-    left_matrix, right_matrix = _vertical_cut(
-        top_left, top_right, bottom_left, bottom_right
-    )
+    if projector_method is Projector_Method.FULL:
+        left_matrix, right_matrix = _vertical_cut(
+            top_left, top_right, bottom_left, bottom_right
+        )
+    elif projector_method is Projector_Method.HALF:
+        (
+            left_matrix,
+            right_matrix,
+            _,
+            _,
+        ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+        left_matrix /= jnp.linalg.norm(left_matrix)
+        right_matrix /= jnp.linalg.norm(right_matrix)
+    else:
+        raise ValueError("Invalid projector method!")
 
     product_matrix = jnp.dot(left_matrix, right_matrix)
 
@@ -411,21 +458,37 @@ def calc_top_projectors(
         peps_ad_config.ctmrg_truncation_eps
         if peps_ad_global_state.ctmrg_effective_truncation_eps is None
         else peps_ad_global_state.ctmrg_effective_truncation_eps,
+        Projector_Method.FULL
+        if peps_ad_global_state.ctmrg_projector_method is None
+        else peps_ad_global_state.ctmrg_projector_method,
     )
 
 
-@partial(jit, static_argnums=(4, 5))
+@partial(jit, static_argnums=(4, 5, 6))
 def _bottom_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
     truncation_eps: float,
+    projector_method: Projector_Method,
     chi: int,
 ) -> Bottom_Projectors:
-    left_matrix, right_matrix = _vertical_cut(
-        top_left, top_right, bottom_left, bottom_right
-    )
+    if projector_method is Projector_Method.FULL:
+        left_matrix, right_matrix = _vertical_cut(
+            top_left, top_right, bottom_left, bottom_right
+        )
+    elif projector_method is Projector_Method.HALF:
+        (
+            _,
+            _,
+            left_matrix,
+            right_matrix,
+        ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+        left_matrix /= jnp.linalg.norm(left_matrix)
+        right_matrix /= jnp.linalg.norm(right_matrix)
+    else:
+        raise ValueError("Invalid projector method!")
 
     product_matrix = jnp.dot(right_matrix, left_matrix)
 
@@ -488,4 +551,7 @@ def calc_bottom_projectors(
         peps_ad_config.ctmrg_truncation_eps
         if peps_ad_global_state.ctmrg_effective_truncation_eps is None
         else peps_ad_global_state.ctmrg_effective_truncation_eps,
+        Projector_Method.FULL
+        if peps_ad_global_state.ctmrg_projector_method is None
+        else peps_ad_global_state.ctmrg_projector_method,
     )

@@ -5,10 +5,11 @@ from jax import jit
 import jax.numpy as jnp
 from jax.lax import scan
 
-from peps_ad import peps_ad_config
+from peps_ad import peps_ad_config, peps_ad_global_state
 from peps_ad.config import Optimizing_Methods
 from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
+from peps_ad.config import Projector_Method
 
 from .inner_function import (
     calc_ctmrg_expectation,
@@ -162,6 +163,11 @@ def optimize_peps_network(
     ] = peps_ad_config.line_search_initial_step_size
     working_value: Union[float, jnp.ndarray]
 
+    if peps_ad_config.optimizer_preconverge_with_half_projectors:
+        peps_ad_global_state.ctmrg_projector_method = Projector_Method.HALF
+    else:
+        peps_ad_global_state.ctmrg_projector_method = None
+
     while count < peps_ad_config.optimizer_max_steps:
         if peps_ad_config.ad_use_custom_vjp:
             (
@@ -258,7 +264,14 @@ def optimize_peps_network(
                 expectation_func,
                 enforce_elementwise_convergence=peps_ad_config.ad_use_custom_vjp,
             )
+            peps_ad_global_state.ctmrg_projector_method = None
             break
+
+        if (
+            peps_ad_config.optimizer_preconverge_with_half_projectors
+            and conv < peps_ad_config.optimizer_preconverge_with_half_projectors_eps
+        ):
+            peps_ad_global_state.ctmrg_projector_method = Projector_Method.FULL
 
         old_descent_dir = descent_dir
         old_gradient = working_gradient

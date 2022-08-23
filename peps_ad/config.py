@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum, IntEnum, auto, unique
 
 
 class Optimizing_Methods(Enum):
@@ -13,6 +13,12 @@ class Line_Search_Methods(Enum):
     SIMPLE = auto()  #: Simple line search method
     ARMIJO = auto()  #: Armijo line search method
     WOLFE = auto()  #: Wolfe line search method
+
+
+@unique
+class Projector_Method(IntEnum):
+    HALF = auto()  #: Use only half network for projector calculation
+    FULL = auto()  #: Use full network for projector calculation
 
 
 @dataclass
@@ -72,6 +78,12 @@ class PEPS_AD_Config:
         threshold. If disabled, the result converged so far is returned.
       optimizer_l_bfgs_maxlen (:obj:`int`):
         Maximal number of previous steps used for the L-BFGS method.
+      optimizer_preconverge_with_half_projectors (:obj:`bool`):
+        Flag if the optimizer should use only CTM half projectors for the steps
+        till some converge is reached.
+      optimizer_preconverge_with_half_projectors_eps (:obj:`float`):
+        Convergence criterion for the preconvergence with only the half
+        CTM projectors.
       line_search_method (:obj:`Line_Search_Methods`):
         Method used for the line search routine.
       line_search_initial_step_size (:obj:`float`):
@@ -117,6 +129,8 @@ class PEPS_AD_Config:
     optimizer_ctmrg_preconverged_eps: float = 1e-5
     optimizer_fail_if_no_step_size_found: bool = False
     optimizer_l_bfgs_maxlen: int = 50
+    optimizer_preconverge_with_half_projectors: bool = True
+    optimizer_preconverge_with_half_projectors_eps: float = 5e-4
 
     # Line search
     line_search_method: Line_Search_Methods = Line_Search_Methods.WOLFE
