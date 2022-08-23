@@ -187,6 +187,66 @@ def _vertical_cut(
     )
 
 
+def _fishman_horizontal_cut(
+    top_left: jnp.ndarray,
+    top_right: jnp.ndarray,
+    bottom_left: jnp.ndarray,
+    bottom_right: jnp.ndarray,
+    truncation_size: int,
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    (
+        top_left_matrix,
+        top_right_matrix,
+        bottom_left_matrix,
+        bottom_right_matrix,
+    ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+
+    top_matrix = jnp.dot(top_left_matrix, top_right_matrix)
+    bottom_matrix = jnp.dot(bottom_right_matrix, bottom_left_matrix)
+
+    top_U, top_S, top_Vh = gauge_fixed_svd(top_matrix)
+    top_S = top_S[:truncation_size]
+    top_U = top_U[:, :truncation_size]
+    top_Vh = top_Vh[:truncation_size, :]
+
+    bottom_U, bottom_S, bottom_Vh = gauge_fixed_svd(bottom_matrix)
+    bottom_S = bottom_S[:truncation_size]
+    bottom_U = bottom_U[:, :truncation_size]
+    bottom_Vh = bottom_Vh[:truncation_size, :]
+
+    return top_U, top_S, top_Vh, bottom_U, bottom_S, bottom_Vh
+
+
+def _fishman_vertical_cut(
+    top_left: jnp.ndarray,
+    top_right: jnp.ndarray,
+    bottom_left: jnp.ndarray,
+    bottom_right: jnp.ndarray,
+    truncation_size: int,
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    (
+        top_left_matrix,
+        top_right_matrix,
+        bottom_left_matrix,
+        bottom_right_matrix,
+    ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+
+    left_matrix = jnp.dot(bottom_left_matrix, top_left_matrix)
+    right_matrix = jnp.dot(top_right_matrix, bottom_right_matrix)
+
+    left_U, left_S, left_Vh = gauge_fixed_svd(left_matrix)
+    left_S = left_S[:truncation_size]
+    left_U = left_U[:, :truncation_size]
+    left_Vh = left_Vh[:truncation_size, :]
+
+    right_U, right_S, right_Vh = gauge_fixed_svd(right_matrix)
+    right_S = right_S[:truncation_size]
+    right_U = right_U[:, :truncation_size]
+    right_Vh = right_Vh[:truncation_size, :]
+
+    return left_U, left_S, left_Vh, right_U, right_S, right_Vh
+
+
 @partial(jit, static_argnums=(4, 5, 6))
 def _left_projectors_workhorse(
     top_left: jnp.ndarray,
@@ -208,6 +268,14 @@ def _left_projectors_workhorse(
             bottom_matrix,
             _,
         ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+        top_matrix /= jnp.linalg.norm(top_matrix)
+        bottom_matrix /= jnp.linalg.norm(top_matrix)
+    elif projector_method is Projector_Method.FISHMAN:
+        top_U, top_S, _, _, bottom_S, bottom_Vh = _fishman_horizontal_cut(
+            top_left, top_right, bottom_left, bottom_right, 2 * chi
+        )
+        top_matrix = top_U * jnp.sqrt(top_S)[jnp.newaxis, :]
+        bottom_matrix = jnp.sqrt(bottom_S)[:, jnp.newaxis] * bottom_Vh
         top_matrix /= jnp.linalg.norm(top_matrix)
         bottom_matrix /= jnp.linalg.norm(top_matrix)
     else:
@@ -274,7 +342,7 @@ def calc_left_projectors(
         peps_ad_config.ctmrg_truncation_eps
         if peps_ad_global_state.ctmrg_effective_truncation_eps is None
         else peps_ad_global_state.ctmrg_effective_truncation_eps,
-        Projector_Method.FULL
+        peps_ad_config.ctmrg_full_projector_method
         if peps_ad_global_state.ctmrg_projector_method is None
         else peps_ad_global_state.ctmrg_projector_method,
     )
@@ -301,6 +369,14 @@ def _right_projectors_workhorse(
             _,
             bottom_matrix,
         ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+        top_matrix /= jnp.linalg.norm(top_matrix)
+        bottom_matrix /= jnp.linalg.norm(top_matrix)
+    elif projector_method is Projector_Method.FISHMAN:
+        _, top_S, top_Vh, bottom_U, bottom_S, _ = _fishman_horizontal_cut(
+            top_left, top_right, bottom_left, bottom_right, 2 * chi
+        )
+        top_matrix = jnp.sqrt(top_S)[:, jnp.newaxis] * top_Vh
+        bottom_matrix = bottom_U * jnp.sqrt(bottom_S)[jnp.newaxis, :]
         top_matrix /= jnp.linalg.norm(top_matrix)
         bottom_matrix /= jnp.linalg.norm(top_matrix)
     else:
@@ -367,7 +443,7 @@ def calc_right_projectors(
         peps_ad_config.ctmrg_truncation_eps
         if peps_ad_global_state.ctmrg_effective_truncation_eps is None
         else peps_ad_global_state.ctmrg_effective_truncation_eps,
-        Projector_Method.FULL
+        peps_ad_config.ctmrg_full_projector_method
         if peps_ad_global_state.ctmrg_projector_method is None
         else peps_ad_global_state.ctmrg_projector_method,
     )
@@ -394,6 +470,14 @@ def _top_projectors_workhorse(
             _,
             _,
         ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+        left_matrix /= jnp.linalg.norm(left_matrix)
+        right_matrix /= jnp.linalg.norm(right_matrix)
+    elif projector_method is Projector_Method.FISHMAN:
+        _, left_S, left_Vh, right_U, right_S, _ = _fishman_vertical_cut(
+            top_left, top_right, bottom_left, bottom_right, 2 * chi
+        )
+        left_matrix = jnp.sqrt(left_S)[:, jnp.newaxis] * left_Vh
+        right_matrix = right_U * jnp.sqrt(right_S)[jnp.newaxis, :]
         left_matrix /= jnp.linalg.norm(left_matrix)
         right_matrix /= jnp.linalg.norm(right_matrix)
     else:
@@ -458,7 +542,7 @@ def calc_top_projectors(
         peps_ad_config.ctmrg_truncation_eps
         if peps_ad_global_state.ctmrg_effective_truncation_eps is None
         else peps_ad_global_state.ctmrg_effective_truncation_eps,
-        Projector_Method.FULL
+        peps_ad_config.ctmrg_full_projector_method
         if peps_ad_global_state.ctmrg_projector_method is None
         else peps_ad_global_state.ctmrg_projector_method,
     )
@@ -485,6 +569,14 @@ def _bottom_projectors_workhorse(
             left_matrix,
             right_matrix,
         ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+        left_matrix /= jnp.linalg.norm(left_matrix)
+        right_matrix /= jnp.linalg.norm(right_matrix)
+    elif projector_method is Projector_Method.FISHMAN:
+        left_U, left_S, _, _, right_S, right_Vh = _fishman_vertical_cut(
+            top_left, top_right, bottom_left, bottom_right, 2 * chi
+        )
+        left_matrix = left_U * jnp.sqrt(left_S)[jnp.newaxis, :]
+        right_matrix = jnp.sqrt(right_S)[:, jnp.newaxis] * right_Vh
         left_matrix /= jnp.linalg.norm(left_matrix)
         right_matrix /= jnp.linalg.norm(right_matrix)
     else:
@@ -551,7 +643,7 @@ def calc_bottom_projectors(
         peps_ad_config.ctmrg_truncation_eps
         if peps_ad_global_state.ctmrg_effective_truncation_eps is None
         else peps_ad_global_state.ctmrg_effective_truncation_eps,
-        Projector_Method.FULL
+        peps_ad_config.ctmrg_full_projector_method
         if peps_ad_global_state.ctmrg_projector_method is None
         else peps_ad_global_state.ctmrg_projector_method,
     )

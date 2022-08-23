@@ -19,6 +19,7 @@ class Line_Search_Methods(Enum):
 class Projector_Method(IntEnum):
     HALF = auto()  #: Use only half network for projector calculation
     FULL = auto()  #: Use full network for projector calculation
+    FISHMAN = auto()  #: Use the Fishman method for projector calculation
 
 
 @dataclass
@@ -61,6 +62,11 @@ class PEPS_AD_Config:
         Flag if the CTMRG routine should fail with an error if no convergence
         can be reached within the maximal number of steps.
         If disabled, the result converged so far is returned.
+      ctmrg_full_projector_method (:obj:`~peps_ad.config.Projector_Method`):
+        Set which projector method should be used as default (full) projector
+        method during the CTMRG routine. Sensible values are
+        :obj:`~peps_ad.config.Projector_Method.FULL` or
+        :obj:`~peps_ad.config.Projector_Method.FISHMAN`.
       svd_sign_fix_eps (:obj:`float`):
         Value for numerical stability threshold in sign-fixed SVD.
       optimizer_method (:obj:`Optimizing_Methods`):
@@ -118,6 +124,7 @@ class PEPS_AD_Config:
     ctmrg_verbose_output: bool = False
     ctmrg_truncation_eps: float = 1e-8
     ctmrg_fail_if_not_converged: bool = True
+    ctmrg_full_projector_method: Projector_Method = Projector_Method.FULL
 
     # SVD
     svd_sign_fix_eps: float = 1e-1

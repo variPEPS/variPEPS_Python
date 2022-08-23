@@ -271,7 +271,9 @@ def optimize_peps_network(
             peps_ad_config.optimizer_preconverge_with_half_projectors
             and conv < peps_ad_config.optimizer_preconverge_with_half_projectors_eps
         ):
-            peps_ad_global_state.ctmrg_projector_method = Projector_Method.FULL
+            peps_ad_global_state.ctmrg_projector_method = (
+                peps_ad_config.ctmrg_full_projector_method
+            )
 
         old_descent_dir = descent_dir
         old_gradient = working_gradient
