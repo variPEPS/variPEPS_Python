@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from jax import jit, custom_vjp, vjp
 import jax.util
 
-from peps_ad import peps_ad_config
+from peps_ad import peps_ad_config, peps_ad_global_state
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
 from .absorption import do_absorption_step
 
@@ -91,7 +91,7 @@ def _is_element_wise_converged(
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 0].set(
-            jnp.mean(diff), indices_are_sorted=True, unique_indices=True
+            jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
         )
         if verbose:
             verbose_data.append((ti, CTM_Enum.C1, jnp.amax(diff)))
@@ -103,7 +103,7 @@ def _is_element_wise_converged(
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 1].set(
-            jnp.mean(diff), indices_are_sorted=True, unique_indices=True
+            jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
         )
         if verbose:
             verbose_data.append((ti, CTM_Enum.C2, jnp.amax(diff)))
@@ -115,7 +115,7 @@ def _is_element_wise_converged(
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 2].set(
-            jnp.mean(diff), indices_are_sorted=True, unique_indices=True
+            jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
         )
         if verbose:
             verbose_data.append((ti, CTM_Enum.C3, jnp.amax(diff)))
@@ -127,7 +127,7 @@ def _is_element_wise_converged(
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 3].set(
-            jnp.mean(diff), indices_are_sorted=True, unique_indices=True
+            jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
         )
         if verbose:
             verbose_data.append((ti, CTM_Enum.C4, jnp.amax(diff)))
@@ -141,7 +141,7 @@ def _is_element_wise_converged(
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 4].set(
-            jnp.mean(diff), indices_are_sorted=True, unique_indices=True
+            jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
         )
         if verbose:
             verbose_data.append((ti, CTM_Enum.T1, jnp.amax(diff)))
@@ -155,7 +155,7 @@ def _is_element_wise_converged(
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 5].set(
-            jnp.mean(diff), indices_are_sorted=True, unique_indices=True
+            jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
         )
         if verbose:
             verbose_data.append((ti, CTM_Enum.T2, jnp.amax(diff)))
@@ -169,7 +169,7 @@ def _is_element_wise_converged(
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 6].set(
-            jnp.mean(diff), indices_are_sorted=True, unique_indices=True
+            jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
         )
         if verbose:
             verbose_data.append((ti, CTM_Enum.T3, jnp.amax(diff)))
@@ -183,12 +183,12 @@ def _is_element_wise_converged(
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 7].set(
-            jnp.mean(diff), indices_are_sorted=True, unique_indices=True
+            jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
         )
         if verbose:
             verbose_data.append((ti, CTM_Enum.T4, jnp.amax(diff)))
 
-    return result == 0, jnp.mean(measure), verbose_data
+    return result == 0, jnp.linalg.norm(measure), verbose_data
 
 
 def calc_ctmrg_env(
@@ -197,6 +197,7 @@ def calc_ctmrg_env(
     *,
     eps: Optional[float] = None,
     enforce_elementwise_convergence: Optional[bool] = None,
+    _return_truncation_eps: bool = False,
 ) -> PEPS_Unit_Cell:
     """
     Calculate the new converged CTMRG tensors for the unitcell.
@@ -239,6 +240,7 @@ def calc_ctmrg_env(
     working_unitcell = unitcell
     count = 0
     converged = False
+    peps_ad_global_state.ctmrg_effective_truncation_eps = None
 
     while not converged and count < peps_ad_config.ctmrg_max_steps:
         working_unitcell = do_absorption_step(peps_tensors, working_unitcell)
@@ -274,12 +276,41 @@ def calc_ctmrg_env(
                 ]
                 print(verbose_data)
 
+        if (
+            peps_ad_config.ctmrg_increase_truncation_eps
+            and count == peps_ad_config.ctmrg_max_steps
+            and not converged
+        ):
+            old_truncation_eps = (
+                peps_ad_config.ctmrg_truncation_eps
+                if peps_ad_global_state.ctmrg_effective_truncation_eps is None
+                else peps_ad_global_state.ctmrg_effective_truncation_eps
+            )
+            new_truncation_eps = (
+                old_truncation_eps * peps_ad_config.ctmrg_increase_truncation_eps_factor
+            )
+            if (
+                new_truncation_eps
+                <= peps_ad_config.ctmrg_increase_truncation_eps_max_value
+            ):
+                print(f"CTMRG: Increasing SVD truncation eps to {new_truncation_eps}.")
+                peps_ad_global_state.ctmrg_effective_truncation_eps = new_truncation_eps
+                working_unitcell = unitcell
+                count = 0
+
+    if _return_truncation_eps:
+        last_truncation_eps = peps_ad_global_state.ctmrg_effective_truncation_eps
+    peps_ad_global_state.ctmrg_effective_truncation_eps = None
+
     if (
         peps_ad_config.ctmrg_fail_if_not_converged
         and count == peps_ad_config.ctmrg_max_steps
         and not converged
     ):
         raise CTMRGNotConvergedError
+
+    if _return_truncation_eps:
+        return working_unitcell, last_truncation_eps
 
     return working_unitcell
 
@@ -288,6 +319,7 @@ def calc_ctmrg_env(
 def calc_ctmrg_env_custom_rule(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
+    _return_truncation_eps: bool = False,
 ) -> PEPS_Unit_Cell:
     """
     Wrapper function of :obj:`~peps_ad.ctmrg.routine.calc_ctmrg_env` which
@@ -303,19 +335,27 @@ def calc_ctmrg_env_custom_rule(
         New instance of the unitcell with all updated converged CTMRG tensors of
         all elements of the unitcell.
     """
-    return calc_ctmrg_env(peps_tensors, unitcell, enforce_elementwise_convergence=True)
+    return calc_ctmrg_env(
+        peps_tensors,
+        unitcell,
+        enforce_elementwise_convergence=True,
+        _return_truncation_eps=_return_truncation_eps,
+    )
 
 
 def calc_ctmrg_env_fwd(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
+    _return_truncation_eps: bool = False,
 ) -> Tuple[PEPS_Unit_Cell, Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell]]:
     """
     Internal helper function of custom VJP to calculate the values in
     the forward sweep.
     """
-    new_unitcell = calc_ctmrg_env_custom_rule(peps_tensors, unitcell)
-    return new_unitcell, (peps_tensors, new_unitcell)
+    new_unitcell, last_truncation_eps = calc_ctmrg_env_custom_rule(
+        peps_tensors, unitcell, _return_truncation_eps=True
+    )
+    return new_unitcell, (peps_tensors, new_unitcell, last_truncation_eps)
 
 
 def calc_ctmrg_env_rev(
@@ -325,7 +365,9 @@ def calc_ctmrg_env_rev(
     Internal helper function of custom VJP to calculate the gradient in
     the backward sweep.
     """
-    peps_tensors, new_unitcell = res
+    peps_tensors, new_unitcell, last_truncation_eps = res
+
+    peps_ad_global_state.ctmrg_effective_truncation_eps = last_truncation_eps
 
     _, vjp_peps_tensors = vjp(
         lambda t: do_absorption_step(t, new_unitcell), peps_tensors
@@ -370,13 +412,16 @@ def calc_ctmrg_env_rev(
                 print(verbose_data)
 
     if count == peps_ad_config.ad_custom_max_steps and not converged:
+        peps_ad_global_state.ctmrg_effective_truncation_eps = None
         raise CTMRGGradientNotConvergedError
 
     (t_bar,) = vjp_peps_tensors(env_fixed_point)
 
     empty_t = [t.zeros_like_self() for t in new_unitcell.get_unique_tensors()]
 
-    return t_bar, new_unitcell.replace_unique_tensors(empty_t)
+    peps_ad_global_state.ctmrg_effective_truncation_eps = None
+
+    return t_bar, new_unitcell.replace_unique_tensors(empty_t), jnp.zeros((), dtype=bool)
 
 
 calc_ctmrg_env_custom_rule.defvjp(calc_ctmrg_env_fwd, calc_ctmrg_env_rev)

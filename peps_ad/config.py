@@ -67,6 +67,15 @@ class PEPS_AD_Config:
         method during the CTMRG routine. Sensible values are
         :obj:`~peps_ad.config.Projector_Method.FULL` or
         :obj:`~peps_ad.config.Projector_Method.FISHMAN`.
+      ctmrg_increase_truncation_eps (:obj:`bool`):
+        Flag if the CTMRG routine should try higher truncation thresholds for
+        the SVD based projector methods if the routine does not converge in the
+        maximum number of steps.
+      ctmrg_increase_truncation_eps_factor (:obj:`float`):
+        Factor by which the truncation threshold should be increased.
+      ctmrg_increase_truncation_eps_max_value (:obj:`float`):
+        Maximal value for the truncation threshold. Do not increase higher than
+        this value.
       svd_sign_fix_eps (:obj:`float`):
         Value for numerical stability threshold in sign-fixed SVD.
       optimizer_method (:obj:`Optimizing_Methods`):
@@ -112,19 +121,22 @@ class PEPS_AD_Config:
     ad_custom_print_steps: bool = False
     ad_custom_verbose_output: bool = False
     ad_custom_convergence_eps: float = 1e-7
-    ad_custom_max_steps: int = 150
+    ad_custom_max_steps: int = 75
     checkpointing_ncon: bool = False
     checkpointing_projectors: bool = False
 
     # CTMRG routine
     ctmrg_convergence_eps: float = 1e-8
     ctmrg_enforce_elementwise_convergence: bool = True
-    ctmrg_max_steps: int = 150
+    ctmrg_max_steps: int = 75
     ctmrg_print_steps: bool = False
     ctmrg_verbose_output: bool = False
-    ctmrg_truncation_eps: float = 1e-8
+    ctmrg_truncation_eps: float = 1e-7
     ctmrg_fail_if_not_converged: bool = True
     ctmrg_full_projector_method: Projector_Method = Projector_Method.FULL
+    ctmrg_increase_truncation_eps: bool = True
+    ctmrg_increase_truncation_eps_factor: float = 10
+    ctmrg_increase_truncation_eps_max_value: float = 1e-4
 
     # SVD
     svd_sign_fix_eps: float = 1e-1
@@ -137,7 +149,7 @@ class PEPS_AD_Config:
     optimizer_fail_if_no_step_size_found: bool = False
     optimizer_l_bfgs_maxlen: int = 50
     optimizer_preconverge_with_half_projectors: bool = True
-    optimizer_preconverge_with_half_projectors_eps: float = 5e-4
+    optimizer_preconverge_with_half_projectors_eps: float = 1e-3
 
     # Line search
     line_search_method: Line_Search_Methods = Line_Search_Methods.WOLFE

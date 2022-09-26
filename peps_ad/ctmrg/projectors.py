@@ -193,7 +193,9 @@ def _fishman_horizontal_cut(
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
     truncation_size: int,
-) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+) -> Tuple[
+    jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray
+]:
     (
         top_left_matrix,
         top_right_matrix,
@@ -223,7 +225,9 @@ def _fishman_vertical_cut(
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
     truncation_size: int,
-) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+) -> Tuple[
+    jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray
+]:
     (
         top_left_matrix,
         top_right_matrix,
