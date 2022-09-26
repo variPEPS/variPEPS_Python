@@ -25,21 +25,56 @@ from typing import List, Union, Tuple, cast, Sequence, Callable, Optional
 
 @jit
 def _cg_workhorse(new_gradient, old_gradient, old_descent_dir):
-    dx = -new_gradient
-    dx_old = -old_gradient
-    dx_real = jnp.concatenate((jnp.real(dx), jnp.imag(dx)))
-    dx_old_real = jnp.concatenate((jnp.real(dx_old), jnp.imag(dx_old)))
-    old_des_dir_real = jnp.concatenate(
-        (jnp.real(old_descent_dir), jnp.imag(old_descent_dir))
-    )
+    new_grad_vec, new_grad_unravel = ravel_pytree(new_gradient)
+    old_grad_vec, old_grad_unravel = ravel_pytree(old_gradient)
+    old_des_dir_vec, old_des_dir_unravel = ravel_pytree(old_descent_dir)
+
+    new_grad_len = new_grad_vec.size
+    iscomplex = jnp.iscomplexobj(new_grad_vec)
+
+    if iscomplex:
+        new_grad_vec = jnp.concatenate((jnp.real(new_grad_vec), jnp.imag(new_grad_vec)))
+        old_grad_vec = jnp.concatenate((jnp.real(old_grad_vec), jnp.imag(old_grad_vec)))
+        old_des_dir_vec = jnp.concatenate(
+            (jnp.real(old_des_dir_vec), jnp.imag(old_des_dir_vec))
+        )
+
+    grad_diff = new_grad_vec - old_grad_vec
+
+    # dx = -new_grad_vec
+    # dx_old = -old_grad_vec
+    # dx_real = jnp.concatenate((jnp.real(dx), jnp.imag(dx)))
+    # dx_old_real = jnp.concatenate((jnp.real(dx_old), jnp.imag(dx_old)))
+    # old_des_dir_real = jnp.concatenate(
+    #     (jnp.real(old_descent_dir), jnp.imag(old_descent_dir))
+    # )
     # PRP
     # beta = jnp.sum(dx_real * (dx_real - dx_old_real)) / jnp.sum(dx_old_real * dx_old_real)
     # LS parameter
-    beta = jnp.sum(dx_real * (dx_old_real - dx_real)) / jnp.sum(
-        old_des_dir_real * dx_old_real
+    # beta = jnp.sum(dx_real * (dx_old_real - dx_real)) / jnp.sum(
+    #     old_des_dir_real * dx_old_real
+    # )
+
+    # Hager-Zhang
+    eta = 0.4
+    eta_k = -1 / (
+        jnp.linalg.norm(old_des_dir_vec) * jnp.fmin(eta, jnp.linalg.norm(old_grad_vec))
     )
+    old_des_grad_diff = jnp.dot(old_des_dir_vec, grad_diff)
+    beta = (
+        grad_diff - 2 * jnp.linalg.norm(grad_diff) * old_des_dir_vec / old_des_grad_diff
+    )
+    beta = jnp.dot(beta, new_grad_vec) / old_des_grad_diff
+    beta = jnp.fmax(eta_k, beta)
+
     beta = jnp.fmax(0, beta)
-    return dx + beta * old_descent_dir, beta
+
+    result = -new_grad_vec + beta * old_des_dir_vec
+
+    if iscomplex:
+        result = result[:new_grad_len] + 1j * result[new_grad_len:]
+
+    return new_grad_unravel(result), beta
 
 
 @partial(jit, static_argnums=(5,))
