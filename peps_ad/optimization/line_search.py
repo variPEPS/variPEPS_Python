@@ -1,11 +1,13 @@
 import jax.numpy as jnp
 from jax import jit
+from jax.flatten_util import ravel_pytree
 
 from peps_ad import peps_ad_config
 from peps_ad.config import Line_Search_Methods
 from peps_ad.ctmrg import CTMRGNotConvergedError
 from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
+from peps_ad.mapping import Map_To_PEPS_Model
 
 from .inner_function import (
     calc_ctmrg_expectation,
@@ -13,13 +15,20 @@ from .inner_function import (
     calc_ctmrg_expectation_custom_value_and_grad,
 )
 
-from typing import Sequence, Tuple, List, Union
+from typing import Sequence, Tuple, List, Union, Optional
 
 
 @jit
 def _scalar_descent_grad(descent_dir, gradient):
-    descent_dir_real = jnp.concatenate((jnp.real(descent_dir), jnp.imag(descent_dir)))
-    gradient_real = jnp.concatenate((jnp.real(gradient), jnp.imag(gradient)))
+    descent_dir_real, _ = ravel_pytree(descent_dir)
+    gradient_real, _ = ravel_pytree(gradient)
+    if jnp.iscomplexobj(descent_dir_real):
+        descent_dir_real = jnp.concatenate(
+            (jnp.real(descent_dir_real), jnp.imag(descent_dir_real))
+        )
+        gradient_real = jnp.concatenate(
+            (jnp.real(gradient_real), jnp.imag(gradient_real))
+        )
     return jnp.sum(descent_dir_real * gradient_real)
 
 
@@ -30,8 +39,15 @@ def _line_search_new_tensors(peps_tensors, descent_dir, alpha):
 
 @jit
 def _armijo_value(current_val, descent_dir, gradient, alpha, const_factor):
-    descent_dir_real = jnp.concatenate((jnp.real(descent_dir), jnp.imag(descent_dir)))
-    gradient_real = jnp.concatenate((jnp.real(gradient), jnp.imag(gradient)))
+    descent_dir_real, _ = ravel_pytree(descent_dir)
+    gradient_real, _ = ravel_pytree(gradient)
+    if jnp.iscomplexobj(descent_dir_real):
+        descent_dir_real = jnp.concatenate(
+            (jnp.real(descent_dir_real), jnp.imag(descent_dir_real))
+        )
+        gradient_real = jnp.concatenate(
+            (jnp.real(gradient_real), jnp.imag(gradient_real))
+        )
     return jnp.fmin(
         current_val,
         current_val + const_factor * alpha * jnp.sum(descent_dir_real * gradient_real),
@@ -48,11 +64,20 @@ def _wolfe_value(
     armijo_const_factor,
     wolfe_const_factor,
 ):
-    descent_dir_real = jnp.concatenate((jnp.real(descent_dir), jnp.imag(descent_dir)))
-    gradient_real = jnp.concatenate((jnp.real(gradient), jnp.imag(gradient)))
-    new_gradient_real = jnp.concatenate(
-        (jnp.real(new_gradient), jnp.imag(new_gradient))
-    )
+    descent_dir_real, _ = ravel_pytree(descent_dir)
+    gradient_real, _ = ravel_pytree(gradient)
+    new_gradient_real, _ = ravel_pytree(new_gradient)
+
+    if jnp.iscomplexobj(descent_dir_real):
+        descent_dir_real = jnp.concatenate(
+            (jnp.real(descent_dir_real), jnp.imag(descent_dir_real))
+        )
+        gradient_real = jnp.concatenate(
+            (jnp.real(gradient_real), jnp.imag(gradient_real))
+        )
+        new_gradient_real = jnp.concatenate(
+            (jnp.real(new_gradient_real), jnp.imag(new_gradient_real))
+        )
 
     scalar_descent_grad = jnp.sum(descent_dir_real * gradient_real)
 
@@ -108,13 +133,14 @@ class NoSuitableStepSizeError(Exception):
 
 
 def line_search(
-    peps_tensors: Sequence[jnp.ndarray],
+    input_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
     expectation_func: Expectation_Model,
     gradient: jnp.ndarray,
     descent_direction: jnp.ndarray,
     current_value: Union[float, jnp.ndarray],
     last_step_size: Union[float, jnp.ndarray],
+    convert_to_unitcell_func: Optional[Map_To_PEPS_Model] = None,
 ) -> Tuple[
     List[jnp.ndarray],
     PEPS_Unit_Cell,
@@ -125,8 +151,8 @@ def line_search(
     Run two-way backtracing line search method for the CTMRG routine.
 
     Args:
-      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence of the current peps tensors which should be optimized.
+      input_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence of the current tensors which should be optimized.
       unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         The PEPS unitcell to work on.
       expectation_func (:obj:`~peps_ad.expectation.Expectation_Model`):
@@ -141,6 +167,9 @@ def line_search(
         The current value of the evaluation of the expectation function.
       last_step_size (:obj:`float` or :obj:`jax.numpy.ndarray`):
         The step size found in the last line search.
+      convert_to_unitcell_func (:obj:`~peps_ad.mapping.Map_To_PEPS_Model`):
+        Function to convert the `input_tensors` to a PEPS unitcell. If ommited,
+        it is assumed that a PEPS unitcell is the input.
     Returns:
       :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`float`, :obj:`float`):
         Tuple with the optimized tensors, the new unitcell, the reduced
@@ -149,12 +178,6 @@ def line_search(
       :obj:`ValueError`: The parameters mismatch the expected inputs.
       :obj:`RuntimeError`: The line search does not converge.
     """
-
-    unitcell_tensors = unitcell.get_unique_tensors()
-    if len(peps_tensors) != len(unitcell_tensors) or not all(
-        peps_tensors[i] is unitcell_tensors[i].tensor for i in range(len(peps_tensors))
-    ):
-        raise ValueError("PEPS tensor sequence mismatches the unitcell.")
 
     alpha = (
         last_step_size
@@ -177,17 +200,20 @@ def line_search(
 
     count = 0
     while count < peps_ad_config.line_search_max_steps:
-        new_tensors = _line_search_new_tensors(peps_tensors, descent_direction, alpha)
+        new_tensors = _line_search_new_tensors(input_tensors, descent_direction, alpha)
 
-        unitcell_tensors = unitcell.get_unique_tensors()
-        new_unitcell = unitcell.replace_unique_tensors(
-            [
-                unitcell_tensors[i].replace_tensor(
-                    new_tensors[i], reinitialize_env_as_identities=True
-                )
-                for i in range(len(new_tensors))
-            ]
-        )
+        if convert_to_unitcell_func is None:
+            unitcell_tensors = unitcell.get_unique_tensors()
+            new_unitcell = unitcell.replace_unique_tensors(
+                [
+                    unitcell_tensors[i].replace_tensor(
+                        new_tensors[i], reinitialize_env_as_identities=True
+                    )
+                    for i in range(len(new_tensors))
+                ]
+            )
+        else:
+            new_unitcell = None
 
         if (
             peps_ad_config.line_search_method is Line_Search_Methods.SIMPLE
@@ -198,6 +224,7 @@ def line_search(
                     new_tensors,
                     new_unitcell,
                     expectation_func,
+                    convert_to_unitcell_func,
                     enforce_elementwise_convergence=enforce_elementwise_convergence,
                 )
             except CTMRGNotConvergedError:
@@ -214,6 +241,7 @@ def line_search(
                         new_tensors,
                         new_unitcell,
                         expectation_func,
+                        convert_to_unitcell_func,
                     )
                 else:
                     (
@@ -223,9 +251,10 @@ def line_search(
                         new_tensors,
                         new_unitcell,
                         expectation_func,
+                        convert_to_unitcell_func,
                         calc_preconverged=True,
                     )
-                new_gradient = jnp.asarray([elem.conj() for elem in new_gradient_seq])
+                new_gradient = [elem.conj() for elem in new_gradient_seq]
             except CTMRGNotConvergedError:
                 import datetime
 

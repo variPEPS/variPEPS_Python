@@ -4,12 +4,14 @@ from functools import partial
 from jax import jit
 import jax.numpy as jnp
 from jax.lax import scan
+from jax.flatten_util import ravel_pytree
 
 from peps_ad import peps_ad_config, peps_ad_global_state
 from peps_ad.config import Optimizing_Methods
 from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
 from peps_ad.config import Projector_Method
+from peps_ad.mapping import Map_To_PEPS_Model
 
 from .inner_function import (
     calc_ctmrg_expectation,
@@ -18,7 +20,7 @@ from .inner_function import (
 )
 from .line_search import line_search, NoSuitableStepSizeError, _scalar_descent_grad
 
-from typing import List, Union, Tuple, cast
+from typing import List, Union, Tuple, cast, Sequence, Callable, Optional
 
 
 @jit
@@ -44,16 +46,23 @@ def _cg_workhorse(new_gradient, old_gradient, old_descent_dir):
 def _bfgs_workhorse(
     new_gradient, old_gradient, old_descent_dir, old_alpha, B_inv, calc_new_B_inv
 ):
-    new_grad_vec = jnp.concatenate((jnp.real(new_gradient), jnp.imag(new_gradient)))
-    new_grad_vec = jnp.ravel(new_grad_vec)
+    new_grad_vec, new_grad_unravel = ravel_pytree(new_gradient)
+    new_grad_len = new_grad_vec.size
+
+    iscomplex = jnp.iscomplexobj(new_grad_vec)
+    if iscomplex:
+        new_grad_vec = jnp.concatenate((jnp.real(new_grad_vec), jnp.imag(new_grad_vec)))
 
     if calc_new_B_inv:
-        old_grad_vec = jnp.concatenate((jnp.real(old_gradient), jnp.imag(old_gradient)))
-        old_grad_vec = jnp.ravel(old_grad_vec)
-        old_descent_dir_vec = jnp.concatenate(
-            (jnp.real(old_descent_dir), jnp.imag(old_descent_dir))
-        )
-        old_descent_dir_vec = jnp.ravel(old_descent_dir_vec)
+        old_grad_vec, old_grad_unravel = ravel_pytree(old_gradient)
+        old_descent_dir_vec, old_descent_dir_unravel = ravel_pytree(old_descent_dir)
+        if iscomplex:
+            old_grad_vec = jnp.concatenate(
+                (jnp.real(old_grad_vec), jnp.imag(old_grad_vec))
+            )
+            old_descent_dir_vec = jnp.concatenate(
+                (jnp.real(old_descent_dir_vec), jnp.imag(old_descent_dir_vec))
+            )
 
         sk = old_alpha * old_descent_dir_vec
         yk = new_grad_vec - old_grad_vec
@@ -70,21 +79,29 @@ def _bfgs_workhorse(
     else:
         new_B_inv = B_inv
 
-    result_vec = -jnp.dot(new_B_inv, new_grad_vec)
+    result = -jnp.dot(new_B_inv, new_grad_vec)
 
-    result = result_vec[: new_gradient.size] + 1j * result_vec[new_gradient.size :]
+    if iscomplex:
+        result = result[:new_grad_len] + 1j * result[new_grad_len:]
 
-    return result.reshape(new_gradient.shape), new_B_inv
+    return new_grad_unravel(result), new_B_inv
 
 
 @jit
 def _l_bfgs_workhorse(value_tuple, gradient_tuple):
-    value_arr = jnp.asarray(
-        [jnp.ravel(jnp.concatenate((jnp.real(e), jnp.imag(e)))) for e in value_tuple]
-    )
-    gradient_arr = jnp.asarray(
-        [jnp.ravel(jnp.concatenate((jnp.real(e), jnp.imag(e)))) for e in gradient_tuple]
-    )
+    gradient_elem_0, gradient_unravel = ravel_pytree(gradient_tuple[0])
+    gradient_len = gradient_elem_0.size
+
+    iscomplex = jnp.iscomplexobj(gradient_elem_0)
+
+    def _make_1d(x):
+        x_1d, _ = ravel_pytree(x)
+        if iscomplex:
+            return jnp.concatenate((jnp.real(x_1d), jnp.imag(x_1d)))
+        return x_1d
+
+    value_arr = jnp.asarray([_make_1d(e) for e in value_tuple])
+    gradient_arr = jnp.asarray([_make_1d(e) for e in gradient_tuple])
 
     s_arr = -jnp.diff(value_arr, axis=0)
     y_arr = -jnp.diff(gradient_arr, axis=0)
@@ -117,35 +134,43 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple):
     )
 
     z_result = -z_result
-    z_result = (
-        z_result[: gradient_tuple[0].size] + 1j * z_result[gradient_tuple[0].size :]
-    )
-    return z_result.reshape(gradient_tuple[0].shape)
+    if iscomplex:
+        z_result = z_result[:gradient_len] + 1j * z_result[gradient_len:]
+    return gradient_unravel(z_result)
 
 
 def optimize_peps_network(
-    unitcell: PEPS_Unit_Cell,
+    input_tensors: Union[PEPS_Unit_Cell, Sequence[jnp.ndarray]],
     expectation_func: Expectation_Model,
-) -> Tuple[PEPS_Unit_Cell, Union[float, jnp.ndarray]]:
+    convert_to_unitcell_func: Optional[Map_To_PEPS_Model] = None,
+) -> Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell, Union[float, jnp.ndarray]]:
     """
     Optimize a PEPS unitcell using a variational method.
 
     As convergence criterion the norm of the gradient is used.
 
     Args:
-      unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
-        The PEPS unitcell to work on.
+      input_tensors (:obj:`~peps_ad.peps.PEPS_Unit_Cell` or :term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The PEPS unitcell to work on or the tensors which should be mapped by
+        `convert_to_unitcell_func` to a PEPS unitcell.
       expectation_func (:obj:`~peps_ad.expectation.Expectation_Model`):
         Callable to calculate one expectation value which is used as loss
         loss function of the model. Likely the function to calculate the energy.
+      convert_to_unitcell_func (:obj:`~peps_ad.mapping.Map_To_PEPS_Model`):
+        Function to convert the `input_tensors` to a PEPS unitcell. If ommited,
+        it is assumed that a PEPS unitcell is the first input parameter.
     Returns:
-      :obj:`tuple`\ (:obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`float`):
-        Tuple with the optimized network and the final expectation value.
+      :obj:`tuple`\ (:term:`sequence`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`float`):
+        Tuple with the optimized tensors, network and the final expectation value.
     """
-    working_tensors = cast(
-        List[jnp.ndarray], [i.tensor for i in unitcell.get_unique_tensors()]
-    )
-    working_unitcell = unitcell
+    if isinstance(input_tensors, PEPS_Unit_Cell):
+        working_tensors = cast(
+            List[jnp.ndarray], [i.tensor for i in input_tensors.get_unique_tensors()]
+        )
+        working_unitcell = input_tensors
+    else:
+        working_tensors = input_tensors
+        working_unitcell = None
 
     old_gradient = None
     old_descent_dir = None
@@ -177,6 +202,7 @@ def optimize_peps_network(
                 working_tensors,
                 working_unitcell,
                 expectation_func,
+                convert_to_unitcell_func,
             )
         else:
             (
@@ -186,18 +212,19 @@ def optimize_peps_network(
                 working_tensors,
                 working_unitcell,
                 expectation_func,
+                convert_to_unitcell_func,
                 calc_preconverged=(count == 0),
             )
 
         print(f"{count} before: Value {working_value}")
 
-        working_gradient = jnp.asarray([elem.conj() for elem in working_gradient_seq])
+        working_gradient = [elem.conj() for elem in working_gradient_seq]
 
         if peps_ad_config.optimizer_method is Optimizing_Methods.STEEPEST:
-            descent_dir = -working_gradient
+            descent_dir = [-elem for elem in working_gradient]
         elif peps_ad_config.optimizer_method is Optimizing_Methods.CG:
             if count == 0:
-                descent_dir = -working_gradient
+                descent_dir = [-elem for elem in working_gradient]
             else:
                 descent_dir, beta = _cg_workhorse(
                     working_gradient, old_gradient, old_descent_dir
@@ -218,11 +245,11 @@ def optimize_peps_network(
                     True,
                 )
         elif peps_ad_config.optimizer_method is Optimizing_Methods.L_BFGS:
-            l_bfgs_x_cache.appendleft(jnp.asarray(working_tensors))
-            l_bfgs_grad_cache.appendleft(working_gradient)
+            l_bfgs_x_cache.appendleft(tuple(working_tensors))
+            l_bfgs_grad_cache.appendleft(tuple(working_gradient))
 
             if count == 0:
-                descent_dir = -working_gradient
+                descent_dir = [-elem for elem in working_gradient]
             else:
                 descent_dir = _l_bfgs_workhorse(
                     tuple(l_bfgs_x_cache), tuple(l_bfgs_grad_cache)
@@ -232,9 +259,9 @@ def optimize_peps_network(
 
         if _scalar_descent_grad(descent_dir, working_gradient) > 0:
             print("Found bad descent dir. Reset to negative gradient!")
-            descent_dir = -working_gradient
+            descent_dir = [-elem for elem in working_gradient]
 
-        conv = jnp.linalg.norm(working_gradient)
+        conv = jnp.linalg.norm(ravel_pytree(working_gradient)[0])
 
         try:
             (
@@ -250,6 +277,7 @@ def optimize_peps_network(
                 descent_dir,
                 working_value,
                 linesearch_step,
+                convert_to_unitcell_func,
             )
         except NoSuitableStepSizeError:
             if peps_ad_config.optimizer_fail_if_no_step_size_found:
@@ -262,6 +290,7 @@ def optimize_peps_network(
                 working_tensors,
                 working_unitcell,
                 expectation_func,
+                convert_to_unitcell_func,
                 enforce_elementwise_convergence=peps_ad_config.ad_use_custom_vjp,
             )
             peps_ad_global_state.ctmrg_projector_method = None
@@ -284,4 +313,4 @@ def optimize_peps_network(
             f"{count} after: Value {working_value}, Conv: {conv}, Alpha: {linesearch_step}"
         )
 
-    return working_unitcell, working_value
+    return working_tensors, working_unitcell, working_value

@@ -421,7 +421,11 @@ def calc_ctmrg_env_rev(
 
     peps_ad_global_state.ctmrg_effective_truncation_eps = None
 
-    return t_bar, new_unitcell.replace_unique_tensors(empty_t), jnp.zeros((), dtype=bool)
+    return (
+        t_bar,
+        new_unitcell.replace_unique_tensors(empty_t),
+        jnp.zeros((), dtype=bool),
+    )
 
 
 calc_ctmrg_env_custom_rule.defvjp(calc_ctmrg_env_fwd, calc_ctmrg_env_rev)

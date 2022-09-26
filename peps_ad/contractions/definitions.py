@@ -611,3 +611,30 @@ class Definitions:
             ]
         ],
     }
+
+    square_kagome_pess_mapping = {
+        "tensors": [
+            "t1",
+            "t2",
+            "t3",
+            "t4",
+            "t5",
+            "t6",
+            "simplex_left",
+            "simplex_top",
+            "simplex_right",
+            "simplex_bottom",
+        ],
+        "network": [
+            (-2, -3, 9),  # t1
+            (7, -4, 1),  # t2
+            (5, -5, 2),  # t3
+            (6, -6, 3),  # t4
+            (8, -7, 4),  # t5
+            (-9, -8, 10),  # t6
+            (-1, 5, 1),  # simplex_left
+            (-10, 8, 2),  # simplex_top
+            (10, 6, 4),  # simplex_right
+            (9, 7, 3),  # simplex_bottom
+        ],
+    }

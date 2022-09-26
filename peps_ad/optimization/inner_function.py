@@ -1,18 +1,57 @@
 import jax.numpy as jnp
 from jax import value_and_grad
+from jax.util import safe_zip
 
 from peps_ad import peps_ad_config
 from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
 from peps_ad.ctmrg import calc_ctmrg_env, calc_ctmrg_env_custom_rule
+from peps_ad.mapping import Map_To_PEPS_Model
 
-from typing import Sequence, Tuple, cast, Optional
+from typing import Sequence, Tuple, cast, Optional, Callable
+
+
+def _map_tensors(
+    input_tensors: Sequence[jnp.ndarray],
+    unitcell: PEPS_Unit_Cell,
+    convert_to_unitcell_func: Optional[Map_To_PEPS_Model],
+) -> Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell]:
+    if convert_to_unitcell_func is not None:
+        if unitcell is None:
+            peps_tensors, unitcell = convert_to_unitcell_func(
+                input_tensors, generate_unitcell=True
+            )
+        else:
+            peps_tensors = convert_to_unitcell_func(
+                input_tensors, generate_unitcell=False
+            )
+            old_tensors = unitcell.get_unique_tensors()
+            if not all(
+                jnp.allclose(ti, tj_obj.tensor)
+                for ti, tj_obj in safe_zip(peps_tensors, old_tensors)
+            ):
+                raise ValueError(
+                    "Input tensors and provided unitcell are not the same state."
+                )
+            unitcell = unitcell.replace_unique_tensors(
+                [
+                    old_tensors[i].replace_tensor(
+                        peps_tensors[i], reinitialize_env_as_identities=False
+                    )
+                    for i in range(len(peps_tensors))
+                ]
+            )
+    else:
+        peps_tensors = input_tensors
+
+    return peps_tensors, unitcell
 
 
 def calc_ctmrg_expectation(
-    peps_tensors: Sequence[jnp.ndarray],
+    input_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
     expectation_func: Expectation_Model,
+    convert_to_unitcell_func: Optional[Map_To_PEPS_Model],
     *,
     enforce_elementwise_convergence: Optional[bool] = None,
 ) -> Tuple[jnp.ndarray, PEPS_Unit_Cell]:
@@ -21,12 +60,15 @@ def calc_ctmrg_expectation(
     iPEPS unitcell.
 
     Args:
-      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence of the unique PEPS tensors the unitcell consists of.
+      input_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence of the tensors the unitcell consists of.
       unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         The PEPS unitcell to work on.
       expectation_func (:obj:`~peps_ad.expectation.Expectation_Model`):
         Callable to calculate the expectation value.
+      convert_to_unitcell_func (:obj:`~peps_ad.mapping.Map_To_PEPS_Model`):
+        Function to convert the `input_tensors` to a PEPS unitcell. If ommited,
+        it is assumed that a PEPS unitcell is the input.
     Keyword args:
       enforce_elementwise_convergence (obj:`bool`):
         Enforce elementwise convergence of the CTM tensors instead of only
@@ -35,6 +77,10 @@ def calc_ctmrg_expectation(
       :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         Tuple consisting of the calculated expectation value and the new unitcell.
     """
+    peps_tensors, unitcell = _map_tensors(
+        input_tensors, unitcell, convert_to_unitcell_func
+    )
+
     new_unitcell = calc_ctmrg_env(
         peps_tensors,
         unitcell,
@@ -50,9 +96,10 @@ calc_ctmrg_expectation_value_and_grad = value_and_grad(
 
 
 def calc_preconverged_ctmrg_value_and_grad(
-    peps_tensors: Sequence[jnp.ndarray],
+    input_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
     expectation_func: Expectation_Model,
+    convert_to_unitcell_func: Optional[Map_To_PEPS_Model],
     *,
     calc_preconverged: bool = True,
 ) -> Tuple[Tuple[jnp.ndarray, PEPS_Unit_Cell], Sequence[jnp.ndarray]]:
@@ -66,12 +113,15 @@ def calc_preconverged_ctmrg_value_and_grad(
     CTMRG steps.
 
     Args:
-      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence of the unique PEPS tensors the unitcell consists of.
+      input_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence of the tensors the unitcell consists of.
       unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         The PEPS unitcell to work on.
       expectation_func (:obj:`~peps_ad.expectation.Expectation_Model`):
         Callable to calculate the expectation value.
+      convert_to_unitcell_func (:obj:`~peps_ad.mapping.Map_To_PEPS_Model`):
+        Function to convert the `input_tensors` to a PEPS unitcell. If ommited,
+        it is assumed that a PEPS unitcell is the input.
     Keyword args:
       calc_preconverged (:obj:`bool`):
         Flag if the above described procedure to calculate a pre-converged
@@ -83,6 +133,10 @@ def calc_preconverged_ctmrg_value_and_grad(
         unitcell.
         2. The calculated gradient.
     """
+    peps_tensors, unitcell = _map_tensors(
+        input_tensors, unitcell, convert_to_unitcell_func
+    )
+
     if calc_preconverged:
         preconverged_unitcell = calc_ctmrg_env(
             peps_tensors,
@@ -105,25 +159,33 @@ def calc_preconverged_ctmrg_value_and_grad(
 
 
 def calc_ctmrg_expectation_custom(
-    peps_tensors: Sequence[jnp.ndarray],
+    input_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
     expectation_func: Expectation_Model,
+    convert_to_unitcell_func: Optional[Map_To_PEPS_Model],
 ) -> Tuple[jnp.ndarray, PEPS_Unit_Cell]:
     """
     Calculate the CTMRG environment and the (energy) expectation value for a
     iPEPS unitcell using the custom VJP rule implementation.
 
     Args:
-      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence of the unique PEPS tensors the unitcell consists of.
+      input_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence of the tensors the unitcell consists of.
       unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         The PEPS unitcell to work on.
       expectation_func (:obj:`~peps_ad.expectation.Expectation_Model`):
         Callable to calculate the expectation value.
+      convert_to_unitcell_func (:obj:`~peps_ad.mapping.Map_To_PEPS_Model`):
+        Function to convert the `input_tensors` to a PEPS unitcell. If ommited,
+        it is assumed that a PEPS unitcell is the input.
     Returns:
       :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         Tuple consisting of the calculated expectation value and the new unitcell.
     """
+    peps_tensors, unitcell = _map_tensors(
+        input_tensors, unitcell, convert_to_unitcell_func
+    )
+
     new_unitcell = calc_ctmrg_env_custom_rule(peps_tensors, unitcell)
 
     return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), new_unitcell

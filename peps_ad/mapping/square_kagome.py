@@ -11,8 +11,14 @@ from peps_ad.expectation.model import Expectation_Model
 from peps_ad.expectation.one_site import calc_one_site_multi_gates
 from peps_ad.expectation.two_sites import _two_site_workhorse
 from peps_ad.typing import Tensor
+from peps_ad.mapping import Map_To_PEPS_Model
+from peps_ad.utils.random import PEPS_Random_Number_Generator
 
-from typing import Sequence, Union, List, Callable, TypeVar, Optional, Tuple
+from typing import Sequence, Union, List, Callable, TypeVar, Optional, Tuple, Type
+
+T_Square_Kagome_Map_To_PEPS = TypeVar(
+    "T_Square_Kagome_Map_To_PEPS", bound="Square_Kagome_Map_To_PEPS"
+)
 
 
 def square_kagome_density_matrix_horizontal(
@@ -644,3 +650,160 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
             return result[0]
         else:
             return result
+
+
+@dataclass
+class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):
+    """
+    Map a iPESS structure of the Square-Kagome to a PEPS unitcell.
+    The convention for the input tensors is:
+
+    Convention for physical site tensors:
+    * t1: [away from square, phys, bottom simplex]
+    * t2: [bottom simplex, phys, left simplex]
+    * t3: [left simplex, phys, top simplex]
+    * t4: [right simplex, phys, bottom simplex]
+    * t5: [top simplex, phys, right simplex]
+    * t6: [away from square, phys, right simplex]
+
+    Convention for simplex tensors:
+    * left: [away from square, t3, t2]
+    * top: [away from square, t5, t3]
+    * right: [t6, t4, t5]
+    * bottom: [t1, t2, t4]
+
+    Args:
+      unitcell_structure (:term:`sequence` of :term:`sequence` of :obj:`int` or 2d array):
+        Two dimensional array modeling the structure of the unit cell. For
+        details see the description of :obj:`~peps_ad.peps.PEPS_Unit_Cell`.
+      chi (:obj:`int`):
+        Bond dimension of environment tensors which should be used for the
+        unit cell generated.
+    """
+
+    unitcell_structure: Sequence[Sequence[int]]
+    chi: int
+
+    @staticmethod
+    def _map_single_structure(input_tensors: Sequence[jnp.ndarray]):
+        (
+            t1,
+            t2,
+            t3,
+            t4,
+            t5,
+            t6,
+            simplex_left,
+            simplex_top,
+            simplex_right,
+            simplex_bottom,
+        ) = input_tensors
+
+        peps_tensor = apply_contraction(
+            f"square_kagome_pess_mapping",
+            [],
+            [],
+            [
+                t1,
+                t2,
+                t3,
+                t4,
+                t5,
+                t6,
+                simplex_left,
+                simplex_top,
+                simplex_right,
+                simplex_bottom,
+            ],
+        )
+
+        return peps_tensor.reshape(
+            peps_tensor.shape[0],
+            peps_tensor.shape[1],
+            -1,
+            peps_tensor.shape[8],
+            peps_tensor.shape[9],
+        )
+
+    def __call__(
+        self,
+        input_tensors: Sequence[jnp.ndarray],
+        *,
+        generate_unitcell: bool = True,
+    ) -> Union[List[jnp.ndarray], Tuple[List[jnp.ndarray], PEPS_Unit_Cell]]:
+        num_peps_sites = len(input_tensors) // 10
+        if num_peps_sites * 10 != len(input_tensors):
+            raise ValueError(
+                "Input tensors seems not be a list for a square Kagome simplex system."
+            )
+
+        peps_tensors = [
+            self._map_single_structure(input_tensors[(i * 10) : (i * 10 + 10)])
+            for i in range(num_peps_sites)
+        ]
+
+        if generate_unitcell:
+            peps_tensor_objs = [
+                PEPS_Tensor.from_tensor(
+                    i,
+                    i.shape[2],
+                    (i.shape[0], i.shape[1], i.shape[3], i.shape[4]),
+                    self.chi,
+                )
+                for i in peps_tensors
+            ]
+            unitcell = PEPS_Unit_Cell.from_tensor_list(
+                peps_tensor_objs, self.unitcell_structure
+            )
+
+            return peps_tensors, unitcell
+
+        return peps_tensors
+
+    @classmethod
+    def random(
+        cls: Type[T_Square_Kagome_Map_To_PEPS],
+        structure: Sequence[Sequence[int]],
+        d: int,
+        D: int,
+        chi: Union[int, Sequence[int]],
+        dtype: Type[jnp.number],
+        *,
+        seed: Optional[int] = None,
+        destroy_random_state: bool = True,
+    ) -> Tuple[List[jnp.ndarray], T_Square_Kagome_Map_To_PEPS]:
+        structure_arr = jnp.asarray(structure)
+
+        structure_arr, tensors_i = PEPS_Unit_Cell._check_structure(structure_arr)
+
+        # Check the inputs
+        if not isinstance(d, int):
+            raise ValueError("d has to be a single integer.")
+
+        if not isinstance(D, int):
+            raise ValueError("D has to be a single integer.")
+
+        if not isinstance(chi, int):
+            raise ValueError("chi has to be a single integer.")
+
+        # Generate the PEPS tensors
+        if destroy_random_state:
+            PEPS_Random_Number_Generator.destroy_state()
+
+        rng = PEPS_Random_Number_Generator.get_generator(seed, backend="jax")
+
+        result_tensors = []
+
+        for i in tensors_i:
+            result_tensors.append(rng.block((D, d, D), dtype=dtype))  # t1
+            result_tensors.append(rng.block((D, d, D), dtype=dtype))  # t2
+            result_tensors.append(rng.block((D, d, D), dtype=dtype))  # t3
+            result_tensors.append(rng.block((D, d, D), dtype=dtype))  # t4
+            result_tensors.append(rng.block((D, d, D), dtype=dtype))  # t5
+            result_tensors.append(rng.block((D, d, D), dtype=dtype))  # t6
+            result_tensors.append(rng.block((D, D, D), dtype=dtype))  # simplex_left
+            result_tensors.append(rng.block((D, D, D), dtype=dtype))  # simplex_top
+            result_tensors.append(rng.block((D, D, D), dtype=dtype))  # simplex_right
+            result_tensors.append(rng.block((D, D, D), dtype=dtype))  # simplex_bottom
+
+        return result_tensors, cls(unitcell_structure=structure, chi=chi)
