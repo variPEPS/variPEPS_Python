@@ -92,6 +92,15 @@ def _get_ctmrg_2x2_structure(
     return view_tensors, view_tensor_objs
 
 
+@jit
+def _post_process_CTM_tensors(a: jnp.ndarray) -> jnp.ndarray:
+    a = a / jnp.linalg.norm(a)
+    a_abs = jnp.abs(a)
+    i_max = jnp.unravel_index(jnp.argmax(a_abs), a.shape)
+    phase = a[i_max] / a_abs[i_max]
+    return a * phase.conj()
+
+
 def do_left_absorption(
     peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
 ) -> PEPS_Unit_Cell:
@@ -137,7 +146,7 @@ def do_left_absorption(
                 [working_tensor_obj],
                 [C1_projector],
             )
-            new_C1.append(new_C1_tmp / jnp.linalg.norm(new_C1_tmp))
+            new_C1.append(_post_process_CTM_tensors(new_C1_tmp))
 
             T4_projector_top = left_projectors.get_projector(x, y, -1, 0).top
             T4_projector_bottom = left_projectors.get_projector(x, y, 0, 0).bottom
@@ -147,7 +156,7 @@ def do_left_absorption(
                 [working_tensor_obj],
                 [T4_projector_top, T4_projector_bottom],
             )
-            new_T4.append(new_T4_tmp / jnp.linalg.norm(new_T4_tmp))
+            new_T4.append(_post_process_CTM_tensors(new_T4_tmp))
 
             C4_projector = left_projectors.get_projector(x, y, 0, 0).top
             new_C4_tmp = apply_contraction(
@@ -156,7 +165,7 @@ def do_left_absorption(
                 [working_tensor_obj],
                 [C4_projector],
             )
-            new_C4.append(new_C4_tmp / jnp.linalg.norm(new_C4_tmp))
+            new_C4.append(_post_process_CTM_tensors(new_C4_tmp))
 
         for x, view in column_views:
             view[0, 1] = view[0, 1][0][0].replace_left_env_tensors(
@@ -213,7 +222,7 @@ def do_right_absorption(
                 [working_tensor_obj],
                 [C2_projector],
             )
-            new_C2.append(new_C2_tmp / jnp.linalg.norm(new_C2_tmp))
+            new_C2.append(_post_process_CTM_tensors(new_C2_tmp))
 
             T2_projector_top = right_projectors.get_projector(x, y, -1, 0).top
             T2_projector_bottom = right_projectors.get_projector(x, y, 0, 0).bottom
@@ -223,7 +232,7 @@ def do_right_absorption(
                 [working_tensor_obj],
                 [T2_projector_top, T2_projector_bottom],
             )
-            new_T2.append(new_T2_tmp / jnp.linalg.norm(new_T2_tmp))
+            new_T2.append(_post_process_CTM_tensors(new_T2_tmp))
 
             C3_projector = right_projectors.get_projector(x, y, 0, 0).top
             new_C3_tmp = apply_contraction(
@@ -232,7 +241,7 @@ def do_right_absorption(
                 [working_tensor_obj],
                 [C3_projector],
             )
-            new_C3.append(new_C3_tmp / jnp.linalg.norm(new_C3_tmp))
+            new_C3.append(_post_process_CTM_tensors(new_C3_tmp))
 
         for x, view in column_views:
             view[0, -1] = view[0, -1][0][0].replace_right_env_tensors(
@@ -287,7 +296,7 @@ def do_top_absorption(
                 [working_tensor_obj],
                 [C1_projector],
             )
-            new_C1.append(new_C1_tmp / jnp.linalg.norm(new_C1_tmp))
+            new_C1.append(_post_process_CTM_tensors(new_C1_tmp))
 
             T1_projector_left = top_projectors.get_projector(x, y, 0, -1).left  # type: ignore
             T1_projector_right = top_projectors.get_projector(x, y, 0, 0).right  # type: ignore
@@ -297,7 +306,7 @@ def do_top_absorption(
                 [working_tensor_obj],
                 [T1_projector_left, T1_projector_right],
             )
-            new_T1.append(new_T1_tmp / jnp.linalg.norm(new_T1_tmp))
+            new_T1.append(_post_process_CTM_tensors(new_T1_tmp))
 
             C2_projector = top_projectors.get_projector(x, y, 0, 0).left  # type: ignore
             new_C2_tmp = apply_contraction(
@@ -306,7 +315,7 @@ def do_top_absorption(
                 [working_tensor_obj],
                 [C2_projector],
             )
-            new_C2.append(new_C2_tmp / jnp.linalg.norm(new_C2_tmp))
+            new_C2.append(_post_process_CTM_tensors(new_C2_tmp))
 
         for y, view in row_views:
             view[1, 0] = view[1, 0][0][0].replace_top_env_tensors(
@@ -361,7 +370,7 @@ def do_bottom_absorption(
                 [working_tensor_obj],
                 [C4_projector],
             )
-            new_C4.append(new_C4_tmp / jnp.linalg.norm(new_C4_tmp))
+            new_C4.append(_post_process_CTM_tensors(new_C4_tmp))
 
             T3_projector_left = bottom_projectors.get_projector(x, y, 0, -1).left  # type: ignore
             T3_projector_right = bottom_projectors.get_projector(x, y, 0, 0).right  # type: ignore
@@ -371,7 +380,7 @@ def do_bottom_absorption(
                 [working_tensor_obj],
                 [T3_projector_left, T3_projector_right],
             )
-            new_T3.append(new_T3_tmp / jnp.linalg.norm(new_T3_tmp))
+            new_T3.append(_post_process_CTM_tensors(new_T3_tmp))
 
             C3_projector = bottom_projectors.get_projector(x, y, 0, 0).left  # type: ignore
             new_C3_tmp = apply_contraction(
@@ -380,7 +389,7 @@ def do_bottom_absorption(
                 [working_tensor_obj],
                 [C3_projector],
             )
-            new_C3.append(new_C3_tmp / jnp.linalg.norm(new_C3_tmp))
+            new_C3.append(_post_process_CTM_tensors(new_C3_tmp))
 
         for y, view in row_views:
             view[-1, 0] = view[-1, 0][0][0].replace_bottom_env_tensors(
