@@ -8,25 +8,15 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 import tensornetwork as tn
+from tensornetwork.ncon_interface import _jittable_ncon
 
 from peps_ad.peps import PEPS_Tensor
 from peps_ad import peps_ad_config
 from peps_ad.utils.func_cache import Checkpointing_Cache
 
-from .definitions import Definitions
+from .definitions import Definitions, Definition
 
 from typing import Sequence, List, Tuple, Dict, Union, Optional
-
-Definition = Optional[
-    Dict[
-        str,
-        List[
-            Union[
-                List[Union[str, List[str]]], List[Union[Tuple[int], List[Tuple[int]]]]
-            ]
-        ],
-    ]
-]
 
 
 class _Contraction_Cache:
@@ -41,6 +31,9 @@ class _Contraction_Cache:
         return obj
 
 
+_ncon_jitted = jax.jit(_jittable_ncon, static_argnums=(1, 2, 3, 4, 5), inline=True)
+
+
 def apply_contraction(
     name: str,
     peps_tensors: Sequence[jnp.ndarray],
@@ -48,7 +41,8 @@ def apply_contraction(
     additional_tensors: Sequence[jnp.ndarray],
     *,
     disable_identity_check: bool = False,
-    custom_definition: Definition = None,
+    custom_definition: Optional[Definition] = None,
+    _jitable: bool = False,
 ) -> jnp.ndarray:
     """
     Apply a contraction to a list of tensors.
@@ -81,7 +75,8 @@ def apply_contraction(
         )
 
     if (
-        not disable_identity_check
+        not _jitable
+        and not disable_identity_check
         and not all(isinstance(t, jax.core.Tracer) for t in peps_tensors)
         and not all(isinstance(to.tensor, jax.core.Tracer) for to in peps_tensor_objs)
         and not all(
@@ -98,56 +93,22 @@ def apply_contraction(
     else:
         contraction = getattr(Definitions, name)
 
-    filter_peps_tensors: List[Sequence[str]] = []
-    filter_additional_tensors: List[str] = []
-
-    network_peps_tensors: List[List[Tuple[int, ...]]] = []
-    network_additional_tensors: List[Tuple[int, ...]] = []
-
-    for t in contraction["tensors"]:
-        if isinstance(t, (list, tuple)):
-            if len(filter_additional_tensors) != 0:
-                raise ValueError("Invalid specification for contraction.")
-
-            filter_peps_tensors.append(t)
-        else:
-            filter_additional_tensors.append(t)
-
-    for n in contraction["network"]:
-        if isinstance(n, (list, tuple)) and all(
-            isinstance(ni, (list, tuple)) for ni in n
-        ):
-            if len(network_additional_tensors) != 0:
-                raise ValueError("Invalid specification for contraction.")
-
-            network_peps_tensors.append(n)  # type: ignore
-        elif isinstance(n, (list, tuple)) and all(isinstance(ni, int) for ni in n):
-            network_additional_tensors.append(n)  # type: ignore
-        else:
-            raise ValueError("Invalid specification for contraction.")
-
-    if len(filter_peps_tensors) != len(peps_tensors):
+    if len(contraction["filter_peps_tensors"]) != len(peps_tensors):
         raise ValueError(
-            f"Number of PEPS tensor ({len(peps_tensors)}) objects does not fit the expected number ({len(filter_peps_tensors)})."
+            f"Number of PEPS tensor ({len(peps_tensors)}) objects does not fit the expected number ({len(contraction['filter_peps_tensors'])})."
         )
 
-    if len(filter_additional_tensors) != len(additional_tensors):
+    if len(contraction["filter_additional_tensors"]) != len(additional_tensors):
         raise ValueError(
-            f"Number of additional tensor ({len(additional_tensors)}) objects does not fit the expected number ({len(filter_additional_tensors)})."
+            f"Number of additional tensor ({len(additional_tensors)}) objects does not fit the expected number ({len(contraction['filter_additional_tensors'])})."
         )
-
-    if len(network_peps_tensors) != len(filter_peps_tensors) or not all(
-        len(network_peps_tensors[i]) == len(filter_peps_tensors[i])
-        for i in range(len(filter_peps_tensors))
-    ):
-        raise ValueError("Invalid specification for contraction.")
 
     if not isinstance(additional_tensors, list):
         additional_tensors = list(additional_tensors)
 
     tensors = []
 
-    for ti, t_filter in enumerate(filter_peps_tensors):
+    for ti, t_filter in enumerate(contraction["filter_peps_tensors"]):
         for f in t_filter:
             if f == "tensor":
                 tensors.append(peps_tensors[ti])
@@ -158,11 +119,25 @@ def apply_contraction(
 
     tensors += additional_tensors
 
-    network = [j for i in network_peps_tensors for j in i] + network_additional_tensors
+    if _jitable:
+        return _ncon_jitted(
+            tensors,
+            contraction["ncon_flat_network"],
+            contraction["ncon_sizes"],
+            contraction["ncon_con_order"],
+            contraction["ncon_out_order"],
+            tn.backends.backend_factory.get_backend("jax"),
+        )
 
     if name not in _Contraction_Cache["cache"]:
         _Contraction_Cache["cache"][name] = partial(
-            tn.ncon, network_structure=network, backend="jax"
+            tn.ncon, network_structure=contraction["ncon_network"], backend="jax"
         )
 
     return _Contraction_Cache["cache"][name](tensors)
+
+
+apply_contraction_jitted = jax.jit(
+    partial(apply_contraction, _jitable=True),
+    static_argnames=("name", "disable_identity_check", "custom_definition"),
+)

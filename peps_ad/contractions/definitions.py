@@ -2,6 +2,15 @@
 Definitions for contractions in this module.
 """
 
+import tensornetwork as tn
+
+from typing import Dict, Optional, Union, List, Tuple, Sequence
+
+Definition = Dict[
+    str,
+    List[Union[List[Union[str, List[str]]], List[Union[Tuple[int], List[Tuple[int]]]]]],
+]
+
 
 class Definitions:
     """
@@ -54,7 +63,98 @@ class Definitions:
     conjugated and transposed PEPS tensor.
     """
 
-    density_matrix_one_site = {
+    @staticmethod
+    def _create_filter_and_network(
+        contraction: Definition,
+    ) -> Tuple[
+        List[Sequence[str]],
+        List[str],
+        List[List[Tuple[int, ...]]],
+        List[Tuple[int, ...]],
+    ]:
+        filter_peps_tensors: List[Sequence[str]] = []
+        filter_additional_tensors: List[str] = []
+
+        network_peps_tensors: List[List[Tuple[int, ...]]] = []
+        network_additional_tensors: List[Tuple[int, ...]] = []
+
+        for t in contraction["tensors"]:
+            if isinstance(t, (list, tuple)):
+                if len(filter_additional_tensors) != 0:
+                    raise ValueError("Invalid specification for contraction.")
+
+                filter_peps_tensors.append(t)
+            else:
+                filter_additional_tensors.append(t)
+
+        for n in contraction["network"]:
+            if isinstance(n, (list, tuple)) and all(
+                isinstance(ni, (list, tuple)) for ni in n
+            ):
+                if len(network_additional_tensors) != 0:
+                    raise ValueError("Invalid specification for contraction.")
+
+                network_peps_tensors.append(n)  # type: ignore
+            elif isinstance(n, (list, tuple)) and all(isinstance(ni, int) for ni in n):
+                network_additional_tensors.append(n)  # type: ignore
+            else:
+                raise ValueError("Invalid specification for contraction.")
+
+        if len(network_peps_tensors) != len(filter_peps_tensors) or not all(
+            len(network_peps_tensors[i]) == len(filter_peps_tensors[i])
+            for i in range(len(filter_peps_tensors))
+        ):
+            raise ValueError("Invalid specification for contraction.")
+
+        return (
+            filter_peps_tensors,
+            filter_additional_tensors,
+            network_peps_tensors,
+            network_additional_tensors,
+        )
+
+    @classmethod
+    def _prepare_defs(cls):
+        for e in dir(cls):
+            if e.startswith("_"):
+                continue
+
+            e = getattr(cls, e)
+
+            (
+                filter_peps_tensors,
+                filter_additional_tensors,
+                network_peps_tensors,
+                network_additional_tensors,
+            ) = cls._create_filter_and_network(e)
+
+            ncon_network = [
+                j for i in network_peps_tensors for j in i
+            ] + network_additional_tensors
+            (
+                mapped_ncon_network,
+                mapping,
+            ) = tn.ncon_interface._canonicalize_network_structure(ncon_network)
+            flat_network = tuple(l for sublist in mapped_ncon_network for l in sublist)
+            unique_flat_network = list(set(flat_network))
+
+            out_order = tuple(
+                sorted([l for l in unique_flat_network if l < 0], reverse=True)
+            )
+            con_order = tuple(sorted([l for l in unique_flat_network if l > 0]))
+            sizes = tuple(len(l) for l in ncon_network)
+
+            e["filter_peps_tensors"] = filter_peps_tensors
+            e["filter_additional_tensors"] = filter_additional_tensors
+            e["network_peps_tensors"] = network_peps_tensors
+            e["network_additional_tensors"] = network_additional_tensors
+            e["ncon_network"] = ncon_network
+            e["ncon_flat_network"] = flat_network
+            e["ncon_sizes"] = sizes
+            e["ncon_con_order"] = con_order
+            e["ncon_out_order"] = out_order
+
+    density_matrix_one_site: Definition = {
         "tensors": [
             ["tensor", "tensor_conj", "C1", "T1", "C2", "T2", "C3", "T3", "C4", "T4"]
         ],
@@ -74,7 +174,7 @@ class Definitions:
         ],
     }
 
-    density_matrix_two_sites_left = {
+    density_matrix_two_sites_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "C1", "T1", "T3", "C4", "T4"]],
         "network": [
             [
@@ -89,7 +189,7 @@ class Definitions:
         ],
     }
 
-    density_matrix_two_sites_right = {
+    density_matrix_two_sites_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T1", "C2", "T2", "T3", "C3"]],
         "network": [
             [
@@ -104,7 +204,7 @@ class Definitions:
         ],
     }
 
-    density_matrix_two_sites_top = {
+    density_matrix_two_sites_top: Definition = {
         "tensors": [["tensor", "tensor_conj", "C1", "T1", "C2", "T2", "T4"]],
         "network": [
             [
@@ -119,7 +219,7 @@ class Definitions:
         ],
     }
 
-    density_matrix_two_sites_bottom = {
+    density_matrix_two_sites_bottom: Definition = {
         "tensors": [["tensor", "tensor_conj", "T2", "C3", "T3", "C4", "T4"]],
         "network": [
             [
@@ -134,7 +234,7 @@ class Definitions:
         ],
     }
 
-    density_matrix_four_sites_top_left = {
+    density_matrix_four_sites_top_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "T4", "C1", "T1"]],
         "network": [
             [
@@ -147,7 +247,7 @@ class Definitions:
         ],
     }
 
-    density_matrix_four_sites_top_right = {
+    density_matrix_four_sites_top_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T1", "C2", "T2"]],
         "network": [
             [
@@ -160,7 +260,7 @@ class Definitions:
         ],
     }
 
-    density_matrix_four_sites_bottom_left = {
+    density_matrix_four_sites_bottom_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "T3", "C4", "T4"]],
         "network": [
             [
@@ -173,7 +273,7 @@ class Definitions:
         ],
     }
 
-    density_matrix_four_sites_bottom_right = {
+    density_matrix_four_sites_bottom_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T2", "T3", "C3"]],
         "network": [
             [
@@ -186,7 +286,7 @@ class Definitions:
         ],
     }
 
-    density_matrix_three_sites_triangle_without_top_left = {
+    density_matrix_three_sites_triangle_without_top_left: Definition = {
         "tensors": ["top-left", "top-right", "bottom-left", "bottom-right"],
         "network": [
             (10, 11, 12, 1, 2, 3),  # top-left
@@ -196,7 +296,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_top_left = {
+    ctmrg_top_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "T4", "C1", "T1"]],
         "network": [
             [
@@ -222,7 +322,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_top_right = {
+    ctmrg_top_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T1", "C2", "T2"]],
         "network": [
             [
@@ -235,7 +335,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_top_right_large_d = {
+    ctmrg_top_right_large_d: Definition = {
         "tensors": [["tensor", "tensor_conj", "T1", "C2", "T2"]],
         "network": [
             [
@@ -248,7 +348,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_bottom_left = {
+    ctmrg_bottom_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "T3", "C4", "T4"]],
         "network": [
             [
@@ -261,7 +361,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_bottom_left_large_d = {
+    ctmrg_bottom_left_large_d: Definition = {
         "tensors": [["tensor", "tensor_conj", "T3", "C4", "T4"]],
         "network": [
             [
@@ -274,7 +374,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_bottom_right = {
+    ctmrg_bottom_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T2", "T3", "C3"]],
         "network": [
             [
@@ -287,7 +387,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_bottom_right_large_d = {
+    ctmrg_bottom_right_large_d: Definition = {
         "tensors": [["tensor", "tensor_conj", "T2", "T3", "C3"]],
         "network": [
             [
@@ -300,7 +400,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_absorption_left_C1 = {
+    ctmrg_absorption_left_C1: Definition = {
         "tensors": [["C1", "T1"], "projector_left_bottom"],
         "network": [
             [
@@ -311,7 +411,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_absorption_left_T4 = {
+    ctmrg_absorption_left_T4: Definition = {
         "tensors": [
             ["tensor", "tensor_conj", "T4"],
             "projector_left_top",
@@ -328,7 +428,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_absorption_left_C4 = {
+    ctmrg_absorption_left_C4: Definition = {
         "tensors": [["T3", "C4"], "projector_left_top"],
         "network": [
             [
@@ -339,7 +439,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_absorption_right_C2 = {
+    ctmrg_absorption_right_C2: Definition = {
         "tensors": [["T1", "C2"], "projector_right_bottom"],
         "network": [
             [
@@ -350,7 +450,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_absorption_right_T2 = {
+    ctmrg_absorption_right_T2: Definition = {
         "tensors": [
             ["tensor", "tensor_conj", "T2"],
             "projector_right_top",
@@ -367,7 +467,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_absorption_right_C3 = {
+    ctmrg_absorption_right_C3: Definition = {
         "tensors": [["C3", "T3"], "projector_right_top"],
         "network": [
             [
@@ -378,7 +478,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_absorption_top_C1 = {
+    ctmrg_absorption_top_C1: Definition = {
         "tensors": [["T4", "C1"], "projector_top_right"],
         "network": [
             [
@@ -389,7 +489,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_absorption_top_T1 = {
+    ctmrg_absorption_top_T1: Definition = {
         "tensors": [
             ["tensor", "tensor_conj", "T1"],
             "projector_top_left",
@@ -406,7 +506,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_absorption_top_C2 = {
+    ctmrg_absorption_top_C2: Definition = {
         "tensors": [["C2", "T2"], "projector_top_left"],
         "network": [
             [
@@ -417,7 +517,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_absorption_bottom_C4 = {
+    ctmrg_absorption_bottom_C4: Definition = {
         "tensors": [["C4", "T4"], "projector_bottom_right"],
         "network": [
             [
@@ -428,7 +528,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_absorption_bottom_T3 = {
+    ctmrg_absorption_bottom_T3: Definition = {
         "tensors": [
             ["tensor", "tensor_conj", "T3"],
             "projector_bottom_left",
@@ -445,7 +545,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_absorption_bottom_C3 = {
+    ctmrg_absorption_bottom_C3: Definition = {
         "tensors": [["T2", "C3"], "projector_bottom_left"],
         "network": [
             [
@@ -456,7 +556,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_gauge_fix_T1 = {
+    ctmrg_gauge_fix_T1: Definition = {
         "tensors": [["T1"], "left_unitary", "right_unitary"],
         "network": [
             [(1, -2, -3, 2)],  # T1
@@ -465,12 +565,12 @@ class Definitions:
         ],
     }
 
-    ctmrg_gauge_fix_C2 = {
+    ctmrg_gauge_fix_C2: Definition = {
         "tensors": [["C2"], "left_unitary", "bottom_unitary"],
         "network": [[(1, 2)], (-1, 1), (-2, 2)],  # C2  # left_unitary  # bottom_unitary
     }
 
-    ctmrg_gauge_fix_T2 = {
+    ctmrg_gauge_fix_T2: Definition = {
         "tensors": [["T2"], "top_unitary", "bottom_unitary"],
         "network": [
             [(-1, -2, 1, 2)],  # T2
@@ -479,7 +579,7 @@ class Definitions:
         ],
     }
 
-    ctmrg_gauge_fix_T3 = {
+    ctmrg_gauge_fix_T3: Definition = {
         "tensors": [["T3"], "left_unitary", "right_unitary"],
         "network": [
             [(1, 2, -3, -4)],  # T3
@@ -488,12 +588,12 @@ class Definitions:
         ],
     }
 
-    ctmrg_gauge_fix_C4 = {
+    ctmrg_gauge_fix_C4: Definition = {
         "tensors": [["C4"], "top_unitary", "right_unitary"],
         "network": [[(1, 2)], (2, -2), (1, -1)],  # C4  # top_unitary  # right_unitary
     }
 
-    ctmrg_gauge_fix_T4 = {
+    ctmrg_gauge_fix_T4: Definition = {
         "tensors": [["T4"], "top_unitary", "bottom_unitary"],
         "network": [
             [(1, -2, -3, 2)],  # T4
@@ -502,7 +602,7 @@ class Definitions:
         ],
     }
 
-    kagome_pess3_single_site_mapping = {
+    kagome_pess3_single_site_mapping: Definition = {
         "tensors": ["up_simplex", "down_simplex", "site1", "site2", "site3"],
         "network": [
             (1, 2, 3),  # up_simplex
@@ -513,7 +613,7 @@ class Definitions:
         ],
     }
 
-    kagome_downward_triangle_top_right = {
+    kagome_downward_triangle_top_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T1", "C2", "T2"]],
         "network": [
             [
@@ -526,7 +626,7 @@ class Definitions:
         ],
     }
 
-    kagome_downward_triangle_bottom_left = {
+    kagome_downward_triangle_bottom_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "T3", "C4", "T4"]],
         "network": [
             [
@@ -539,7 +639,7 @@ class Definitions:
         ],
     }
 
-    kagome_downward_triangle_bottom_right = {
+    kagome_downward_triangle_bottom_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T2", "T3", "C3"]],
         "network": [
             [
@@ -552,7 +652,7 @@ class Definitions:
         ],
     }
 
-    honeycomb_density_matrix_left = {
+    honeycomb_density_matrix_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "C1", "T1", "T3", "C4", "T4"]],
         "network": [
             [
@@ -567,7 +667,7 @@ class Definitions:
         ],
     }
 
-    honeycomb_density_matrix_right = {
+    honeycomb_density_matrix_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T1", "C2", "T2", "T3", "C3"]],
         "network": [
             [
@@ -582,7 +682,7 @@ class Definitions:
         ],
     }
 
-    honeycomb_density_matrix_top = {
+    honeycomb_density_matrix_top: Definition = {
         "tensors": [["tensor", "tensor_conj", "C1", "T1", "C2", "T2", "T4"]],
         "network": [
             [
@@ -597,7 +697,7 @@ class Definitions:
         ],
     }
 
-    honeycomb_density_matrix_bottom = {
+    honeycomb_density_matrix_bottom: Definition = {
         "tensors": [["tensor", "tensor_conj", "T2", "C3", "T3", "C4", "T4"]],
         "network": [
             [
@@ -612,7 +712,7 @@ class Definitions:
         ],
     }
 
-    square_kagome_pess_mapping = {
+    square_kagome_pess_mapping: Definition = {
         "tensors": [
             "t1",
             "t2",
@@ -638,3 +738,6 @@ class Definitions:
             (9, 7, 3),  # simplex_bottom
         ],
     }
+
+
+Definitions._prepare_defs()
