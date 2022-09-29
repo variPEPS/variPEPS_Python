@@ -114,6 +114,41 @@ class Definitions:
         )
 
     @classmethod
+    def _process_def(cls, e):
+        (
+            filter_peps_tensors,
+            filter_additional_tensors,
+            network_peps_tensors,
+            network_additional_tensors,
+        ) = cls._create_filter_and_network(e)
+
+        ncon_network = [
+            j for i in network_peps_tensors for j in i
+        ] + network_additional_tensors
+        (
+            mapped_ncon_network,
+            mapping,
+        ) = tn.ncon_interface._canonicalize_network_structure(ncon_network)
+        flat_network = tuple(l for sublist in mapped_ncon_network for l in sublist)
+        unique_flat_network = list(set(flat_network))
+
+        out_order = tuple(
+            sorted([l for l in unique_flat_network if l < 0], reverse=True)
+        )
+        con_order = tuple(sorted([l for l in unique_flat_network if l > 0]))
+        sizes = tuple(len(l) for l in ncon_network)
+
+        e["filter_peps_tensors"] = filter_peps_tensors
+        e["filter_additional_tensors"] = filter_additional_tensors
+        e["network_peps_tensors"] = network_peps_tensors
+        e["network_additional_tensors"] = network_additional_tensors
+        e["ncon_network"] = ncon_network
+        e["ncon_flat_network"] = flat_network
+        e["ncon_sizes"] = sizes
+        e["ncon_con_order"] = con_order
+        e["ncon_out_order"] = out_order
+
+    @classmethod
     def _prepare_defs(cls):
         for e in dir(cls):
             if e.startswith("_"):
@@ -121,38 +156,7 @@ class Definitions:
 
             e = getattr(cls, e)
 
-            (
-                filter_peps_tensors,
-                filter_additional_tensors,
-                network_peps_tensors,
-                network_additional_tensors,
-            ) = cls._create_filter_and_network(e)
-
-            ncon_network = [
-                j for i in network_peps_tensors for j in i
-            ] + network_additional_tensors
-            (
-                mapped_ncon_network,
-                mapping,
-            ) = tn.ncon_interface._canonicalize_network_structure(ncon_network)
-            flat_network = tuple(l for sublist in mapped_ncon_network for l in sublist)
-            unique_flat_network = list(set(flat_network))
-
-            out_order = tuple(
-                sorted([l for l in unique_flat_network if l < 0], reverse=True)
-            )
-            con_order = tuple(sorted([l for l in unique_flat_network if l > 0]))
-            sizes = tuple(len(l) for l in ncon_network)
-
-            e["filter_peps_tensors"] = filter_peps_tensors
-            e["filter_additional_tensors"] = filter_additional_tensors
-            e["network_peps_tensors"] = network_peps_tensors
-            e["network_additional_tensors"] = network_additional_tensors
-            e["ncon_network"] = ncon_network
-            e["ncon_flat_network"] = flat_network
-            e["ncon_sizes"] = sizes
-            e["ncon_con_order"] = con_order
-            e["ncon_out_order"] = out_order
+            cls._process_def(e)
 
     density_matrix_one_site: Definition = {
         "tensors": [

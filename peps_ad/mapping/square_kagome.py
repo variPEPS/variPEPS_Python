@@ -6,7 +6,7 @@ from jax import jit
 import jax.util
 
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
-from peps_ad.contractions import apply_contraction
+from peps_ad.contractions import apply_contraction, Definitions
 from peps_ad.expectation.model import Expectation_Model
 from peps_ad.expectation.one_site import calc_one_site_multi_gates
 from peps_ad.expectation.two_sites import _two_site_workhorse
@@ -98,6 +98,7 @@ def square_kagome_density_matrix_horizontal(
                 ]
             ],
         }
+        Definitions._process_def(contraction_left)
 
         density_left = apply_contraction(
             f"square_kagome_horizontal_left_open_{left_i[0]}",
@@ -133,6 +134,7 @@ def square_kagome_density_matrix_horizontal(
                 ]
             ],
         }
+        Definitions._process_def(contraction_left)
 
         density_left = apply_contraction(
             f"square_kagome_horizontal_left_open_{left_i}",
@@ -174,6 +176,7 @@ def square_kagome_density_matrix_horizontal(
                 ]
             ],
         }
+        Definitions._process_def(contraction_right)
 
         density_right = apply_contraction(
             f"square_kagome_horizontal_right_open_{right_i[0]}",
@@ -205,6 +208,7 @@ def square_kagome_density_matrix_horizontal(
                 ]
             ],
         }
+        Definitions._process_def(contraction_right)
 
         density_right = apply_contraction(
             f"square_kagome_horizontal_right_open_{right_i}",
@@ -304,6 +308,7 @@ def square_kagome_density_matrix_vertical(
                 ]
             ],
         }
+        Definitions._process_def(contraction_top)
 
         density_top = apply_contraction(
             f"square_kagome_horizontal_top_open_{top_i[0]}",
@@ -339,6 +344,7 @@ def square_kagome_density_matrix_vertical(
                 ]
             ],
         }
+        Definitions._process_def(contraction_top)
 
         density_top = apply_contraction(
             f"square_kagome_horizontal_top_open_{top_i}",
@@ -380,6 +386,7 @@ def square_kagome_density_matrix_vertical(
                 ]
             ],
         }
+        Definitions._process_def(contraction_bottom)
 
         density_bottom = apply_contraction(
             f"square_kagome_horizontal_bottom_open_{bottom_i[0]}",
@@ -411,6 +418,7 @@ def square_kagome_density_matrix_vertical(
                 ]
             ],
         }
+        Definitions._process_def(contraction_bottom)
 
         density_bottom = apply_contraction(
             f"square_kagome_horizontal_bottom_open_{bottom_i}",
