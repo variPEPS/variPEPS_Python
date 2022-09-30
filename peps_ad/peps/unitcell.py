@@ -9,6 +9,7 @@ import pathlib
 from os import PathLike
 
 import h5py
+import numpy as np
 
 import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
@@ -65,6 +66,8 @@ class PEPS_Unit_Cell:
     real_ix: int = 0
     real_iy: int = 0
 
+    sanity_checks: bool = True
+
     @dataclass
     @register_pytree_node_class
     class Unit_Cell_Data:
@@ -82,7 +85,7 @@ class PEPS_Unit_Cell:
 
         peps_tensors: List[PEPS_Tensor]
 
-        structure: jnp.ndarray
+        structure: Tuple[Tuple[int, ...], ...]
 
         def copy(self) -> PEPS_Unit_Cell.Unit_Cell_Data:
             """
@@ -94,7 +97,7 @@ class PEPS_Unit_Cell:
             """
             return type(self)(
                 peps_tensors=[i for i in self.peps_tensors],
-                structure=jnp.array(self.structure, copy=True),
+                structure=self.structure,
             )
 
         def replace_peps_tensors(
@@ -120,7 +123,7 @@ class PEPS_Unit_Cell:
               grp (:obj:`h5py.Group`):
                 HDF5 group object to save the data into.
             """
-            grp.create_dataset("structure", data=self.structure)
+            grp.create_dataset("structure", data=jnp.asarray(self.structure))
 
             grp_tensors = grp.create_group("peps_tensors", track_order=True)
             grp_tensors.attrs["len"] = len(self.peps_tensors)
@@ -140,7 +143,7 @@ class PEPS_Unit_Cell:
               grp (:obj:`h5py.Group`):
                 HDF5 group object to load the data from.
             """
-            structure = jnp.asarray(grp["structure"])
+            structure = tuple(tuple(int(j) for j in i) for i in grp["structure"])
             peps_tensors = [
                 PEPS_Tensor.load_from_group(grp["peps_tensors"][f"t_{ti:d}"])
                 for ti in range(grp["peps_tensors"].attrs["len"])
@@ -149,8 +152,7 @@ class PEPS_Unit_Cell:
             return cls(structure=structure, peps_tensors=peps_tensors)
 
         def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
-            structure_tuple = tuple(tuple(i) for i in self.structure)
-            return ((self.peps_tensors,), (structure_tuple,))
+            return ((self.peps_tensors,), (self.structure,))
 
         @classmethod
         def tree_unflatten(
@@ -159,18 +161,17 @@ class PEPS_Unit_Cell:
             children: Tuple[Any, ...],
         ) -> PEPS_Unit_Cell.Unit_Cell_Data:
             (peps_tensors,) = children
-            (structure_tuple,) = aux_data
-            structure = jnp.asarray(structure_tuple)
+            (structure,) = aux_data
             return cls(structure=structure, peps_tensors=peps_tensors)
 
     def __post_init__(self):
-        if self.data.structure is None:
+        if not self.sanity_checks or self.data.structure is None:
             return
 
         self._check_structure(self.data.structure)
 
-        unit_cell_len_x = self.data.structure.shape[0]
-        unit_cell_len_y = self.data.structure.shape[1]
+        unit_cell_len_x = len(self.data.structure)
+        unit_cell_len_y = len(self.data.structure[0])
 
         if (
             not is_int(self.real_ix)
@@ -192,12 +193,16 @@ class PEPS_Unit_Cell:
             raise ValueError("CTMRG bond dimension has to be the same for all tensors.")
 
     @staticmethod
-    def _check_structure(structure: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        if structure.ndim != 2 or not jnp.issubdtype(structure.dtype, jnp.integer):
+    def _check_structure(
+        structure: Tuple[Tuple[int, ...], ...]
+    ) -> Tuple[Tuple[Tuple[int, ...], ...], jnp.ndarray]:
+        structure = np.array(structure)
+
+        if structure.ndim != 2 or not np.issubdtype(structure.dtype, np.integer):
             raise ValueError("Structure is not a 2-d int array.")
 
-        tensors_i = jnp.unique(structure)
-        min_i = jnp.min(tensors_i)
+        tensors_i = np.unique(structure)
+        min_i = np.min(tensors_i)
 
         if min_i < 0 or min_i > 2:
             raise ValueError(
@@ -208,12 +213,12 @@ class PEPS_Unit_Cell:
             tensors_i = tensors_i - 1
             structure = structure - 1  # type: ignore
 
-        max_i = jnp.max(tensors_i)
+        max_i = np.max(tensors_i)
 
         if max_i != (tensors_i.size - 1):
             raise ValueError("Indices in structure seem to be non-monotonous.")
 
-        return structure, tensors_i
+        return tuple(tuple(int(j) for j in i) for i in structure), tensors_i
 
     @classmethod
     def from_tensor_list(
@@ -221,16 +226,12 @@ class PEPS_Unit_Cell:
         tensor_list: Sequence[PEPS_Tensor],
         structure: Union[Sequence[Sequence[int]], Tensor],
     ) -> T_PEPS_Unit_Cell:
-        structure_arr = jnp.asarray(structure)
-
-        structure_arr, tensors_i = cls._check_structure(structure_arr)
+        structure, tensors_i = cls._check_structure(structure)
 
         if tensors_i.size != len(tensor_list):
             raise ValueError("Structure and tensor list mismatch.")
 
-        data = cls.Unit_Cell_Data(
-            peps_tensors=list(tensor_list), structure=structure_arr
-        )
+        data = cls.Unit_Cell_Data(peps_tensors=list(tensor_list), structure=structure)
 
         return cls(data=data)
 
@@ -275,9 +276,7 @@ class PEPS_Unit_Cell:
           PEPS_Unit_Cell:
             New instance of PEPS unit cell with the initialized tensors.
         """
-        structure_arr = jnp.asarray(structure)
-
-        structure_arr, tensors_i = cls._check_structure(structure_arr)
+        structure, tensors_i = cls._check_structure(structure)
 
         # Check the inputs
         if isinstance(d, int):
@@ -321,7 +320,7 @@ class PEPS_Unit_Cell:
                 PEPS_Tensor.random(d=d[i], D=D[i], chi=chi[i], dtype=dtype, seed=seed)
             )
 
-        data = cls.Unit_Cell_Data(peps_tensors=peps_tensors, structure=structure_arr)
+        data = cls.Unit_Cell_Data(peps_tensors=peps_tensors, structure=structure)
 
         return cls(data=data)
 
@@ -333,7 +332,7 @@ class PEPS_Unit_Cell:
           :obj:`tuple`\ (:obj:`int`, :obj:`int`):
             Size of the unit cell as tuple (x_size, y_size).
         """
-        return (self.data.structure.shape[0], self.data.structure.shape[1])
+        return (len(self.data.structure), len(self.data.structure[0]))
 
     def get_len_unique_tensors(self) -> int:
         """
@@ -397,13 +396,13 @@ class PEPS_Unit_Cell:
 
         x, y = key
 
-        unit_cell_len_x = self.data.structure.shape[0]
-        unit_cell_len_y = self.data.structure.shape[1]
+        unit_cell_len_x = len(self.data.structure)
+        unit_cell_len_y = len(self.data.structure[0])
 
         x = (self.real_ix + x) % unit_cell_len_x
         y = (self.real_iy + y) % unit_cell_len_y
 
-        self.data.peps_tensors[self.data.structure[x, y]] = value
+        self.data.peps_tensors[self.data.structure[x][y]] = value
 
     def get_unique_tensors(self) -> List[PEPS_Tensor]:
         """
@@ -430,7 +429,12 @@ class PEPS_Unit_Cell:
 
         new_data = self.data.replace_peps_tensors(new_unique_tensors)
 
-        return type(self)(data=new_data, real_ix=self.real_ix, real_iy=self.real_iy)
+        return type(self)(
+            data=new_data,
+            real_ix=self.real_ix,
+            real_iy=self.real_iy,
+            sanity_checks=False,
+        )
 
     def move(self: T_PEPS_Unit_Cell, new_xi: int, new_yi: int) -> T_PEPS_Unit_Cell:
         """
@@ -451,13 +455,14 @@ class PEPS_Unit_Cell:
         if not isinstance(new_xi, int) or not isinstance(new_yi, int):
             raise ValueError("New indices have to be integers.")
 
-        unit_cell_len_x = self.data.structure.shape[0]
-        unit_cell_len_y = self.data.structure.shape[1]
+        unit_cell_len_x = len(self.data.structure)
+        unit_cell_len_y = len(self.data.structure[0])
 
         return type(self)(
             data=self.data,
             real_ix=(self.real_ix + new_xi) % unit_cell_len_x,
             real_iy=(self.real_iy + new_yi) % unit_cell_len_y,
+            sanity_checks=False,
         )
 
     def _iter_one_column_impl(
@@ -467,7 +472,7 @@ class PEPS_Unit_Cell:
         only_unique: bool = False,
         unique_memory: Optional[Set[int]] = None,
     ):
-        unit_cell_len_x = self.data.structure.shape[0]
+        unit_cell_len_x = len(self.data.structure)
 
         if unique_memory is None:
             unique_memory = set()
@@ -524,7 +529,7 @@ class PEPS_Unit_Cell:
             Iterator for all columns over the iterator for single column with
             the current PEPS tensor at moved position (0, 0).
         """
-        unit_cell_len_y = self.data.structure.shape[1]
+        unit_cell_len_y = len(self.data.structure[0])
 
         if reverse:
             yiter = range(unit_cell_len_y - 1, -1, -1)
@@ -545,7 +550,7 @@ class PEPS_Unit_Cell:
         only_unique: bool = False,
         unique_memory: Optional[Set[int]] = None,
     ):
-        unit_cell_len_y = self.data.structure.shape[1]
+        unit_cell_len_y = len(self.data.structure[0])
 
         if unique_memory is None:
             unique_memory = set()
@@ -602,7 +607,7 @@ class PEPS_Unit_Cell:
             Iterator for all rows over the iterator for single row with
             the current PEPS tensor at moved position (0, 0).
         """
-        unit_cell_len_x = self.data.structure.shape[0]
+        unit_cell_len_x = len(self.data.structure)
 
         if reverse:
             xiter = range(unit_cell_len_x - 1, -1, -1)
@@ -625,7 +630,10 @@ class PEPS_Unit_Cell:
             Copied instance of the unit cell.
         """
         return type(self)(
-            data=self.data.copy(), real_ix=self.real_ix, real_iy=self.real_iy
+            data=self.data.copy(),
+            real_ix=self.real_ix,
+            real_iy=self.real_iy,
+            sanity_checks=False,
         )
 
     def save_to_file(self, path: PathLike) -> None:
@@ -707,4 +715,9 @@ class PEPS_Unit_Cell:
         real_ix, real_iy = aux_data
         (data,) = children
 
-        return cls(data=data, real_ix=real_ix, real_iy=real_iy)
+        return cls(
+            data=data,
+            real_ix=real_ix,
+            real_iy=real_iy,
+            sanity_checks=False,
+        )

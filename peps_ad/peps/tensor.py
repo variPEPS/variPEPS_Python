@@ -775,18 +775,24 @@ class PEPS_Tensor:
             chi=self.chi,
         )
 
-    def __add__(self: T_PEPS_Tensor, other: T_PEPS_Tensor) -> T_PEPS_Tensor:
+    def __add__(
+        self: T_PEPS_Tensor, other: T_PEPS_Tensor, *, checks: bool = True
+    ) -> T_PEPS_Tensor:
         """
         Add the environment tensors of two PEPS tensors.
 
         Args:
           other (:obj:`~peps_ad.peps.PEPS_Tensor`):
             Other PEPS tensor object which should be added to this one.
+        Keyword args:
+          checks (:obj:`bool`):
+            Enable checks that the addition of the two tensor objects makes
+            sense. Maybe disabled for jax transformations.
         Returns:
           :obj:`~peps_ad.peps.PEPS_Tensor`:
             New instance with the added env tensors.
         """
-        if (
+        if checks and (
             self.tensor is not other.tensor
             or self.d != other.d
             or self.D != other.D

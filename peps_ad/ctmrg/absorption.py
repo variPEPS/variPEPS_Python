@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from jax import jit
 
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
-from peps_ad.contractions import apply_contraction
+from peps_ad.contractions import apply_contraction, apply_contraction_jitted
 from peps_ad.utils.svd import gauge_fixed_svd
 from peps_ad.utils.periodic_indices import calculate_periodic_indices
 from .projectors import (
@@ -17,6 +17,8 @@ from .projectors import (
     T_Projector,
 )
 from peps_ad.expectation.one_site import calc_one_site_single_gate_obj
+from peps_ad.config import PEPS_AD_Config
+from peps_ad.global_state import PEPS_AD_Global_State
 
 
 from typing import Sequence, Tuple, List, Dict, Literal
@@ -92,7 +94,6 @@ def _get_ctmrg_2x2_structure(
     return view_tensors, view_tensor_objs
 
 
-@jit
 def _post_process_CTM_tensors(a: jnp.ndarray) -> jnp.ndarray:
     a = a / jnp.linalg.norm(a)
     a_abs = jnp.abs(a)
@@ -102,7 +103,10 @@ def _post_process_CTM_tensors(a: jnp.ndarray) -> jnp.ndarray:
 
 
 def do_left_absorption(
-    peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
+    peps_tensors: Sequence[jnp.ndarray],
+    unitcell: PEPS_Unit_Cell,
+    config: PEPS_AD_Config,
+    state: PEPS_AD_Global_State,
 ) -> PEPS_Unit_Cell:
     """
     Calculate the left CTMRG tensors after one absorption step and returns
@@ -128,7 +132,7 @@ def do_left_absorption(
 
         for x, view in column_views:
             left_projectors[(x, y)] = calc_left_projectors(
-                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left")
+                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"), config, state
             )
 
         new_C1 = []
@@ -140,7 +144,7 @@ def do_left_absorption(
             working_tensor_obj = view[0, 0][0][0]
 
             C1_projector = left_projectors.get_projector(x, y, -1, 0).bottom
-            new_C1_tmp = apply_contraction(
+            new_C1_tmp = apply_contraction_jitted(
                 "ctmrg_absorption_left_C1",
                 [working_tensor],
                 [working_tensor_obj],
@@ -150,7 +154,7 @@ def do_left_absorption(
 
             T4_projector_top = left_projectors.get_projector(x, y, -1, 0).top
             T4_projector_bottom = left_projectors.get_projector(x, y, 0, 0).bottom
-            new_T4_tmp = apply_contraction(
+            new_T4_tmp = apply_contraction_jitted(
                 "ctmrg_absorption_left_T4",
                 [working_tensor],
                 [working_tensor_obj],
@@ -159,7 +163,7 @@ def do_left_absorption(
             new_T4.append(_post_process_CTM_tensors(new_T4_tmp))
 
             C4_projector = left_projectors.get_projector(x, y, 0, 0).top
-            new_C4_tmp = apply_contraction(
+            new_C4_tmp = apply_contraction_jitted(
                 "ctmrg_absorption_left_C4",
                 [working_tensor],
                 [working_tensor_obj],
@@ -176,7 +180,10 @@ def do_left_absorption(
 
 
 def do_right_absorption(
-    peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
+    peps_tensors: Sequence[jnp.ndarray],
+    unitcell: PEPS_Unit_Cell,
+    config: PEPS_AD_Config,
+    state: PEPS_AD_Global_State,
 ) -> PEPS_Unit_Cell:
     """
     Calculate the right CTMRG tensors after one absorption step and returns
@@ -204,7 +211,9 @@ def do_right_absorption(
 
         for x, view in column_views:
             right_projectors[(x, y)] = calc_right_projectors(
-                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-right")
+                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-right"),
+                config,
+                state
             )
 
         new_C2 = []
@@ -216,7 +225,7 @@ def do_right_absorption(
             working_tensor_obj = view[0, 0][0][0]
 
             C2_projector = right_projectors.get_projector(x, y, -1, 0).bottom
-            new_C2_tmp = apply_contraction(
+            new_C2_tmp = apply_contraction_jitted(
                 "ctmrg_absorption_right_C2",
                 [working_tensor],
                 [working_tensor_obj],
@@ -226,7 +235,7 @@ def do_right_absorption(
 
             T2_projector_top = right_projectors.get_projector(x, y, -1, 0).top
             T2_projector_bottom = right_projectors.get_projector(x, y, 0, 0).bottom
-            new_T2_tmp = apply_contraction(
+            new_T2_tmp = apply_contraction_jitted(
                 "ctmrg_absorption_right_T2",
                 [working_tensor],
                 [working_tensor_obj],
@@ -235,7 +244,7 @@ def do_right_absorption(
             new_T2.append(_post_process_CTM_tensors(new_T2_tmp))
 
             C3_projector = right_projectors.get_projector(x, y, 0, 0).top
-            new_C3_tmp = apply_contraction(
+            new_C3_tmp = apply_contraction_jitted(
                 "ctmrg_absorption_right_C3",
                 [working_tensor],
                 [working_tensor_obj],
@@ -252,7 +261,10 @@ def do_right_absorption(
 
 
 def do_top_absorption(
-    peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
+    peps_tensors: Sequence[jnp.ndarray],
+    unitcell: PEPS_Unit_Cell,
+    config: PEPS_AD_Config,
+    state: PEPS_AD_Global_State,
 ) -> PEPS_Unit_Cell:
     """
     Calculate the top CTMRG tensors after one absorption step and returns
@@ -278,7 +290,7 @@ def do_top_absorption(
 
         for y, view in row_views:
             top_projectors[(x, y)] = calc_top_projectors(
-                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left")
+                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"), config, state
             )
 
         new_C1 = []
@@ -290,7 +302,7 @@ def do_top_absorption(
             working_tensor_obj = view[0, 0][0][0]
 
             C1_projector = top_projectors.get_projector(x, y, 0, -1).right  # type: ignore
-            new_C1_tmp = apply_contraction(
+            new_C1_tmp = apply_contraction_jitted(
                 "ctmrg_absorption_top_C1",
                 [working_tensor],
                 [working_tensor_obj],
@@ -300,7 +312,7 @@ def do_top_absorption(
 
             T1_projector_left = top_projectors.get_projector(x, y, 0, -1).left  # type: ignore
             T1_projector_right = top_projectors.get_projector(x, y, 0, 0).right  # type: ignore
-            new_T1_tmp = apply_contraction(
+            new_T1_tmp = apply_contraction_jitted(
                 "ctmrg_absorption_top_T1",
                 [working_tensor],
                 [working_tensor_obj],
@@ -309,7 +321,7 @@ def do_top_absorption(
             new_T1.append(_post_process_CTM_tensors(new_T1_tmp))
 
             C2_projector = top_projectors.get_projector(x, y, 0, 0).left  # type: ignore
-            new_C2_tmp = apply_contraction(
+            new_C2_tmp = apply_contraction_jitted(
                 "ctmrg_absorption_top_C2",
                 [working_tensor],
                 [working_tensor_obj],
@@ -326,7 +338,10 @@ def do_top_absorption(
 
 
 def do_bottom_absorption(
-    peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
+    peps_tensors: Sequence[jnp.ndarray],
+    unitcell: PEPS_Unit_Cell,
+    config: PEPS_AD_Config,
+    state: PEPS_AD_Global_State,
 ) -> PEPS_Unit_Cell:
     """
     Calculate the bottom CTMRG tensors after one absorption step and returns
@@ -352,7 +367,9 @@ def do_bottom_absorption(
 
         for y, view in row_views:
             bottom_projectors[(x, y)] = calc_bottom_projectors(
-                *_get_ctmrg_2x2_structure(peps_tensors, view, "bottom-left")
+                *_get_ctmrg_2x2_structure(peps_tensors, view, "bottom-left"),
+                config,
+                state
             )
 
         new_C4 = []
@@ -364,7 +381,7 @@ def do_bottom_absorption(
             working_tensor_obj = view[0, 0][0][0]
 
             C4_projector = bottom_projectors.get_projector(x, y, 0, -1).right  # type: ignore
-            new_C4_tmp = apply_contraction(
+            new_C4_tmp = apply_contraction_jitted(
                 "ctmrg_absorption_bottom_C4",
                 [working_tensor],
                 [working_tensor_obj],
@@ -374,7 +391,7 @@ def do_bottom_absorption(
 
             T3_projector_left = bottom_projectors.get_projector(x, y, 0, -1).left  # type: ignore
             T3_projector_right = bottom_projectors.get_projector(x, y, 0, 0).right  # type: ignore
-            new_T3_tmp = apply_contraction(
+            new_T3_tmp = apply_contraction_jitted(
                 "ctmrg_absorption_bottom_T3",
                 [working_tensor],
                 [working_tensor_obj],
@@ -383,7 +400,7 @@ def do_bottom_absorption(
             new_T3.append(_post_process_CTM_tensors(new_T3_tmp))
 
             C3_projector = bottom_projectors.get_projector(x, y, 0, 0).left  # type: ignore
-            new_C3_tmp = apply_contraction(
+            new_C3_tmp = apply_contraction_jitted(
                 "ctmrg_absorption_bottom_C3",
                 [working_tensor],
                 [working_tensor_obj],
@@ -439,7 +456,7 @@ def gauge_fix_ctmrg_tensors(
 
             T1_left_unitary = top_unitaries[i_0_0]
             T1_right_unitary = top_unitaries[i_0_1].conj()
-            new_T1 = apply_contraction(
+            new_T1 = apply_contraction_jitted(
                 "ctmrg_gauge_fix_T1",
                 [working_tensor],
                 [working_tensor_obj],
@@ -448,7 +465,7 @@ def gauge_fix_ctmrg_tensors(
 
             C2_left_unitary = top_unitaries[i_0_1]
             C2_bottom_unitary = right_unitaries[i_neg1_0]
-            new_C2 = apply_contraction(
+            new_C2 = apply_contraction_jitted(
                 "ctmrg_gauge_fix_C2",
                 [working_tensor],
                 [working_tensor_obj],
@@ -457,7 +474,7 @@ def gauge_fix_ctmrg_tensors(
 
             T2_top_unitary = right_unitaries[i_neg1_0].conj()
             T2_bottom_unitary = right_unitaries[i_0_0]
-            new_T2 = apply_contraction(
+            new_T2 = apply_contraction_jitted(
                 "ctmrg_gauge_fix_T2",
                 [working_tensor],
                 [working_tensor_obj],
@@ -466,7 +483,7 @@ def gauge_fix_ctmrg_tensors(
 
             T3_left_unitary = bottom_unitaries[i_0_neg1].conj()
             T3_right_unitary = bottom_unitaries[i_0_0]
-            new_T3 = apply_contraction(
+            new_T3 = apply_contraction_jitted(
                 "ctmrg_gauge_fix_T3",
                 [working_tensor],
                 [working_tensor_obj],
@@ -475,7 +492,7 @@ def gauge_fix_ctmrg_tensors(
 
             C4_top_unitary = left_unitaries[i_1_0]
             C4_right_unitary = bottom_unitaries[i_0_neg1]
-            new_C4 = apply_contraction(
+            new_C4 = apply_contraction_jitted(
                 "ctmrg_gauge_fix_C4",
                 [working_tensor],
                 [working_tensor_obj],
@@ -484,7 +501,7 @@ def gauge_fix_ctmrg_tensors(
 
             T4_top_unitary = left_unitaries[i_0_0]
             T4_bottom_unitary = left_unitaries[i_1_0].conj()
-            new_T4 = apply_contraction(
+            new_T4 = apply_contraction_jitted(
                 "ctmrg_gauge_fix_T4",
                 [working_tensor],
                 [working_tensor_obj],
@@ -499,7 +516,10 @@ def gauge_fix_ctmrg_tensors(
 
 
 def do_absorption_step(
-    peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
+    peps_tensors: Sequence[jnp.ndarray],
+    unitcell: PEPS_Unit_Cell,
+    config: PEPS_AD_Config,
+    state: PEPS_AD_Global_State,
 ) -> PEPS_Unit_Cell:
     """
     Calculate the all CTMRG tensors after one absorption step and returns
@@ -515,9 +535,9 @@ def do_absorption_step(
         New instance of the unitcell with the all updated CTMRG tensors of
         all elements of the unitcell.
     """
-    result = do_left_absorption(peps_tensors, unitcell)
-    result = do_top_absorption(peps_tensors, result)
-    result = do_right_absorption(peps_tensors, result)
-    result = do_bottom_absorption(peps_tensors, result)
+    result = do_left_absorption(peps_tensors, unitcell, config, state)
+    result = do_top_absorption(peps_tensors, result, config, state)
+    result = do_right_absorption(peps_tensors, result, config, state)
+    result = do_bottom_absorption(peps_tensors, result, config, state)
     # result = gauge_fix_ctmrg_tensors(peps_tensors, result)
     return result

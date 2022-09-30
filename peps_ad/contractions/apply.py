@@ -80,7 +80,7 @@ def apply_contraction(
         and not all(isinstance(t, jax.core.Tracer) for t in peps_tensors)
         and not all(isinstance(to.tensor, jax.core.Tracer) for to in peps_tensor_objs)
         and not all(
-            peps_tensors[i] is peps_tensor_objs[i].tensor
+            jnp.allclose(peps_tensors[i], peps_tensor_objs[i].tensor)
             for i in range(len(peps_tensors))
         )
     ):

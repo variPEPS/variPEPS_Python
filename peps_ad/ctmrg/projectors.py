@@ -7,10 +7,11 @@ from jax import jit
 
 from peps_ad.peps import PEPS_Tensor
 from peps_ad.contractions import apply_contraction
-from peps_ad import peps_ad_config, peps_ad_global_state
+from peps_ad import peps_ad_config
 from peps_ad.utils.func_cache import Checkpointing_Cache
 from peps_ad.utils.svd import gauge_fixed_svd
-from peps_ad.config import Projector_Method
+from peps_ad.config import Projector_Method, PEPS_AD_Config
+from peps_ad.global_state import PEPS_AD_Global_State
 
 from typing import Sequence, Tuple, TypeVar
 
@@ -251,7 +252,7 @@ def _fishman_vertical_cut(
     return left_U, left_S, left_Vh, right_U, right_S, right_Vh
 
 
-@partial(jit, static_argnums=(4, 5, 6))
+@partial(jit, static_argnums=(4, 5, 6), inline=True)
 def _left_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -313,6 +314,8 @@ def _left_projectors_workhorse(
 def calc_left_projectors(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
+    config: PEPS_AD_Config,
+    state: PEPS_AD_Global_State,
 ) -> Left_Projectors:
     """
     Calculate the left projectors for the CTMRG method.
@@ -343,16 +346,16 @@ def calc_left_projectors(
         top_right,
         bottom_left,
         bottom_right,
-        peps_ad_config.ctmrg_truncation_eps
-        if peps_ad_global_state.ctmrg_effective_truncation_eps is None
-        else peps_ad_global_state.ctmrg_effective_truncation_eps,
-        peps_ad_config.ctmrg_full_projector_method
-        if peps_ad_global_state.ctmrg_projector_method is None
-        else peps_ad_global_state.ctmrg_projector_method,
+        config.ctmrg_truncation_eps
+        if state.ctmrg_effective_truncation_eps is None
+        else state.ctmrg_effective_truncation_eps,
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method,
     )
 
 
-@partial(jit, static_argnums=(4, 5, 6))
+@partial(jit, static_argnums=(4, 5, 6), inline=True)
 def _right_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -414,6 +417,8 @@ def _right_projectors_workhorse(
 def calc_right_projectors(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
+    config: PEPS_AD_Config,
+    state: PEPS_AD_Global_State,
 ) -> Right_Projectors:
     """
     Calculate the right projectors for the CTMRG method.
@@ -444,16 +449,16 @@ def calc_right_projectors(
         top_right,
         bottom_left,
         bottom_right,
-        peps_ad_config.ctmrg_truncation_eps
-        if peps_ad_global_state.ctmrg_effective_truncation_eps is None
-        else peps_ad_global_state.ctmrg_effective_truncation_eps,
-        peps_ad_config.ctmrg_full_projector_method
-        if peps_ad_global_state.ctmrg_projector_method is None
-        else peps_ad_global_state.ctmrg_projector_method,
+        config.ctmrg_truncation_eps
+        if state.ctmrg_effective_truncation_eps is None
+        else state.ctmrg_effective_truncation_eps,
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method,
     )
 
 
-@partial(jit, static_argnums=(4, 5, 6))
+@partial(jit, static_argnums=(4, 5, 6), inline=True)
 def _top_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -515,6 +520,8 @@ def _top_projectors_workhorse(
 def calc_top_projectors(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
+    config: PEPS_AD_Config,
+    state: PEPS_AD_Global_State,
 ) -> Top_Projectors:
     """
     Calculate the top projectors for the CTMRG method.
@@ -543,16 +550,16 @@ def calc_top_projectors(
         top_right,
         bottom_left,
         bottom_right,
-        peps_ad_config.ctmrg_truncation_eps
-        if peps_ad_global_state.ctmrg_effective_truncation_eps is None
-        else peps_ad_global_state.ctmrg_effective_truncation_eps,
-        peps_ad_config.ctmrg_full_projector_method
-        if peps_ad_global_state.ctmrg_projector_method is None
-        else peps_ad_global_state.ctmrg_projector_method,
+        config.ctmrg_truncation_eps
+        if state.ctmrg_effective_truncation_eps is None
+        else state.ctmrg_effective_truncation_eps,
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method,
     )
 
 
-@partial(jit, static_argnums=(4, 5, 6))
+@partial(jit, static_argnums=(4, 5, 6), inline=True)
 def _bottom_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -614,6 +621,8 @@ def _bottom_projectors_workhorse(
 def calc_bottom_projectors(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
+    config: PEPS_AD_Config,
+    state: PEPS_AD_Global_State,
 ) -> Bottom_Projectors:
     """
     Calculate the bottom projectors for the CTMRG method.
@@ -644,10 +653,10 @@ def calc_bottom_projectors(
         top_right,
         bottom_left,
         bottom_right,
-        peps_ad_config.ctmrg_truncation_eps
-        if peps_ad_global_state.ctmrg_effective_truncation_eps is None
-        else peps_ad_global_state.ctmrg_effective_truncation_eps,
-        peps_ad_config.ctmrg_full_projector_method
-        if peps_ad_global_state.ctmrg_projector_method is None
-        else peps_ad_global_state.ctmrg_projector_method,
+        config.ctmrg_truncation_eps
+        if state.ctmrg_effective_truncation_eps is None
+        else state.ctmrg_effective_truncation_eps,
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method,
     )

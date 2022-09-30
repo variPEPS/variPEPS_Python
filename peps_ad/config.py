@@ -1,15 +1,23 @@
 from dataclasses import dataclass
 from enum import Enum, IntEnum, auto, unique
 
+from jax.tree_util import register_pytree_node_class
 
-class Optimizing_Methods(Enum):
+from typing import TypeVar, Tuple, Any, Type
+
+T_PEPS_AD_Config = TypeVar("T_PEPS_AD_Config", bound="PEPS_AD_Config")
+
+
+@unique
+class Optimizing_Methods(IntEnum):
     STEEPEST = auto()  #: Steepest gradient descent
     CG = auto()  #: Conjugate gradient method
     BFGS = auto()  #: BFGS method
     L_BFGS = auto()  #: L-BFGS method
 
 
-class Line_Search_Methods(Enum):
+@unique
+class Line_Search_Methods(IntEnum):
     SIMPLE = auto()  #: Simple line search method
     ARMIJO = auto()  #: Armijo line search method
     WOLFE = auto()  #: Wolfe line search method
@@ -23,6 +31,7 @@ class Projector_Method(IntEnum):
 
 
 @dataclass
+@register_pytree_node_class
 class PEPS_AD_Config:
     """
     Config class for peps-ad module. Normally only the blow created instance
@@ -159,6 +168,23 @@ class PEPS_AD_Config:
     line_search_armijo_const: float = 1e-4
     line_search_wolfe_const: float = 0.9
     line_search_use_last_step_size: bool = False
+
+    def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
+        aux_data = (
+            {name: getattr(self, name) for name in self.__dataclass_fields__.keys()},
+        )
+
+        return ((), aux_data)
+
+    @classmethod
+    def tree_unflatten(
+        cls: Type[T_PEPS_AD_Config],
+        aux_data: Tuple[Any, ...],
+        children: Tuple[Any, ...],
+    ) -> T_PEPS_AD_Config:
+        (data_dict,) = aux_data
+
+        return cls(**data_dict)
 
 
 config = PEPS_AD_Config()
