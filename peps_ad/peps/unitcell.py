@@ -17,6 +17,8 @@ from jax.tree_util import register_pytree_node_class
 from .tensor import PEPS_Tensor
 from peps_ad.utils.random import PEPS_Random_Number_Generator
 from peps_ad.utils.periodic_indices import calculate_periodic_indices
+from peps_ad import peps_ad_config
+import peps_ad.config
 
 from typing import (
     TypeVar,
@@ -636,7 +638,7 @@ class PEPS_Unit_Cell:
             sanity_checks=False,
         )
 
-    def save_to_file(self, path: PathLike) -> None:
+    def save_to_file(self, path: PathLike, store_config: bool = True) -> None:
         """
         Save unit cell to a HDF5 file.
 
@@ -646,19 +648,25 @@ class PEPS_Unit_Cell:
         Args:
           path (:obj:`os.PathLike`):
             Path of the new file. Caution: The file will overwritten if existing.
+          store_config (:obj:`bool`):
+            Store the current values of the global config object into the HDF5
+            file as attrs of an extra group.
         """
         with h5py.File(path, "w", libver=("earliest", "v110")) as f:
-            grp = f.create_group("unitcell")
+            grp = f.create_group("unitcell", store_config)
 
             self.save_to_group(grp)
 
-    def save_to_group(self, grp: h5py.Group) -> None:
+    def save_to_group(self, grp: h5py.Group, store_config: bool = True) -> None:
         """
         Save unit cell to a HDF5 group which is be passed to the method.
 
         Args:
           grp (:obj:`h5py.Group`):
             HDF5 group object to store the data into.
+          store_config (:obj:`bool`):
+            Store the current values of the global config object into the HDF5
+            file as attrs of an extra group.
         """
         grp.attrs["real_ix"] = self.real_ix
         grp.attrs["real_iy"] = self.real_iy
@@ -667,8 +675,18 @@ class PEPS_Unit_Cell:
 
         self.data.save_to_group(grp_data)
 
+        if store_config:
+            grp_config = grp.create_group("config")
+
+            for config_attr in peps_ad_config.__dataclass_fields__.keys():
+                grp_config.attrs[config_attr] = getattr(peps_ad_config, config_attr)
+
     @classmethod
-    def load_from_file(cls: Type[T_PEPS_Unit_Cell], path: PathLike) -> T_PEPS_Unit_Cell:
+    def load_from_file(
+        cls: Type[T_PEPS_Unit_Cell], path: PathLike, return_config: bool = False
+    ) -> Union[
+        T_PEPS_Unit_Cell, Tuple[T_PEPS_Unit_Cell, peps_ad.config.PEPS_AD_Config]
+    ]:
         """
         Load unit cell from a HDF5 file.
 
@@ -678,26 +696,56 @@ class PEPS_Unit_Cell:
         Args:
           path (:obj:`os.PathLike`):
             Path of the HDF5 file.
+          return_config (:obj:`bool`):
+            Return a config object initialized with the values from the HDF5
+            files. If no config is stored in the file, just the data is returned.
+            Missing config flags in the file uses the default values from the
+            config object.
         """
         with h5py.File(path, "r") as f:
-            unitcell = cls.load_from_group(f["unitcell"])
+            out = cls.load_from_group(f["unitcell"], return_config)
 
-        return unitcell
+        if return_config:
+            return out[0], out[1]
+
+        return out
 
     @classmethod
     def load_from_group(
-        cls: Type[T_PEPS_Unit_Cell], grp: h5py.Group
-    ) -> T_PEPS_Unit_Cell:
+        cls: Type[T_PEPS_Unit_Cell], grp: h5py.Group, return_config: bool = False
+    ) -> Union[
+        T_PEPS_Unit_Cell, Tuple[T_PEPS_Unit_Cell, peps_ad.config.PEPS_AD_Config]
+    ]:
         """
         Load the unit cell from a HDF5 group which is be passed to the method.
 
         Args:
           grp (:obj:`h5py.Group`):
             HDF5 group object to load the data from.
+          return_config (:obj:`bool`):
+            Return a config object initialized with the values from the HDF5
+            files. If no config is stored in the file, just the data is returned.
+            Missing config flags in the file uses the default values from the
+            config object.
         """
         data = cls.Unit_Cell_Data.load_from_group(grp["data"])
         real_ix = int(grp.attrs["real_ix"])
         real_iy = int(grp.attrs["real_iy"])
+
+        print(grp.get("config"))
+
+        if return_config:
+            if grp.get("config") is None:
+                return cls(data=data, real_ix=real_ix, real_iy=real_iy), None
+
+            config_dict = {
+                config_attr: grp["config"].attrs.get(config_attr)
+                for config_attr in peps_ad_config.__dataclass_fields__.keys()
+                if grp["config"].attrs.get(config_attr) is not None
+            }
+            return cls(
+                data=data, real_ix=real_ix, real_iy=real_iy
+            ), peps_ad.config.PEPS_AD_Config(**config_dict)
 
         return cls(data=data, real_ix=real_ix, real_iy=real_iy)
 
