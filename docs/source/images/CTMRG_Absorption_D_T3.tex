@@ -1,0 +1,99 @@
+\documentclass[tikz]{standalone}
+
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{braket}
+
+\usepackage{tikz}
+\usetikzlibrary{calc, decorations, positioning}
+
+% load TikZ grafic definitions
+%\input{gfx_TikZ}
+
+% main document
+\begin{document}
+
+	\begin{tikzpicture}[]
+
+		% contant definitions
+		\def\tensorSize{0.2}
+
+		% tensor network contraction
+		\begin{scope}
+
+			% iPEPS network coordinates
+			\coordinate (PN) at (+0.0, +0.5);
+			\coordinate (PC) at (+0.0, -0.5);
+
+			% CTMRG network coordinates
+			\coordinate (C1) at (-0.5, +1.5);
+			\coordinate (T1) at (+1.5, +1.5);
+			\coordinate (C2) at (+3.5, +1.5);
+			\coordinate (T2) at (+2.0, +0.0);
+			\coordinate (C3) at (+0.5, -1.5);
+			\coordinate (T3) at (-1.5, -1.5);
+			\coordinate (C4) at (-3.5, -1.5);
+			\coordinate (T4) at (-2.0, -0.0);
+
+			% projector P_{UL}
+			\begin{scope}[shift = {(-3.50, -0.50)}]
+				\coordinate (PLL) at (+0.00, +0.00);
+				\coordinate (PLU) at (+2.00, +1.00);
+				\coordinate (PLM) at (+1.00, +0.00);
+				\coordinate (PLD) at (+0.00, -1.00);
+				\node[] at (+0.00, +1.00) {$P_\text{D(L)}^{[x, y - 1]}$};
+			\end{scope}
+
+			% projector P_{UR}
+			\begin{scope}[shift = {(+2.50, -0.50)}]
+				\coordinate (PRU) at (+0.00, +1.00);
+				\coordinate (PRM) at (-1.00, -0.00);
+				\coordinate (PRD) at (-2.00, -1.00);
+				\coordinate (PRR) at (+0.00, +0.00);
+				\node[] at (-0.00, -1.00) {$P_\text{D(R)}^{[x, y]}$};
+			\end{scope}
+
+			% tensor labels
+			\node at ($(T3) + (-0.75, -0.75)$) {$T_{3}^{[x, y]}$};
+			
+			% external links
+			\draw[thick] (PN) to ($(PN) + (+1.50, +1.50)$) node at ($(PN) + (+2.00, +2.00)$) {$-4$};
+			\draw[thick] (PC) to ($(PC) + (+1.50, +1.50)$) node at ($(PC) + (+2.00, +2.00)$) {$-3$};
+			\draw[ultra thick] (PLL) to ($(PLL) + (-1.50, -0.00)$) node at ($(PLL) + (-2.00, -0.00)$) {$-1$};
+			\draw[ultra thick] (PRR) to ($(PRR) + (+1.50, +0.00)$) node at ($(PRR) + (+2.00, +0.00)$) {$-2$};
+			
+			% projectors
+			\draw[thick, fill = gray!25] (PLL) to (PLU) to (PLD) -- cycle;
+			\draw[thick, fill = gray!25] (PRR) to (PRU) to (PRD) -- cycle;
+
+			% internal links
+			\draw[ultra thick] (T3) -- (PLD) node[below] at ($(T3)!0.5!(PLD)$) {$1$};
+			\draw[ultra thick] (T3) -- (PRD) node[below] at ($(T3)!0.5!(PRD)$) {$7$};
+			\draw[thick] (PN) to [out = 180, in = 0] (PLU) node[below] at ($(PN)!0.7!(PLU)$) {$3$};
+			\draw[thick] (PRU) to [out = 180, in = 0] (PN) node[below] at ($(PRU)!0.3!(PN)$) {$8$};
+			\draw[thick] (PC) to [out = 180, in = 0] (PLM) node[below] at ($(PC)!0.7!(PLM)$) {$5$};
+			\draw[thick] (PRM) to [out = 180, in = 0] (PC) node[below] at ($(PRM)!0.5!(PC)$) {$9$};
+			\draw[thick] (T3) to [out = 45, in = 225] (PC) node[right = 0.1] at ($(T3)!0.3!(PC)$) {$4$};
+			\draw[thick] (T3) to [out = 45, in = 225] (PN) node[left  = 0.1] at ($(T3)!0.3!(PN)$) {$2$};
+			\draw[thick] (PN) -- (PC) node [midway, right] {$6$};
+
+			% CTMRG tensors
+			\foreach \tensor in {T3} {
+				\draw[thick,black,fill = gray] (\tensor) circle (\tensorSize);
+			}
+
+			% iPEPS tensors
+			\foreach \tensor in {PN, PC} {
+				\draw[thick,black,fill = blue] (\tensor) circle (\tensorSize);
+			}
+			
+		\end{scope}
+
+	\end{tikzpicture}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

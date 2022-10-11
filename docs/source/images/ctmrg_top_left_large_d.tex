@@ -1,0 +1,69 @@
+\documentclass[tikz]{standalone}
+
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{braket}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows, arrows.meta, calc, decorations, positioning}
+
+% load TikZ grafic definitions
+%\input{gfx_TikZ}
+
+% main document
+\begin{document}
+
+	\begin{tikzpicture}[]
+
+	\def\tensorSize{0.2}
+
+		\begin{scope}[shift = {(-3, +2)}]
+
+			% label
+			\node at (-3.5,0) {\large$\rho_\text{UL}^{[x,y]}$};
+
+			% network corrdinates
+			\coordinate (PN) at (+0.0, +0.5);
+			\coordinate (PC) at (+0.0, -0.5);
+			\coordinate (T4) at (-2.0, -0.0);
+			\coordinate (C1) at (-0.5, +1.5);
+			\coordinate (T1) at (+1.5, +1.5);
+			
+			% external links
+			\draw[ultra thick] (T4) to ($(T4) + (-1.25, -1.25)$) node at ($(T4) + (-1.50, -1.50)$) {$-1$};
+			\draw[thick] (PN) to ($(PN) + (-1.75, -1.75)$) node at ($(PN) + (-2.00, -2.00)$) {$-2$};
+			\draw[thick] (PC) to ($(PC) + (-0.75, -0.75)$) node at ($(PC) + (-1.00, -1.00)$) {$-3$};
+			\draw[ultra thick] (T1) to ($(T1) + (+1.50, +0.00)$) node at ($(T1) + (+2.00, +0.00)$) {$-4$};
+			\draw[thick] (PN) to ($(PN) + (+2.00, +0.00)$) node at ($(PN) + (+2.50, +0.00)$) {$-5$};
+			\draw[thick] (PC) to ($(PC) + (+1.00, +0.00)$) node at ($(PC) + (+1.50, +0.00)$) {$-6$};
+			
+
+			% internal links
+			\draw[ultra thick] (C1) -- (T4) node[left = 0.25] at ($(C1)!0.5!(T4)$) {$1$};
+			\draw[thick] (T4) to [out =   0, in = 180] (PC) node[below] at ($(T4)!0.3!(PC)$) {$6$};
+			\draw[ultra thick] (C1) -- (T1) node [midway, above] {$2$};
+			\draw[thick] (T1) to [out = 225, in = 45] (PC) node[right] at ($(T1)!0.3!(PC)$) {$7$};
+			\draw[thick] (T4) to [out =  0, in = 180] (PN) node[above] at ($(T4)!0.7!(PN)$) {$4$};
+			\draw[thick] (T1) to [out = 225, in = 45] (PN) node[above left] at ($(T1)!0.7!(PN)$) {$5$};
+			\draw[thick] (PN) -- (PC) node [midway, right] {$3$};
+
+			% CTMRG tensors
+			\foreach \tensor in {T4, C1, T1} {
+				\draw[thick,black,fill = gray] (\tensor) circle (\tensorSize);
+			}
+
+			% iPEPS tensors
+			\foreach \tensor in {PN, PC} {
+				\draw[thick,black,fill = blue] (\tensor) circle (\tensorSize);
+			}
+			
+		\end{scope}
+
+	\end{tikzpicture}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

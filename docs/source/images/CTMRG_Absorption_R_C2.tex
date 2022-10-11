@@ -1,0 +1,78 @@
+\documentclass[tikz]{standalone}
+
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{braket}
+
+\usepackage{tikz}
+\usetikzlibrary{calc, decorations, positioning}
+
+% load TikZ grafic definitions
+%\input{gfx_TikZ}
+
+% main document
+\begin{document}
+
+	\begin{tikzpicture}[]
+
+		% contant definitions
+		\def\tensorSize{0.2}
+
+		% tensor network contraction
+		\begin{scope}
+
+			% iPEPS network coordinates
+			\coordinate (PN) at (+0.0, +0.5);
+			\coordinate (PC) at (+0.0, -0.5);
+
+			% CTMRG network coordinates
+			\coordinate (C1) at (-0.5, +1.5);
+			\coordinate (T1) at (+1.5, +1.5);
+			\coordinate (C2) at (+3.5, +1.5);
+			\coordinate (T2) at (+2.0, +0.0);
+			\coordinate (C3) at (+0.5, -1.5);
+			\coordinate (T3) at (-1.5, -1.5);
+			\coordinate (C4) at (-3.5, -1.5);
+			\coordinate (T4) at (-2.0, -0.0);
+
+			% P_{RD}
+			% projector P_{RD}
+			\begin{scope}[shift = {(+1.00, -0.00)}]
+				\coordinate (PDL) at (-1.00, +0.50);
+				\coordinate (PDM) at (+0.00, +0.50);
+				\coordinate (PDR) at (+1.50, +0.50);
+				\coordinate (PDD) at (-0.50, +0.00);
+				\node[] at (+1.50, -0.00) {$P_\text{R(D)}^{[x - 1, y]}$};
+			\end{scope}
+
+			% tensor labels
+			\node[above = 0.25] at (C2) {$C_{2}^{[x, y]}$};
+			\node[above = 0.25] at (T1) {$T_{1}^{[x, y]}$};
+			
+			% external links
+			\draw[ultra thick] (PDD) to ($(PDD) + (-0.75, -0.75)$) node at ($(PDD) + (-1.00, -1.00)$) {$-2$};
+			\draw[ultra thick] (T1) to ($(T1) + (-1.50, +0.00)$) node at ($(T1) + (-2.00, +0.00)$) {$-1$};
+
+			% projector
+			\draw[thick, fill = gray!25] (PDL) to (PDR) to (PDD) -- cycle;
+
+			% internal links
+			\draw[ultra thick] (C2) -- (PDR) node[right = 0.25] at ($(C2)!0.5!(PDR)$) {$2$};
+			\draw[ultra thick] (C2) -- (T1) node [midway, above] {$1$};
+			\draw[thick] (T1) to [out = 225, in = 45] (PDM) node[right] at ($(T1)!0.5!(PDM)$) {$3$};
+			\draw[thick] (T1) to [out = 225, in = 45] (PDL) node[above left] at ($(T1)!0.5!(PDL)$) {$4$};
+
+			% CTMRG tensors
+			\foreach \tensor in {T1, C2} {
+				\draw[thick,black,fill = gray] (\tensor) circle (\tensorSize);
+			}
+			
+		\end{scope}
+
+	\end{tikzpicture}
+
+\end{document}
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

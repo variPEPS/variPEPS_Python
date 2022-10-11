@@ -329,6 +329,16 @@ class Definitions:
             ]
         ],
     }
+    """
+    .. figure:: /images/ctmrg_top_left.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for top left CTM corner with contraction order shown.
+
+       Contraction for top left CTM corner.
+
+    \\
+    """
 
     ctmrg_top_left_large_d = {
         "tensors": [["tensor", "tensor_conj", "T4", "C1", "T1"]],
@@ -342,6 +352,16 @@ class Definitions:
             ]
         ],
     }
+    """
+    .. figure:: /images/ctmrg_top_left_large_d.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for top left CTM corner for high dimensions with contraction order shown.
+
+       Contraction for top left CTM corner for high physical dimensions.
+
+    \\
+    """
 
     ctmrg_top_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T1", "C2", "T2"]],
@@ -355,6 +375,16 @@ class Definitions:
             ]
         ],
     }
+    """
+    .. figure:: /images/ctmrg_top_right.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for top right CTM corner with contraction order shown.
+
+       Contraction for top right CTM corner.
+
+    \\
+    """
 
     ctmrg_top_right_large_d: Definition = {
         "tensors": [["tensor", "tensor_conj", "T1", "C2", "T2"]],
@@ -368,6 +398,16 @@ class Definitions:
             ]
         ],
     }
+    """
+    .. figure:: /images/ctmrg_top_right_large_d.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for top right CTM corner for high dimensions with contraction order shown.
+
+       Contraction for top right CTM corner for high physical dimensions.
+
+    \\
+    """
 
     ctmrg_bottom_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "T3", "C4", "T4"]],
@@ -381,6 +421,16 @@ class Definitions:
             ]
         ],
     }
+    """
+    .. figure:: /images/ctmrg_bottom_left.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for bottom left CTM corner with contraction order shown.
+
+       Contraction for bottom left CTM corner.
+
+    \\
+    """
 
     ctmrg_bottom_left_large_d: Definition = {
         "tensors": [["tensor", "tensor_conj", "T3", "C4", "T4"]],
@@ -394,6 +444,16 @@ class Definitions:
             ]
         ],
     }
+    """
+    .. figure:: /images/ctmrg_bottom_left_large_d.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for bottom left CTM corner for high dimensions with contraction order shown.
+
+       Contraction for bottom left CTM corner for high physical dimensions.
+
+    \\
+    """
 
     ctmrg_bottom_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T2", "T3", "C3"]],
@@ -407,6 +467,16 @@ class Definitions:
             ]
         ],
     }
+    """
+    .. figure:: /images/ctmrg_bottom_right.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for bottom right CTM corner with contraction order shown.
+
+       Contraction for bottom right CTM corner.
+
+    \\
+    """
 
     ctmrg_bottom_right_large_d: Definition = {
         "tensors": [["tensor", "tensor_conj", "T2", "T3", "C3"]],
@@ -420,6 +490,16 @@ class Definitions:
             ]
         ],
     }
+    """
+    .. figure:: /images/ctmrg_bottom_right_large_d.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for bottom right CTM corner for high dimensions with contraction order shown.
+
+       Contraction for bottom right CTM corner for high physical dimensions.
+
+    \\
+    """
 
     ctmrg_absorption_left_C1: Definition = {
         "tensors": [["C1", "T1"], "projector_left_bottom"],
@@ -431,6 +511,16 @@ class Definitions:
             (-1, 2, 3, 4),  # projector_left_bottom
         ],
     }
+    """
+    .. figure:: /images/CTMRG_Absorption_L_C1.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C1 during left absorption with contraction order shown.
+
+       Contraction for C1 during left absorption.
+
+    \\
+    """
 
     ctmrg_absorption_left_T4: Definition = {
         "tensors": [
@@ -448,6 +538,16 @@ class Definitions:
             (-1, 7, 8, 9),  # projector_left_bottom
         ],
     }
+    """
+    .. figure:: /images/CTMRG_Absorption_L_T4.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for T4 during left absorption with contraction order shown.
+
+       Contraction for T4 during left absorption.
+
+    \\
+    """
 
     ctmrg_absorption_left_T4_large_d: Definition = {
         "tensors": [
@@ -476,6 +576,16 @@ class Definitions:
             (2, 3, 4, -2),  # projector_left_top
         ],
     }
+    """
+    .. figure:: /images/CTMRG_Absorption_L_C4.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C4 during left absorption with contraction order shown.
+
+       Contraction for C4 during left absorption.
+
+    \\
+    """
 
     ctmrg_absorption_right_C2: Definition = {
         "tensors": [["T1", "C2"], "projector_right_bottom"],
@@ -487,6 +597,16 @@ class Definitions:
             (2, 4, 3, -2),  # projector_right_bottom
         ],
     }
+    """
+    .. figure:: /images/CTMRG_Absorption_R_C2.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C2 during right absorption with contraction order shown.
+
+       Contraction for C2 during right absorption.
+
+    \\
+    """
 
     ctmrg_absorption_right_T2: Definition = {
         "tensors": [
@@ -504,6 +624,16 @@ class Definitions:
             (7, 9, 8, -3),  # projector_right_bottom
         ],
     }
+    """
+    .. figure:: /images/CTMRG_Absorption_R_T2.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for T2 during right absorption with contraction order shown.
+
+       Contraction for T2 during right absorption.
+
+    \\
+    """
 
     ctmrg_absorption_right_T2_large_d: Definition = {
         "tensors": [
@@ -532,6 +662,16 @@ class Definitions:
             (-2, 2, 4, 3),  # projector_right_top
         ],
     }
+    """
+    .. figure:: /images/CTMRG_Absorption_R_C3.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C3 during right absorption with contraction order shown.
+
+       Contraction for C3 during right absorption.
+
+    \\
+    """
 
     ctmrg_absorption_top_C1: Definition = {
         "tensors": [["T4", "C1"], "projector_top_right"],
@@ -543,6 +683,16 @@ class Definitions:
             (2, 3, 4, -2),  # projector_top_right
         ],
     }
+    """
+    .. figure:: /images/CTMRG_Absorption_U_C1.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C1 during top absorption with contraction order shown.
+
+       Contraction for C1 during top absorption.
+
+    \\
+    """
 
     ctmrg_absorption_top_T1: Definition = {
         "tensors": [
@@ -560,6 +710,16 @@ class Definitions:
             (7, 8, 9, -4),  # projector_top_right
         ],
     }
+    """
+    .. figure:: /images/CTMRG_Absorption_U_T1.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for T1 during top absorption with contraction order shown.
+
+       Contraction for T1 during top absorption.
+
+    \\
+    """
 
     ctmrg_absorption_top_T1_large_d: Definition = {
         "tensors": [
@@ -588,6 +748,16 @@ class Definitions:
             (-1, 2, 3, 4),  # projector_top_left
         ],
     }
+    """
+    .. figure:: /images/CTMRG_Absorption_U_C2.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C2 during top absorption with contraction order shown.
+
+       Contraction for C2 during top absorption.
+
+    \\
+    """
 
     ctmrg_absorption_bottom_C4: Definition = {
         "tensors": [["C4", "T4"], "projector_bottom_right"],
@@ -599,6 +769,16 @@ class Definitions:
             (-1, 2, 4, 3),  # projector_bottom_right
         ],
     }
+    """
+    .. figure:: /images/CTMRG_Absorption_D_C4.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C4 during bottom absorption with contraction order shown.
+
+       Contraction for C4 during bottom absorption.
+
+    \\
+    """
 
     ctmrg_absorption_bottom_T3: Definition = {
         "tensors": [
@@ -616,6 +796,16 @@ class Definitions:
             (-2, 7, 9, 8),  # projector_bottom_right
         ],
     }
+    """
+    .. figure:: /images/CTMRG_Absorption_D_T3.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for T3 during bottom absorption with contraction order shown.
+
+       Contraction for T3 during bottom absorption.
+
+    \\
+    """
 
     ctmrg_absorption_bottom_T3_large_d: Definition = {
         "tensors": [
@@ -644,6 +834,16 @@ class Definitions:
             (2, 4, 3, -1),  # projector_bottom_left
         ],
     }
+    """
+    .. figure:: /images/CTMRG_Absorption_D_C3.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C3 during bottom absorption with contraction order shown.
+
+       Contraction for C3 during bottom absorption.
+
+    \\
+    """
 
     ctmrg_gauge_fix_T1: Definition = {
         "tensors": [["T1"], "left_unitary", "right_unitary"],
