@@ -11,7 +11,7 @@ packages = [{include = "peps_ad"}]
 python = ">=3.9,<3.11"
 numpy = ">=1.21.2"
 scipy = ">=1.7.1"
-jax = {extras = ["cpu"], version = ">=0.2.20"}
+jax = {extras = ["cpu"], version = ">=0.3.16"}
 tensornetwork = ">=0.4.5"
 poethepoet = ">=0.10.0"
 h5py = ">=3.6.0"
