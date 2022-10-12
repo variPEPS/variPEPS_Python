@@ -653,9 +653,9 @@ class PEPS_Unit_Cell:
             file as attrs of an extra group.
         """
         with h5py.File(path, "w", libver=("earliest", "v110")) as f:
-            grp = f.create_group("unitcell", store_config)
+            grp = f.create_group("unitcell")
 
-            self.save_to_group(grp)
+            self.save_to_group(grp, store_config)
 
     def save_to_group(self, grp: h5py.Group, store_config: bool = True) -> None:
         """
@@ -731,8 +731,6 @@ class PEPS_Unit_Cell:
         data = cls.Unit_Cell_Data.load_from_group(grp["data"])
         real_ix = int(grp.attrs["real_ix"])
         real_iy = int(grp.attrs["real_iy"])
-
-        print(grp.get("config"))
 
         if return_config:
             if grp.get("config") is None:

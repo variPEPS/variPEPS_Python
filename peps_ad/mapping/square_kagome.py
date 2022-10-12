@@ -1,10 +1,14 @@
 from dataclasses import dataclass
 from functools import partial
+from os import PathLike
+
+import h5py
 
 import jax.numpy as jnp
 from jax import jit
 import jax.util
 
+import peps_ad.config
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
 from peps_ad.contractions import apply_contraction, Definitions
 from peps_ad.expectation.model import Expectation_Model
@@ -16,8 +20,8 @@ from peps_ad.utils.random import PEPS_Random_Number_Generator
 
 from typing import Sequence, Union, List, Callable, TypeVar, Optional, Tuple, Type
 
-T_Square_Kagome_Map_To_PEPS = TypeVar(
-    "T_Square_Kagome_Map_To_PEPS", bound="Square_Kagome_Map_To_PEPS"
+T_Square_Kagome_Map_PESS_To_PEPS = TypeVar(
+    "T_Square_Kagome_Map_PESS_To_PEPS", bound="Square_Kagome_Map_PESS_To_PEPS"
 )
 
 
@@ -770,7 +774,7 @@ class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):
 
     @classmethod
     def random(
-        cls: Type[T_Square_Kagome_Map_To_PEPS],
+        cls: Type[T_Square_Kagome_Map_PESS_To_PEPS],
         structure: Sequence[Sequence[int]],
         d: int,
         D: int,
@@ -779,7 +783,7 @@ class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         *,
         seed: Optional[int] = None,
         destroy_random_state: bool = True,
-    ) -> Tuple[List[jnp.ndarray], T_Square_Kagome_Map_To_PEPS]:
+    ) -> Tuple[List[jnp.ndarray], T_Square_Kagome_Map_PESS_To_PEPS]:
         structure_arr = jnp.asarray(structure)
 
         structure_arr, tensors_i = PEPS_Unit_Cell._check_structure(structure_arr)
@@ -815,3 +819,209 @@ class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):
             result_tensors.append(rng.block((D, D, D), dtype=dtype))  # simplex_bottom
 
         return result_tensors, cls(unitcell_structure=structure, chi=chi)
+
+    @classmethod
+    def save_to_file(
+        cls: Type[T_Square_Kagome_Map_PESS_To_PEPS],
+        path: PathLike,
+        tensors: List[jnp.ndarray],
+        unitcell: PEPS_Unit_Cell,
+        *,
+        store_config: bool = True,
+    ) -> None:
+        """
+        Save unit cell to a HDF5 file.
+
+        This function creates a single group "square_kagome_pess" in the file
+        and pass this group to the method
+        :obj:`~Square_Kagome_Map_PESS_To_PEPS.save_to_group` then.
+
+        Args:
+          path (:obj:`os.PathLike`):
+            Path of the new file. Caution: The file will overwritten if existing.
+          store_config (:obj:`bool`):
+            Store the current values of the global config object into the HDF5
+            file as attrs of an extra group.
+        """
+        with h5py.File(path, "w", libver=("earliest", "v110")) as f:
+            grp = f.create_group("square_kagome_pess")
+
+            cls.save_to_group(grp, tensors, unitcell, store_config=store_config)
+
+    @staticmethod
+    def save_to_group(
+        grp: h5py.Group,
+        tensors: List[jnp.ndarray],
+        unitcell: PEPS_Unit_Cell,
+        *,
+        store_config: bool = True,
+    ) -> None:
+        """
+        Save unit cell to a HDF5 group which is be passed to the method.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to store the data into.
+          store_config (:obj:`bool`):
+            Store the current values of the global config object into the HDF5
+            file as attrs of an extra group.
+        """
+        num_peps_sites = len(tensors) // 10
+        if num_peps_sites * 10 != len(tensors):
+            raise ValueError(
+                "Input tensors seems not be a list for a square Kagome simplex system."
+            )
+
+        grp_pess = grp.create_group("pess_tensors", track_order=True)
+        grp_pess.attrs["num_peps_sites"] = num_peps_sites
+
+        for i in range(num_peps_sites):
+            (
+                t1,
+                t2,
+                t3,
+                t4,
+                t5,
+                t6,
+                simplex_left,
+                simplex_top,
+                simplex_right,
+                simplex_bottom,
+            ) = tensors[(i * 10) : (i * 10 + 10)]
+
+            grp_pess.create_dataset(
+                f"site{i}_t1", data=t1, compression="gzip", compression_opts=6
+            )
+            grp_pess.create_dataset(
+                f"site{i}_t2", data=t2, compression="gzip", compression_opts=6
+            )
+            grp_pess.create_dataset(
+                f"site{i}_t3", data=t3, compression="gzip", compression_opts=6
+            )
+            grp_pess.create_dataset(
+                f"site{i}_t4", data=t4, compression="gzip", compression_opts=6
+            )
+            grp_pess.create_dataset(
+                f"site{i}_t5", data=t5, compression="gzip", compression_opts=6
+            )
+            grp_pess.create_dataset(
+                f"site{i}_t6", data=t6, compression="gzip", compression_opts=6
+            )
+            grp_pess.create_dataset(
+                f"site{i}_simplex_left",
+                data=simplex_left,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp_pess.create_dataset(
+                f"site{i}_simplex_top",
+                data=simplex_top,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp_pess.create_dataset(
+                f"site{i}_simplex_right",
+                data=simplex_right,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp_pess.create_dataset(
+                f"site{i}_simplex_bottom",
+                data=simplex_bottom,
+                compression="gzip",
+                compression_opts=6,
+            )
+
+        grp_unitcell = grp.create_group("unitcell")
+        unitcell.save_to_group(grp_unitcell, store_config=store_config)
+
+    @classmethod
+    def load_from_file(
+        cls: Type[T_Square_Kagome_Map_PESS_To_PEPS],
+        path: PathLike,
+        *,
+        return_config: bool = False,
+    ) -> Union[
+        Tuple[List[jnp.ndarray], PEPS_Unit_Cell],
+        Tuple[List[jnp.ndarray], PEPS_Unit_Cell, peps_ad.config.PEPS_AD_Config],
+    ]:
+        """
+        Load unit cell from a HDF5 file.
+
+        This function read the group "square_kagome_pess" from the file and pass
+        this group to the method
+        :obj:`~Square_Kagome_Map_PESS_To_PEPS.load_from_group` then.
+
+        Args:
+          path (:obj:`os.PathLike`):
+            Path of the HDF5 file.
+          return_config (:obj:`bool`):
+            Return a config object initialized with the values from the HDF5
+            files. If no config is stored in the file, just the data is returned.
+            Missing config flags in the file uses the default values from the
+            config object.
+        Returns:
+          :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`) or :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`~peps_ad.config.PEPS_AD_Config`):
+            The tuple with the list of the PESS tensors and the PEPS unitcell
+            is returned. If ``return_config = True``. the config is returned
+            as well.
+        """
+        with h5py.File(path, "r") as f:
+            out = cls.load_from_group(
+                f["square_kagome_pess"], return_config=return_config
+            )
+
+        if return_config:
+            return out[0], out[1], out[2]
+
+        return out[0], out[1]
+
+    @staticmethod
+    def load_from_group(
+        grp: h5py.Group,
+        *,
+        return_config: bool = False,
+    ) -> Union[
+        Tuple[List[jnp.ndarray], PEPS_Unit_Cell],
+        Tuple[List[jnp.ndarray], PEPS_Unit_Cell, peps_ad.config.PEPS_AD_Config],
+    ]:
+        """
+        Load the unit cell from a HDF5 group which is be passed to the method.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to load the data from.
+          return_config (:obj:`bool`):
+            Return a config object initialized with the values from the HDF5
+            files. If no config is stored in the file, just the data is returned.
+            Missing config flags in the file uses the default values from the
+            config object.
+        Returns:
+          :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`) or :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`~peps_ad.config.PEPS_AD_Config`):
+            The tuple with the list of the PESS tensors and the PEPS unitcell
+            is returned. If ``return_config = True``. the config is returned
+            as well.
+        """
+        grp_pess = grp["pess_tensors"]
+        num_peps_sites = grp_pess.attrs["num_peps_sites"]
+
+        tensors = []
+
+        for i in range(num_peps_sites):
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_t1"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_t2"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_t3"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_t4"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_t5"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_t6"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_simplex_left"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_simplex_top"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_simplex_right"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_simplex_bottom"]))
+
+        out = PEPS_Unit_Cell.load_from_group(grp, return_config=return_config)
+
+        if return_config:
+            return tensors, out[0], out[1]
+
+        return tensors, out
