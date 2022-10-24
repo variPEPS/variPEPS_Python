@@ -4,7 +4,7 @@ from jax.flatten_util import ravel_pytree
 
 from peps_ad import peps_ad_config
 from peps_ad.config import Line_Search_Methods
-from peps_ad.ctmrg import CTMRGNotConvergedError
+from peps_ad.ctmrg import CTMRGNotConvergedError, CTMRGGradientNotConvergedError
 from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
 from peps_ad.mapping import Map_To_PEPS_Model
@@ -263,6 +263,9 @@ def line_search(
                 )
                 new_value = jnp.inf
                 new_gradient = gradient
+            except CTMRGGradientNotConvergedError as e:
+                print("Gradient not converged. Abort line search!")
+                raise NoSuitableStepSizeError(f"Count {count}, Last alpha {alpha}") from e
         else:
             raise ValueError("Unknown line search method.")
 
