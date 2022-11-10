@@ -743,5 +743,16 @@ class Definitions:
         ],
     }
 
+    triangular_pess_mapping: Definition = {
+        "tensors": [
+            "site",
+            "simplex",
+        ],
+        "network": [
+            (-1, 1, -2, -3),  # site
+            (-5, 1, -4),  # simplex
+        ],
+    }
+
 
 Definitions._prepare_defs()

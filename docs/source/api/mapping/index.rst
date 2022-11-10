@@ -12,6 +12,7 @@ Mapping of other structures to PEPS unitcells (:mod:`peps_ad.mapping`)
 
    kagome
    square_kagome
+   triangular
 
 .. automodule:: peps_ad.mapping
    :members:
