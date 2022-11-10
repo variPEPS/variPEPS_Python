@@ -65,8 +65,8 @@ class PEPS_AD_Config:
       ctmrg_verbose_output (:obj:`bool`):
         Print verbose output in CTMRG routine.
       ctmrg_truncation_eps (:obj:`float`):
-        Value for cut off of singular values compared to the biggest one. Used
-        in calculation of CTMRG projectors.
+        Value for cut off of the sqrt of the  singular values compared to the
+        biggest one. Used in the calculation of the CTMRG projectors.
       ctmrg_fail_if_not_converged (:obj:`bool`):
         Flag if the CTMRG routine should fail with an error if no convergence
         can be reached within the maximal number of steps.
