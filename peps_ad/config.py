@@ -125,6 +125,15 @@ class PEPS_AD_Config:
       line_search_use_last_step_size (:obj:`bool`):
         Flag if the line search should start from the step size of the
         previous optimizer step.
+      basinhopping_niter (:obj:`int`):
+        Value for parameter `niter` of :obj:`scipy.optimize.basinhopping`.
+        See this function for details.
+      basinhopping_T (:obj:`int`):
+        Value for parameter `T` of :obj:`scipy.optimize.basinhopping`.
+        See this function for details.
+      basinhopping_niter_success (:obj:`int`):
+        Value for parameter `niterniter_success` of
+        :obj:`scipy.optimize.basinhopping`. See this function for details.
     """
 
     # AD config
@@ -171,6 +180,11 @@ class PEPS_AD_Config:
     line_search_armijo_const: float = 1e-4
     line_search_wolfe_const: float = 0.9
     line_search_use_last_step_size: bool = False
+
+    # Basinhopping
+    basinhopping_niter: int = 20
+    basinhopping_T: float = 0.01
+    basinhopping_niter_success: int = 5
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
         aux_data = (
