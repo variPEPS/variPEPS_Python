@@ -108,6 +108,8 @@ class PEPS_AD_Config:
       optimizer_preconverge_with_half_projectors_eps (:obj:`float`):
         Convergence criterion for the preconvergence with only the half
         CTM projectors.
+      optimizer_autosave_step_count (:obj:`int`):
+        Step count after which the optimizer result is automatically saved.
       line_search_method (:obj:`Line_Search_Methods`):
         Method used for the line search routine.
       line_search_initial_step_size (:obj:`float`):
@@ -159,6 +161,7 @@ class PEPS_AD_Config:
     optimizer_l_bfgs_maxlen: int = 50
     optimizer_preconverge_with_half_projectors: bool = True
     optimizer_preconverge_with_half_projectors_eps: float = 1e-3
+    optimizer_autosave_step_count: int = 25
 
     # Line search
     line_search_method: Line_Search_Methods = Line_Search_Methods.WOLFE

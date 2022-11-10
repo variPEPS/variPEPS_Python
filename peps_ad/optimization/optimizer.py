@@ -1,5 +1,8 @@
 from collections import deque
 from functools import partial
+from os import PathLike
+
+from scipy.optimize import OptimizeResult
 
 from jax import jit
 import jax.numpy as jnp
@@ -12,6 +15,7 @@ from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
 from peps_ad.config import Projector_Method
 from peps_ad.mapping import Map_To_PEPS_Model
+from peps_ad.ctmrg import CTMRGNotConvergedError, CTMRGGradientNotConvergedError
 
 from .inner_function import (
     calc_ctmrg_expectation,
@@ -174,10 +178,20 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple):
     return gradient_unravel(z_result)
 
 
+def autosave_function(
+    filename: PathLike, tensors: jnp.ndarray, unitcell: PEPS_Unit_Cell
+) -> None:
+    unitcell.save_to_file(filename)
+
+
 def optimize_peps_network(
     input_tensors: Union[PEPS_Unit_Cell, Sequence[jnp.ndarray]],
     expectation_func: Expectation_Model,
     convert_to_unitcell_func: Optional[Map_To_PEPS_Model] = None,
+    autosave_filename: PathLike = "data/autosave.hdf5",
+    autosave_func: Callable[
+        [PathLike, Sequence[jnp.ndarray], PEPS_Unit_Cell], None
+    ] = autosave_function,
 ) -> Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell, Union[float, jnp.ndarray]]:
     """
     Optimize a PEPS unitcell using a variational method.
@@ -194,9 +208,16 @@ def optimize_peps_network(
       convert_to_unitcell_func (:obj:`~peps_ad.mapping.Map_To_PEPS_Model`):
         Function to convert the `input_tensors` to a PEPS unitcell. If ommited,
         it is assumed that a PEPS unitcell is the first input parameter.
+      autosave_filename (:obj:`os.PathLike`):
+        Filename where intermediate results are automatically saved.
+      autosave_func (:term:`callable`):
+        Function which is called to autosave the intermediate results.
+        The function has to accept the arguments `(filename, tensors, unitcell)`.
     Returns:
-      :obj:`tuple`\ (:term:`sequence`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`float`):
-        Tuple with the optimized tensors, network and the final expectation value.
+      :obj:`scipy.optimize.OptimizeResult`:
+        OptimizeResult object with the optimized tensors, network and the
+        final expectation value. See the type definition for other possible
+        fields.
     """
     if isinstance(input_tensors, PEPS_Unit_Cell):
         working_tensors = cast(
@@ -210,6 +231,7 @@ def optimize_peps_network(
     old_gradient = None
     old_descent_dir = None
     descent_dir = None
+    working_value = None
 
     if peps_ad_config.optimizer_method is Optimizing_Methods.BFGS:
         bfgs_B_inv = jnp.eye(2 * sum([t.size for t in working_tensors]))
@@ -229,26 +251,38 @@ def optimize_peps_network(
         peps_ad_global_state.ctmrg_projector_method = None
 
     while count < peps_ad_config.optimizer_max_steps:
-        if peps_ad_config.ad_use_custom_vjp:
-            (
-                working_value,
-                working_unitcell,
-            ), working_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
-                working_tensors,
-                working_unitcell,
-                expectation_func,
-                convert_to_unitcell_func,
-            )
-        else:
-            (
-                working_value,
-                working_unitcell,
-            ), working_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
-                working_tensors,
-                working_unitcell,
-                expectation_func,
-                convert_to_unitcell_func,
-                calc_preconverged=(count == 0),
+        try:
+            if peps_ad_config.ad_use_custom_vjp:
+                (
+                    working_value,
+                    working_unitcell,
+                ), working_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
+                    working_tensors,
+                    working_unitcell,
+                    expectation_func,
+                    convert_to_unitcell_func,
+                )
+            else:
+                (
+                    working_value,
+                    working_unitcell,
+                ), working_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
+                    working_tensors,
+                    working_unitcell,
+                    expectation_func,
+                    convert_to_unitcell_func,
+                    calc_preconverged=(count == 0),
+                )
+        except (CTMRGNotConvergedError, CTMRGGradientNotConvergedError) as e:
+            peps_ad_global_state.ctmrg_projector_method = None
+
+            return OptimizeResult(
+                success=False,
+                message=str(type(e)),
+                x=working_tensors,
+                fun=working_value,
+                unitcell=working_unitcell,
+                nit=count,
             )
 
         print(f"{count} before: Value {working_value}")
@@ -348,4 +382,13 @@ def optimize_peps_network(
             f"{count} after: Value {working_value}, Conv: {conv}, Alpha: {linesearch_step}"
         )
 
-    return working_tensors, working_unitcell, working_value
+        if count % peps_ad_config.optimizer_autosave_step_count == 0:
+            autosave_func(autosave_filename, working_tensors, working_unitcell)
+
+    return OptimizeResult(
+        success=True,
+        x=working_tensors,
+        fun=working_value,
+        unitcell=working_unitcell,
+        nit=count,
+    )

@@ -23,6 +23,9 @@ from typing import Sequence, Union, List, Callable, TypeVar, Optional, Tuple, Ty
 T_Square_Kagome_Map_PESS_To_PEPS = TypeVar(
     "T_Square_Kagome_Map_PESS_To_PEPS", bound="Square_Kagome_Map_PESS_To_PEPS"
 )
+T_Square_Kagome_Map_4_1_1_To_PEPS = TypeVar(
+    "T_Square_Kagome_Map_4_1_1_To_PEPS", bound="Square_Kagome_Map_4_1_1_To_PEPS"
+)
 
 
 def square_kagome_density_matrix_horizontal(
@@ -712,7 +715,7 @@ class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         ) = input_tensors
 
         peps_tensor = apply_contraction(
-            f"square_kagome_pess_mapping",
+            "square_kagome_pess_mapping",
             [],
             [],
             [
@@ -1019,9 +1022,20 @@ class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):
             tensors.append(jnp.asarray(grp_pess[f"site{i}_simplex_right"]))
             tensors.append(jnp.asarray(grp_pess[f"site{i}_simplex_bottom"]))
 
-        out = PEPS_Unit_Cell.load_from_group(grp, return_config=return_config)
+        out = PEPS_Unit_Cell.load_from_group(
+            grp["unitcell"], return_config=return_config
+        )
 
         if return_config:
             return tensors, out[0], out[1]
 
         return tensors, out
+
+    @classmethod
+    def autosave_wrapper(
+        cls: Type[T_Square_Kagome_Map_PESS_To_PEPS],
+        filename: PathLike,
+        tensors: jnp.ndarray,
+        unitcell: PEPS_Unit_Cell,
+    ) -> None:
+        cls.save_to_file(filename, tensors, unitcell)

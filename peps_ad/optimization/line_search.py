@@ -255,17 +255,14 @@ def line_search(
                         calc_preconverged=True,
                     )
                 new_gradient = [elem.conj() for elem in new_gradient_seq]
-            except CTMRGNotConvergedError:
-                import datetime
+            except (CTMRGNotConvergedError, CTMRGGradientNotConvergedError):
+                # import datetime
 
-                new_unitcell.save_to_file(
-                    f"/home/janluca/Promotion/peps/peps-ad/broken/{datetime.datetime.now().isoformat()}.hdf5"
-                )
+                # new_unitcell.save_to_file(
+                #     f"/home/janluca/Promotion/peps/peps-ad/data/broken/{datetime.datetime.now().isoformat()}.hdf5"
+                # )
                 new_value = jnp.inf
                 new_gradient = gradient
-            except CTMRGGradientNotConvergedError as e:
-                print("Gradient not converged. Abort line search!")
-                raise NoSuitableStepSizeError(f"Count {count}, Last alpha {alpha}") from e
         else:
             raise ValueError("Unknown line search method.")
 
