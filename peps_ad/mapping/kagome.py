@@ -1,18 +1,28 @@
 from dataclasses import dataclass
+from os import PathLike
 
 import jax.numpy as jnp
 from jax import jit
 
+import h5py
+
+import peps_ad.config
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
 from peps_ad.contractions import apply_contraction
 from peps_ad.expectation.model import Expectation_Model
 from peps_ad.expectation.one_site import calc_one_site_multi_gates
 from peps_ad.expectation.three_sites import _three_site_triangle_workhorse
 from peps_ad.typing import Tensor
+from peps_ad.utils.random import PEPS_Random_Number_Generator
+from peps_ad.mapping import Map_To_PEPS_Model
 
-from typing import Sequence, Union, List, Callable, TypeVar, Optional
+from typing import Sequence, Union, List, Callable, TypeVar, Optional, Tuple, Type
 
 T_float_complex = TypeVar("T_float_complex", float, complex)
+T_Kagome_Map_PESS3_To_Single_PEPS_Site = TypeVar(
+    "T_Kagome_Map_PESS3_To_Single_PEPS_Site",
+    bound="Kagome_Map_PESS3_To_Single_PEPS_Site",
+)
 
 
 @dataclass
@@ -195,98 +205,289 @@ def _kagome_mapping_workhorse(
     return result / jnp.linalg.norm(result)
 
 
-class iPESS3_Single_PEPS_Site:
+@dataclass
+class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
     """
-    Map a 3-site Kagome PESS unit cell to PEPS structure using a PEPS unitcell
-    consisting of one site.
+    Map a 3-site Kagome iPESS unit cell to a iPEPS structure.
+
+    Create a PEPS unitcell from a Kagome 3-PESS structure. To this end, the
+    two simplex tensor and all three sites are mapped into PEPS sites.
+
+    The axes of the simplex tensors are expected to be in the order:
+    - Up: PESS site 1, PESS site 2, PESS site 3
+    - Down: PESS site 3, PESS site 2, PESS site 1
+
+    The axes of the site tensors are expected to be in the order
+    `connection to down simplex, physical bond, connection to up simplex`.
+
+    The PESS structure is contracted in the way that all site tensors are
+    connected to the up simplex and the down simplex to site 1.
     """
 
-    @staticmethod
-    def unitcell_from_pess_tensors(
-        up_simplex: Tensor,
-        down_simplex: Tensor,
-        site_1: Tensor,
-        site_2: Tensor,
-        site_3: Tensor,
-        d: int,
-        D: int,
-        chi: int,
-    ) -> PEPS_Unit_Cell:
-        """
-        Create a PEPS unitcell from a Kagome 3-PESS 3-sites structure. To this
-        end, the two simplex tensor and all three sites are mapped into a single
-        PEPS site.
+    unitcell_structure: Sequence[Sequence[int]]
+    chi: int
 
-        The axes of the simplex tensors are expected to be in the order:
-        - Up: PESS site 1, PESS site 2, PESS site 3
-        - Down: PESS site 3, PESS site 2, PESS site 1
-
-        The axes site tensors are expected to be in the order
-        connection to down simplex, physical bond, connection to up simplex.
-
-        The PESS structure is contracted in the way that all site tensors are
-        connected to the up simplex and the down simplex to site 1.
-
-        Args:
-          up_simplex (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
-            The tensor of the up simplex.
-          down_simplex (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
-            The tensor of the down simplex.
-          site_1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
-            The tensor of the first PESS site.
-          site_2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
-            The tensor of the second PESS site.
-          site_3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
-            The tensor of the third PESS site.
-          d (:obj:`int`):
-            Physical dimension
-          D (:obj:`int`):
-            Bond dimension.
-          chi (:obj:`int`):
-            Environment bond dimension.
-        Returns:
-          ~peps_ad.peps.PEPS_Unit_Cell:
-            PEPS unitcell with the mapped PESS structure and initialized
-            environment tensors.
-        """
-        if not isinstance(d, int) or not isinstance(D, int) or not isinstance(chi, int):
-            raise ValueError("Dimensions have to be integers.")
-
-        if not (site_1.shape[1] == site_2.shape[1] == site_3.shape[1] == d):
+    def __call__(
+        self,
+        input_tensors: Sequence[jnp.ndarray],
+        *,
+        generate_unitcell: bool = True,
+    ) -> Union[List[jnp.ndarray], Tuple[List[jnp.ndarray], PEPS_Unit_Cell]]:
+        num_peps_sites = len(input_tensors) // 5
+        if num_peps_sites * 5 != len(input_tensors):
             raise ValueError(
-                "Dimension of site tensor mismatches physical dimension argument."
+                "Input tensors seems not be a list for a square Kagome simplex system."
             )
 
-        if not (
-            site_1.shape[0]
-            == site_1.shape[2]
-            == site_2.shape[0]
-            == site_2.shape[2]
-            == site_3.shape[0]
-            == site_3.shape[2]
-            == D
-        ) or not (
-            up_simplex.shape[0]
-            == up_simplex.shape[1]
-            == up_simplex.shape[2]
-            == down_simplex.shape[0]
-            == down_simplex.shape[1]
-            == down_simplex.shape[2]
-            == D
-        ):
-            raise ValueError("Dimension of tensor mismatches bond dimension argument.")
+        peps_tensors = [
+            _kagome_mapping_workhorse(*(input_tensors[(i * 5) : (i * 5 + 5)]))
+            for i in range(num_peps_sites)
+        ]
 
-        peps_tensor = _kagome_mapping_workhorse(
-            jnp.asarray(up_simplex),
-            jnp.asarray(down_simplex),
-            jnp.asarray(site_1),
-            jnp.asarray(site_2),
-            jnp.asarray(site_3),
+        if generate_unitcell:
+            peps_tensor_objs = [
+                PEPS_Tensor.from_tensor(
+                    i,
+                    i.shape[2],
+                    (i.shape[0], i.shape[1], i.shape[3], i.shape[4]),
+                    self.chi,
+                )
+                for i in peps_tensors
+            ]
+            unitcell = PEPS_Unit_Cell.from_tensor_list(
+                peps_tensor_objs, self.unitcell_structure
+            )
+
+            return peps_tensors, unitcell
+
+        return peps_tensors
+
+    @classmethod
+    def random(
+        cls: Type[T_Kagome_Map_PESS3_To_Single_PEPS_Site],
+        structure: Sequence[Sequence[int]],
+        d: int,
+        D: int,
+        chi: Union[int, Sequence[int]],
+        dtype: Type[jnp.number],
+        *,
+        seed: Optional[int] = None,
+        destroy_random_state: bool = True,
+    ) -> Tuple[List[jnp.ndarray], T_Kagome_Map_PESS3_To_Single_PEPS_Site]:
+        structure_arr = jnp.asarray(structure)
+
+        structure_arr, tensors_i = PEPS_Unit_Cell._check_structure(structure_arr)
+
+        # Check the inputs
+        if not isinstance(d, int):
+            raise ValueError("d has to be a single integer.")
+
+        if not isinstance(D, int):
+            raise ValueError("D has to be a single integer.")
+
+        if not isinstance(chi, int):
+            raise ValueError("chi has to be a single integer.")
+
+        # Generate the PEPS tensors
+        if destroy_random_state:
+            PEPS_Random_Number_Generator.destroy_state()
+
+        rng = PEPS_Random_Number_Generator.get_generator(seed, backend="jax")
+
+        result_tensors = []
+
+        for i in tensors_i:
+            result_tensors.append(rng.block((D, D, D), dtype=dtype))  # simplex_up
+            result_tensors.append(rng.block((D, D, D), dtype=dtype))  # simplex_down
+            result_tensors.append(rng.block((D, d, D), dtype=dtype))  # site1
+            result_tensors.append(rng.block((D, d, D), dtype=dtype))  # site2
+            result_tensors.append(rng.block((D, d, D), dtype=dtype))  # site3
+
+        return result_tensors, cls(unitcell_structure=structure, chi=chi)
+
+    @classmethod
+    def save_to_file(
+        cls: Type[T_Kagome_Map_PESS3_To_Single_PEPS_Site],
+        path: PathLike,
+        tensors: List[jnp.ndarray],
+        unitcell: PEPS_Unit_Cell,
+        *,
+        store_config: bool = True,
+    ) -> None:
+        """
+        Save unit cell to a HDF5 file.
+
+        This function creates a single group "kagome_pess" in the file
+        and pass this group to the method
+        :obj:`~Kagome_Map_PESS3_To_Single_PEPS_Site.save_to_group` then.
+
+        Args:
+          path (:obj:`os.PathLike`):
+            Path of the new file. Caution: The file will overwritten if existing.
+          store_config (:obj:`bool`):
+            Store the current values of the global config object into the HDF5
+            file as attrs of an extra group.
+        """
+        with h5py.File(path, "w", libver=("earliest", "v110")) as f:
+            grp = f.create_group("kagome_pess")
+
+            cls.save_to_group(grp, tensors, unitcell, store_config=store_config)
+
+    @staticmethod
+    def save_to_group(
+        grp: h5py.Group,
+        tensors: List[jnp.ndarray],
+        unitcell: PEPS_Unit_Cell,
+        *,
+        store_config: bool = True,
+    ) -> None:
+        """
+        Save unit cell to a HDF5 group which is be passed to the method.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to store the data into.
+          store_config (:obj:`bool`):
+            Store the current values of the global config object into the HDF5
+            file as attrs of an extra group.
+        """
+        num_peps_sites = len(tensors) // 5
+        if num_peps_sites * 5 != len(tensors):
+            raise ValueError(
+                "Input tensors seems not be a list for a Kagome simplex system."
+            )
+
+        grp_pess = grp.create_group("pess_tensors", track_order=True)
+        grp_pess.attrs["num_peps_sites"] = num_peps_sites
+
+        for i in range(num_peps_sites):
+            (
+                simplex_up,
+                simplex_down,
+                t1,
+                t2,
+                t3,
+            ) = tensors[(i * 5) : (i * 5 + 5)]
+
+            grp_pess.create_dataset(
+                f"site{i}_simplex_up",
+                data=simplex_up,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp_pess.create_dataset(
+                f"site{i}_simplex_down",
+                data=simplex_down,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp_pess.create_dataset(
+                f"site{i}_t1", data=t1, compression="gzip", compression_opts=6
+            )
+            grp_pess.create_dataset(
+                f"site{i}_t2", data=t2, compression="gzip", compression_opts=6
+            )
+            grp_pess.create_dataset(
+                f"site{i}_t3", data=t3, compression="gzip", compression_opts=6
+            )
+
+        grp_unitcell = grp.create_group("unitcell")
+        unitcell.save_to_group(grp_unitcell, store_config=store_config)
+
+    @classmethod
+    def load_from_file(
+        cls: Type[T_Kagome_Map_PESS3_To_Single_PEPS_Site],
+        path: PathLike,
+        *,
+        return_config: bool = False,
+    ) -> Union[
+        Tuple[List[jnp.ndarray], PEPS_Unit_Cell],
+        Tuple[List[jnp.ndarray], PEPS_Unit_Cell, peps_ad.config.PEPS_AD_Config],
+    ]:
+        """
+        Load unit cell from a HDF5 file.
+
+        This function read the group "kagome_pess" from the file and pass
+        this group to the method
+        :obj:`~Kagome_Map_PESS3_To_Single_PEPS_Site.load_from_group` then.
+
+        Args:
+          path (:obj:`os.PathLike`):
+            Path of the HDF5 file.
+          return_config (:obj:`bool`):
+            Return a config object initialized with the values from the HDF5
+            files. If no config is stored in the file, just the data is returned.
+            Missing config flags in the file uses the default values from the
+            config object.
+        Returns:
+          :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`) or :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`~peps_ad.config.PEPS_AD_Config`):
+            The tuple with the list of the PESS tensors and the PEPS unitcell
+            is returned. If ``return_config = True``. the config is returned
+            as well.
+        """
+        with h5py.File(path, "r") as f:
+            out = cls.load_from_group(f["kagome_pess"], return_config=return_config)
+
+        if return_config:
+            return out[0], out[1], out[2]
+
+        return out[0], out[1]
+
+    @staticmethod
+    def load_from_group(
+        grp: h5py.Group,
+        *,
+        return_config: bool = False,
+    ) -> Union[
+        Tuple[List[jnp.ndarray], PEPS_Unit_Cell],
+        Tuple[List[jnp.ndarray], PEPS_Unit_Cell, peps_ad.config.PEPS_AD_Config],
+    ]:
+        """
+        Load the unit cell from a HDF5 group which is be passed to the method.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to load the data from.
+          return_config (:obj:`bool`):
+            Return a config object initialized with the values from the HDF5
+            files. If no config is stored in the file, just the data is returned.
+            Missing config flags in the file uses the default values from the
+            config object.
+        Returns:
+          :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`) or :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`~peps_ad.config.PEPS_AD_Config`):
+            The tuple with the list of the PESS tensors and the PEPS unitcell
+            is returned. If ``return_config = True``. the config is returned
+            as well.
+        """
+        grp_pess = grp["pess_tensors"]
+        num_peps_sites = grp_pess.attrs["num_peps_sites"]
+
+        tensors = []
+
+        for i in range(num_peps_sites):
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_simplex_up"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_simplex_down"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_t1"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_t2"]))
+            tensors.append(jnp.asarray(grp_pess[f"site{i}_t3"]))
+
+        out = PEPS_Unit_Cell.load_from_group(
+            grp["unitcell"], return_config=return_config
         )
 
-        peps_tensor_obj = PEPS_Tensor.from_tensor(peps_tensor, d**3, D, chi)
+        if return_config:
+            return tensors, out[0], out[1]
 
-        return PEPS_Unit_Cell.from_tensor_list((peps_tensor_obj,), ((0,),))
+        return tensors, out
+
+    @classmethod
+    def autosave_wrapper(
+        cls: Type[T_Kagome_Map_PESS3_To_Single_PEPS_Site],
+        filename: PathLike,
+        tensors: jnp.ndarray,
+        unitcell: PEPS_Unit_Cell,
+    ) -> None:
+        cls.save_to_file(filename, tensors, unitcell)
 
 
 class iPESS3_9Sites_Three_PEPS_Site:
