@@ -200,6 +200,8 @@ def line_search(
 
     count = 0
     while count < peps_ad_config.line_search_max_steps:
+        print(f"Try line search step size {alpha}")
+
         new_tensors = _line_search_new_tensors(input_tensors, descent_direction, alpha)
 
         if convert_to_unitcell_func is None:
@@ -256,11 +258,6 @@ def line_search(
                     )
                 new_gradient = [elem.conj() for elem in new_gradient_seq]
             except (CTMRGNotConvergedError, CTMRGGradientNotConvergedError):
-                # import datetime
-
-                # new_unitcell.save_to_file(
-                #     f"/home/janluca/Promotion/peps/peps-ad/data/broken/{datetime.datetime.now().isoformat()}.hdf5"
-                # )
                 new_value = jnp.inf
                 new_gradient = gradient
         else:
@@ -399,28 +396,6 @@ def line_search(
                 )
                 wolfe_alpha_last_step = tmp_alpha
 
-            # if wolfe_cond_1 and wolfe_cond_2:
-            #     break
-            # elif not wolfe_cond_1 and wolfe_cond_2:
-            #     wolfe_upper_bound = alpha
-            #     new_alpha = peps_ad_config.line_search_reduction_factor * alpha
-            #     exp = 1
-            #     while new_alpha <= wolfe_lower_bound:
-            #         new_alpha = (1 - 0.5**exp * (1 - peps_ad_config.line_search_reduction_factor)) * alpha
-            #         exp += 1
-            #     alpha = new_alpha
-            # elif wolfe_cond_1 and not wolfe_cond_2:
-            #     wolfe_lower_bound = alpha
-            #     new_alpha = alpha / peps_ad_config.line_search_reduction_factor
-            #     exp = 1
-            #     while new_alpha >= wolfe_upper_bound:
-            #         new_alpha = alpha / (1 - 0.5**exp * (1 - peps_ad_config.line_search_reduction_factor))
-            #         exp += 1
-            #     alpha = new_alpha
-            # else:
-            #     raise NoSuitableStepSizeError(f"Wolfe search failed: Alpha {alpha}, Lower bound: {wolfe_lower_bound}, Upper bound {wolfe_upper_bound}")
-
-        print(alpha)
         count += 1
 
     if count == peps_ad_config.line_search_max_steps:
