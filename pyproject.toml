@@ -15,6 +15,7 @@ jax = {extras = ["cpu"], version = ">=0.3.16"}
 tensornetwork = ">=0.4.5"
 poethepoet = ">=0.10.0"
 h5py = ">=3.6.0"
+tqdm = {extras = ["notebook"], version = ">=4.64.1"}
 
 [tool.poetry.dev-dependencies]
 black = ">=21.8-beta.0"
@@ -22,6 +23,7 @@ ipython = ">=7.27.0"
 pylint = ">=2.10.2"
 flake8 = ">=3.9.2"
 mypy = ">=0.910"
+jupyter = ">=1.0.0"
 
 [build-system]
 requires = ["poetry-core"]
