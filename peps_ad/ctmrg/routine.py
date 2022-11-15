@@ -342,9 +342,7 @@ def calc_ctmrg_env(
     peps_ad_global_state.ctmrg_effective_truncation_eps = None
 
     while True:
-        in_tree = tree_util.tree_structure(working_unitcell)
-        out_tree = None
-        while out_tree is None or in_tree != out_tree:
+        while any(i.C1.shape[0] != i.chi for i in working_unitcell.get_unique_tensors()):
             (
                 _,
                 working_unitcell,
@@ -368,8 +366,6 @@ def calc_ctmrg_env(
                     peps_ad_config,
                 )
             )
-
-            out_tree = tree_util.tree_structure(working_unitcell)
 
         working_unitcell, converged, end_count = _ctmrg_while_wrapper(
             (
