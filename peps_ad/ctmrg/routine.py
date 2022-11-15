@@ -325,7 +325,6 @@ def calc_ctmrg_env(
         else peps_ad_config.ctmrg_enforce_elementwise_convergence
     )
     init_corner_singular_vals = None
-    corner_singular_vals = None
 
     if enforce_elementwise_convergence:
         last_step_tensors = unitcell.get_unique_tensors()
@@ -343,6 +342,9 @@ def calc_ctmrg_env(
     peps_ad_global_state.ctmrg_effective_truncation_eps = None
 
     while True:
+        tmp_count = 0
+        corner_singular_vals = None
+
         while any(
             i.C1.shape[0] != i.chi for i in working_unitcell.get_unique_tensors()
         ):
