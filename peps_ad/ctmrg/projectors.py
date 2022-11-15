@@ -111,10 +111,9 @@ def _truncated_SVD(
     U = U[:, :chi]
     Vh = Vh[:chi, :]
 
-    S_sqrt = jnp.sqrt(S)
-    relevant_S_values = S_sqrt > truncation_eps
+    relevant_S_values = (S / S[0]) > truncation_eps
     S_inv_sqrt = jnp.where(
-        relevant_S_values, 1 / jnp.where(relevant_S_values, S_sqrt, 1), 0
+        relevant_S_values, 1 / jnp.sqrt(jnp.where(relevant_S_values, S, 1)), 0
     )
 
     return S_inv_sqrt, U, Vh
