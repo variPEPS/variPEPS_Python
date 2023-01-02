@@ -1,3 +1,5 @@
+from tqdm.auto import tqdm
+
 import jax.numpy as jnp
 from jax import jit
 from jax.flatten_util import ravel_pytree
@@ -200,7 +202,7 @@ def line_search(
 
     count = 0
     while count < peps_ad_config.line_search_max_steps:
-        print(f"Try line search step size {alpha}")
+        tqdm.write(f"Try line search step size {alpha}")
 
         new_tensors = _line_search_new_tensors(input_tensors, descent_direction, alpha)
 

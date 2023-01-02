@@ -4,6 +4,8 @@ from os import PathLike
 
 from scipy.optimize import OptimizeResult
 
+from tqdm.auto import tqdm
+
 from jax import jit
 import jax.numpy as jnp
 from jax.lax import scan
@@ -250,140 +252,143 @@ def optimize_peps_network(
     else:
         peps_ad_global_state.ctmrg_projector_method = None
 
-    while count < peps_ad_config.optimizer_max_steps:
-        try:
-            if peps_ad_config.ad_use_custom_vjp:
-                (
-                    working_value,
-                    working_unitcell,
-                ), working_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
-                    working_tensors,
-                    working_unitcell,
-                    expectation_func,
-                    convert_to_unitcell_func,
+    with tqdm(desc="Optimizing PEPS state") as pbar:
+        while count < peps_ad_config.optimizer_max_steps:
+            try:
+                if peps_ad_config.ad_use_custom_vjp:
+                    (
+                        working_value,
+                        working_unitcell,
+                    ), working_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
+                        working_tensors,
+                        working_unitcell,
+                        expectation_func,
+                        convert_to_unitcell_func,
+                    )
+                else:
+                    (
+                        working_value,
+                        working_unitcell,
+                    ), working_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
+                        working_tensors,
+                        working_unitcell,
+                        expectation_func,
+                        convert_to_unitcell_func,
+                        calc_preconverged=(count == 0),
+                    )
+            except (CTMRGNotConvergedError, CTMRGGradientNotConvergedError) as e:
+                peps_ad_global_state.ctmrg_projector_method = None
+
+                return OptimizeResult(
+                    success=False,
+                    message=str(type(e)),
+                    x=working_tensors,
+                    fun=working_value,
+                    unitcell=working_unitcell,
+                    nit=count,
                 )
-            else:
-                (
-                    working_value,
-                    working_unitcell,
-                ), working_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
-                    working_tensors,
-                    working_unitcell,
-                    expectation_func,
-                    convert_to_unitcell_func,
-                    calc_preconverged=(count == 0),
-                )
-        except (CTMRGNotConvergedError, CTMRGGradientNotConvergedError) as e:
-            peps_ad_global_state.ctmrg_projector_method = None
 
-            return OptimizeResult(
-                success=False,
-                message=str(type(e)),
-                x=working_tensors,
-                fun=working_value,
-                unitcell=working_unitcell,
-                nit=count,
-            )
+            working_gradient = [elem.conj() for elem in working_gradient_seq]
 
-        print(f"{count} before: Value {working_value}")
-
-        working_gradient = [elem.conj() for elem in working_gradient_seq]
-
-        if peps_ad_config.optimizer_method is Optimizing_Methods.STEEPEST:
-            descent_dir = [-elem for elem in working_gradient]
-        elif peps_ad_config.optimizer_method is Optimizing_Methods.CG:
-            if count == 0:
+            if peps_ad_config.optimizer_method is Optimizing_Methods.STEEPEST:
                 descent_dir = [-elem for elem in working_gradient]
+            elif peps_ad_config.optimizer_method is Optimizing_Methods.CG:
+                if count == 0:
+                    descent_dir = [-elem for elem in working_gradient]
+                else:
+                    descent_dir, beta = _cg_workhorse(
+                        working_gradient, old_gradient, old_descent_dir
+                    )
+            elif peps_ad_config.optimizer_method is Optimizing_Methods.BFGS:
+                if count == 0:
+                    descent_dir, _ = _bfgs_workhorse(
+                        working_gradient, None, None, None, bfgs_B_inv, False
+                    )
+                else:
+                    descent_dir, bfgs_B_inv = _bfgs_workhorse(
+                        working_gradient,
+                        old_gradient,
+                        old_descent_dir,
+                        linesearch_step,
+                        bfgs_B_inv,
+                        True,
+                    )
+            elif peps_ad_config.optimizer_method is Optimizing_Methods.L_BFGS:
+                l_bfgs_x_cache.appendleft(tuple(working_tensors))
+                l_bfgs_grad_cache.appendleft(tuple(working_gradient))
+
+                if count == 0:
+                    descent_dir = [-elem for elem in working_gradient]
+                else:
+                    descent_dir = _l_bfgs_workhorse(
+                        tuple(l_bfgs_x_cache), tuple(l_bfgs_grad_cache)
+                    )
             else:
-                descent_dir, beta = _cg_workhorse(
-                    working_gradient, old_gradient, old_descent_dir
-                )
-                print(beta)
-        elif peps_ad_config.optimizer_method is Optimizing_Methods.BFGS:
-            if count == 0:
-                descent_dir, _ = _bfgs_workhorse(
-                    working_gradient, None, None, None, bfgs_B_inv, False
-                )
-            else:
-                descent_dir, bfgs_B_inv = _bfgs_workhorse(
-                    working_gradient,
-                    old_gradient,
-                    old_descent_dir,
+                raise ValueError("Unknown optimization method.")
+
+            if _scalar_descent_grad(descent_dir, working_gradient) > 0:
+                tqdm.write("Found bad descent dir. Reset to negative gradient!")
+                descent_dir = [-elem for elem in working_gradient]
+
+            conv = jnp.linalg.norm(ravel_pytree(working_gradient)[0])
+
+            try:
+                (
+                    working_tensors,
+                    working_unitcell,
+                    working_value,
                     linesearch_step,
-                    bfgs_B_inv,
-                    True,
+                ) = line_search(
+                    working_tensors,
+                    working_unitcell,
+                    expectation_func,
+                    working_gradient,
+                    descent_dir,
+                    working_value,
+                    linesearch_step,
+                    convert_to_unitcell_func,
                 )
-        elif peps_ad_config.optimizer_method is Optimizing_Methods.L_BFGS:
-            l_bfgs_x_cache.appendleft(tuple(working_tensors))
-            l_bfgs_grad_cache.appendleft(tuple(working_gradient))
+            except NoSuitableStepSizeError:
+                if peps_ad_config.optimizer_fail_if_no_step_size_found:
+                    raise
+                else:
+                    conv = 0
 
-            if count == 0:
-                descent_dir = [-elem for elem in working_gradient]
-            else:
-                descent_dir = _l_bfgs_workhorse(
-                    tuple(l_bfgs_x_cache), tuple(l_bfgs_grad_cache)
+            if conv < peps_ad_config.optimizer_convergence_eps:
+                working_value, working_unitcell = calc_ctmrg_expectation(
+                    working_tensors,
+                    working_unitcell,
+                    expectation_func,
+                    convert_to_unitcell_func,
+                    enforce_elementwise_convergence=peps_ad_config.ad_use_custom_vjp,
                 )
-        else:
-            raise ValueError("Unknown optimization method.")
+                peps_ad_global_state.ctmrg_projector_method = None
+                break
 
-        if _scalar_descent_grad(descent_dir, working_gradient) > 0:
-            print("Found bad descent dir. Reset to negative gradient!")
-            descent_dir = [-elem for elem in working_gradient]
+            if (
+                peps_ad_config.optimizer_preconverge_with_half_projectors
+                and conv < peps_ad_config.optimizer_preconverge_with_half_projectors_eps
+            ):
+                peps_ad_global_state.ctmrg_projector_method = (
+                    peps_ad_config.ctmrg_full_projector_method
+                )
 
-        conv = jnp.linalg.norm(ravel_pytree(working_gradient)[0])
+            old_descent_dir = descent_dir
+            old_gradient = working_gradient
 
-        try:
-            (
-                working_tensors,
-                working_unitcell,
-                working_value,
-                linesearch_step,
-            ) = line_search(
-                working_tensors,
-                working_unitcell,
-                expectation_func,
-                working_gradient,
-                descent_dir,
-                working_value,
-                linesearch_step,
-                convert_to_unitcell_func,
-            )
-        except NoSuitableStepSizeError:
-            if peps_ad_config.optimizer_fail_if_no_step_size_found:
-                raise
-            else:
-                conv = 0
+            count += 1
 
-        if conv < peps_ad_config.optimizer_convergence_eps:
-            working_value, working_unitcell = calc_ctmrg_expectation(
-                working_tensors,
-                working_unitcell,
-                expectation_func,
-                convert_to_unitcell_func,
-                enforce_elementwise_convergence=peps_ad_config.ad_use_custom_vjp,
-            )
-            peps_ad_global_state.ctmrg_projector_method = None
-            break
-
-        if (
-            peps_ad_config.optimizer_preconverge_with_half_projectors
-            and conv < peps_ad_config.optimizer_preconverge_with_half_projectors_eps
-        ):
-            peps_ad_global_state.ctmrg_projector_method = (
-                peps_ad_config.ctmrg_full_projector_method
+            pbar.update()
+            pbar.set_postfix(
+                {
+                    "Energy": working_value,
+                    "Convergence": conv,
+                    "Line search step size": linesearch_step,
+                }
             )
 
-        old_descent_dir = descent_dir
-        old_gradient = working_gradient
-
-        count += 1
-
-        print(
-            f"{count} after: Value {working_value}, Conv: {conv}, Alpha: {linesearch_step}"
-        )
-
-        if count % peps_ad_config.optimizer_autosave_step_count == 0:
-            autosave_func(autosave_filename, working_tensors, working_unitcell)
+            if count % peps_ad_config.optimizer_autosave_step_count == 0:
+                autosave_func(autosave_filename, working_tensors, working_unitcell)
 
     return OptimizeResult(
         success=True,

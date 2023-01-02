@@ -105,12 +105,12 @@ class PEPS_AD_Basinhopping:
             input_obj = x0_jax
 
         opt_result = optimize_peps_network(
-                input_obj,
-                self.expectation_func,
-                self.convert_to_unitcell_func,
-                self.autosave_filename,
-                self.autosave_func,
-            )
+            input_obj,
+            self.expectation_func,
+            self.convert_to_unitcell_func,
+            self.autosave_filename,
+            self.autosave_func,
+        )
 
         result_tensors, _ = ravel_pytree(opt_result.x)
         result_tensors_numpy = numpy.asarray(result_tensors)

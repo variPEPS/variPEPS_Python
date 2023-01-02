@@ -9,6 +9,7 @@ import jax.debug as jdebug
 
 from peps_ad import peps_ad_config, peps_ad_global_state
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
+from peps_ad.utils.debug_print import debug_print
 from .absorption import do_absorption_step
 
 from typing import Sequence, Tuple, List, Optional
@@ -253,10 +254,10 @@ def _ctmrg_body_func(carry):
     )
 
     if config.ctmrg_print_steps:
-        jdebug.print("CTMRG: {}: {}", count, measure)
+        debug_print("CTMRG: {}: {}", count, measure)
         if config.ctmrg_verbose_output:
             for ti, ctm_enum_i, diff in verbose_data:
-                jdebug.print(
+                debug_print(
                     "CTMRG: Verbose: ti {}, CTM tensor {}, Diff {}",
                     ti,
                     CTM_Enum(ctm_enum_i).name,
@@ -405,7 +406,10 @@ def calc_ctmrg_env(
                 new_truncation_eps
                 <= peps_ad_config.ctmrg_increase_truncation_eps_max_value
             ):
-                print(f"CTMRG: Increasing SVD truncation eps to {new_truncation_eps}.")
+                debug_print(
+                    "CTMRG: Increasing SVD truncation eps to {}.",
+                    new_truncation_eps,
+                )
                 peps_ad_global_state.ctmrg_effective_truncation_eps = new_truncation_eps
                 working_unitcell = unitcell
                 continue
@@ -504,10 +508,10 @@ def _ctmrg_rev_while_body(carry):
     count += 1
 
     if config.ad_custom_print_steps:
-        jdebug.print("Custom VJP: {}: {}", count, measure)
+        debug_print("Custom VJP: {}: {}", count, measure)
         if config.ad_custom_verbose_output:
             for ti, ctm_enum_i, diff in verbose_data:
-                jdebug.print(
+                debug_print(
                     "Custom VJP: Verbose: ti {}, CTM tensor {}, Diff {}",
                     ti,
                     CTM_Enum(ctm_enum_i).name,
