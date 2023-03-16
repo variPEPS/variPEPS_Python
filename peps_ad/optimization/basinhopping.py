@@ -7,7 +7,7 @@ import scipy.optimize as spo
 import jax.numpy as jnp
 from jax.flatten_util import ravel_pytree
 
-from peps_ad import peps_ad_config
+from peps_ad import peps_ad_config, peps_ad_global_state
 from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
 from peps_ad.mapping import Map_To_PEPS_Model
@@ -88,6 +88,8 @@ class PEPS_AD_Basinhopping:
         *args,
         **kwargs,
     ):
+        peps_ad_global_state.basinhopping_disable_half_projector = not self._first_step
+
         if self._iscomplex:
             x0_jax = jnp.asarray(
                 x0[: self._initial_guess_complex_length]
@@ -122,6 +124,8 @@ class PEPS_AD_Basinhopping:
         opt_result["x"] = result_tensors_numpy
         opt_result["fun"] = numpy.asarray(opt_result.fun)
 
+        self._first_step = False
+
         return opt_result
 
     @staticmethod
@@ -141,6 +145,8 @@ class PEPS_AD_Basinhopping:
             ``unitcell`` and ``result_tensors`` for the result tensors and
             unitcell in the normal format of this library.
         """
+        self._first_step = True
+
         result = spo.basinhopping(
             self._dummy_func,
             self._initial_guess_tensors_numpy,
@@ -163,5 +169,7 @@ class PEPS_AD_Basinhopping:
         x_jax = self._map_pytree_func(x_jax)
 
         result["result_tensors"] = x_jax
+
+        peps_ad_global_state.basinhopping_disable_half_projector = None
 
         return result

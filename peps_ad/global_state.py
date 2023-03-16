@@ -19,6 +19,7 @@ class PEPS_AD_Global_State:
 
     ctmrg_effective_truncation_eps: Optional[float] = None
     ctmrg_projector_method: Optional[Projector_Method] = None
+    basinhopping_disable_half_projector: Optional[bool] = None
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
         aux_data = (

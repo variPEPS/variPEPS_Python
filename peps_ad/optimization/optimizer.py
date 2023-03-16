@@ -247,7 +247,10 @@ def optimize_peps_network(
     ] = peps_ad_config.line_search_initial_step_size
     working_value: Union[float, jnp.ndarray]
 
-    if peps_ad_config.optimizer_preconverge_with_half_projectors:
+    if (
+        peps_ad_config.optimizer_preconverge_with_half_projectors
+        and not peps_ad_global_state.basinhopping_disable_half_projector
+    ):
         peps_ad_global_state.ctmrg_projector_method = Projector_Method.HALF
     else:
         peps_ad_global_state.ctmrg_projector_method = None
@@ -367,6 +370,7 @@ def optimize_peps_network(
 
             if (
                 peps_ad_config.optimizer_preconverge_with_half_projectors
+                and not peps_ad_global_state.basinhopping_disable_half_projector
                 and conv < peps_ad_config.optimizer_preconverge_with_half_projectors_eps
             ):
                 peps_ad_global_state.ctmrg_projector_method = (

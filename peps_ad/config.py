@@ -183,7 +183,7 @@ class PEPS_AD_Config:
 
     # Basinhopping
     basinhopping_niter: int = 20
-    basinhopping_T: float = 0.01
+    basinhopping_T: float = 0.001
     basinhopping_niter_success: int = 5
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
