@@ -202,8 +202,6 @@ def line_search(
 
     count = 0
     while count < peps_ad_config.line_search_max_steps:
-        tqdm.write(f"Try line search step size {alpha}")
-
         new_tensors = _line_search_new_tensors(input_tensors, descent_direction, alpha)
 
         if convert_to_unitcell_func is None:

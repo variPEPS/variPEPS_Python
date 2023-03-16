@@ -327,7 +327,7 @@ def optimize_peps_network(
                 raise ValueError("Unknown optimization method.")
 
             if _scalar_descent_grad(descent_dir, working_gradient) > 0:
-                tqdm.write("Found bad descent dir. Reset to negative gradient!")
+                # tqdm.write("Found bad descent dir. Reset to negative gradient!")
                 descent_dir = [-elem for elem in working_gradient]
 
             conv = jnp.linalg.norm(ravel_pytree(working_gradient)[0])
