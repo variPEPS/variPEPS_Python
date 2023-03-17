@@ -122,7 +122,10 @@ class PEPS_AD_Basinhopping:
             )
 
         opt_result["x"] = result_tensors_numpy
-        opt_result["fun"] = numpy.asarray(opt_result.fun)
+        if opt_result.fun is not None:
+            opt_result["fun"] = numpy.asarray(opt_result.fun)
+        else:
+            opt_result["fun"] = np.inf
 
         self._first_step = False
 
