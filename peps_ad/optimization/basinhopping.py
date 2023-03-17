@@ -125,7 +125,7 @@ class PEPS_AD_Basinhopping:
         if opt_result.fun is not None:
             opt_result["fun"] = numpy.asarray(opt_result.fun)
         else:
-            opt_result["fun"] = np.inf
+            opt_result["fun"] = numpy.inf
 
         self._first_step = False
 
