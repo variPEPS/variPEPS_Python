@@ -754,5 +754,16 @@ class Definitions:
         ],
     }
 
+    maple_leaf_pess_mapping: Definition = {
+        "tensors": ["t1", "t2", "t3", "up", "down"],
+        "network": [
+            (-3, -1, 1),  # t1
+            (-4, -2, 2),  # t2
+            (-5, 4, 3),  # t3
+            (1, 2, 4),  # up
+            (3, -7, -6),  # down
+        ],
+    }
+
 
 Definitions._prepare_defs()

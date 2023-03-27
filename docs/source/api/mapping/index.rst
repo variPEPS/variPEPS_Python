@@ -11,6 +11,7 @@ Mapping of other structures to PEPS unitcells (:mod:`peps_ad.mapping`)
    :maxdepth: 2
 
    kagome
+   maple_leaf
    square_kagome
    triangular
 
