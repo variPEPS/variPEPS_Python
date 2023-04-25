@@ -821,7 +821,7 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
 
     @classmethod
     def autosave_wrapper(
-        cls: Type[T_Triangular_Map_PESS_To_PEPS],
+        cls: Type[T_Maple_Leaf_Map_PESS_To_PEPS],
         filename: PathLike,
         tensors: jnp.ndarray,
         unitcell: PEPS_Unit_Cell,

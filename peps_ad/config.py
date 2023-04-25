@@ -151,9 +151,9 @@ class PEPS_AD_Config:
     ctmrg_max_steps: int = 75
     ctmrg_print_steps: bool = False
     ctmrg_verbose_output: bool = False
-    ctmrg_truncation_eps: float = 1e-14
+    ctmrg_truncation_eps: float = 1e-12
     ctmrg_fail_if_not_converged: bool = True
-    ctmrg_full_projector_method: Projector_Method = Projector_Method.FULL
+    ctmrg_full_projector_method: Projector_Method = Projector_Method.FISHMAN
     ctmrg_increase_truncation_eps: bool = True
     ctmrg_increase_truncation_eps_factor: float = 100
     ctmrg_increase_truncation_eps_max_value: float = 1e-6
