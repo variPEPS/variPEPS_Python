@@ -4,7 +4,7 @@ from os import PathLike
 
 from scipy.optimize import OptimizeResult
 
-from tqdm.auto import tqdm
+from tqdm_loggable.auto import tqdm
 
 from jax import jit
 import jax.numpy as jnp

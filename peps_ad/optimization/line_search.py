@@ -1,4 +1,4 @@
-from tqdm.auto import tqdm
+from tqdm_loggable.auto import tqdm
 
 import jax.numpy as jnp
 from jax import jit

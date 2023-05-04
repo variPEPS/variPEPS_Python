@@ -1,6 +1,6 @@
 import functools
 
-from tqdm.auto import tqdm
+from tqdm_loggable.auto import tqdm
 
 import jax.debug as jdebug
 from jax._src.debugging import formatter

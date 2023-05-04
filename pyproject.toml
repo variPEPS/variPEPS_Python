@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "peps_ad"}]
 
 [tool.poetry.dependencies]
-python = ">=3.9"
+python = ">=3.9,<4.0"
 numpy = ">=1.21.2"
 scipy = ">=1.7.1"
 jax = {extras = ["cpu"], version = ">=0.3.16"}
@@ -16,6 +16,7 @@ tensornetwork = ">=0.4.5"
 poethepoet = ">=0.10.0"
 h5py = ">=3.6.0"
 tqdm = {extras = ["notebook"], version = ">=4.64.1"}
+tqdm-loggable = "^0.1.3"
 
 [tool.poetry.dev-dependencies]
 black = ">=21.8-beta.0"
