@@ -192,7 +192,7 @@ def _fishman_horizontal_cut(
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
-    truncation_size: int,
+    truncation_eps: float,
 ) -> Tuple[
     jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray
 ]:
@@ -207,14 +207,10 @@ def _fishman_horizontal_cut(
     bottom_matrix = jnp.dot(bottom_right_matrix, bottom_left_matrix)
 
     top_U, top_S, top_Vh = gauge_fixed_svd(top_matrix)
-    top_S = top_S[:truncation_size]
-    top_U = top_U[:, :truncation_size]
-    top_Vh = top_Vh[:truncation_size, :]
+    top_S = jnp.where((top_S / top_S[0]) >= truncation_eps, top_S, 0)
 
     bottom_U, bottom_S, bottom_Vh = gauge_fixed_svd(bottom_matrix)
-    bottom_S = bottom_S[:truncation_size]
-    bottom_U = bottom_U[:, :truncation_size]
-    bottom_Vh = bottom_Vh[:truncation_size, :]
+    bottom_S = jnp.where((bottom_S / bottom_S[0]) >= truncation_eps, bottom_S, 0)
 
     return top_U, top_S, top_Vh, bottom_U, bottom_S, bottom_Vh
 
@@ -224,7 +220,7 @@ def _fishman_vertical_cut(
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
-    truncation_size: int,
+    truncation_eps: float,
 ) -> Tuple[
     jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray
 ]:
@@ -239,14 +235,10 @@ def _fishman_vertical_cut(
     right_matrix = jnp.dot(top_right_matrix, bottom_right_matrix)
 
     left_U, left_S, left_Vh = gauge_fixed_svd(left_matrix)
-    left_S = left_S[:truncation_size]
-    left_U = left_U[:, :truncation_size]
-    left_Vh = left_Vh[:truncation_size, :]
+    left_S = jnp.where((left_S / left_S[0]) >= truncation_eps, left_S, 0)
 
     right_U, right_S, right_Vh = gauge_fixed_svd(right_matrix)
-    right_S = right_S[:truncation_size]
-    right_U = right_U[:, :truncation_size]
-    right_Vh = right_Vh[:truncation_size, :]
+    right_S = jnp.where((right_S / right_S[0]) >= truncation_eps, right_S, 0)
 
     return left_U, left_S, left_Vh, right_U, right_S, right_Vh
 
@@ -276,7 +268,7 @@ def _left_projectors_workhorse(
         bottom_matrix /= jnp.linalg.norm(top_matrix)
     elif projector_method is Projector_Method.FISHMAN:
         top_U, top_S, _, _, bottom_S, bottom_Vh = _fishman_horizontal_cut(
-            top_left, top_right, bottom_left, bottom_right, 2 * chi
+            top_left, top_right, bottom_left, bottom_right, truncation_eps
         )
         top_matrix = top_U * jnp.sqrt(top_S)[jnp.newaxis, :]
         bottom_matrix = jnp.sqrt(bottom_S)[:, jnp.newaxis] * bottom_Vh
@@ -379,7 +371,7 @@ def _right_projectors_workhorse(
         bottom_matrix /= jnp.linalg.norm(top_matrix)
     elif projector_method is Projector_Method.FISHMAN:
         _, top_S, top_Vh, bottom_U, bottom_S, _ = _fishman_horizontal_cut(
-            top_left, top_right, bottom_left, bottom_right, 2 * chi
+            top_left, top_right, bottom_left, bottom_right, truncation_eps
         )
         top_matrix = jnp.sqrt(top_S)[:, jnp.newaxis] * top_Vh
         bottom_matrix = bottom_U * jnp.sqrt(bottom_S)[jnp.newaxis, :]
@@ -482,7 +474,7 @@ def _top_projectors_workhorse(
         right_matrix /= jnp.linalg.norm(right_matrix)
     elif projector_method is Projector_Method.FISHMAN:
         _, left_S, left_Vh, right_U, right_S, _ = _fishman_vertical_cut(
-            top_left, top_right, bottom_left, bottom_right, 2 * chi
+            top_left, top_right, bottom_left, bottom_right, truncation_eps
         )
         left_matrix = jnp.sqrt(left_S)[:, jnp.newaxis] * left_Vh
         right_matrix = right_U * jnp.sqrt(right_S)[jnp.newaxis, :]
@@ -583,7 +575,7 @@ def _bottom_projectors_workhorse(
         right_matrix /= jnp.linalg.norm(right_matrix)
     elif projector_method is Projector_Method.FISHMAN:
         left_U, left_S, _, _, right_S, right_Vh = _fishman_vertical_cut(
-            top_left, top_right, bottom_left, bottom_right, 2 * chi
+            top_left, top_right, bottom_left, bottom_right, truncation_eps
         )
         left_matrix = left_U * jnp.sqrt(left_S)[jnp.newaxis, :]
         right_matrix = jnp.sqrt(right_S)[:, jnp.newaxis] * right_Vh
