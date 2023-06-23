@@ -330,7 +330,7 @@ def optimize_peps_network(
                 raise ValueError("Unknown optimization method.")
 
             if _scalar_descent_grad(descent_dir, working_gradient) > 0:
-                # tqdm.write("Found bad descent dir. Reset to negative gradient!")
+                tqdm.write("Found bad descent dir. Reset to negative gradient!")
                 descent_dir = [-elem for elem in working_gradient]
 
             conv = jnp.linalg.norm(ravel_pytree(working_gradient)[0])
@@ -376,6 +376,16 @@ def optimize_peps_network(
                 peps_ad_global_state.ctmrg_projector_method = (
                     peps_ad_config.ctmrg_full_projector_method
                 )
+
+                working_value, working_unitcell = calc_ctmrg_expectation(
+                    working_tensors,
+                    working_unitcell,
+                    expectation_func,
+                    convert_to_unitcell_func,
+                    enforce_elementwise_convergence=peps_ad_config.ad_use_custom_vjp,
+                )
+                descent_dir = None
+                working_gradient = None
 
             old_descent_dir = descent_dir
             old_gradient = working_gradient
