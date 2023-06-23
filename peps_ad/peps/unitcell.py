@@ -741,6 +741,21 @@ class PEPS_Unit_Cell:
                 for config_attr in peps_ad_config.__dataclass_fields__.keys()
                 if grp["config"].attrs.get(config_attr) is not None
             }
+            if config_dict.get("ctmrg_full_projector_method"):
+                config_dict[
+                    "ctmrg_full_projector_method"
+                ] = peps_ad.config.Projector_Method(
+                    config_dict["ctmrg_full_projector_method"]
+                )
+            if config_dict.get("optimizer_method"):
+                config_dict["optimizer_method"] = peps_ad.config.Optimizing_Methods(
+                    config_dict["optimizer_method"]
+                )
+            if config_dict.get("line_search_method"):
+                config_dict["line_search_method"] = peps_ad.config.Line_Search_Methods(
+                    config_dict["line_search_method"]
+                )
+
             return cls(
                 data=data, real_ix=real_ix, real_iy=real_iy
             ), peps_ad.config.PEPS_AD_Config(**config_dict)
