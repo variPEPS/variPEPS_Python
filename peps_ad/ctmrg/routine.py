@@ -406,7 +406,7 @@ def calc_ctmrg_env(
                 new_truncation_eps
                 <= peps_ad_config.ctmrg_increase_truncation_eps_max_value
             ):
-                if peps_ad_config.ctmrg_verbose_output:
+                if peps_ad_config.ctmrg_print_steps:
                     debug_print(
                         "CTMRG: Increasing SVD truncation eps to {}.",
                         new_truncation_eps,
