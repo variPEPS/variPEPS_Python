@@ -170,7 +170,7 @@ class PEPS_AD_Config:
     optimizer_l_bfgs_maxlen: int = 50
     optimizer_preconverge_with_half_projectors: bool = True
     optimizer_preconverge_with_half_projectors_eps: float = 1e-3
-    optimizer_autosave_step_count: int = 25
+    optimizer_autosave_step_count: int = 5
 
     # Line search
     line_search_method: Line_Search_Methods = Line_Search_Methods.WOLFE
