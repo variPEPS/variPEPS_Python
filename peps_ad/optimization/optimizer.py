@@ -236,7 +236,8 @@ def optimize_peps_network(
     working_value = None
 
     if peps_ad_config.optimizer_method is Optimizing_Methods.BFGS:
-        bfgs_B_inv = jnp.eye(2 * sum([t.size for t in working_tensors]))
+        bfgs_prefactor = 2 if any(jnp.iscomplexobj(t) for t in working_tensors) else 1
+        bfgs_B_inv = jnp.eye(bfgs_prefactor * sum([t.size for t in working_tensors]))
     elif peps_ad_config.optimizer_method is Optimizing_Methods.L_BFGS:
         l_bfgs_x_cache = deque(maxlen=peps_ad_config.optimizer_l_bfgs_maxlen + 1)
         l_bfgs_grad_cache = deque(maxlen=peps_ad_config.optimizer_l_bfgs_maxlen + 1)
