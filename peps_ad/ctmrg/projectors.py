@@ -3,7 +3,7 @@ import enum
 from functools import partial
 
 import jax.numpy as jnp
-from jax import jit
+from jax import jit, checkpoint
 
 from peps_ad.peps import PEPS_Tensor
 from peps_ad.contractions import apply_contraction
@@ -327,12 +327,12 @@ def calc_left_projectors(
         peps_tensors, peps_tensor_objs
     )
 
-    if chi not in _Projectors_Func_Cache["left"]:
-        _Projectors_Func_Cache["left"][chi] = partial(
-            _left_projectors_workhorse, chi=chi
-        )
+    if config.checkpointing_projectors:
+        f = checkpoint(_left_projectors_workhorse, static_argnums=(4, 5, 6))
+    else:
+        f = _left_projectors_workhorse
 
-    return _Projectors_Func_Cache["left"][chi](
+    return f(
         top_left,
         top_right,
         bottom_left,
@@ -343,6 +343,7 @@ def calc_left_projectors(
         config.ctmrg_full_projector_method
         if state.ctmrg_projector_method is None
         else state.ctmrg_projector_method,
+        chi,
     )
 
 
@@ -430,12 +431,12 @@ def calc_right_projectors(
         peps_tensors, peps_tensor_objs
     )
 
-    if chi not in _Projectors_Func_Cache["right"]:
-        _Projectors_Func_Cache["right"][chi] = partial(
-            _right_projectors_workhorse, chi=chi
-        )
+    if config.checkpointing_projectors:
+        f = checkpoint(_right_projectors_workhorse, static_argnums=(4, 5, 6))
+    else:
+        f = _right_projectors_workhorse
 
-    return _Projectors_Func_Cache["right"][chi](
+    return f(
         top_left,
         top_right,
         bottom_left,
@@ -446,6 +447,7 @@ def calc_right_projectors(
         config.ctmrg_full_projector_method
         if state.ctmrg_projector_method is None
         else state.ctmrg_projector_method,
+        chi,
     )
 
 
@@ -533,10 +535,12 @@ def calc_top_projectors(
         peps_tensors, peps_tensor_objs
     )
 
-    if chi not in _Projectors_Func_Cache["top"]:
-        _Projectors_Func_Cache["top"][chi] = partial(_top_projectors_workhorse, chi=chi)
+    if config.checkpointing_projectors:
+        f = checkpoint(_top_projectors_workhorse, static_argnums=(4, 5, 6))
+    else:
+        f = _top_projectors_workhorse
 
-    return _Projectors_Func_Cache["top"][chi](
+    return f(
         top_left,
         top_right,
         bottom_left,
@@ -547,6 +551,7 @@ def calc_top_projectors(
         config.ctmrg_full_projector_method
         if state.ctmrg_projector_method is None
         else state.ctmrg_projector_method,
+        chi,
     )
 
 
@@ -634,12 +639,12 @@ def calc_bottom_projectors(
         peps_tensors, peps_tensor_objs
     )
 
-    if chi not in _Projectors_Func_Cache["bottom"]:
-        _Projectors_Func_Cache["bottom"][chi] = partial(
-            _bottom_projectors_workhorse, chi=chi
-        )
+    if config.checkpointing_projectors:
+        f = checkpoint(_bottom_projectors_workhorse, static_argnums=(4, 5, 6))
+    else:
+        f = _bottom_projectors_workhorse
 
-    return _Projectors_Func_Cache["bottom"][chi](
+    return f(
         top_left,
         top_right,
         bottom_left,
@@ -650,4 +655,5 @@ def calc_bottom_projectors(
         config.ctmrg_full_projector_method
         if state.ctmrg_projector_method is None
         else state.ctmrg_projector_method,
+        chi,
     )

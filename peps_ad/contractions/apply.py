@@ -12,6 +12,7 @@ from tensornetwork.ncon_interface import _jittable_ncon
 
 from peps_ad.peps import PEPS_Tensor
 from peps_ad import peps_ad_config
+from peps_ad.config import PEPS_AD_Config
 from peps_ad.utils.func_cache import Checkpointing_Cache
 
 from .definitions import Definitions, Definition
@@ -42,6 +43,7 @@ def apply_contraction(
     *,
     disable_identity_check: bool = False,
     custom_definition: Optional[Definition] = None,
+    config: PEPS_AD_Config = peps_ad_config,
     _jitable: bool = False,
 ) -> jnp.ndarray:
     """
@@ -120,7 +122,12 @@ def apply_contraction(
     tensors += additional_tensors
 
     if _jitable:
-        return _ncon_jitted(
+        if config.checkpointing_ncon:
+            f = jax.checkpoint(_ncon_jitted, static_argnums=(1, 2, 3, 4, 5))
+        else:
+            f = _ncon_jitted
+
+        return f(
             tensors,
             contraction["ncon_flat_network"],
             contraction["ncon_sizes"],
@@ -129,12 +136,18 @@ def apply_contraction(
             tn.backends.backend_factory.get_backend("jax"),
         )
 
-    if name not in _Contraction_Cache["cache"]:
-        _Contraction_Cache["cache"][name] = partial(
+    if config.checkpointing_ncon:
+        f = jax.checkpoint(
+            partial(
+                tn.ncon, network_structure=contraction["ncon_network"], backend="jax"
+            )
+        )
+    else:
+        f = partial(
             tn.ncon, network_structure=contraction["ncon_network"], backend="jax"
         )
 
-    return _Contraction_Cache["cache"][name](tensors)
+    return f(tensors)
 
 
 apply_contraction_jitted = jax.jit(
