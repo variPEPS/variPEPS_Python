@@ -642,9 +642,9 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         result_tensors = []
 
         for i in tensors_i:
-            result_tensors.append(rng.block((d, D, D), dtype=dtype))  # site 1
-            result_tensors.append(rng.block((d, D, D), dtype=dtype))  # site 2
-            result_tensors.append(rng.block((d, D, D), dtype=dtype))  # site 3
+            result_tensors.append(rng.block((d, D, D), dtype=dtype))  # dimer 1
+            result_tensors.append(rng.block((d, D, D), dtype=dtype))  # dimer 2
+            result_tensors.append(rng.block((d, D, D), dtype=dtype))  # dimer 3
             result_tensors.append(rng.block((D, D, D), dtype=dtype))  # up
             result_tensors.append(rng.block((D, D, D), dtype=dtype))  # down
 
@@ -674,7 +674,7 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
             file as attrs of an extra group.
         """
         with h5py.File(path, "w", libver=("earliest", "v110")) as f:
-            grp = f.create_group("maple_lead_pess")
+            grp = f.create_group("maple_leaf_pess")
 
             cls.save_to_group(grp, tensors, unitcell, store_config=store_config)
 
@@ -765,7 +765,10 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
             as well.
         """
         with h5py.File(path, "r") as f:
-            out = cls.load_from_group(f["maple_leaf_pess"], return_config=return_config)
+            try:
+                out = cls.load_from_group(f["maple_leaf_pess"], return_config=return_config)
+            except KeyError:
+                out = cls.load_from_group(f["maple_lead_pess"], return_config=return_config)
 
         if return_config:
             return out[0], out[1], out[2]
