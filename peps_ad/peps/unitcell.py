@@ -245,6 +245,7 @@ class PEPS_Unit_Cell:
         D: Union[int, Sequence[Sequence[int]]],
         chi: Union[int, Sequence[int]],
         dtype: Type[jnp.number],
+        max_chi: Optional[int] = None,
         *,
         seed: Optional[int] = None,
         destroy_random_state: bool = True,
@@ -268,6 +269,8 @@ class PEPS_Unit_Cell:
             each unique PEPS tensor separately.
           dtype (:term:`type` of :obj:`jax.numpy.number`):
             Data type of the PEPS tensors.
+          max_chi (:obj:`int`):
+            Maximal bond dimension for the environment tensors
         Keyword args:
           seed (:obj:`int`, optional):
             Seed for random number generator
@@ -319,7 +322,9 @@ class PEPS_Unit_Cell:
                 seed = None
 
             peps_tensors.append(
-                PEPS_Tensor.random(d=d[i], D=D[i], chi=chi[i], dtype=dtype, seed=seed)
+                PEPS_Tensor.random(
+                    d=d[i], D=D[i], chi=chi[i], dtype=dtype, seed=seed, max_chi=max_chi
+                )
             )
 
         data = cls.Unit_Cell_Data(peps_tensors=peps_tensors, structure=structure)
@@ -422,12 +427,39 @@ class PEPS_Unit_Cell:
         """
         Replace the list of unique tensors the unit cell consists of.
 
+        Args:
+          new_unique_tensors (:obj:`list` of :obj:`~peps_ad.peps.PEPS_Tensor`):
+            New list of unique tensors the unit cell should consists of.
         Returns:
           PEPS_Unit_Cell:
             New instance of PEPS unit cell with the new unique tensor list.
         """
         if len(self.data.peps_tensors) != len(new_unique_tensors):
             raise ValueError("Length of old and new list mismatches.")
+
+        new_data = self.data.replace_peps_tensors(new_unique_tensors)
+
+        return type(self)(
+            data=new_data,
+            real_ix=self.real_ix,
+            real_iy=self.real_iy,
+            sanity_checks=False,
+        )
+
+    def change_chi(self: T_PEPS_Unit_Cell, new_chi: int) -> T_PEPS_Unit_Cell:
+        """
+        Change environment bond dimension of all tensors in the unit cell.
+
+        Args:
+          new_chi (:obj:`int`):
+            New value for the environment bond dimension.
+        Returns:
+          PEPS_Unit_Cell:
+            New instance of PEPS unit cell with the new tensor list.
+        """
+        new_unique_tensors = tuple(
+            t.change_chi(new_chi) for t in self.data.peps_tensors
+        )
 
         new_data = self.data.replace_peps_tensors(new_unique_tensors)
 

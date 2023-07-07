@@ -116,7 +116,7 @@ def _truncated_SVD(
         relevant_S_values, 1 / jnp.sqrt(jnp.where(relevant_S_values, S, 1)), 0
     )
 
-    return S_inv_sqrt, U, Vh
+    return S_inv_sqrt, U, Vh, S[-1] / S[0]
 
 
 def _quarter_tensors_to_matrix(
@@ -279,7 +279,7 @@ def _left_projectors_workhorse(
 
     product_matrix = jnp.dot(bottom_matrix, top_matrix)
 
-    S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi, truncation_eps)
+    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
 
     projector_left_top = jnp.dot(top_matrix, Vh.transpose().conj() * S_inv_sqrt)
     projector_left_bottom = jnp.dot(
@@ -299,7 +299,10 @@ def _left_projectors_workhorse(
         bottom_left.shape[5],
     )
 
-    return Left_Projectors(top=projector_left_top, bottom=projector_left_bottom)
+    return (
+        Left_Projectors(top=projector_left_top, bottom=projector_left_bottom),
+        smallest_S,
+    )
 
 
 def calc_left_projectors(
@@ -383,7 +386,7 @@ def _right_projectors_workhorse(
 
     product_matrix = jnp.dot(top_matrix, bottom_matrix)
 
-    S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi, truncation_eps)
+    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
 
     projector_right_top = jnp.dot(
         U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], top_matrix
@@ -403,7 +406,10 @@ def _right_projectors_workhorse(
         projector_right_bottom.shape[1],
     )
 
-    return Right_Projectors(top=projector_right_top, bottom=projector_right_bottom)
+    return (
+        Right_Projectors(top=projector_right_top, bottom=projector_right_bottom),
+        smallest_S,
+    )
 
 
 def calc_right_projectors(
@@ -487,7 +493,7 @@ def _top_projectors_workhorse(
 
     product_matrix = jnp.dot(left_matrix, right_matrix)
 
-    S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi, truncation_eps)
+    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
 
     projector_top_left = jnp.dot(
         U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], left_matrix
@@ -507,7 +513,10 @@ def _top_projectors_workhorse(
         projector_top_right.shape[1],
     )
 
-    return Top_Projectors(left=projector_top_left, right=projector_top_right)
+    return (
+        Top_Projectors(left=projector_top_left, right=projector_top_right),
+        smallest_S,
+    )
 
 
 def calc_top_projectors(
@@ -591,7 +600,7 @@ def _bottom_projectors_workhorse(
 
     product_matrix = jnp.dot(right_matrix, left_matrix)
 
-    S_inv_sqrt, U, Vh = _truncated_SVD(product_matrix, chi, truncation_eps)
+    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
 
     projector_bottom_left = jnp.dot(left_matrix, Vh.transpose().conj() * S_inv_sqrt)
     projector_bottom_right = jnp.dot(
@@ -611,7 +620,10 @@ def _bottom_projectors_workhorse(
         bottom_right.shape[5],
     )
 
-    return Bottom_Projectors(left=projector_bottom_left, right=projector_bottom_right)
+    return (
+        Bottom_Projectors(left=projector_bottom_left, right=projector_bottom_right),
+        smallest_S,
+    )
 
 
 def calc_bottom_projectors(

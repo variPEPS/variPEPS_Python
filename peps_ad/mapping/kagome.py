@@ -226,6 +226,7 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
 
     unitcell_structure: Sequence[Sequence[int]]
     chi: int
+    max_chi: Optional[int] = None
 
     def __call__(
         self,
@@ -251,6 +252,7 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
                     i.shape[2],
                     (i.shape[0], i.shape[1], i.shape[3], i.shape[4]),
                     self.chi,
+                    self.max_chi,
                 )
                 for i in peps_tensors
             ]

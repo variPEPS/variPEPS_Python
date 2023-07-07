@@ -154,13 +154,17 @@ def do_left_absorption(
 
     working_unitcell = unitcell.copy()
 
+    smallest_S_list = []
+
     for y, iter_columns in working_unitcell.iter_all_columns(only_unique=True):
         column_views = [view for view in iter_columns]
 
         for x, view in column_views:
-            left_projectors[(x, y)] = calc_left_projectors(
+            left_proj, smallest_S = calc_left_projectors(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"), config, state
             )
+            left_projectors[(x, y)] = left_proj
+            smallest_S_list.append(smallest_S)
 
         new_C1 = []
         new_T4 = []
@@ -203,7 +207,7 @@ def do_left_absorption(
                 new_C1[x], new_T4[x], new_C4[x]
             )
 
-    return working_unitcell
+    return working_unitcell, smallest_S_list
 
 
 def do_right_absorption(
@@ -231,17 +235,21 @@ def do_right_absorption(
 
     working_unitcell = unitcell.copy()
 
+    smallest_S_list = []
+
     for y, iter_columns in working_unitcell.iter_all_columns(
         reverse=True, only_unique=True
     ):
         column_views = [view for view in iter_columns]
 
         for x, view in column_views:
-            right_projectors[(x, y)] = calc_right_projectors(
+            right_proj, smallest_S = calc_right_projectors(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "top-right"),
                 config,
                 state
             )
+            right_projectors[(x, y)] = right_proj
+            smallest_S_list.append(smallest_S)
 
         new_C2 = []
         new_T2 = []
@@ -284,7 +292,7 @@ def do_right_absorption(
                 new_C2[x], new_T2[x], new_C3[x]
             )
 
-    return working_unitcell
+    return working_unitcell, smallest_S_list
 
 
 def do_top_absorption(
@@ -312,13 +320,17 @@ def do_top_absorption(
 
     working_unitcell = unitcell.copy()
 
+    smallest_S_list = []
+
     for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
         row_views = [view for view in iter_rows]
 
         for y, view in row_views:
-            top_projectors[(x, y)] = calc_top_projectors(
+            top_proj, smallest_S = calc_top_projectors(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"), config, state
             )
+            top_projectors[(x, y)] = top_proj
+            smallest_S_list.append(smallest_S)
 
         new_C1 = []
         new_T1 = []
@@ -361,7 +373,7 @@ def do_top_absorption(
                 new_C1[y], new_T1[y], new_C2[y]
             )
 
-    return working_unitcell
+    return working_unitcell, smallest_S_list
 
 
 def do_bottom_absorption(
@@ -389,15 +401,19 @@ def do_bottom_absorption(
 
     working_unitcell = unitcell.copy()
 
+    smallest_S_list = []
+
     for x, iter_rows in working_unitcell.iter_all_rows(reverse=True, only_unique=True):
         row_views = [view for view in iter_rows]
 
         for y, view in row_views:
-            bottom_projectors[(x, y)] = calc_bottom_projectors(
+            bottom_proj, smallest_S = calc_bottom_projectors(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "bottom-left"),
                 config,
                 state
             )
+            bottom_projectors[(x, y)] = bottom_proj
+            smallest_S_list.append(smallest_S)
 
         new_C4 = []
         new_T3 = []
@@ -440,7 +456,7 @@ def do_bottom_absorption(
                 new_C4[y], new_T3[y], new_C3[y]
             )
 
-    return working_unitcell
+    return working_unitcell, smallest_S_list
 
 
 def gauge_fix_ctmrg_tensors(
@@ -562,9 +578,17 @@ def do_absorption_step(
         New instance of the unitcell with the all updated CTMRG tensors of
         all elements of the unitcell.
     """
-    result = do_left_absorption(peps_tensors, unitcell, config, state)
-    result = do_top_absorption(peps_tensors, result, config, state)
-    result = do_right_absorption(peps_tensors, result, config, state)
-    result = do_bottom_absorption(peps_tensors, result, config, state)
+    result, left_smallest_S = do_left_absorption(peps_tensors, unitcell, config, state)
+    result, top_smallest_S = do_top_absorption(peps_tensors, result, config, state)
+    result, right_smallest_S = do_right_absorption(peps_tensors, result, config, state)
+    result, bottom_smallest_S = do_bottom_absorption(
+        peps_tensors, result, config, state
+    )
     # result = gauge_fix_ctmrg_tensors(peps_tensors, result)
-    return result
+    norm_smallest_S = jnp.linalg.norm(
+        jnp.asarray(
+            left_smallest_S + top_smallest_S + right_smallest_S + bottom_smallest_S
+        ),
+        ord=jnp.inf,
+    )
+    return result, norm_smallest_S

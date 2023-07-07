@@ -548,6 +548,7 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
 
     unitcell_structure: Sequence[Sequence[int]]
     chi: int
+    max_chi: Optional[int] = None
 
     @staticmethod
     def _map_single_structure(
@@ -596,6 +597,7 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
                     i.shape[2],
                     (i.shape[0], i.shape[1], i.shape[3], i.shape[4]),
                     self.chi,
+                    self.max_chi,
                 )
                 for i in peps_tensors
             ]
@@ -766,9 +768,13 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         """
         with h5py.File(path, "r") as f:
             try:
-                out = cls.load_from_group(f["maple_leaf_pess"], return_config=return_config)
+                out = cls.load_from_group(
+                    f["maple_leaf_pess"], return_config=return_config
+                )
             except KeyError:
-                out = cls.load_from_group(f["maple_lead_pess"], return_config=return_config)
+                out = cls.load_from_group(
+                    f["maple_lead_pess"], return_config=return_config
+                )
 
         if return_config:
             return out[0], out[1], out[2]

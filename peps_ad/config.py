@@ -85,6 +85,20 @@ class PEPS_AD_Config:
       ctmrg_increase_truncation_eps_max_value (:obj:`float`):
         Maximal value for the truncation threshold. Do not increase higher than
         this value.
+      ctmrg_heuristic_increase_chi (:obj:`bool`):
+        Flag if the CTMRG routine should try higher environment bond dimension
+        for if the routine found singular values above a threshold during the
+        projector calculation of the last absorption step.
+      ctmrg_heuristic_increase_chi_threshold (:obj:`float`):
+        Threshold for the heuristic environment bond dimension increase.
+      ctmrg_heuristic_increase_chi_step_size (:obj:`int`):
+        Step size for the heuristic environment bond dimension increase.
+      ctmrg_heuristic_decrease_chi (:obj:`bool`):
+        Flag if the CTMRG routine should try lower environment bond dimension
+        for if the routine found singular values below the SVD threshold during
+        the projector calculation of the last absorption step.
+      ctmrg_heuristic_decrease_chi_step_size (:obj:`int`):
+        Step size for the heuristic environment bond dimension decrease.
       svd_sign_fix_eps (:obj:`float`):
         Value for numerical stability threshold in sign-fixed SVD.
       optimizer_method (:obj:`Optimizing_Methods`):
@@ -157,6 +171,11 @@ class PEPS_AD_Config:
     ctmrg_increase_truncation_eps: bool = True
     ctmrg_increase_truncation_eps_factor: float = 100
     ctmrg_increase_truncation_eps_max_value: float = 1e-6
+    ctmrg_heuristic_increase_chi: bool = True
+    ctmrg_heuristic_increase_chi_threshold: float = 1e-6
+    ctmrg_heuristic_increase_chi_step_size: float = 2
+    ctmrg_heuristic_decrease_chi: bool = True
+    ctmrg_heuristic_decrease_chi_step_size: float = 1
 
     # SVD
     svd_sign_fix_eps: float = 1e-1

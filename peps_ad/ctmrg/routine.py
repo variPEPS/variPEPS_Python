@@ -93,9 +93,10 @@ def _is_element_wise_converged(
 
     for ti in range(len(old_peps_tensors)):
         old_shape = old_peps_tensors[ti].C1.shape
+        new_shape = new_peps_tensors[ti].C1.shape
         diff = jnp.abs(
             new_peps_tensors[ti].C1[: old_shape[0], : old_shape[1]]
-            - old_peps_tensors[ti].C1
+            - old_peps_tensors[ti].C1[: new_shape[0], : new_shape[1]]
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 0].set(
@@ -105,9 +106,10 @@ def _is_element_wise_converged(
             verbose_data.append((ti, CTM_Enum.C1, jnp.amax(diff)))
 
         old_shape = old_peps_tensors[ti].C2.shape
+        new_shape = new_peps_tensors[ti].C2.shape
         diff = jnp.abs(
             new_peps_tensors[ti].C2[: old_shape[0], : old_shape[1]]
-            - old_peps_tensors[ti].C2
+            - old_peps_tensors[ti].C2[: new_shape[0], : new_shape[1]]
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 1].set(
@@ -117,9 +119,10 @@ def _is_element_wise_converged(
             verbose_data.append((ti, CTM_Enum.C2, jnp.amax(diff)))
 
         old_shape = old_peps_tensors[ti].C3.shape
+        new_shape = new_peps_tensors[ti].C4.shape
         diff = jnp.abs(
             new_peps_tensors[ti].C3[: old_shape[0], : old_shape[1]]
-            - old_peps_tensors[ti].C3
+            - old_peps_tensors[ti].C3[: new_shape[0], : new_shape[1]]
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 2].set(
@@ -129,9 +132,10 @@ def _is_element_wise_converged(
             verbose_data.append((ti, CTM_Enum.C3, jnp.amax(diff)))
 
         old_shape = old_peps_tensors[ti].C4.shape
+        new_shape = new_peps_tensors[ti].C4.shape
         diff = jnp.abs(
             new_peps_tensors[ti].C4[: old_shape[0], : old_shape[1]]
-            - old_peps_tensors[ti].C4
+            - old_peps_tensors[ti].C4[: new_shape[0], : new_shape[1]]
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 3].set(
@@ -141,11 +145,14 @@ def _is_element_wise_converged(
             verbose_data.append((ti, CTM_Enum.C4, jnp.amax(diff)))
 
         old_shape = old_peps_tensors[ti].T1.shape
+        new_shape = new_peps_tensors[ti].T1.shape
         diff = jnp.abs(
             new_peps_tensors[ti].T1[
                 : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
             ]
-            - old_peps_tensors[ti].T1
+            - old_peps_tensors[ti].T1[
+                : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
+            ]
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 4].set(
@@ -155,11 +162,14 @@ def _is_element_wise_converged(
             verbose_data.append((ti, CTM_Enum.T1, jnp.amax(diff)))
 
         old_shape = old_peps_tensors[ti].T2.shape
+        new_shape = new_peps_tensors[ti].T2.shape
         diff = jnp.abs(
             new_peps_tensors[ti].T2[
                 : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
             ]
-            - old_peps_tensors[ti].T2
+            - old_peps_tensors[ti].T2[
+                : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
+            ]
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 5].set(
@@ -169,11 +179,14 @@ def _is_element_wise_converged(
             verbose_data.append((ti, CTM_Enum.T2, jnp.amax(diff)))
 
         old_shape = old_peps_tensors[ti].T3.shape
+        new_shape = new_peps_tensors[ti].T3.shape
         diff = jnp.abs(
             new_peps_tensors[ti].T3[
                 : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
             ]
-            - old_peps_tensors[ti].T3
+            - old_peps_tensors[ti].T3[
+                : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
+            ]
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 6].set(
@@ -183,11 +196,14 @@ def _is_element_wise_converged(
             verbose_data.append((ti, CTM_Enum.T3, jnp.amax(diff)))
 
         old_shape = old_peps_tensors[ti].T4.shape
+        new_shape = new_peps_tensors[ti].T4.shape
         diff = jnp.abs(
             new_peps_tensors[ti].T4[
                 : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
             ]
-            - old_peps_tensors[ti].T4
+            - old_peps_tensors[ti].T4[
+                : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
+            ]
         )
         result += jnp.sum(diff > eps)
         measure = measure.at[ti, 7].set(
@@ -209,11 +225,14 @@ def _ctmrg_body_func(carry):
         eps,
         count,
         elementwise_conv,
+        norm_smallest_S,
         state,
         config,
     ) = carry
 
-    w_unitcell = do_absorption_step(w_tensors, w_unitcell_last_step, config, state)
+    w_unitcell, norm_smallest_S = do_absorption_step(
+        w_tensors, w_unitcell_last_step, config, state
+    )
 
     def elementwise_func(old, new, old_corner, conv_eps, config):
         converged, measure, verbose_data = _is_element_wise_converged(
@@ -274,6 +293,7 @@ def _ctmrg_body_func(carry):
         eps,
         count,
         elementwise_conv,
+        norm_smallest_S,
         state,
         config,
     )
@@ -282,14 +302,23 @@ def _ctmrg_body_func(carry):
 @jit
 def _ctmrg_while_wrapper(start_carry):
     def cond_func(carry):
-        _, _, converged, _, _, count, _, _, config = carry
+        _, _, converged, _, _, count, _, _, _, config = carry
         return jnp.logical_not(converged) & (count < config.ctmrg_max_steps)
 
-    _, working_unitcell, converged, _, _, end_count, _, _, _ = while_loop(
-        cond_func, _ctmrg_body_func, start_carry
-    )
+    (
+        _,
+        working_unitcell,
+        converged,
+        _,
+        _,
+        end_count,
+        _,
+        norm_smallest_S,
+        _,
+        _,
+    ) = while_loop(cond_func, _ctmrg_body_func, start_carry)
 
-    return working_unitcell, converged, end_count
+    return working_unitcell, converged, end_count, norm_smallest_S
 
 
 def calc_ctmrg_env(
@@ -339,8 +368,11 @@ def calc_ctmrg_env(
             unitcell.get_unique_tensors(), None, shape_corner_svd
         )
 
+    initial_unitcell = unitcell
     working_unitcell = unitcell
     peps_ad_global_state.ctmrg_effective_truncation_eps = None
+
+    already_tried_chi = {working_unitcell[0, 0][0][0].chi}
 
     while True:
         tmp_count = 0
@@ -359,6 +391,7 @@ def calc_ctmrg_env(
                 _,
                 _,
                 _,
+                _,
             ) = _ctmrg_body_func(
                 (
                     peps_tensors,
@@ -368,12 +401,13 @@ def calc_ctmrg_env(
                     eps,
                     0,
                     enforce_elementwise_convergence,
+                    jnp.inf,
                     peps_ad_global_state,
                     peps_ad_config,
                 )
             )
 
-        working_unitcell, converged, end_count = _ctmrg_while_wrapper(
+        working_unitcell, converged, end_count, norm_smallest_S = _ctmrg_while_wrapper(
             (
                 peps_tensors,
                 working_unitcell,
@@ -384,23 +418,78 @@ def calc_ctmrg_env(
                 eps,
                 tmp_count,
                 enforce_elementwise_convergence,
+                jnp.inf,
                 peps_ad_global_state,
                 peps_ad_config,
             )
         )
+
+        current_truncation_eps = (
+            peps_ad_config.ctmrg_truncation_eps
+            if peps_ad_global_state.ctmrg_effective_truncation_eps is None
+            else peps_ad_global_state.ctmrg_effective_truncation_eps
+        )
+
+        if (
+            peps_ad_config.ctmrg_heuristic_increase_chi
+            and norm_smallest_S > peps_ad_config.ctmrg_heuristic_increase_chi_threshold
+            and working_unitcell[0, 0][0][0].chi < working_unitcell[0, 0][0][0].max_chi
+        ):
+            new_chi = (
+                working_unitcell[0, 0][0][0].chi
+                + peps_ad_config.ctmrg_heuristic_increase_chi_step_size
+            )
+            if new_chi > working_unitcell[0, 0][0][0].max_chi:
+                new_chi = working_unitcell[0, 0][0][0].max_chi
+
+            if not new_chi in already_tried_chi:
+                working_unitcell = working_unitcell.change_chi(new_chi)
+                initial_unitcell = initial_unitcell.change_chi(new_chi)
+
+                if peps_ad_config.ctmrg_print_steps:
+                    debug_print(
+                        "CTMRG: Increasing chi to {} since smallest SVD Norm was {}.",
+                        new_chi,
+                        norm_smallest_S,
+                    )
+
+                already_tried_chi.add(new_chi)
+
+                continue
+        elif (
+            peps_ad_config.ctmrg_heuristic_decrease_chi
+            and norm_smallest_S < current_truncation_eps
+            and working_unitcell[0, 0][0][0].chi > 2
+        ):
+            new_chi = (
+                working_unitcell[0, 0][0][0].chi
+                - peps_ad_config.ctmrg_heuristic_decrease_chi_step_size
+            )
+            if new_chi < 2:
+                new_chi = 2
+
+            if not new_chi in already_tried_chi:
+                working_unitcell = working_unitcell.change_chi(new_chi)
+
+                if peps_ad_config.ctmrg_print_steps:
+                    debug_print(
+                        "CTMRG: Decreasing chi to {} since smallest SVD Norm was {}.",
+                        new_chi,
+                        norm_smallest_S,
+                    )
+
+                already_tried_chi.add(new_chi)
+
+                continue
 
         if (
             peps_ad_config.ctmrg_increase_truncation_eps
             and end_count == peps_ad_config.ctmrg_max_steps
             and not converged
         ):
-            old_truncation_eps = (
-                peps_ad_config.ctmrg_truncation_eps
-                if peps_ad_global_state.ctmrg_effective_truncation_eps is None
-                else peps_ad_global_state.ctmrg_effective_truncation_eps
-            )
             new_truncation_eps = (
-                old_truncation_eps * peps_ad_config.ctmrg_increase_truncation_eps_factor
+                current_truncation_eps
+                * peps_ad_config.ctmrg_increase_truncation_eps_factor
             )
             if (
                 new_truncation_eps
@@ -412,7 +501,8 @@ def calc_ctmrg_env(
                         new_truncation_eps,
                     )
                 peps_ad_global_state.ctmrg_effective_truncation_eps = new_truncation_eps
-                working_unitcell = unitcell
+                working_unitcell = initial_unitcell
+                already_tried_chi = {working_unitcell[0, 0][0][0].chi}
                 continue
 
         break
@@ -474,7 +564,7 @@ def calc_ctmrg_env_fwd(
     new_unitcell, last_truncation_eps = calc_ctmrg_env_custom_rule(
         peps_tensors, unitcell, _return_truncation_eps=True
     )
-    return new_unitcell, (peps_tensors, new_unitcell, last_truncation_eps)
+    return new_unitcell, (peps_tensors, new_unitcell, unitcell, last_truncation_eps)
 
 
 def _ctmrg_rev_while_body(carry):
@@ -488,7 +578,9 @@ def _ctmrg_rev_while_body(carry):
         state,
     ) = carry
 
-    new_env_bar = vjp_env(bar_fixed_point_last_step)[0]
+    new_env_bar = vjp_env((bar_fixed_point_last_step, jnp.array(0, dtype=jnp.float64)))[
+        0
+    ]
 
     bar_fixed_point = bar_fixed_point_last_step.replace_unique_tensors(
         [
@@ -545,7 +637,7 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
         (vjp_env, new_unitcell_bar, new_unitcell_bar, False, 0, config, state),
     )
 
-    (t_bar,) = vjp_peps_tensors(env_fixed_point)
+    (t_bar,) = vjp_peps_tensors((env_fixed_point, jnp.array(0, dtype=jnp.float64)))
 
     return t_bar, converged, end_count
 
@@ -557,7 +649,7 @@ def calc_ctmrg_env_rev(
     Internal helper function of custom VJP to calculate the gradient in
     the backward sweep.
     """
-    peps_tensors, new_unitcell, last_truncation_eps = res
+    peps_tensors, new_unitcell, input_unitcell, last_truncation_eps = res
 
     peps_ad_global_state.ctmrg_effective_truncation_eps = last_truncation_eps
 
@@ -570,11 +662,11 @@ def calc_ctmrg_env_rev(
     if end_count == peps_ad_config.ad_custom_max_steps and not converged:
         raise CTMRGGradientNotConvergedError
 
-    empty_t = [t.zeros_like_self() for t in new_unitcell.get_unique_tensors()]
+    empty_t = [t.zeros_like_self() for t in input_unitcell.get_unique_tensors()]
 
     return (
         t_bar,
-        new_unitcell.replace_unique_tensors(empty_t),
+        input_unitcell.replace_unique_tensors(empty_t),
         jnp.zeros((), dtype=bool),
     )
 

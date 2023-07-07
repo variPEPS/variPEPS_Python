@@ -698,6 +698,7 @@ class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):
 
     unitcell_structure: Sequence[Sequence[int]]
     chi: int
+    max_chi: Optional[int] = None
 
     @staticmethod
     def _map_single_structure(input_tensors: Sequence[jnp.ndarray]):
@@ -764,6 +765,7 @@ class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):
                     i.shape[2],
                     (i.shape[0], i.shape[1], i.shape[3], i.shape[4]),
                     self.chi,
+                    self.max_chi,
                 )
                 for i in peps_tensors
             ]
@@ -1068,6 +1070,7 @@ class Square_Kagome_Map_4_1_1_To_PEPS(Map_To_PEPS_Model):
 
     unitcell_structure: Sequence[Sequence[int]]
     chi: int
+    max_chi: Optional[int] = None
 
     def __call__(
         self,
@@ -1093,6 +1096,7 @@ class Square_Kagome_Map_4_1_1_To_PEPS(Map_To_PEPS_Model):
                     i.shape[2],
                     (i.shape[0], i.shape[1], i.shape[3], i.shape[4]),
                     self.chi,
+                    self.max_chi,
                 )
                 for i in peps_tensors
             ]

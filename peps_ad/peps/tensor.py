@@ -68,6 +68,7 @@ class PEPS_Tensor:
     d: int
     D: Tuple[int, int, int, int]
     chi: int
+    max_chi: int
 
     sanity_checks: bool = True
 
@@ -126,6 +127,7 @@ class PEPS_Tensor:
         d: int,
         D: Union[int, Sequence[int]],
         chi: int,
+        max_chi: Optional[int] = None,
         *,
         ctm_tensors_are_identities: bool = True,
         normalize: bool = True,
@@ -144,6 +146,8 @@ class PEPS_Tensor:
             Bond dimensions for the PEPS tensor
           chi (:obj:`int`):
             Bond dimension for the environment tensors
+          max_chi (:obj:`int`):
+            Maximal bond dimension for the environment tensors
         Keyword args:
           ctm_tensors_are_identities (:obj:`bool`, optional):
             Flag if the CTM tensors are initialized as identities. Otherwise,
@@ -178,6 +182,9 @@ class PEPS_Tensor:
             or tensor.shape[2] != d
         ):
             raise ValueError("Tensor dimensions mismatch the dimension arguments.")
+
+        if max_chi is None:
+            max_chi = chi
 
         dtype = tensor.dtype
 
@@ -217,6 +224,7 @@ class PEPS_Tensor:
             d=d,
             D=D,  # type: ignore
             chi=chi,
+            max_chi=max_chi,
         )
 
     @classmethod
@@ -226,6 +234,7 @@ class PEPS_Tensor:
         D: Union[int, Sequence[int]],
         chi: int,
         dtype: Union[Type[np.number], Type[jnp.number]],
+        max_chi: Optional[int] = None,
         *,
         ctm_tensors_are_identities: bool = True,
         normalize: bool = True,
@@ -244,6 +253,8 @@ class PEPS_Tensor:
             Bond dimension for the environment tensors
           dtype (:obj:`numpy.dtype` or :obj:`jax.numpy.dtype`):
             Dtype of the generated tensors
+          max_chi (:obj:`int`):
+            Maximal bond dimension for the environment tensors
         Keyword args:
           ctm_tensors_are_identities (:obj:`bool`, optional):
             Flag if the CTM tensors are initialized as identities. Otherwise,
@@ -266,6 +277,9 @@ class PEPS_Tensor:
 
         if not all(isinstance(i, int) for i in D) or not len(D) == 4:
             raise ValueError("Invalid argument for D.")
+
+        if max_chi is None:
+            max_chi = chi
 
         rng = PEPS_Random_Number_Generator.get_generator(seed, backend=backend)
 
@@ -305,6 +319,7 @@ class PEPS_Tensor:
             d=d,
             D=D,  # type: ignore
             chi=chi,
+            max_chi=max_chi,
         )
 
     def replace_tensor(
@@ -348,6 +363,7 @@ class PEPS_Tensor:
                 d=self.d,
                 D=self.D,
                 chi=self.chi,
+                max_chi=self.max_chi,
             )
         else:
             return type(self)(
@@ -363,6 +379,72 @@ class PEPS_Tensor:
                 d=self.d,
                 D=self.D,
                 chi=self.chi,
+                max_chi=self.max_chi,
+            )
+
+    def change_chi(
+        self: T_PEPS_Tensor,
+        new_chi: int,
+        *,
+        reinitialize_env_as_identities: bool = True,
+    ) -> T_PEPS_Tensor:
+        """
+        Change the environment bond dimension and returns new object of the class.
+
+        Args:
+          new_chi (:obj:`int`):
+            New value for environment bond dimension.
+        Keyword args:
+          reinitialize_env_as_identities (:obj:`bool`):
+            Reinitialize the CTM tensors as identities if decreasing the dimension.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the increased value.
+        """
+        if new_chi > self.max_chi:
+            raise ValueError(
+                "Increase above the max value for environment bond dimension."
+            )
+
+        if new_chi < self.chi and reinitialize_env_as_identities:
+            return type(self)(
+                tensor=self.tensor,
+                C1=jnp.ones((1, 1), dtype=self.C1.dtype),
+                C2=jnp.ones((1, 1), dtype=self.C2.dtype),
+                C3=jnp.ones((1, 1), dtype=self.C3.dtype),
+                C4=jnp.ones((1, 1), dtype=self.C4.dtype),
+                T1=jnp.eye(self.D[3], dtype=self.T1.dtype).reshape(
+                    1, self.D[3], self.D[3], 1
+                ),
+                T2=jnp.eye(self.D[2], dtype=self.T2.dtype).reshape(
+                    self.D[2], self.D[2], 1, 1
+                ),
+                T3=jnp.eye(self.D[1], dtype=self.T3.dtype).reshape(
+                    1, 1, self.D[1], self.D[1]
+                ),
+                T4=jnp.eye(self.D[0], dtype=self.T4.dtype).reshape(
+                    1, self.D[0], self.D[0], 1
+                ),
+                d=self.d,
+                D=self.D,
+                chi=new_chi,
+                max_chi=self.max_chi,
+            )
+        else:
+            return type(self)(
+                tensor=self.tensor,
+                C1=self.C1,
+                C2=self.C2,
+                C3=self.C3,
+                C4=self.C4,
+                T1=self.T1,
+                T2=self.T2,
+                T3=self.T3,
+                T4=self.T4,
+                d=self.d,
+                D=self.D,
+                chi=new_chi,
+                max_chi=self.max_chi,
             )
 
     def replace_left_env_tensors(
@@ -395,6 +477,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_right_env_tensors(
@@ -427,6 +510,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_top_env_tensors(
@@ -459,6 +543,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_bottom_env_tensors(
@@ -491,6 +576,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_C1(self: T_PEPS_Tensor, new_C1: Tensor) -> T_PEPS_Tensor:
@@ -517,6 +603,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_C2(self: T_PEPS_Tensor, new_C2: Tensor) -> T_PEPS_Tensor:
@@ -543,6 +630,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_C3(self: T_PEPS_Tensor, new_C3: Tensor) -> T_PEPS_Tensor:
@@ -569,6 +657,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_C4(self: T_PEPS_Tensor, new_C4: Tensor) -> T_PEPS_Tensor:
@@ -595,6 +684,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_T1(self: T_PEPS_Tensor, new_T1: Tensor) -> T_PEPS_Tensor:
@@ -621,6 +711,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_T2(self: T_PEPS_Tensor, new_T2: Tensor) -> T_PEPS_Tensor:
@@ -647,6 +738,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_T3(self: T_PEPS_Tensor, new_T3: Tensor) -> T_PEPS_Tensor:
@@ -673,6 +765,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_T4(self: T_PEPS_Tensor, new_T4: Tensor) -> T_PEPS_Tensor:
@@ -699,6 +792,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_C1_C3(
@@ -729,6 +823,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def replace_T1_C2_T2_T3_C4_T4(
@@ -773,6 +868,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     def __add__(
@@ -815,6 +911,7 @@ class PEPS_Tensor:
             d=self.d,
             D=self.D,
             chi=self.chi,
+            max_chi=self.max_chi,
         )
 
     @classmethod
@@ -843,6 +940,7 @@ class PEPS_Tensor:
             d=t.d,
             D=t.D,
             chi=t.chi,
+            max_chi=t.max_chi,
         )
 
     def zeros_like_self(self: T_PEPS_Tensor) -> T_PEPS_Tensor:
@@ -863,6 +961,7 @@ class PEPS_Tensor:
         grp.attrs["d"] = self.d
         grp.attrs["D"] = self.D
         grp.attrs["chi"] = self.chi
+        grp.attrs["max_chi"] = self.max_chi
         grp.create_dataset(
             "tensor", data=self.tensor, compression="gzip", compression_opts=6
         )
@@ -887,6 +986,10 @@ class PEPS_Tensor:
         d = int(grp.attrs["d"])
         D = tuple(grp.attrs["D"])
         chi = int(grp.attrs["chi"])
+        try:
+            max_chi = int(grp.attrs(["max_chi"]))
+        except KeyError:
+            max_chi = None
 
         tensor = jnp.asarray(grp["tensor"])
         C1 = jnp.asarray(grp["C1"])
@@ -911,6 +1014,7 @@ class PEPS_Tensor:
             d=d,
             D=D,
             chi=chi,
+            max_chi=max_chi,
         )
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
@@ -925,7 +1029,7 @@ class PEPS_Tensor:
             self.T3,
             self.T4,
         )
-        aux_data = (self.d, self.D, self.chi)
+        aux_data = (self.d, self.D, self.chi, self.max_chi)
 
         return (data, aux_data)
 
@@ -934,7 +1038,7 @@ class PEPS_Tensor:
         cls: Type[T_PEPS_Tensor], aux_data: Tuple[Any, ...], children: Tuple[Any, ...]
     ) -> T_PEPS_Tensor:
         tensor, C1, C2, C3, C4, T1, T2, T3, T4 = children
-        d, D, chi = aux_data
+        d, D, chi, max_chi = aux_data
 
         return cls(
             tensor=tensor,
@@ -949,5 +1053,6 @@ class PEPS_Tensor:
             d=d,
             D=D,
             chi=chi,
+            max_chi=max_chi,
             sanity_checks=False,
         )
