@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import pathlib
 from os import PathLike
+import subprocess
 
 import h5py
 import numpy as np
@@ -15,6 +16,7 @@ import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
 
 from .tensor import PEPS_Tensor
+import peps_ad
 from peps_ad.utils.random import PEPS_Random_Number_Generator
 from peps_ad.utils.periodic_indices import calculate_periodic_indices
 from peps_ad import peps_ad_config
@@ -712,6 +714,34 @@ class PEPS_Unit_Cell:
 
             for config_attr in peps_ad_config.__dataclass_fields__.keys():
                 grp_config.attrs[config_attr] = getattr(peps_ad_config, config_attr)
+
+            grp_version = grp.create_group("version")
+            grp_version.attrs["version"] = peps_ad.__version__
+
+            try:
+                git_hash = (
+                    subprocess.check_output(
+                        ["git", "rev-parse", "HEAD"], cwd=pathlib.Path(__file__).parent
+                    )
+                    .decode("ascii")
+                    .strip()
+                )
+                grp_version.attrs["git_hash"] = git_hash
+            except subprocess.CalledProcessError:
+                pass
+
+            try:
+                git_tag = (
+                    subprocess.check_output(
+                        ["git", "describe", "--exact-match", "--tags", "HEAD"],
+                        cwd=pathlib.Path(__file__).parent,
+                    )
+                    .decode("ascii")
+                    .strip()
+                )
+                grp_version.attrs["git_tag"] = git_tag
+            except subprocess.CalledProcessError:
+                pass
 
     @classmethod
     def load_from_file(
