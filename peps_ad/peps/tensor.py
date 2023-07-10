@@ -987,9 +987,9 @@ class PEPS_Tensor:
         D = tuple(grp.attrs["D"])
         chi = int(grp.attrs["chi"])
         try:
-            max_chi = int(grp.attrs(["max_chi"]))
+            max_chi = int(grp.attrs["max_chi"])
         except KeyError:
-            max_chi = None
+            max_chi = chi
 
         tensor = jnp.asarray(grp["tensor"])
         C1 = jnp.asarray(grp["C1"])
