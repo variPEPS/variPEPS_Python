@@ -235,6 +235,8 @@ def optimize_peps_network(
     descent_dir = None
     working_value = None
 
+    signal_reset_descent_dir = False
+
     if peps_ad_config.optimizer_method is Optimizing_Methods.BFGS:
         bfgs_prefactor = 2 if any(jnp.iscomplexobj(t) for t in working_tensors) else 1
         bfgs_B_inv = jnp.eye(bfgs_prefactor * sum([t.size for t in working_tensors]))
@@ -294,17 +296,33 @@ def optimize_peps_network(
 
             working_gradient = [elem.conj() for elem in working_gradient_seq]
 
+            if signal_reset_descent_dir:
+                if peps_ad_config.optimizer_method is Optimizing_Methods.BFGS:
+                    bfgs_prefactor = (
+                        2 if any(jnp.iscomplexobj(t) for t in working_tensors) else 1
+                    )
+                    bfgs_B_inv = jnp.eye(
+                        bfgs_prefactor * sum([t.size for t in working_tensors])
+                    )
+                elif peps_ad_config.optimizer_method is Optimizing_Methods.L_BFGS:
+                    l_bfgs_x_cache = deque(
+                        maxlen=peps_ad_config.optimizer_l_bfgs_maxlen + 1
+                    )
+                    l_bfgs_grad_cache = deque(
+                        maxlen=peps_ad_config.optimizer_l_bfgs_maxlen + 1
+                    )
+
             if peps_ad_config.optimizer_method is Optimizing_Methods.STEEPEST:
                 descent_dir = [-elem for elem in working_gradient]
             elif peps_ad_config.optimizer_method is Optimizing_Methods.CG:
-                if count == 0:
+                if count == 0 or signal_reset_descent_dir:
                     descent_dir = [-elem for elem in working_gradient]
                 else:
                     descent_dir, beta = _cg_workhorse(
                         working_gradient, old_gradient, old_descent_dir
                     )
             elif peps_ad_config.optimizer_method is Optimizing_Methods.BFGS:
-                if count == 0:
+                if count == 0 or signal_reset_descent_dir:
                     descent_dir, _ = _bfgs_workhorse(
                         working_gradient, None, None, None, bfgs_B_inv, False
                     )
@@ -321,7 +339,7 @@ def optimize_peps_network(
                 l_bfgs_x_cache.appendleft(tuple(working_tensors))
                 l_bfgs_grad_cache.appendleft(tuple(working_gradient))
 
-                if count == 0:
+                if count == 0 or signal_reset_descent_dir:
                     descent_dir = [-elem for elem in working_gradient]
                 else:
                     descent_dir = _l_bfgs_workhorse(
@@ -329,6 +347,8 @@ def optimize_peps_network(
                     )
             else:
                 raise ValueError("Unknown optimization method.")
+
+            signal_reset_descent_dir = False
 
             if _scalar_descent_grad(descent_dir, working_gradient) > 0:
                 tqdm.write("Found bad descent dir. Reset to negative gradient!")
@@ -342,6 +362,7 @@ def optimize_peps_network(
                     working_unitcell,
                     working_value,
                     linesearch_step,
+                    signal_reset_descent_dir,
                 ) = line_search(
                     working_tensors,
                     working_unitcell,

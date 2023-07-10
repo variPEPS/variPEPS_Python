@@ -10,6 +10,7 @@ from peps_ad.ctmrg import CTMRGNotConvergedError, CTMRGGradientNotConvergedError
 from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
 from peps_ad.mapping import Map_To_PEPS_Model
+from peps_ad.utils.debug_print import debug_print
 
 from .inner_function import (
     calc_ctmrg_expectation,
@@ -200,6 +201,13 @@ def line_search(
 
     new_value = current_value
 
+    tmp_value = None
+    tmp_unitcell = None
+    tmp_gradient = None
+    tmp_descent_direction = None
+
+    signal_reset_descent_dir = False
+
     count = 0
     while count < peps_ad_config.line_search_max_steps:
         new_tensors = _line_search_new_tensors(input_tensors, descent_direction, alpha)
@@ -229,6 +237,45 @@ def line_search(
                     convert_to_unitcell_func,
                     enforce_elementwise_convergence=enforce_elementwise_convergence,
                 )
+
+                if new_unitcell[0, 0][0][0].chi > unitcell[0, 0][0][0].chi:
+                    tmp_value = current_value
+                    tmp_unitcell = unitcell
+                    tmp_gradient = gradient
+                    tmp_descent_direction = descent_direction
+
+                    unitcell = unitcell.change_chi(new_unitcell[0, 0][0][0].chi)
+
+                    debug_print(
+                        "Line search: Recalculate original unitcell with higher chi {}.",
+                        new_unitcell[0, 0][0][0].chi,
+                    )
+
+                    if peps_ad_config.ad_use_custom_vjp:
+                        (
+                            current_value,
+                            unitcell,
+                        ), tmp_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
+                            input_tensors,
+                            unitcell,
+                            expectation_func,
+                            convert_to_unitcell_func,
+                        )
+                    else:
+                        (
+                            current_value,
+                            unitcell,
+                        ), tmp_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
+                            input_tensors,
+                            unitcell,
+                            expectation_func,
+                            convert_to_unitcell_func,
+                            calc_preconverged=True,
+                        )
+                    gradient = [elem.conj() for elem in tmp_gradient_seq]
+                    descent_direction = [-elem for elem in tmp_gradient]
+
+                    signal_reset_descent_dir = True
             except CTMRGNotConvergedError:
                 new_value = jnp.inf
         elif peps_ad_config.line_search_method is Line_Search_Methods.WOLFE:
@@ -257,6 +304,45 @@ def line_search(
                         calc_preconverged=True,
                     )
                 new_gradient = [elem.conj() for elem in new_gradient_seq]
+
+                if new_unitcell[0, 0][0][0].chi > unitcell[0, 0][0][0].chi:
+                    tmp_value = current_value
+                    tmp_unitcell = unitcell
+                    tmp_gradient = gradient
+                    tmp_descent_direction = descent_direction
+
+                    unitcell = unitcell.change_chi(new_unitcell[0, 0][0][0].chi)
+
+                    debug_print(
+                        "Line search: Recalculate original unitcell with higher chi {}.",
+                        new_unitcell[0, 0][0][0].chi,
+                    )
+
+                    if peps_ad_config.ad_use_custom_vjp:
+                        (
+                            current_value,
+                            unitcell,
+                        ), tmp_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
+                            input_tensors,
+                            unitcell,
+                            expectation_func,
+                            convert_to_unitcell_func,
+                        )
+                    else:
+                        (
+                            current_value,
+                            unitcell,
+                        ), tmp_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
+                            input_tensors,
+                            unitcell,
+                            expectation_func,
+                            convert_to_unitcell_func,
+                            calc_preconverged=True,
+                        )
+                    gradient = [elem.conj() for elem in tmp_gradient_seq]
+                    descent_direction = [-elem for elem in tmp_gradient]
+
+                    signal_reset_descent_dir = True
             except (CTMRGNotConvergedError, CTMRGGradientNotConvergedError):
                 new_value = jnp.inf
                 new_gradient = gradient
@@ -396,9 +482,24 @@ def line_search(
                 )
                 wolfe_alpha_last_step = tmp_alpha
 
+        if tmp_value is not None:
+            current_value = tmp_value
+            tmp_value = None
+
+            unitcell = tmp_unitcell
+            tmp_unitcell = None
+
+            gradient = tmp_gradient
+            tmp_gradient = None
+
+            descent_direction = tmp_descent_direction
+            tmp_descent_direction = None
+
+            signal_reset_descent_dir = False
+
         count += 1
 
     if count == peps_ad_config.line_search_max_steps:
         raise NoSuitableStepSizeError(f"Count {count}, Last alpha {alpha}")
 
-    return new_tensors, new_unitcell, new_value, alpha
+    return new_tensors, new_unitcell, new_value, alpha, signal_reset_descent_dir

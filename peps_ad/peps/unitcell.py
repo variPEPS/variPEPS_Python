@@ -457,7 +457,7 @@ class PEPS_Unit_Cell:
           PEPS_Unit_Cell:
             New instance of PEPS unit cell with the new tensor list.
         """
-        new_unique_tensors = tuple(
+        new_unique_tensors = type(self.data.peps_tensors)(
             t.change_chi(new_chi) for t in self.data.peps_tensors
         )
 
