@@ -984,7 +984,7 @@ class PEPS_Tensor:
             HDF5 group object to load the data from.
         """
         d = int(grp.attrs["d"])
-        D = tuple(grp.attrs["D"])
+        D = tuple(int(i) for i in grp.attrs["D"])
         chi = int(grp.attrs["chi"])
         try:
             max_chi = int(grp.attrs["max_chi"])
