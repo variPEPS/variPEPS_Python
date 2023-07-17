@@ -472,6 +472,30 @@ class PEPS_Unit_Cell:
             sanity_checks=False,
         )
 
+    def increase_max_chi(self: T_PEPS_Unit_Cell, new_max_chi: int) -> T_PEPS_Unit_Cell:
+        """
+        Change environment maximal bond dimension of all tensors in the unit cell.
+
+        Args:
+          new_max_chi (:obj:`int`):
+            New value for the maximal environment bond dimension.
+        Returns:
+          PEPS_Unit_Cell:
+            New instance of PEPS unit cell with the new tensor list.
+        """
+        new_unique_tensors = type(self.data.peps_tensors)(
+            t.increase_max_chi(new_max_chi) for t in self.data.peps_tensors
+        )
+
+        new_data = self.data.replace_peps_tensors(new_unique_tensors)
+
+        return type(self)(
+            data=new_data,
+            real_ix=self.real_ix,
+            real_iy=self.real_iy,
+            sanity_checks=False,
+        )
+
     def move(self: T_PEPS_Unit_Cell, new_xi: int, new_yi: int) -> T_PEPS_Unit_Cell:
         """
         Move origin of the unit cell coordination system.

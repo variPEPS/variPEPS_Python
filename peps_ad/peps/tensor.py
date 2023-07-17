@@ -447,6 +447,41 @@ class PEPS_Tensor:
                 max_chi=self.max_chi,
             )
 
+    def increase_max_chi(
+        self: T_PEPS_Tensor,
+        new_max_chi: int,
+    ) -> T_PEPS_Tensor:
+        """
+        Change the maximal environment bond dimension and returns new object of the class.
+
+        Args:
+          new_max_chi (:obj:`int`):
+            New value for maximal environment bond dimension.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor`:
+            New instance of the class with the increased value.
+        """
+        if new_max_chi < self.max_chi:
+            raise ValueError(
+                "Decrease below the old max value for environment bond dimension."
+            )
+
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=new_max_chi,
+        )
+
     def replace_left_env_tensors(
         self: T_PEPS_Tensor, new_C1: Tensor, new_T4: Tensor, new_C4: Tensor
     ) -> T_PEPS_Tensor:
