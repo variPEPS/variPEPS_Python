@@ -471,7 +471,7 @@ class Honeycomb_Map_To_Square(Map_To_PEPS_Model):
             as well.
         """
         grp_peps = grp["honeycomb_peps_tensors"]
-        num_peps_sites = grp_semi_peps.attrs["num_peps_sites"]
+        num_peps_sites = grp_peps.attrs["num_peps_sites"]
 
         tensors = []
 
