@@ -208,6 +208,10 @@ def line_search(
 
     signal_reset_descent_dir = False
 
+    cache_original_unitcell = {
+        unitcell[0, 0][0][0].chi: (unitcell, gradient, descent_direction, current_value)
+    }
+
     count = 0
     while count < peps_ad_config.line_search_max_steps:
         new_tensors = _line_search_new_tensors(input_tensors, descent_direction, alpha)
@@ -244,36 +248,54 @@ def line_search(
                     tmp_gradient = gradient
                     tmp_descent_direction = descent_direction
 
-                    unitcell = unitcell.change_chi(new_unitcell[0, 0][0][0].chi)
-
-                    debug_print(
-                        "Line search: Recalculate original unitcell with higher chi {}.",
-                        new_unitcell[0, 0][0][0].chi,
-                    )
-
-                    if peps_ad_config.ad_use_custom_vjp:
+                    if (
+                        cache_original_unitcell.get(new_unitcell[0, 0][0][0].chi)
+                        is not None
+                    ):
                         (
+                            unitcell,
+                            gradient,
+                            descent_direction,
                             current_value,
-                            unitcell,
-                        ), tmp_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
-                            input_tensors,
-                            unitcell,
-                            expectation_func,
-                            convert_to_unitcell_func,
-                        )
+                        ) = cache_original_unitcell[new_unitcell[0, 0][0][0].chi]
                     else:
-                        (
-                            current_value,
-                            unitcell,
-                        ), tmp_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
-                            input_tensors,
-                            unitcell,
-                            expectation_func,
-                            convert_to_unitcell_func,
-                            calc_preconverged=True,
+                        unitcell = unitcell.change_chi(new_unitcell[0, 0][0][0].chi)
+
+                        debug_print(
+                            "Line search: Recalculate original unitcell with higher chi {}.",
+                            new_unitcell[0, 0][0][0].chi,
                         )
-                    gradient = [elem.conj() for elem in tmp_gradient_seq]
-                    descent_direction = [-elem for elem in tmp_gradient]
+
+                        if peps_ad_config.ad_use_custom_vjp:
+                            (
+                                current_value,
+                                unitcell,
+                            ), tmp_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
+                                input_tensors,
+                                unitcell,
+                                expectation_func,
+                                convert_to_unitcell_func,
+                            )
+                        else:
+                            (
+                                current_value,
+                                unitcell,
+                            ), tmp_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
+                                input_tensors,
+                                unitcell,
+                                expectation_func,
+                                convert_to_unitcell_func,
+                                calc_preconverged=True,
+                            )
+                        gradient = [elem.conj() for elem in tmp_gradient_seq]
+                        descent_direction = [-elem for elem in tmp_gradient]
+
+                        cache_original_unitcell[new_unitcell[0, 0][0][0].chi] = (
+                            unitcell,
+                            gradient,
+                            descent_direction,
+                            current_value,
+                        )
 
                     signal_reset_descent_dir = True
             except CTMRGNotConvergedError:
@@ -311,36 +333,54 @@ def line_search(
                     tmp_gradient = gradient
                     tmp_descent_direction = descent_direction
 
-                    unitcell = unitcell.change_chi(new_unitcell[0, 0][0][0].chi)
-
-                    debug_print(
-                        "Line search: Recalculate original unitcell with higher chi {}.",
-                        new_unitcell[0, 0][0][0].chi,
-                    )
-
-                    if peps_ad_config.ad_use_custom_vjp:
+                    if (
+                        cache_original_unitcell.get(new_unitcell[0, 0][0][0].chi)
+                        is not None
+                    ):
                         (
+                            unitcell,
+                            gradient,
+                            descent_direction,
                             current_value,
-                            unitcell,
-                        ), tmp_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
-                            input_tensors,
-                            unitcell,
-                            expectation_func,
-                            convert_to_unitcell_func,
-                        )
+                        ) = cache_original_unitcell[new_unitcell[0, 0][0][0].chi]
                     else:
-                        (
-                            current_value,
-                            unitcell,
-                        ), tmp_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
-                            input_tensors,
-                            unitcell,
-                            expectation_func,
-                            convert_to_unitcell_func,
-                            calc_preconverged=True,
+                        unitcell = unitcell.change_chi(new_unitcell[0, 0][0][0].chi)
+
+                        debug_print(
+                            "Line search: Recalculate original unitcell with higher chi {}.",
+                            new_unitcell[0, 0][0][0].chi,
                         )
-                    gradient = [elem.conj() for elem in tmp_gradient_seq]
-                    descent_direction = [-elem for elem in tmp_gradient]
+
+                        if peps_ad_config.ad_use_custom_vjp:
+                            (
+                                current_value,
+                                unitcell,
+                            ), tmp_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
+                                input_tensors,
+                                unitcell,
+                                expectation_func,
+                                convert_to_unitcell_func,
+                            )
+                        else:
+                            (
+                                current_value,
+                                unitcell,
+                            ), tmp_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
+                                input_tensors,
+                                unitcell,
+                                expectation_func,
+                                convert_to_unitcell_func,
+                                calc_preconverged=True,
+                            )
+                        gradient = [elem.conj() for elem in tmp_gradient_seq]
+                        descent_direction = [-elem for elem in tmp_gradient]
+
+                        cache_original_unitcell[new_unitcell[0, 0][0][0].chi] = (
+                            unitcell,
+                            gradient,
+                            descent_direction,
+                            current_value,
+                        )
 
                     signal_reset_descent_dir = True
             except (CTMRGNotConvergedError, CTMRGGradientNotConvergedError):
