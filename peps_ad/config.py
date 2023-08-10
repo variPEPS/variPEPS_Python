@@ -124,6 +124,11 @@ class PEPS_AD_Config:
         CTM projectors.
       optimizer_autosave_step_count (:obj:`int`):
         Step count after which the optimizer result is automatically saved.
+      optimizer_random_noise_eps (:obj:`float`):
+        Optimizer should try best state sofar with some random noise if
+        gradient norm is below this threshold.
+      optimizer_random_noise_max_retries (:obj:`int`):
+        Maximal retries for optimization with random noise.
       line_search_method (:obj:`Line_Search_Methods`):
         Method used for the line search routine.
       line_search_initial_step_size (:obj:`float`):
@@ -190,6 +195,8 @@ class PEPS_AD_Config:
     optimizer_preconverge_with_half_projectors: bool = True
     optimizer_preconverge_with_half_projectors_eps: float = 1e-3
     optimizer_autosave_step_count: int = 5
+    optimizer_random_noise_eps: float = 1e-4
+    optimizer_random_noise_max_retries: int = 5
 
     # Line search
     line_search_method: Line_Search_Methods = Line_Search_Methods.WOLFE

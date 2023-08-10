@@ -18,6 +18,7 @@ from peps_ad.expectation import Expectation_Model
 from peps_ad.config import Projector_Method
 from peps_ad.mapping import Map_To_PEPS_Model
 from peps_ad.ctmrg import CTMRGNotConvergedError, CTMRGGradientNotConvergedError
+from peps_ad.utils.random import PEPS_Random_Number_Generator
 
 from .inner_function import (
     calc_ctmrg_expectation,
@@ -221,6 +222,11 @@ def optimize_peps_network(
         final expectation value. See the type definition for other possible
         fields.
     """
+    rng = PEPS_Random_Number_Generator.get_generator(backend="jax")
+
+    def random_noise(a):
+        return a + a * rng.block(a.shape, dtype=a.dtype) * 1e-3
+
     if isinstance(input_tensors, PEPS_Unit_Cell):
         working_tensors = cast(
             List[jnp.ndarray], [i.tensor for i in input_tensors.get_unique_tensors()]
@@ -234,6 +240,12 @@ def optimize_peps_network(
     old_descent_dir = None
     descent_dir = None
     working_value = None
+
+    best_value = jnp.inf
+    best_tensors = None
+    best_unitcell = None
+
+    random_noise_retries = 0
 
     signal_reset_descent_dir = False
 
@@ -377,7 +389,53 @@ def optimize_peps_network(
                 if peps_ad_config.optimizer_fail_if_no_step_size_found:
                     raise
                 else:
-                    conv = 0
+                    if (
+                        (
+                            conv > peps_ad_config.optimizer_random_noise_eps
+                            or working_value > best_value
+                        )
+                        and random_noise_retries
+                        < peps_ad_config.optimizer_random_noise_max_retries
+                    ):
+                        tqdm.write(
+                            "Convergence is not sufficient. Retry with some random noise on best result."
+                        )
+
+                        if working_value < best_value:
+                            best_value = working_value
+                            best_tensors = working_tensors
+                            best_unitcell = working_unitcell
+
+                        if isinstance(input_tensors, PEPS_Unit_Cell):
+                            working_tensors = cast(
+                                List[jnp.ndarray],
+                                [i.tensor for i in best_unitcell.get_unique_tensors()],
+                            )
+
+                            working_tensors = [random_noise(i) for i in working_tensors]
+
+                            working_tensors_obj = [
+                                e.replace_tensor(working_tensors[i])
+                                for i, e in enumerate(
+                                    best_unitcell.get_unique_tensors()
+                                )
+                            ]
+
+                            working_unitcell = best_unitcell.replace_unique_tensors(
+                                working_tensors_obj
+                            )
+                        else:
+                            working_tensors = [random_noise(i) for i in best_tensors]
+                            working_unitcell = None
+
+                        descent_dir = None
+                        working_gradient = None
+                        signal_reset_descent_dir = True
+                        count = -1
+                        random_noise_retries += 1
+                        pbar.reset()
+                    else:
+                        conv = 0
 
             if conv < peps_ad_config.optimizer_convergence_eps:
                 working_value, working_unitcell = calc_ctmrg_expectation(
@@ -408,6 +466,7 @@ def optimize_peps_network(
                 )
                 descent_dir = None
                 working_gradient = None
+                signal_reset_descent_dir = True
 
             old_descent_dir = descent_dir
             old_gradient = working_gradient
@@ -417,19 +476,27 @@ def optimize_peps_network(
             pbar.update()
             pbar.set_postfix(
                 {
-                    "Energy": working_value,
-                    "Convergence": conv,
-                    "Line search step size": linesearch_step,
+                    "Energy": f"{working_value:0.10f}",
+                    "Retries": random_noise_retries,
+                    "Convergence": f"{conv:0.10f}",
+                    "Line search step size": f"{linesearch_step:0.10f}",
                 }
             )
 
             if count % peps_ad_config.optimizer_autosave_step_count == 0:
                 autosave_func(autosave_filename, working_tensors, working_unitcell)
 
+    if working_value < best_value:
+        best_value = working_value
+        best_tensors = working_tensors
+        best_unitcell = working_unitcell
+
+    print(f"Best energy result found: {best_value}")
+
     return OptimizeResult(
         success=True,
-        x=working_tensors,
-        fun=working_value,
-        unitcell=working_unitcell,
+        x=best_tensors,
+        fun=best_value,
+        unitcell=best_unitcell,
         nit=count,
     )
