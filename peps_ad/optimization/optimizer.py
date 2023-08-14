@@ -434,6 +434,7 @@ def optimize_peps_network(
                         count = -1
                         random_noise_retries += 1
                         pbar.reset()
+                        pbar.refresh()
                     else:
                         conv = 0
 
@@ -482,6 +483,7 @@ def optimize_peps_network(
                     "Line search step size": f"{linesearch_step:0.10f}",
                 }
             )
+            pbar.refresh()
 
             if count % peps_ad_config.optimizer_autosave_step_count == 0:
                 autosave_func(autosave_filename, working_tensors, working_unitcell)
