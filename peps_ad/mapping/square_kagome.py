@@ -785,6 +785,7 @@ class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         D: int,
         chi: Union[int, Sequence[int]],
         dtype: Type[jnp.number],
+        max_chi: int,
         *,
         seed: Optional[int] = None,
         destroy_random_state: bool = True,
@@ -823,7 +824,9 @@ class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):
             result_tensors.append(rng.block((D, D, D), dtype=dtype))  # simplex_right
             result_tensors.append(rng.block((D, D, D), dtype=dtype))  # simplex_bottom
 
-        return result_tensors, cls(unitcell_structure=structure, chi=chi)
+        return result_tensors, cls(
+            unitcell_structure=structure, chi=chi, max_chi=max_chi
+        )
 
     @classmethod
     def save_to_file(
@@ -1116,6 +1119,7 @@ class Square_Kagome_Map_4_1_1_To_PEPS(Map_To_PEPS_Model):
         D: int,
         chi: Union[int, Sequence[int]],
         dtype: Type[jnp.number],
+        max_chi: int,
         *,
         seed: Optional[int] = None,
         destroy_random_state: bool = True,
@@ -1149,7 +1153,9 @@ class Square_Kagome_Map_4_1_1_To_PEPS(Map_To_PEPS_Model):
                 rng.block((D, D, d, d, d, d, D, D), dtype=dtype)
             )  # square_kagome
 
-        return result_tensors, cls(unitcell_structure=structure, chi=chi)
+        return result_tensors, cls(
+            unitcell_structure=structure, chi=chi, max_chi=max_chi
+        )
 
     @classmethod
     def save_to_file(
