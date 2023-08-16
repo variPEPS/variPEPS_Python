@@ -745,7 +745,9 @@ class PEPS_Unit_Cell:
             try:
                 git_hash = (
                     subprocess.check_output(
-                        ["git", "rev-parse", "HEAD"], cwd=pathlib.Path(__file__).parent
+                        ["git", "rev-parse", "HEAD"],
+                        cwd=pathlib.Path(__file__).parent,
+                        stderr=subprocess.DEVNULL,
                     )
                     .decode("ascii")
                     .strip()
@@ -759,6 +761,7 @@ class PEPS_Unit_Cell:
                     subprocess.check_output(
                         ["git", "describe", "--exact-match", "--tags", "HEAD"],
                         cwd=pathlib.Path(__file__).parent,
+                        stderr=subprocess.DEVNULL,
                     )
                     .decode("ascii")
                     .strip()
