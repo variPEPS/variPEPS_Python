@@ -399,7 +399,7 @@ def calc_ctmrg_env(
                     False,
                     init_corner_singular_vals,
                     eps,
-                    0,
+                    tmp_count,
                     enforce_elementwise_convergence,
                     jnp.inf,
                     peps_ad_global_state,
