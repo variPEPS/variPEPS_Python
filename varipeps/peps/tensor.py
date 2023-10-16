@@ -14,15 +14,19 @@ from jax.tree_util import register_pytree_node_class
 import h5py
 
 from varipeps.utils.random import PEPS_Random_Number_Generator
+from varipeps.utils.svd import gauge_fixed_svd
 
 import typing
 from typing import TypeVar, Type, Union, Optional, Sequence, Tuple, Any
 from varipeps.typing import Tensor, is_tensor
 
 T_PEPS_Tensor = TypeVar("T_PEPS_Tensor", bound="PEPS_Tensor")
+T_PEPS_Tensor_Split_Transfer = TypeVar(
+    "T_PEPS_Tensor_Split_Transfer", bound="PEPS_Tensor_Split_Transfer"
+)
 
 
-@dataclass(frozen=True)
+@dataclass
 @register_pytree_node_class
 class PEPS_Tensor:
     """
@@ -64,15 +68,15 @@ class PEPS_Tensor:
     C3: Tensor
     C4: Tensor
 
-    T1: Tensor
-    T2: Tensor
-    T3: Tensor
-    T4: Tensor
-
     d: int
     D: Tuple[int, int, int, int]
     chi: int
     max_chi: int
+
+    T1: Tensor
+    T2: Tensor
+    T3: Tensor
+    T4: Tensor
 
     sanity_checks: bool = True
 
@@ -123,6 +127,38 @@ class PEPS_Tensor:
             raise ValueError(
                 "At least one transfer tensors mismatch bond dimensions of PEPS tensor."
             )
+
+    @property
+    def left_upper_transfer_shape(self) -> Tensor:
+        return self.T4.shape[3]
+
+    @property
+    def left_lower_transfer_shape(self) -> Tensor:
+        return self.T4.shape[0]
+
+    @property
+    def right_upper_transfer_shape(self) -> Tensor:
+        return self.T2.shape[3]
+
+    @property
+    def right_lower_transfer_shape(self) -> Tensor:
+        return self.T2.shape[2]
+
+    @property
+    def top_left_transfer_shape(self) -> Tensor:
+        return self.T1.shape[0]
+
+    @property
+    def top_right_transfer_shape(self) -> Tensor:
+        return self.T1.shape[3]
+
+    @property
+    def bottom_left_transfer_shape(self) -> Tensor:
+        return self.T3.shape[0]
+
+    @property
+    def bottom_right_transfer_shape(self) -> Tensor:
+        return self.T3.shape[1]
 
     @classmethod
     def from_tensor(
@@ -1069,6 +1105,24 @@ class PEPS_Tensor:
             max_chi=max_chi,
         )
 
+    def convert_to_split_transfer(self: T_PEPS_Tensor) -> T_PEPS_Tensor_Split_Transfer:
+        return PEPS_Tensor_Split_Transfer(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+            interlayer_chi=self.chi,
+        )
+
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
         data = (
             self.tensor,
@@ -1110,7 +1164,7 @@ class PEPS_Tensor:
         )
 
 
-@dataclass(frozen=True)
+@dataclass
 @register_pytree_node_class
 class PEPS_Tensor_Structure_Factor(PEPS_Tensor):
     """
@@ -1841,5 +1895,822 @@ class PEPS_Tensor_Structure_Factor(PEPS_Tensor):
             D=D,
             chi=chi,
             max_chi=max_chi,
+            sanity_checks=False,
+        )
+
+
+@dataclass
+@register_pytree_node_class
+class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
+    T1: Optional[Tensor] = None
+    T2: Optional[Tensor] = None
+    T3: Optional[Tensor] = None
+    T4: Optional[Tensor] = None
+
+    T1_ket: Optional[Tensor] = None
+    T1_bra: Optional[Tensor] = None
+    T2_ket: Optional[Tensor] = None
+    T2_bra: Optional[Tensor] = None
+    T3_ket: Optional[Tensor] = None
+    T3_bra: Optional[Tensor] = None
+    T4_ket: Optional[Tensor] = None
+    T4_bra: Optional[Tensor] = None
+
+    interlayer_chi: Optional[int] = None
+
+    def __post_init__(self) -> None:
+        if any(
+            e is None
+            for e in (
+                self.T1_ket,
+                self.T1_bra,
+                self.T2_ket,
+                self.T2_bra,
+                self.T3_ket,
+                self.T3_bra,
+                self.T4_ket,
+                self.T4_bra,
+            )
+        ):
+            self._split_up_T1(self.T1)
+            self._split_up_T2(self.T2)
+            self._split_up_T3(self.T3)
+            self._split_up_T4(self.T4)
+            self.T1 = None
+            self.T2 = None
+            self.T3 = None
+            self.T4 = None
+
+        if self.interlayer_chi is None:
+            self.interlayer_chi = self.chi
+
+        if not self.sanity_checks:
+            return
+
+        if not len(self.D) == 4:
+            raise ValueError(
+                "The bond dimension of the PEPS tensor has to be a tuple of four entries."
+            )
+
+        if (
+            self.tensor.shape[0] != self.D[0]
+            or self.tensor.shape[1] != self.D[1]
+            or self.tensor.shape[3] != self.D[2]
+            or self.tensor.shape[4] != self.D[3]
+        ):
+            raise ValueError("Bond dimension sequence mismatches tensor.")
+
+        # if not (
+        #     self.T1.shape[1] == self.T1.shape[2] == self.D[3]
+        #     and self.T2.shape[0] == self.T2.shape[1] == self.D[2]
+        #     and self.T3.shape[2] == self.T3.shape[3] == self.D[1]
+        #     and self.T4.shape[1] == self.T4.shape[2] == self.D[0]
+        # ):
+        #     raise ValueError(
+        #         "At least one transfer tensors mismatch bond dimensions of PEPS tensor."
+        #     )
+
+    @property
+    def left_upper_transfer_shape(self) -> Tensor:
+        return self.T4_ket.shape[2]
+
+    @property
+    def left_lower_transfer_shape(self) -> Tensor:
+        return self.T4_bra.shape[0]
+
+    @property
+    def right_upper_transfer_shape(self) -> Tensor:
+        return self.T2_ket.shape[2]
+
+    @property
+    def right_lower_transfer_shape(self) -> Tensor:
+        return self.T2_bra.shape[0]
+
+    @property
+    def top_left_transfer_shape(self) -> Tensor:
+        return self.T1_ket.shape[0]
+
+    @property
+    def top_right_transfer_shape(self) -> Tensor:
+        return self.T1_bra.shape[2]
+
+    @property
+    def bottom_left_transfer_shape(self) -> Tensor:
+        return self.T3_ket.shape[0]
+
+    @property
+    def bottom_right_transfer_shape(self) -> Tensor:
+        return self.T3_bra.shape[2]
+
+    def _split_up_T1(self, T1):
+        tmp_T1 = T1.reshape(T1.shape[0] * T1.shape[1], T1.shape[2] * T1.shape[3])
+
+        self.T1_ket, T1_S, self.T1_bra = gauge_fixed_svd(tmp_T1)
+
+        self.T1_ket = self.T1_ket[:, : self.interlayer_chi]
+        T1_S = jnp.sqrt(T1_S[: self.interlayer_chi])
+        self.T1_bra = self.T1_bra[: self.interlayer_chi, :]
+
+        self.T1_ket = self.T1_ket * T1_S[jnp.newaxis, :]
+        self.T1_bra = T1_S[:, jnp.newaxis] * self.T1_bra
+
+        self.T1_ket = self.T1_ket.reshape(
+            T1.shape[0], T1.shape[1], self.T1_ket.shape[1]
+        )
+        self.T1_bra = self.T1_bra.reshape(
+            self.T1_bra.shape[0], T1.shape[2], T1.shape[3]
+        )
+
+    def _split_up_T2(self, T2):
+        tmp_T2 = T2.transpose(2, 1, 0, 3)
+        tmp_T2 = tmp_T2.reshape(
+            tmp_T2.shape[0] * tmp_T2.shape[1], tmp_T2.shape[2] * tmp_T2.shape[3]
+        )
+
+        self.T2_bra, T2_S, self.T2_ket = gauge_fixed_svd(tmp_T2)
+
+        self.T2_bra = self.T2_bra[:, : self.interlayer_chi]
+        T2_S = jnp.sqrt(T2_S[: self.interlayer_chi])
+        self.T2_ket = self.T2_ket[: self.interlayer_chi, :]
+
+        self.T2_bra = self.T2_bra * T2_S[jnp.newaxis, :]
+        self.T2_ket = T2_S[:, jnp.newaxis] * self.T2_ket
+
+        self.T2_bra = self.T2_bra.reshape(
+            T2.shape[2], T2.shape[1], self.T2_bra.shape[1]
+        )
+        self.T2_ket = self.T2_ket.reshape(
+            self.T2_ket.shape[0], T2.shape[0], T2.shape[3]
+        )
+
+    def _split_up_T3(self, T3):
+        tmp_T3 = T3.transpose(0, 3, 2, 1)
+        tmp_T3 = tmp_T3.reshape(
+            tmp_T3.shape[0] * tmp_T3.shape[1], tmp_T3.shape[2] * tmp_T3.shape[3]
+        )
+
+        self.T3_ket, T3_S, self.T3_bra = gauge_fixed_svd(tmp_T3)
+
+        self.T3_ket = self.T3_ket[:, : self.interlayer_chi]
+        T3_S = jnp.sqrt(T3_S[: self.interlayer_chi])
+        self.T3_bra = self.T3_bra[: self.interlayer_chi, :]
+
+        self.T3_ket = self.T3_ket * T3_S[jnp.newaxis, :]
+        self.T3_bra = T3_S[:, jnp.newaxis] * self.T3_bra
+
+        self.T3_ket = self.T3_ket.reshape(
+            T3.shape[0], T3.shape[3], self.T3_ket.shape[1]
+        )
+        self.T3_bra = self.T3_bra.reshape(
+            self.T3_bra.shape[0], T3.shape[2], T3.shape[1]
+        )
+
+    def _split_up_T4(self, T4):
+        tmp_T4 = T4.reshape(T4.shape[0] * T4.shape[1], T4.shape[2] * T4.shape[3])
+
+        self.T4_bra, T4_S, self.T4_ket = gauge_fixed_svd(tmp_T4)
+
+        self.T4_bra = self.T4_bra[:, : self.interlayer_chi]
+        T4_S = jnp.sqrt(T4_S[: self.interlayer_chi])
+        self.T4_ket = self.T4_ket[: self.interlayer_chi, :]
+
+        self.T4_bra = self.T4_bra * T4_S[jnp.newaxis, :]
+        self.T4_ket = T4_S[:, jnp.newaxis] * self.T4_ket
+
+        self.T4_bra = self.T4_bra.reshape(
+            T4.shape[0], T4.shape[1], self.T4_bra.shape[1]
+        )
+        self.T4_ket = self.T4_ket.reshape(
+            self.T4_ket.shape[0], T4.shape[2], T4.shape[3]
+        )
+
+    def replace_tensor(
+        self: T_PEPS_Tensor_Split_Transfer,
+        new_tensor: Tensor,
+        *,
+        reinitialize_env_as_identities: bool = True,
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        """
+        Replace the PEPS tensor and returns new object of the class.
+
+        Args:
+          new_tensor (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New PEPS tensor.
+        Keyword args:
+          reinitialize_env_as_identities (:obj:`bool`):
+            Reinitialize the CTM tensors as identities.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`:
+            New instance of the class with the tensor replaced.
+        """
+        if reinitialize_env_as_identities:
+            return type(self)(
+                tensor=new_tensor,
+                C1=jnp.ones((1, 1), dtype=self.C1.dtype),
+                C2=jnp.ones((1, 1), dtype=self.C2.dtype),
+                C3=jnp.ones((1, 1), dtype=self.C3.dtype),
+                C4=jnp.ones((1, 1), dtype=self.C4.dtype),
+                T1=jnp.eye(self.D[3], dtype=self.T1_ket.dtype).reshape(
+                    1, self.D[3], self.D[3], 1
+                ),
+                T2=jnp.eye(self.D[2], dtype=self.T2_ket.dtype).reshape(
+                    self.D[2], self.D[2], 1, 1
+                ),
+                T3=jnp.eye(self.D[1], dtype=self.T3_ket.dtype).reshape(
+                    1, 1, self.D[1], self.D[1]
+                ),
+                T4=jnp.eye(self.D[0], dtype=self.T4_ket.dtype).reshape(
+                    1, self.D[0], self.D[0], 1
+                ),
+                d=self.d,
+                D=self.D,
+                chi=self.chi,
+                max_chi=self.max_chi,
+                interlayer_chi=self.interlayer_chi,
+            )
+        else:
+            return type(self)(
+                tensor=new_tensor,
+                C1=self.C1,
+                C2=self.C2,
+                C3=self.C3,
+                C4=self.C4,
+                T1_ket=self.T1_ket,
+                T1_bra=self.T1_bra,
+                T2_ket=self.T2_ket,
+                T2_bra=self.T2_bra,
+                T3_ket=self.T3_ket,
+                T3_bra=self.T3_bra,
+                T4_ket=self.T4_ket,
+                T4_bra=self.T4_bra,
+                d=self.d,
+                D=self.D,
+                chi=self.chi,
+                max_chi=self.max_chi,
+                interlayer_chi=self.interlayer_chi,
+            )
+
+    def change_chi(
+        self: T_PEPS_Tensor_Split_Transfer,
+        new_chi: int,
+        *,
+        reinitialize_env_as_identities: bool = True,
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        """
+        Change the environment bond dimension and returns new object of the class.
+
+        Args:
+          new_chi (:obj:`int`):
+            New value for environment bond dimension.
+        Keyword args:
+          reinitialize_env_as_identities (:obj:`bool`):
+            Reinitialize the CTM tensors as identities if decreasing the dimension.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`:
+            New instance of the class with the increased value.
+        """
+        if new_chi > self.max_chi:
+            raise ValueError(
+                "Increase above the max value for environment bond dimension."
+            )
+
+        if new_chi < self.chi and reinitialize_env_as_identities:
+            return type(self)(
+                tensor=self.tensor,
+                C1=jnp.ones((1, 1), dtype=self.C1.dtype),
+                C2=jnp.ones((1, 1), dtype=self.C2.dtype),
+                C3=jnp.ones((1, 1), dtype=self.C3.dtype),
+                C4=jnp.ones((1, 1), dtype=self.C4.dtype),
+                T1=jnp.eye(self.D[3], dtype=self.T1_ket.dtype).reshape(
+                    1, self.D[3], self.D[3], 1
+                ),
+                T2=jnp.eye(self.D[2], dtype=self.T2_ket.dtype).reshape(
+                    self.D[2], self.D[2], 1, 1
+                ),
+                T3=jnp.eye(self.D[1], dtype=self.T3_ket.dtype).reshape(
+                    1, 1, self.D[1], self.D[1]
+                ),
+                T4=jnp.eye(self.D[0], dtype=self.T4_ket.dtype).reshape(
+                    1, self.D[0], self.D[0], 1
+                ),
+                d=self.d,
+                D=self.D,
+                chi=new_chi,
+                max_chi=self.max_chi,
+                interlayer_chi=self.interlayer_chi,
+            )
+        else:
+            return type(self)(
+                tensor=self.tensor,
+                C1=self.C1,
+                C2=self.C2,
+                C3=self.C3,
+                C4=self.C4,
+                T1_ket=self.T1_ket,
+                T1_bra=self.T1_bra,
+                T2_ket=self.T2_ket,
+                T2_bra=self.T2_bra,
+                T3_ket=self.T3_ket,
+                T3_bra=self.T3_bra,
+                T4_ket=self.T4_ket,
+                T4_bra=self.T4_bra,
+                d=self.d,
+                D=self.D,
+                chi=new_chi,
+                max_chi=self.max_chi,
+                interlayer_chi=self.interlayer_chi,
+            )
+
+    def increase_max_chi(
+        self: T_PEPS_Tensor_Split_Transfer,
+        new_max_chi: int,
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        """
+        Change the maximal environment bond dimension and returns new object of the class.
+
+        Args:
+          new_max_chi (:obj:`int`):
+            New value for maximal environment bond dimension.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`:
+            New instance of the class with the increased value.
+        """
+        if new_max_chi < self.max_chi:
+            raise ValueError(
+                "Decrease below the old max value for environment bond dimension."
+            )
+
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1_ket=self.T1_ket,
+            T1_bra=self.T1_bra,
+            T2_ket=self.T2_ket,
+            T2_bra=self.T2_bra,
+            T3_ket=self.T3_ket,
+            T3_bra=self.T3_bra,
+            T4_ket=self.T4_ket,
+            T4_bra=self.T4_bra,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=new_max_chi,
+            interlayer_chi=self.interlayer_chi,
+        )
+
+    def replace_left_env_tensors(
+        self: T_PEPS_Tensor_Split_Transfer,
+        new_C1: Tensor,
+        new_T4_ket: Tensor,
+        new_T4_bra: Tensor,
+        new_C4: Tensor,
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        """
+        Replace the left CTMRG tensors and returns new object of the class.
+
+        Args:
+          new_C1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C1 tensor.
+          new_T4_ket (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New ket T4 tensor.
+          new_T4_bra (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New bra T4 tensor.
+          new_C4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C4 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=new_C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=new_C4,
+            T1_ket=self.T1_ket,
+            T1_bra=self.T1_bra,
+            T2_ket=self.T2_ket,
+            T2_bra=self.T2_bra,
+            T3_ket=self.T3_ket,
+            T3_bra=self.T3_bra,
+            T4_ket=new_T4_ket,
+            T4_bra=new_T4_bra,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+            interlayer_chi=self.interlayer_chi,
+        )
+
+    def replace_right_env_tensors(
+        self: T_PEPS_Tensor_Split_Transfer,
+        new_C2: Tensor,
+        new_T2_ket: Tensor,
+        new_T2_bra: Tensor,
+        new_C3: Tensor,
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        """
+        Replace the right CTMRG tensors and returns new object of the class.
+
+        Args:
+          new_C2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C2 tensor.
+          new_T2_ket (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New ket T2 tensor.
+          new_T2_bra (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New bra T2 tensor.
+          new_C3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C3 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=new_C2,
+            C3=new_C3,
+            C4=self.C4,
+            T1_ket=self.T1_ket,
+            T1_bra=self.T1_bra,
+            T2_ket=new_T2_ket,
+            T2_bra=new_T2_bra,
+            T3_ket=self.T3_ket,
+            T3_bra=self.T3_bra,
+            T4_ket=self.T4_ket,
+            T4_bra=self.T4_bra,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+            interlayer_chi=self.interlayer_chi,
+        )
+
+    def replace_top_env_tensors(
+        self: T_PEPS_Tensor_Split_Transfer,
+        new_C1: Tensor,
+        new_T1_ket: Tensor,
+        new_T1_bra: Tensor,
+        new_C2: Tensor,
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        """
+        Replace the top CTMRG tensors and returns new object of the class.
+
+        Args:
+          new_C1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C1 tensor.
+          new_T1_ket (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New ket T1 tensor.
+          new_T1_bra (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New bra T1 tensor.
+          new_C2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C2 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=new_C1,
+            C2=new_C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1_ket=new_T1_ket,
+            T1_bra=new_T1_bra,
+            T2_ket=self.T2_ket,
+            T2_bra=self.T2_bra,
+            T3_ket=self.T3_ket,
+            T3_bra=self.T3_bra,
+            T4_ket=self.T4_ket,
+            T4_bra=self.T4_bra,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+            interlayer_chi=self.interlayer_chi,
+        )
+
+    def replace_bottom_env_tensors(
+        self: T_PEPS_Tensor_Split_Transfer,
+        new_C4: Tensor,
+        new_T3_ket: Tensor,
+        new_T3_bra: Tensor,
+        new_C3: Tensor,
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        """
+        Replace the bottom CTMRG tensors and returns new object of the class.
+
+        Args:
+          new_C4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C4 tensor.
+          new_T3_ket (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New ket T3 tensor.
+          new_T3_bra (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New bra T3 tensor.
+          new_C3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New C3 tensor.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`:
+            New instance of the class with the tensors replaced.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=new_C3,
+            C4=new_C4,
+            T1_ket=self.T1_ket,
+            T1_bra=self.T1_bra,
+            T2_ket=self.T2_ket,
+            T2_bra=self.T2_bra,
+            T3_ket=new_T3_ket,
+            T3_bra=new_T3_bra,
+            T4_ket=self.T4_ket,
+            T4_bra=self.T4_bra,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+            interlayer_chi=self.interlayer_chi,
+        )
+
+    def __add__(
+        self: T_PEPS_Tensor_Split_Transfer,
+        other: T_PEPS_Tensor_Split_Transfer,
+        *,
+        checks: bool = True,
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        """
+        Add the environment tensors of two PEPS tensors.
+
+        Args:
+          other (:obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`):
+            Other PEPS tensor object which should be added to this one.
+        Keyword args:
+          checks (:obj:`bool`):
+            Enable checks that the addition of the two tensor objects makes
+            sense. Maybe disabled for jax transformations.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`:
+            New instance with the added env tensors.
+        """
+        if checks and (
+            self.tensor is not other.tensor
+            or self.d != other.d
+            or self.D != other.D
+            or self.chi != other.chi
+        ):
+            raise ValueError(
+                "Both PEPS tensors must have the same tensor, d, D and chi values."
+            )
+
+        return PEPS_Tensor(
+            tensor=self.tensor,
+            C1=self.C1 + other.C1,
+            C2=self.C2 + other.C2,
+            C3=self.C3 + other.C3,
+            C4=self.C4 + other.C4,
+            T1_ket=self.T1_ket + other.T1_ket,
+            T1_bra=self.T1_bra + other.T1_bra,
+            T2_ket=self.T2_ket + other.T2_ket,
+            T2_bra=self.T2_bra + other.T2_bra,
+            T3_ket=self.T3_ket + other.T3_ket,
+            T3_bra=self.T3_bra + other.T3_bra,
+            T4_ket=self.T4_ket + other.T4_ket,
+            T4_bra=self.T4_bra + other.T4_bra,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+            interlayer_chi=self.interlayer_chi,
+        )
+
+    @classmethod
+    def zeros_like(
+        cls: Type[T_PEPS_Tensor_Split_Transfer], t: T_PEPS_Tensor_Split_Transfer
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        """
+        Create a PEPS tensor with same shape as another one but with zeros
+        everywhere.
+
+        Args:
+          t (:obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`):
+            Other PEPS tensor object whose shape should be copied.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`:
+            New instance with the zero initialized tensors.
+        """
+        return cls(
+            tensor=jnp.zeros_like(t.tensor),
+            C1=jnp.zeros_like(t.C1),
+            C2=jnp.zeros_like(t.C2),
+            C3=jnp.zeros_like(t.C3),
+            C4=jnp.zeros_like(t.C4),
+            T1_ket=jnp.zeros_like(t.T1_ket),
+            T1_bra=jnp.zeros_like(t.T1_bra),
+            T2_ket=jnp.zeros_like(t.T2_ket),
+            T2_bra=jnp.zeros_like(t.T2_bra),
+            T3_ket=jnp.zeros_like(t.T3_ket),
+            T3_bra=jnp.zeros_like(t.T3_bra),
+            T4_ket=jnp.zeros_like(t.T4_ket),
+            T4_bra=jnp.zeros_like(t.T4_bra),
+            d=t.d,
+            D=t.D,
+            chi=t.chi,
+            max_chi=t.max_chi,
+            interlayer_chi=t.interlayer_chi,
+        )
+
+    def save_to_group(self, grp: h5py.Group) -> None:
+        """
+        Store the PEPS tensor into a HDF5 group.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to save the data into.
+        """
+        grp.attrs["d"] = self.d
+        grp.attrs["D"] = self.D
+        grp.attrs["chi"] = self.chi
+        grp.attrs["max_chi"] = self.max_chi
+        grp.attrs["interlayer_chi"] = self.interlayer_chi
+        grp.create_dataset(
+            "tensor", data=self.tensor, compression="gzip", compression_opts=6
+        )
+        grp.create_dataset("C1", data=self.C1, compression="gzip", compression_opts=6)
+        grp.create_dataset("C2", data=self.C2, compression="gzip", compression_opts=6)
+        grp.create_dataset("C3", data=self.C3, compression="gzip", compression_opts=6)
+        grp.create_dataset("C4", data=self.C4, compression="gzip", compression_opts=6)
+        grp.create_dataset(
+            "T1_ket", data=self.T1_ket, compression="gzip", compression_opts=6
+        )
+        grp.create_dataset(
+            "T1_bra", data=self.T1_bra, compression="gzip", compression_opts=6
+        )
+        grp.create_dataset(
+            "T2_ket", data=self.T2_ket, compression="gzip", compression_opts=6
+        )
+        grp.create_dataset(
+            "T2_bra", data=self.T2_bra, compression="gzip", compression_opts=6
+        )
+        grp.create_dataset(
+            "T3_ket", data=self.T3_ket, compression="gzip", compression_opts=6
+        )
+        grp.create_dataset(
+            "T3_bra", data=self.T3_bra, compression="gzip", compression_opts=6
+        )
+        grp.create_dataset(
+            "T4_ket", data=self.T4_ket, compression="gzip", compression_opts=6
+        )
+        grp.create_dataset(
+            "T4_bra", data=self.T4_bra, compression="gzip", compression_opts=6
+        )
+
+    @classmethod
+    def load_from_group(
+        cls: Type[T_PEPS_Tensor_Split_Transfer], grp: h5py.Group
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        """
+        Load the PEPS tensor from a HDF5 group.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to load the data from.
+        """
+        d = int(grp.attrs["d"])
+        D = tuple(int(i) for i in grp.attrs["D"])
+        chi = int(grp.attrs["chi"])
+        max_chi = int(grp.attrs["max_chi"])
+        interlayer_chi = int(grp.attrs["interlayer_chi"])
+
+        tensor = jnp.asarray(grp["tensor"])
+        C1 = jnp.asarray(grp["C1"])
+        C2 = jnp.asarray(grp["C2"])
+        C3 = jnp.asarray(grp["C3"])
+        C4 = jnp.asarray(grp["C4"])
+        T1_ket = jnp.asarray(grp["T1_ket"])
+        T1_bra = jnp.asarray(grp["T1_bra"])
+        T2_ket = jnp.asarray(grp["T2_ket"])
+        T2_bra = jnp.asarray(grp["T2_bra"])
+        T3_ket = jnp.asarray(grp["T3_ket"])
+        T3_bra = jnp.asarray(grp["T3_bra"])
+        T4_ket = jnp.asarray(grp["T4_ket"])
+        T4_bra = jnp.asarray(grp["T4_bra"])
+
+        return cls(
+            tensor=tensor,
+            C1=C1,
+            C2=C2,
+            C3=C3,
+            C4=C4,
+            T1_ket=T1_ket,
+            T1_bra=T1_bra,
+            T2_ket=T2_ket,
+            T2_bra=T2_bra,
+            T3_ket=T3_ket,
+            T3_bra=T3_bra,
+            T4_ket=T4_ket,
+            T4_bra=T4_bra,
+            d=d,
+            D=D,
+            chi=chi,
+            max_chi=max_chi,
+            interlayer_chi=interlayer_chi,
+        )
+
+    def convert_to_split_transfer(
+        self: T_PEPS_Tensor_Split_Transfer,
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        return self
+
+    def convert_to_full_transfer(self: T_PEPS_Tensor_Split_Transfer) -> T_PEPS_Tensor:
+        T1 = jnp.tensordot(self.T1_ket, self.T1_bra, ((2,), (0,)))
+        T2 = jnp.tensordot(self.T2_bra, self.T2_ket, ((2,), (0,)))
+        T2 = T2.transpose(2, 1, 0, 3)
+        T3 = jnp.tensordot(self.T3_ket, self.T3_bra, ((2,), (0,)))
+        T3 = T3.transpose(0, 3, 2, 1)
+        T4 = jnp.tensordot(self.T4_bra, self.T4_ket, ((2,), (0,)))
+
+        return PEPS_Tensor(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1=T1,
+            T2=T2,
+            T3=T3,
+            T4=T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+        )
+
+    def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
+        data = (
+            self.tensor,
+            self.C1,
+            self.C2,
+            self.C3,
+            self.C4,
+            self.T1_ket,
+            self.T1_bra,
+            self.T2_ket,
+            self.T2_bra,
+            self.T3_ket,
+            self.T3_bra,
+            self.T4_ket,
+            self.T4_bra,
+        )
+        aux_data = (self.d, self.D, self.chi, self.max_chi, self.interlayer_chi)
+
+        return (data, aux_data)
+
+    @classmethod
+    def tree_unflatten(
+        cls: Type[T_PEPS_Tensor_Split_Transfer],
+        aux_data: Tuple[Any, ...],
+        children: Tuple[Any, ...],
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        (
+            tensor,
+            C1,
+            C2,
+            C3,
+            C4,
+            T1_ket,
+            T1_bra,
+            T2_ket,
+            T2_bra,
+            T3_ket,
+            T3_bra,
+            T4_ket,
+            T4_bra,
+        ) = children
+        d, D, chi, max_chi, interlayer_chi = aux_data
+
+        return cls(
+            tensor=tensor,
+            C1=C1,
+            C2=C2,
+            C3=C3,
+            C4=C4,
+            T1_ket=T1_ket,
+            T1_bra=T1_bra,
+            T2_ket=T2_ket,
+            T2_bra=T2_bra,
+            T3_ket=T3_ket,
+            T3_bra=T3_bra,
+            T4_ket=T4_ket,
+            T4_bra=T4_bra,
+            d=d,
+            D=D,
+            chi=chi,
+            max_chi=max_chi,
+            interlayer_chi=interlayer_chi,
             sanity_checks=False,
         )

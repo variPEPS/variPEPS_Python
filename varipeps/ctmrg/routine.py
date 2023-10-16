@@ -8,9 +8,9 @@ from jax.lax import cond, while_loop
 import jax.debug as jdebug
 
 from varipeps import varipeps_config, varipeps_global_state
-from varipeps.peps import PEPS_Tensor, PEPS_Unit_Cell
+from varipeps.peps import PEPS_Tensor, PEPS_Tensor_Split_Transfer, PEPS_Unit_Cell
 from varipeps.utils.debug_print import debug_print
-from .absorption import do_absorption_step
+from .absorption import do_absorption_step, do_absorption_step_split_transfer
 
 from typing import Sequence, Tuple, List, Optional
 
@@ -25,6 +25,14 @@ class CTM_Enum(enum.IntEnum):
     T2 = enum.auto()
     T3 = enum.auto()
     T4 = enum.auto()
+    T1_ket = enum.auto()
+    T1_bra = enum.auto()
+    T2_ket = enum.auto()
+    T2_bra = enum.auto()
+    T3_ket = enum.auto()
+    T3_bra = enum.auto()
+    T4_ket = enum.auto()
+    T4_bra = enum.auto()
 
 
 class CTMRGNotConvergedError(Exception):
@@ -61,6 +69,8 @@ def _calc_corner_svds(
             C1_svd, indices_are_sorted=True, unique_indices=True
         )
 
+        # debug_print("C1: {}", C1_svd)
+
         C2_svd = jnp.linalg.svd(t.C2, full_matrices=False, compute_uv=False)
         step_corner_svd = step_corner_svd.at[ti, 1, : C2_svd.shape[0]].set(
             C2_svd, indices_are_sorted=True, unique_indices=True
@@ -79,15 +89,20 @@ def _calc_corner_svds(
     return step_corner_svd
 
 
-@partial(jit, static_argnums=(3,), inline=True)
+@partial(jit, static_argnums=(3, 4), inline=True)
 def _is_element_wise_converged(
     old_peps_tensors: List[PEPS_Tensor],
     new_peps_tensors: List[PEPS_Tensor],
     eps: float,
     verbose: bool = False,
+    split_transfer: bool = False,
 ) -> Tuple[bool, float, Optional[List[Tuple[int, CTM_Enum, float]]]]:
     result = 0
-    measure = jnp.zeros((len(old_peps_tensors), 8), dtype=jnp.float64)
+
+    if split_transfer:
+        measure = jnp.zeros((len(old_peps_tensors), 12), dtype=jnp.float64)
+    else:
+        measure = jnp.zeros((len(old_peps_tensors), 8), dtype=jnp.float64)
 
     verbose_data = [] if verbose else None
 
@@ -144,73 +159,210 @@ def _is_element_wise_converged(
         if verbose:
             verbose_data.append((ti, CTM_Enum.C4, jnp.amax(diff)))
 
-        old_shape = old_peps_tensors[ti].T1.shape
-        new_shape = new_peps_tensors[ti].T1.shape
-        diff = jnp.abs(
-            new_peps_tensors[ti].T1[
-                : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
-            ]
-            - old_peps_tensors[ti].T1[
-                : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
-            ]
-        )
-        result += jnp.sum(diff > eps)
-        measure = measure.at[ti, 4].set(
-            jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
-        )
-        if verbose:
-            verbose_data.append((ti, CTM_Enum.T1, jnp.amax(diff)))
+        if split_transfer:
+            old_shape = old_peps_tensors[ti].T1_ket.shape
+            new_shape = new_peps_tensors[ti].T1_ket.shape
+            diff = jnp.abs(
+                new_peps_tensors[ti].T1_ket[
+                    : old_shape[0], : old_shape[1], : old_shape[2]
+                ]
+                - old_peps_tensors[ti].T1_ket[
+                    : new_shape[0], : new_shape[1], : new_shape[2]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, 4].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+            if verbose:
+                verbose_data.append((ti, CTM_Enum.T1_ket, jnp.amax(diff)))
 
-        old_shape = old_peps_tensors[ti].T2.shape
-        new_shape = new_peps_tensors[ti].T2.shape
-        diff = jnp.abs(
-            new_peps_tensors[ti].T2[
-                : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
-            ]
-            - old_peps_tensors[ti].T2[
-                : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
-            ]
-        )
-        result += jnp.sum(diff > eps)
-        measure = measure.at[ti, 5].set(
-            jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
-        )
-        if verbose:
-            verbose_data.append((ti, CTM_Enum.T2, jnp.amax(diff)))
+            old_shape = old_peps_tensors[ti].T1_bra.shape
+            new_shape = new_peps_tensors[ti].T1_bra.shape
+            diff = jnp.abs(
+                new_peps_tensors[ti].T1_bra[
+                    : old_shape[0], : old_shape[1], : old_shape[2]
+                ]
+                - old_peps_tensors[ti].T1_bra[
+                    : new_shape[0], : new_shape[1], : new_shape[2]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, 5].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+            if verbose:
+                verbose_data.append((ti, CTM_Enum.T1_bra, jnp.amax(diff)))
 
-        old_shape = old_peps_tensors[ti].T3.shape
-        new_shape = new_peps_tensors[ti].T3.shape
-        diff = jnp.abs(
-            new_peps_tensors[ti].T3[
-                : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
-            ]
-            - old_peps_tensors[ti].T3[
-                : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
-            ]
-        )
-        result += jnp.sum(diff > eps)
-        measure = measure.at[ti, 6].set(
-            jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
-        )
-        if verbose:
-            verbose_data.append((ti, CTM_Enum.T3, jnp.amax(diff)))
+            old_shape = old_peps_tensors[ti].T2_ket.shape
+            new_shape = new_peps_tensors[ti].T2_ket.shape
+            diff = jnp.abs(
+                new_peps_tensors[ti].T2_ket[
+                    : old_shape[0], : old_shape[1], : old_shape[2]
+                ]
+                - old_peps_tensors[ti].T2_ket[
+                    : new_shape[0], : new_shape[1], : new_shape[2]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, 6].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+            if verbose:
+                verbose_data.append((ti, CTM_Enum.T2_ket, jnp.amax(diff)))
 
-        old_shape = old_peps_tensors[ti].T4.shape
-        new_shape = new_peps_tensors[ti].T4.shape
-        diff = jnp.abs(
-            new_peps_tensors[ti].T4[
-                : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
-            ]
-            - old_peps_tensors[ti].T4[
-                : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
-            ]
-        )
-        result += jnp.sum(diff > eps)
-        measure = measure.at[ti, 7].set(
-            jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
-        )
-        if verbose:
-            verbose_data.append((ti, CTM_Enum.T4, jnp.amax(diff)))
+            old_shape = old_peps_tensors[ti].T2_bra.shape
+            new_shape = new_peps_tensors[ti].T2_bra.shape
+            diff = jnp.abs(
+                new_peps_tensors[ti].T2_bra[
+                    : old_shape[0], : old_shape[1], : old_shape[2]
+                ]
+                - old_peps_tensors[ti].T2_bra[
+                    : new_shape[0], : new_shape[1], : new_shape[2]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, 7].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+            if verbose:
+                verbose_data.append((ti, CTM_Enum.T2_bra, jnp.amax(diff)))
+
+            old_shape = old_peps_tensors[ti].T3_ket.shape
+            new_shape = new_peps_tensors[ti].T3_ket.shape
+            diff = jnp.abs(
+                new_peps_tensors[ti].T3_ket[
+                    : old_shape[0], : old_shape[1], : old_shape[2]
+                ]
+                - old_peps_tensors[ti].T3_ket[
+                    : new_shape[0], : new_shape[1], : new_shape[2]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, 8].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+            if verbose:
+                verbose_data.append((ti, CTM_Enum.T3_ket, jnp.amax(diff)))
+
+            old_shape = old_peps_tensors[ti].T3_bra.shape
+            new_shape = new_peps_tensors[ti].T3_bra.shape
+            diff = jnp.abs(
+                new_peps_tensors[ti].T3_bra[
+                    : old_shape[0], : old_shape[1], : old_shape[2]
+                ]
+                - old_peps_tensors[ti].T3_bra[
+                    : new_shape[0], : new_shape[1], : new_shape[2]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, 9].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+            if verbose:
+                verbose_data.append((ti, CTM_Enum.T3_bra, jnp.amax(diff)))
+
+            old_shape = old_peps_tensors[ti].T4_ket.shape
+            new_shape = new_peps_tensors[ti].T4_ket.shape
+            diff = jnp.abs(
+                new_peps_tensors[ti].T4_ket[
+                    : old_shape[0], : old_shape[1], : old_shape[2]
+                ]
+                - old_peps_tensors[ti].T4_ket[
+                    : new_shape[0], : new_shape[1], : new_shape[2]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, 10].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+            if verbose:
+                verbose_data.append((ti, CTM_Enum.T4_ket, jnp.amax(diff)))
+
+            old_shape = old_peps_tensors[ti].T4_bra.shape
+            new_shape = new_peps_tensors[ti].T4_bra.shape
+            diff = jnp.abs(
+                new_peps_tensors[ti].T4_bra[
+                    : old_shape[0], : old_shape[1], : old_shape[2]
+                ]
+                - old_peps_tensors[ti].T4_bra[
+                    : new_shape[0], : new_shape[1], : new_shape[2]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, 11].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+            if verbose:
+                verbose_data.append((ti, CTM_Enum.T4_bra, jnp.amax(diff)))
+        else:
+            old_shape = old_peps_tensors[ti].T1.shape
+            new_shape = new_peps_tensors[ti].T1.shape
+            diff = jnp.abs(
+                new_peps_tensors[ti].T1[
+                    : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
+                ]
+                - old_peps_tensors[ti].T1[
+                    : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, 4].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+            if verbose:
+                verbose_data.append((ti, CTM_Enum.T1, jnp.amax(diff)))
+
+            old_shape = old_peps_tensors[ti].T2.shape
+            new_shape = new_peps_tensors[ti].T2.shape
+            diff = jnp.abs(
+                new_peps_tensors[ti].T2[
+                    : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
+                ]
+                - old_peps_tensors[ti].T2[
+                    : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, 5].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+            if verbose:
+                verbose_data.append((ti, CTM_Enum.T2, jnp.amax(diff)))
+
+            old_shape = old_peps_tensors[ti].T3.shape
+            new_shape = new_peps_tensors[ti].T3.shape
+            diff = jnp.abs(
+                new_peps_tensors[ti].T3[
+                    : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
+                ]
+                - old_peps_tensors[ti].T3[
+                    : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, 6].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+            if verbose:
+                verbose_data.append((ti, CTM_Enum.T3, jnp.amax(diff)))
+
+            old_shape = old_peps_tensors[ti].T4.shape
+            new_shape = new_peps_tensors[ti].T4.shape
+            diff = jnp.abs(
+                new_peps_tensors[ti].T4[
+                    : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
+                ]
+                - old_peps_tensors[ti].T4[
+                    : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, 7].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+            if verbose:
+                verbose_data.append((ti, CTM_Enum.T4, jnp.amax(diff)))
 
     return result == 0, jnp.linalg.norm(measure), verbose_data
 
@@ -230,9 +382,14 @@ def _ctmrg_body_func(carry):
         config,
     ) = carry
 
-    w_unitcell, norm_smallest_S = do_absorption_step(
-        w_tensors, w_unitcell_last_step, config, state
-    )
+    if state.ctmrg_split_transfer:
+        w_unitcell, norm_smallest_S = do_absorption_step_split_transfer(
+            w_tensors, w_unitcell_last_step, config, state
+        )
+    else:
+        w_unitcell, norm_smallest_S = do_absorption_step(
+            w_tensors, w_unitcell_last_step, config, state
+        )
 
     def elementwise_func(old, new, old_corner, conv_eps, config):
         converged, measure, verbose_data = _is_element_wise_converged(
@@ -240,6 +397,7 @@ def _ctmrg_body_func(carry):
             new,
             conv_eps,
             verbose=config.ctmrg_verbose_output,
+            split_transfer=state.ctmrg_split_transfer,
         )
         return converged, measure, verbose_data, old_corner
 
@@ -377,12 +535,22 @@ def calc_ctmrg_env(
     norm_smallest_S = jnp.nan
     already_tried_chi = {working_unitcell[0, 0][0][0].chi}
 
+    varipeps_global_state.ctmrg_split_transfer = isinstance(
+        unitcell.get_unique_tensors()[0], PEPS_Tensor_Split_Transfer
+    )
+
     while True:
         tmp_count = 0
         corner_singular_vals = None
 
         while any(
             i.C1.shape[0] != i.chi for i in working_unitcell.get_unique_tensors()
+        ) or (
+            hasattr(working_unitcell.get_unique_tensors()[0], "T4_ket")
+            and any(
+                i.T4_ket.shape[0] != i.interlayer_chi
+                for i in working_unitcell.get_unique_tensors()
+            )
         ):
             (
                 _,

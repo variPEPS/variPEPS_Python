@@ -21,6 +21,7 @@ class VariPEPS_Global_State:
 
     ctmrg_effective_truncation_eps: Optional[float] = None
     ctmrg_projector_method: Optional[Projector_Method] = None
+    ctmrg_split_transfer: bool = False
     basinhopping_disable_half_projector: Optional[bool] = None
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:

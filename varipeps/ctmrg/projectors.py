@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from jax import jit, checkpoint
 
 from varipeps.peps import PEPS_Tensor
-from varipeps.contractions import apply_contraction
+from varipeps.contractions import apply_contraction, apply_contraction_jitted
 from varipeps import varipeps_config
 from varipeps.utils.func_cache import Checkpointing_Cache
 from varipeps.utils.svd import gauge_fixed_svd
@@ -14,11 +14,17 @@ from varipeps.utils.projector_dict import (
     Right_Projectors,
     Top_Projectors,
     Bottom_Projectors,
+    Left_Projectors_Split_Transfer,
+    Right_Projectors_Split_Transfer,
+    Top_Projectors_Split_Transfer,
+    Bottom_Projectors_Split_Transfer,
 )
 from varipeps.config import Projector_Method, VariPEPS_Config
 from varipeps.global_state import VariPEPS_Global_State
 
-from typing import Sequence, Tuple, TypeVar
+from typing import Sequence, Tuple, TypeVar, Optional
+
+from varipeps.utils.debug_print import debug_print
 
 
 class _Projectors_Func_Cache:
@@ -98,7 +104,7 @@ def _calc_ctmrg_quarters(
 
 def _truncated_SVD(
     matrix: jnp.ndarray, chi: int, truncation_eps: float
-) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     U, S, Vh = gauge_fixed_svd(matrix)
 
     # Truncate the singular values
@@ -247,6 +253,123 @@ def _fishman_vertical_cut(
     return left_U, left_S, left_Vh, right_U, right_S, right_Vh
 
 
+def _split_transfer_fishman(first_tensor, second_tensor, truncation_eps):
+    first_tensor_ketbra = first_tensor.reshape(
+        first_tensor.shape[0] * first_tensor.shape[1],
+        first_tensor.shape[2] * first_tensor.shape[3],
+    )
+
+    second_tensor_ketbra = second_tensor.reshape(
+        second_tensor.shape[0] * second_tensor.shape[1],
+        second_tensor.shape[2] * second_tensor.shape[3],
+    )
+
+    first_ketbra_U, first_ketbra_S, first_ketbra_Vh = gauge_fixed_svd(
+        first_tensor_ketbra
+    )
+    first_ketbra_S = jnp.where(
+        (first_ketbra_S / first_ketbra_S[0]) >= truncation_eps, first_ketbra_S, 0
+    )
+    first_ketbra_S = jnp.sqrt(first_ketbra_S)
+    first_ketbra_S /= jnp.linalg.norm(first_ketbra_S)
+    first_ketbra_U = first_ketbra_U.reshape(
+        first_tensor.shape[0], first_tensor.shape[1], first_ketbra_U.shape[-1]
+    )
+    first_ketbra_Vh = first_ketbra_Vh.reshape(
+        first_ketbra_Vh.shape[0], first_tensor.shape[2], first_tensor.shape[3]
+    )
+
+    second_ketbra_U, second_ketbra_S, second_ketbra_Vh = gauge_fixed_svd(
+        second_tensor_ketbra
+    )
+    second_ketbra_S = jnp.where(
+        (second_ketbra_S / second_ketbra_S[0]) >= truncation_eps, second_ketbra_S, 0
+    )
+    second_ketbra_S = jnp.sqrt(second_ketbra_S)
+    second_ketbra_S /= jnp.linalg.norm(second_ketbra_S)
+    second_ketbra_U = second_ketbra_U.reshape(
+        second_tensor.shape[0], second_tensor.shape[1], second_ketbra_U.shape[-1]
+    )
+    second_ketbra_Vh = second_ketbra_Vh.reshape(
+        second_ketbra_Vh.shape[0], second_tensor.shape[2], second_tensor.shape[3]
+    )
+
+    return (
+        first_ketbra_U,
+        first_ketbra_S,
+        first_ketbra_Vh,
+        second_ketbra_U,
+        second_ketbra_S,
+        second_ketbra_Vh,
+    )
+
+
+def _horizontal_cut_split_transfer(
+    peps_tensors: Sequence[Sequence[jnp.ndarray]],
+    peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
+    fishman: bool = False,
+    truncation_eps: Optional[float] = None,
+    offset: int = 0,
+):
+    top_tensor = apply_contraction_jitted(
+        "ctmrg_split_transfer_top",
+        [peps_tensors[0][0 + offset]],
+        [peps_tensor_objs[0][0 + offset]],
+        [],
+    )
+
+    bottom_tensor = apply_contraction_jitted(
+        "ctmrg_split_transfer_bottom",
+        [peps_tensors[1][0 + offset]],
+        [peps_tensor_objs[1][0 + offset]],
+        [],
+    )
+
+    if fishman:
+        return _split_transfer_fishman(top_tensor, bottom_tensor, truncation_eps)
+
+    top_norm = jnp.linalg.norm(top_tensor)
+    bottom_norm = jnp.linalg.norm(bottom_tensor)
+
+    return (
+        top_tensor / top_norm,
+        bottom_tensor / bottom_norm,
+    )
+
+
+def _vertical_cut_split_transfer(
+    peps_tensors: Sequence[Sequence[jnp.ndarray]],
+    peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
+    fishman: bool = False,
+    truncation_eps: Optional[float] = None,
+    offset: int = 0,
+):
+    left_tensor = apply_contraction_jitted(
+        "ctmrg_split_transfer_left",
+        [peps_tensors[0 + offset][0]],
+        [peps_tensor_objs[0 + offset][0]],
+        [],
+    )
+
+    right_tensor = apply_contraction_jitted(
+        "ctmrg_split_transfer_right",
+        [peps_tensors[0 + offset][1]],
+        [peps_tensor_objs[0 + offset][1]],
+        [],
+    )
+
+    if fishman:
+        return _split_transfer_fishman(left_tensor, right_tensor, truncation_eps)
+
+    left_norm = jnp.linalg.norm(left_tensor)
+    right_norm = jnp.linalg.norm(right_tensor)
+
+    return (
+        left_tensor / left_norm,
+        right_tensor / right_norm,
+    )
+
+
 @partial(jit, static_argnums=(4, 5, 6), inline=True)
 def _left_projectors_workhorse(
     top_left: jnp.ndarray,
@@ -289,6 +412,9 @@ def _left_projectors_workhorse(
     projector_left_bottom = jnp.dot(
         U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], bottom_matrix
     )
+
+    # debug_print("TB: {}", jnp.diag(projector_left_top @ projector_left_bottom))
+    # debug_print("BT: {}", jnp.diag(projector_left_bottom @ projector_left_top))
 
     projector_left_top = projector_left_top.reshape(
         top_left.shape[0],
@@ -407,6 +533,9 @@ def _right_projectors_workhorse(
         U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], top_matrix
     )
     projector_right_bottom = jnp.dot(bottom_matrix, Vh.transpose().conj() * S_inv_sqrt)
+
+    # debug_print("TB: {}", jnp.diag(projector_right_top @ projector_right_bottom))
+    # debug_print("BT: {}", jnp.diag(projector_right_bottom @ projector_right_top))
 
     projector_right_top = projector_right_top.reshape(
         projector_right_top.shape[0],
@@ -716,4 +845,973 @@ def calc_bottom_projectors(
             else state.ctmrg_projector_method
         ),
         chi,
+    )
+
+
+def _split_transfer_workhorse(
+    first_ketbra: jnp.ndarray,
+    second_ketbra: jnp.ndarray,
+    chi: int,
+    truncation_eps: float,
+):
+    if first_ketbra.ndim == 4:
+        first_ketbra_matrix = first_ketbra.reshape(
+            first_ketbra.shape[0] * first_ketbra.shape[1],
+            first_ketbra.shape[2] * first_ketbra.shape[3],
+        )
+
+        second_ketbra_matrix = second_ketbra.reshape(
+            second_ketbra.shape[0] * second_ketbra.shape[1],
+            second_ketbra.shape[2] * second_ketbra.shape[3],
+        )
+    elif first_ketbra.ndim == 3:
+        first_ketbra_matrix = first_ketbra.reshape(
+            first_ketbra.shape[0],
+            first_ketbra.shape[1] * first_ketbra.shape[2],
+        )
+
+        second_ketbra_matrix = second_ketbra.reshape(
+            second_ketbra.shape[0] * second_ketbra.shape[1],
+            second_ketbra.shape[2],
+        )
+    elif first_ketbra.ndim == 6:
+        first_ketbra_matrix = first_ketbra.reshape(
+            first_ketbra.shape[0] * first_ketbra.shape[1],
+            first_ketbra.shape[2]
+            * first_ketbra.shape[3]
+            * first_ketbra.shape[4]
+            * first_ketbra.shape[5],
+        )
+        second_ketbra_matrix = second_ketbra.reshape(
+            second_ketbra.shape[0]
+            * second_ketbra.shape[1]
+            * second_ketbra.shape[2]
+            * second_ketbra.shape[3],
+            second_ketbra.shape[4] * second_ketbra.shape[5],
+        )
+    else:
+        raise ValueError("Invalid dimension of the input tensor")
+
+    product_matrix_ketbra = jnp.dot(first_ketbra_matrix, second_ketbra_matrix)
+    S_inv_sqrt_ketbra, U_ketbra, Vh_ketbra, smallest_S_ketbra = _truncated_SVD(
+        product_matrix_ketbra, chi, truncation_eps
+    )
+
+    projector_first_ketbra = jnp.dot(
+        U_ketbra.transpose().conj() * S_inv_sqrt_ketbra[:, jnp.newaxis],
+        first_ketbra_matrix,
+    )
+    projector_second_ketbra = jnp.dot(
+        second_ketbra_matrix, Vh_ketbra.transpose().conj() * S_inv_sqrt_ketbra
+    )
+
+    # debug_print("FS: {}", jnp.diag(projector_first_ketbra @ projector_second_ketbra))
+    # debug_print("SF: {}", jnp.diag(projector_second_ketbra @ projector_first_ketbra))
+
+    if first_ketbra.ndim == 6:
+        projector_first_ketbra = projector_first_ketbra.reshape(
+            projector_first_ketbra.shape[0],
+            first_ketbra.shape[2],
+            first_ketbra.shape[3],
+            first_ketbra.shape[4],
+            first_ketbra.shape[5],
+        )
+        projector_second_ketbra = projector_second_ketbra.reshape(
+            second_ketbra.shape[0],
+            second_ketbra.shape[1],
+            second_ketbra.shape[2],
+            second_ketbra.shape[3],
+            projector_second_ketbra.shape[1],
+        )
+    else:
+        if first_ketbra.ndim == 4:
+            projector_first_ketbra = projector_first_ketbra.reshape(
+                projector_first_ketbra.shape[0],
+                first_ketbra.shape[2],
+                first_ketbra.shape[3],
+            )
+        else:
+            projector_first_ketbra = projector_first_ketbra.reshape(
+                projector_first_ketbra.shape[0],
+                first_ketbra.shape[1],
+                first_ketbra.shape[2],
+            )
+
+        projector_second_ketbra = projector_second_ketbra.reshape(
+            second_ketbra.shape[0],
+            second_ketbra.shape[1],
+            projector_second_ketbra.shape[1],
+        )
+
+    # first_bra = jnp.tensordot(first_ketbra, projector_first_ketbra, ((2, 3), (1, 2)))
+    # first_bra = first_bra.transpose(0, 2, 1)
+    # first_bra_matrix = first_bra.reshape(first_bra.shape[0], first_bra.shape[1] * first_bra.shape[2])
+    #
+    # second_bra = jnp.tensordot(projector_second_ketbra, second_ketbra, ((0, 1), (0, 1)))
+    # second_bra = second_bra.transpose(0, 2, 1)
+    # second_bra_matrix = second_bra.reshape(second_bra.shape[0] * second_bra.shape[1], second_bra.shape[2])
+    #
+    # product_matrix_bra = jnp.dot(first_bra_matrix, second_bra_matrix)
+    # S_inv_sqrt_bra, U_bra, Vh_bra, smallest_S_bra = _truncated_SVD(
+    #     product_matrix_bra, chi, truncation_eps
+    # )
+    #
+    # projector_first_bra = jnp.dot(
+    #     U_bra.transpose().conj() * S_inv_sqrt_bra[:, jnp.newaxis], first_bra_matrix
+    # )
+    # projector_second_bra = jnp.dot(
+    #     second_bra_matrix, Vh_bra.transpose().conj() * S_inv_sqrt_bra
+    # )
+    #
+    # projector_first_bra = projector_first_bra.reshape(
+    #     projector_first_bra.shape[0],
+    #     first_bra.shape[1],
+    #     first_bra.shape[2]
+    # )
+    #
+    # projector_second_bra = projector_second_bra.reshape(
+    #     second_bra.shape[0],
+    #     second_bra.shape[1],
+    #     projector_second_bra.shape[1]
+    # )
+
+    # product_matrix_braket = jnp.dot(first_braket, second_braket)
+    # S_inv_sqrt_braket, U_braket, Vh_braket, smallest_S_braket = _truncated_SVD(
+    #     product_matrix_braket, chi, truncation_eps
+    # )
+    #
+    # projector_first_braket = jnp.dot(
+    #     U_braket.transpose().conj() * S_inv_sqrt_braket[:, jnp.newaxis], first_braket
+    # )
+    # projector_second_braket = jnp.dot(
+    #     second_braket, Vh_braket.transpose().conj() * S_inv_sqrt_braket
+    # )
+
+    return (
+        projector_first_ketbra,
+        projector_second_ketbra,
+        smallest_S_ketbra,
+    )
+
+
+def calc_left_projectors_split_transfer(
+    peps_tensors: Sequence[Sequence[jnp.ndarray]],
+    peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
+) -> Left_Projectors_Split_Transfer:
+    """
+    Calculate the left projectors for the CTMRG method. This functions uses the
+    CTMRG method with split transfer matrices for the bra and ket layer.
+
+    Args:
+      peps_tensors (:term:`sequence` of :term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Nested list of the PEPS tensor arrays. The row (first) index corresponds
+        to the x axis, the column (second) index to y.
+      peps_tensor_objs (:term:`sequence` of :term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
+        Nested list of the PEPS tensor objects. Same format as for `peps_tensors`.
+    Returns:
+      :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`jax.numpy.ndarray`):
+        The left top and bottom projectors for both layer.
+    """
+    if config.checkpointing_projectors:
+        raise NotImplementedError(
+            "Checkpointing not implemented for split transfer matrices approach."
+        )
+
+    chi = _check_chi(peps_tensor_objs)
+
+    projector_method = (
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method
+    )
+    truncation_eps = (
+        config.ctmrg_truncation_eps
+        if state.ctmrg_effective_truncation_eps is None
+        else state.ctmrg_effective_truncation_eps
+    )
+
+    if projector_method is Projector_Method.FULL:
+        (
+            top_tensor_ketbra_left,
+            bottom_tensor_ketbra_left,
+        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs)
+
+        (
+            top_tensor_ketbra_right,
+            bottom_tensor_ketbra_right,
+        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+    elif projector_method is Projector_Method.HALF:
+        raise NotImplementedError
+    elif projector_method is Projector_Method.FISHMAN:
+        (
+            top_ketbra_U,
+            top_ketbra_S,
+            _,
+            _,
+            bottom_ketbra_S,
+            bottom_ketbra_Vh,
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, True, truncation_eps
+        )
+
+        top_tensor_ketbra_left = (
+            top_ketbra_U * top_ketbra_S[jnp.newaxis, jnp.newaxis, :]
+        )
+        bottom_tensor_ketbra_left = (
+            bottom_ketbra_S[:, jnp.newaxis, jnp.newaxis] * bottom_ketbra_Vh
+        )
+
+        (
+            _,
+            top_ketbra_S,
+            top_ketbra_Vh,
+            bottom_ketbra_U,
+            bottom_ketbra_S,
+            _,
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, True, truncation_eps, offset=1
+        )
+        top_tensor_ketbra_right = (
+            top_ketbra_S[:, jnp.newaxis, jnp.newaxis] * top_ketbra_Vh
+        )
+        bottom_tensor_ketbra_right = (
+            bottom_ketbra_U * bottom_ketbra_S[jnp.newaxis, jnp.newaxis, :]
+        )
+    else:
+        raise ValueError("Invalid projector method!")
+
+    (
+        projector_left_bottom_ket,
+        projector_left_top_ket,
+        smallest_S_ket,
+    ) = _split_transfer_workhorse(
+        bottom_tensor_ketbra_left,
+        top_tensor_ketbra_left,
+        chi,
+        truncation_eps,
+    )
+
+    if (
+        projector_method is Projector_Method.FULL
+        or projector_method is Projector_Method.FISHMAN
+    ):
+        (
+            projector_right_top_bra,
+            projector_right_bottom_bra,
+            _,
+        ) = _split_transfer_workhorse(
+            top_tensor_ketbra_right,
+            bottom_tensor_ketbra_right,
+            chi,
+            truncation_eps,
+        )
+
+        top_tensor_bra_left = apply_contraction_jitted(
+            "ctmrg_split_transfer_top_full",
+            [peps_tensors[0][0], peps_tensors[0][1]],
+            [peps_tensor_objs[0][0], peps_tensor_objs[0][1]],
+            [projector_left_bottom_ket, projector_right_bottom_bra],
+        )
+
+        bottom_tensor_bra_left = apply_contraction_jitted(
+            "ctmrg_split_transfer_bottom_full",
+            [peps_tensors[1][0], peps_tensors[1][1]],
+            [peps_tensor_objs[1][0], peps_tensor_objs[1][1]],
+            [projector_left_top_ket, projector_right_top_bra],
+        )
+    else:
+        raise NotImplementedError
+
+    if projector_method is Projector_Method.FISHMAN:
+        (
+            top_bra_U,
+            top_bra_S,
+            _,
+            _,
+            bottom_bra_S,
+            bottom_bra_Vh,
+        ) = _split_transfer_fishman(
+            top_tensor_bra_left, bottom_tensor_bra_left, truncation_eps
+        )
+
+        top_tensor_bra_left = top_bra_U * top_bra_S[jnp.newaxis, jnp.newaxis, :]
+        bottom_tensor_bra_left = (
+            bottom_bra_S[:, jnp.newaxis, jnp.newaxis] * bottom_bra_Vh
+        )
+    else:
+        top_tensor_bra_left /= jnp.linalg.norm(top_tensor_bra_left)
+        bottom_tensor_bra_left /= jnp.linalg.norm(bottom_tensor_bra_left)
+
+    (
+        projector_left_bottom_bra,
+        projector_left_top_bra,
+        smallest_S_bra,
+    ) = _split_transfer_workhorse(
+        bottom_tensor_bra_left,
+        top_tensor_bra_left,
+        chi,
+        truncation_eps,
+    )
+
+    # projector_left_top_ket = projector_left_top_ket.reshape(
+    #     peps_tensor_objs[0][0].left_lower_transfer_shape,
+    #     peps_tensors[0][0].shape[1],
+    #     projector_left_top_ket.shape[1],
+    # )
+    #
+    # projector_left_bottom_ket = projector_left_bottom_ket.reshape(
+    #     projector_left_bottom_ket.shape[0],
+    #     peps_tensor_objs[1][0].left_upper_transfer_shape,
+    #     peps_tensors[1][0].shape[4],
+    # )
+    #
+    # projector_left_top_bra = projector_left_top_bra.reshape(
+    #     peps_tensor_objs[0][0].left_lower_transfer_shape,
+    #     peps_tensors[0][0].shape[1],
+    #     projector_left_top_bra.shape[1],
+    # )
+    #
+    # projector_left_bottom_bra = projector_left_bottom_bra.reshape(
+    #     projector_left_bottom_bra.shape[0],
+    #     peps_tensor_objs[1][0].left_upper_transfer_shape,
+    #     peps_tensors[1][0].shape[4],
+    # )
+
+    top_tensor_phys_split_left = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_left_top",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+    bottom_tensor_phys_split_left = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_left_bottom",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+
+    (
+        projector_left_bottom_phys,
+        projector_left_top_phys,
+        smallest_S_phys,
+    ) = _split_transfer_workhorse(
+        bottom_tensor_phys_split_left,
+        top_tensor_phys_split_left,
+        peps_tensor_objs[0][0].interlayer_chi,
+        truncation_eps,
+    )
+
+    return (
+        Left_Projectors_Split_Transfer(
+            top_ket=projector_left_top_ket,
+            bottom_ket=projector_left_bottom_ket,
+            top_bra=projector_left_top_bra,
+            bottom_bra=projector_left_bottom_bra,
+            top_phys=projector_left_top_phys,
+            bottom_phys=projector_left_bottom_phys,
+        ),
+        smallest_S_ket,
+        smallest_S_bra,
+        smallest_S_phys,
+    )
+
+
+def calc_right_projectors_split_transfer(
+    peps_tensors: Sequence[Sequence[jnp.ndarray]],
+    peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
+) -> Right_Projectors_Split_Transfer:
+    """
+    Calculate the right projectors for the CTMRG method. This functions uses the
+    CTMRG method with split transfer matrices for the bra and ket layer.
+
+    Args:
+      peps_tensors (:term:`sequence` of :term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Nested list of the PEPS tensor arrays. The row (first) index corresponds
+        to the x axis, the column (second) index to y.
+      peps_tensor_objs (:term:`sequence` of :term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
+        Nested list of the PEPS tensor objects. Same format as for `peps_tensors`.
+    Returns:
+      :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`jax.numpy.ndarray`):
+        The left top and bottom projectors for both layer.
+    """
+    if config.checkpointing_projectors:
+        raise NotImplementedError(
+            "Checkpointing not implemented for split transfer matrices approach."
+        )
+
+    chi = _check_chi(peps_tensor_objs)
+
+    projector_method = (
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method
+    )
+    truncation_eps = (
+        config.ctmrg_truncation_eps
+        if state.ctmrg_effective_truncation_eps is None
+        else state.ctmrg_effective_truncation_eps
+    )
+
+    if projector_method is Projector_Method.FULL:
+        (
+            top_tensor_ketbra_left,
+            bottom_tensor_ketbra_left,
+        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs)
+
+        (
+            top_tensor_ketbra_right,
+            bottom_tensor_ketbra_right,
+        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+    elif projector_method is Projector_Method.HALF:
+        raise NotImplementedError(
+            "Half projector method not implemented for split transfer matrices approach."
+        )
+    elif projector_method is Projector_Method.FISHMAN:
+        (
+            top_ketbra_U,
+            top_ketbra_S,
+            _,
+            _,
+            bottom_ketbra_S,
+            bottom_ketbra_Vh,
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, True, truncation_eps
+        )
+
+        top_tensor_ketbra_left = (
+            top_ketbra_U * top_ketbra_S[jnp.newaxis, jnp.newaxis, :]
+        )
+        bottom_tensor_ketbra_left = (
+            bottom_ketbra_S[:, jnp.newaxis, jnp.newaxis] * bottom_ketbra_Vh
+        )
+
+        (
+            _,
+            top_ketbra_S,
+            top_ketbra_Vh,
+            bottom_ketbra_U,
+            bottom_ketbra_S,
+            _,
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, True, truncation_eps, offset=1
+        )
+        top_tensor_ketbra_right = (
+            top_ketbra_S[:, jnp.newaxis, jnp.newaxis] * top_ketbra_Vh
+        )
+        bottom_tensor_ketbra_right = (
+            bottom_ketbra_U * bottom_ketbra_S[jnp.newaxis, jnp.newaxis, :]
+        )
+    else:
+        raise ValueError("Invalid projector method!")
+
+    (
+        projector_right_top_bra,
+        projector_right_bottom_bra,
+        smallest_S_bra,
+    ) = _split_transfer_workhorse(
+        top_tensor_ketbra_right,
+        bottom_tensor_ketbra_right,
+        chi,
+        truncation_eps,
+    )
+
+    if (
+        projector_method is Projector_Method.FULL
+        or projector_method is Projector_Method.FISHMAN
+    ):
+        (
+            projector_left_bottom_ket,
+            projector_left_top_ket,
+            _,
+        ) = _split_transfer_workhorse(
+            bottom_tensor_ketbra_left,
+            top_tensor_ketbra_left,
+            chi,
+            truncation_eps,
+        )
+
+        top_tensor_ket_right = apply_contraction_jitted(
+            "ctmrg_split_transfer_top_full",
+            [peps_tensors[0][0], peps_tensors[0][1]],
+            [peps_tensor_objs[0][0], peps_tensor_objs[0][1]],
+            [projector_left_bottom_ket, projector_right_bottom_bra],
+        )
+
+        bottom_tensor_ket_right = apply_contraction_jitted(
+            "ctmrg_split_transfer_bottom_full",
+            [peps_tensors[1][0], peps_tensors[1][1]],
+            [peps_tensor_objs[1][0], peps_tensor_objs[1][1]],
+            [projector_left_top_ket, projector_right_top_bra],
+        )
+    else:
+        raise NotImplementedError
+
+    if projector_method is Projector_Method.FISHMAN:
+        (
+            _,
+            top_ket_S,
+            top_ket_Vh,
+            bottom_ket_U,
+            bottom_ket_S,
+            _,
+        ) = _split_transfer_fishman(
+            top_tensor_ket_right, bottom_tensor_ket_right, truncation_eps
+        )
+
+        top_tensor_ket_right = top_ket_S[:, jnp.newaxis, jnp.newaxis] * top_ket_Vh
+        bottom_tensor_ket_right = (
+            bottom_ket_U * bottom_ket_S[jnp.newaxis, jnp.newaxis, :]
+        )
+    else:
+        top_tensor_ket_right /= jnp.linalg.norm(top_tensor_ket_right)
+        bottom_tensor_ket_right /= jnp.linalg.norm(bottom_tensor_ket_right)
+
+    (
+        projector_right_top_ket,
+        projector_right_bottom_ket,
+        smallest_S_ket,
+    ) = _split_transfer_workhorse(
+        top_tensor_ket_right,
+        bottom_tensor_ket_right,
+        chi,
+        truncation_eps,
+    )
+
+    top_tensor_phys_split_right = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_right_top",
+        [peps_tensors[0][1]],
+        [peps_tensor_objs[0][1]],
+        [],
+    )
+    bottom_tensor_phys_split_right = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_right_bottom",
+        [peps_tensors[0][1]],
+        [peps_tensor_objs[0][1]],
+        [],
+    )
+
+    (
+        projector_right_top_phys,
+        projector_right_bottom_phys,
+        smallest_S_phys,
+    ) = _split_transfer_workhorse(
+        top_tensor_phys_split_right,
+        bottom_tensor_phys_split_right,
+        peps_tensor_objs[0][1].interlayer_chi,
+        truncation_eps,
+    )
+
+    return (
+        Right_Projectors_Split_Transfer(
+            top_ket=projector_right_top_ket,
+            bottom_ket=projector_right_bottom_ket,
+            top_bra=projector_right_top_bra,
+            bottom_bra=projector_right_bottom_bra,
+            top_phys=projector_right_top_phys,
+            bottom_phys=projector_right_bottom_phys,
+        ),
+        smallest_S_ket,
+        smallest_S_bra,
+        smallest_S_phys,
+    )
+
+
+def calc_top_projectors_split_transfer(
+    peps_tensors: Sequence[Sequence[jnp.ndarray]],
+    peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
+) -> Top_Projectors_Split_Transfer:
+    """
+    Calculate the top projectors for the CTMRG method. This functions uses the
+    CTMRG method with split transfer matrices for the bra and ket layer.
+
+    Args:
+      peps_tensors (:term:`sequence` of :term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Nested list of the PEPS tensor arrays. The row (first) index corresponds
+        to the x axis, the column (second) index to y.
+      peps_tensor_objs (:term:`sequence` of :term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
+        Nested list of the PEPS tensor objects. Same format as for `peps_tensors`.
+    Returns:
+      :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`jax.numpy.ndarray`):
+        The left top and bottom projectors for both layer.
+    """
+    if config.checkpointing_projectors:
+        raise NotImplementedError(
+            "Checkpointing not implemented for split transfer matrices approach."
+        )
+
+    chi = _check_chi(peps_tensor_objs)
+
+    projector_method = (
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method
+    )
+    truncation_eps = (
+        config.ctmrg_truncation_eps
+        if state.ctmrg_effective_truncation_eps is None
+        else state.ctmrg_effective_truncation_eps
+    )
+
+    if projector_method is Projector_Method.FULL:
+        (
+            left_tensor_ketbra_top,
+            right_tensor_ketbra_top,
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs)
+
+        (
+            left_tensor_ketbra_bottom,
+            right_tensor_ketbra_bottom,
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+    elif projector_method is Projector_Method.HALF:
+        raise NotImplementedError(
+            "Half projector method not implemented for split transfer matrices approach."
+        )
+    elif projector_method is Projector_Method.FISHMAN:
+        (
+            _,
+            left_ketbra_S,
+            left_ketbra_Vh,
+            right_ketbra_U,
+            right_ketbra_S,
+            _,
+        ) = _vertical_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, True, truncation_eps
+        )
+
+        left_tensor_ketbra_top = (
+            left_ketbra_S[:, jnp.newaxis, jnp.newaxis] * left_ketbra_Vh
+        )
+        right_tensor_ketbra_top = (
+            right_ketbra_U * right_ketbra_S[jnp.newaxis, jnp.newaxis, :]
+        )
+
+        (
+            left_ketbra_U,
+            left_ketbra_S,
+            _,
+            _,
+            right_ketbra_S,
+            right_ketbra_Vh,
+        ) = _vertical_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, True, truncation_eps, offset=1
+        )
+        left_tensor_ketbra_bottom = (
+            left_ketbra_U * left_ketbra_S[jnp.newaxis, jnp.newaxis, :]
+        )
+        right_tensor_ketbra_bottom = (
+            right_ketbra_S[:, jnp.newaxis, jnp.newaxis] * right_ketbra_Vh
+        )
+    else:
+        raise ValueError("Invalid projector method!")
+
+    (
+        projector_top_left_ket,
+        projector_top_right_ket,
+        smallest_S_ket,
+    ) = _split_transfer_workhorse(
+        left_tensor_ketbra_top,
+        right_tensor_ketbra_top,
+        chi,
+        truncation_eps,
+    )
+
+    if (
+        projector_method is Projector_Method.FULL
+        or projector_method is Projector_Method.FISHMAN
+    ):
+        (
+            projector_bottom_right_bra,
+            projector_bottom_left_bra,
+            _,
+        ) = _split_transfer_workhorse(
+            right_tensor_ketbra_bottom,
+            left_tensor_ketbra_bottom,
+            chi,
+            truncation_eps,
+        )
+
+        left_tensor_bra_top = apply_contraction_jitted(
+            "ctmrg_split_transfer_left_full",
+            [peps_tensors[0][0], peps_tensors[1][0]],
+            [peps_tensor_objs[0][0], peps_tensor_objs[1][0]],
+            [projector_top_right_ket, projector_bottom_right_bra],
+        )
+
+        right_tensor_bra_top = apply_contraction_jitted(
+            "ctmrg_split_transfer_right_full",
+            [peps_tensors[0][1], peps_tensors[1][1]],
+            [peps_tensor_objs[0][1], peps_tensor_objs[1][1]],
+            [projector_top_left_ket, projector_bottom_left_bra],
+        )
+    else:
+        raise NotImplementedError
+
+    if projector_method is Projector_Method.FISHMAN:
+        (
+            _,
+            left_bra_S,
+            left_bra_Vh,
+            right_bra_U,
+            right_bra_S,
+            _,
+        ) = _split_transfer_fishman(
+            left_tensor_bra_top, right_tensor_bra_top, truncation_eps
+        )
+
+        left_tensor_bra_top = left_bra_S[:, jnp.newaxis, jnp.newaxis] * left_bra_Vh
+        right_tensor_bra_top = right_bra_U * right_bra_S[jnp.newaxis, jnp.newaxis, :]
+    else:
+        left_tensor_bra_top /= jnp.linalg.norm(left_tensor_bra_top)
+        right_tensor_bra_top /= jnp.linalg.norm(right_tensor_bra_top)
+
+    (
+        projector_top_left_bra,
+        projector_top_right_bra,
+        smallest_S_bra,
+    ) = _split_transfer_workhorse(
+        left_tensor_bra_top,
+        right_tensor_bra_top,
+        chi,
+        truncation_eps,
+    )
+
+    left_tensor_phys_split_top = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_top_left",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+    right_tensor_phys_split_top = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_top_right",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+
+    (
+        projector_top_left_phys,
+        projector_top_right_phys,
+        smallest_S_phys,
+    ) = _split_transfer_workhorse(
+        left_tensor_phys_split_top,
+        right_tensor_phys_split_top,
+        peps_tensor_objs[0][0].interlayer_chi,
+        truncation_eps,
+    )
+
+    return (
+        Top_Projectors_Split_Transfer(
+            left_ket=projector_top_left_ket,
+            right_ket=projector_top_right_ket,
+            left_bra=projector_top_left_bra,
+            right_bra=projector_top_right_bra,
+            left_phys=projector_top_left_phys,
+            right_phys=projector_top_right_phys,
+        ),
+        smallest_S_ket,
+        smallest_S_bra,
+        smallest_S_phys,
+    )
+
+
+def calc_bottom_projectors_split_transfer(
+    peps_tensors: Sequence[Sequence[jnp.ndarray]],
+    peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
+) -> Bottom_Projectors_Split_Transfer:
+    """
+    Calculate the bottom projectors for the CTMRG method. This functions uses the
+    CTMRG method with split transfer matrices for the bra and ket layer.
+
+    Args:
+      peps_tensors (:term:`sequence` of :term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Nested list of the PEPS tensor arrays. The row (first) index corresponds
+        to the x axis, the column (second) index to y.
+      peps_tensor_objs (:term:`sequence` of :term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
+        Nested list of the PEPS tensor objects. Same format as for `peps_tensors`.
+    Returns:
+      :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`jax.numpy.ndarray`):
+        The left top and bottom projectors for both layer.
+    """
+    chi = _check_chi(peps_tensor_objs)
+
+    projector_method = (
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method
+    )
+    truncation_eps = (
+        config.ctmrg_truncation_eps
+        if state.ctmrg_effective_truncation_eps is None
+        else state.ctmrg_effective_truncation_eps
+    )
+
+    if projector_method is Projector_Method.FULL:
+        (
+            left_tensor_ketbra_top,
+            right_tensor_ketbra_top,
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs)
+
+        (
+            left_tensor_ketbra_bottom,
+            right_tensor_ketbra_bottom,
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+    elif projector_method is Projector_Method.HALF:
+        raise NotImplementedError(
+            "Half projector method not implemented for split transfer matrices approach."
+        )
+    elif projector_method is Projector_Method.FISHMAN:
+        (
+            _,
+            left_ketbra_S,
+            left_ketbra_Vh,
+            right_ketbra_U,
+            right_ketbra_S,
+            _,
+        ) = _vertical_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, True, truncation_eps
+        )
+
+        left_tensor_ketbra_top = (
+            left_ketbra_S[:, jnp.newaxis, jnp.newaxis] * left_ketbra_Vh
+        )
+        right_tensor_ketbra_top = (
+            right_ketbra_U * right_ketbra_S[jnp.newaxis, jnp.newaxis, :]
+        )
+
+        (
+            left_ketbra_U,
+            left_ketbra_S,
+            _,
+            _,
+            right_ketbra_S,
+            right_ketbra_Vh,
+        ) = _vertical_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, True, truncation_eps, offset=1
+        )
+        left_tensor_ketbra_bottom = (
+            left_ketbra_U * left_ketbra_S[jnp.newaxis, jnp.newaxis, :]
+        )
+        right_tensor_ketbra_bottom = (
+            right_ketbra_S[:, jnp.newaxis, jnp.newaxis] * right_ketbra_Vh
+        )
+    else:
+        raise ValueError("Invalid projector method!")
+
+    (
+        projector_bottom_right_bra,
+        projector_bottom_left_bra,
+        smallest_S_bra,
+    ) = _split_transfer_workhorse(
+        right_tensor_ketbra_bottom,
+        left_tensor_ketbra_bottom,
+        chi,
+        truncation_eps,
+    )
+
+    if (
+        projector_method is Projector_Method.FULL
+        or projector_method is Projector_Method.FISHMAN
+    ):
+        (
+            projector_top_left_ket,
+            projector_top_right_ket,
+            _,
+        ) = _split_transfer_workhorse(
+            left_tensor_ketbra_top,
+            right_tensor_ketbra_top,
+            chi,
+            truncation_eps,
+        )
+
+        left_tensor_ket_bottom = apply_contraction_jitted(
+            "ctmrg_split_transfer_left_full",
+            [peps_tensors[0][0], peps_tensors[1][0]],
+            [peps_tensor_objs[0][0], peps_tensor_objs[1][0]],
+            [projector_top_right_ket, projector_bottom_right_bra],
+        )
+
+        right_tensor_ket_bottom = apply_contraction_jitted(
+            "ctmrg_split_transfer_right_full",
+            [peps_tensors[0][1], peps_tensors[1][1]],
+            [peps_tensor_objs[0][1], peps_tensor_objs[1][1]],
+            [projector_top_left_ket, projector_bottom_left_bra],
+        )
+    else:
+        raise NotImplementedError
+
+    if projector_method is Projector_Method.FISHMAN:
+        (
+            left_ket_U,
+            left_ket_S,
+            _,
+            _,
+            right_ket_S,
+            right_ket_Vh,
+        ) = _split_transfer_fishman(
+            left_tensor_ket_bottom, right_tensor_ket_bottom, truncation_eps
+        )
+
+        left_tensor_ket_bottom = left_ket_U * left_ket_S[jnp.newaxis, jnp.newaxis, :]
+        right_tensor_ket_bottom = (
+            right_ket_S[:, jnp.newaxis, jnp.newaxis] * right_ket_Vh
+        )
+    else:
+        left_tensor_ket_bottom /= jnp.linalg.norm(left_tensor_ket_bottom)
+        right_tensor_ket_bottom /= jnp.linalg.norm(right_tensor_ket_bottom)
+
+    (
+        projector_bottom_right_ket,
+        projector_bottom_left_ket,
+        smallest_S_ket,
+    ) = _split_transfer_workhorse(
+        right_tensor_ket_bottom,
+        left_tensor_ket_bottom,
+        chi,
+        truncation_eps,
+    )
+
+    left_tensor_phys_split_bottom = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_bottom_left",
+        [peps_tensors[1][0]],
+        [peps_tensor_objs[1][0]],
+        [],
+    )
+    right_tensor_phys_split_bottom = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_bottom_right",
+        [peps_tensors[1][0]],
+        [peps_tensor_objs[1][0]],
+        [],
+    )
+
+    (
+        projector_bottom_right_phys,
+        projector_bottom_left_phys,
+        smallest_S_phys,
+    ) = _split_transfer_workhorse(
+        right_tensor_phys_split_bottom,
+        left_tensor_phys_split_bottom,
+        peps_tensor_objs[1][0].interlayer_chi,
+        truncation_eps,
+    )
+
+    return (
+        Bottom_Projectors_Split_Transfer(
+            left_ket=projector_bottom_left_ket,
+            right_ket=projector_bottom_right_ket,
+            left_bra=projector_bottom_left_bra,
+            right_bra=projector_bottom_right_bra,
+            left_phys=projector_bottom_left_phys,
+            right_phys=projector_bottom_right_phys,
+        ),
+        smallest_S_ket,
+        smallest_S_bra,
+        smallest_S_phys,
     )

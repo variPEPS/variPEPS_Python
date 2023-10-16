@@ -810,6 +810,486 @@ class Definitions:
     \\
     """
 
+    ctmrg_split_transfer_top: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "T4_bra",
+                "T4_ket",
+                "C1",
+                "T1_ket",
+                "T1_bra",
+                "C2",
+                "T2_ket",
+                "T2_bra",
+            ]
+        ],
+        "network": [
+            [
+                (6, -2, 12, 8, 5),  # tensor
+                (10, -4, 12, 14, 11),  # tensor_conj
+                (-1, 10, 9),  # T4_bra
+                (9, 6, 1),  # T4_ket
+                (1, 2),  # C1
+                (2, 5, 7),  # T1_ket
+                (7, 11, 3),  # T1_bra
+                (3, 4),  # C2
+                (13, 8, 4),  # T2_ket
+                (-3, 14, 13),  # T2_bra
+            ]
+        ],
+    }
+
+    ctmrg_split_transfer_bottom: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "T2_ket",
+                "T2_bra",
+                "C3",
+                "T3_bra",
+                "T3_ket",
+                "C4",
+                "T4_bra",
+                "T4_ket",
+            ]
+        ],
+        "network": [
+            [
+                (14, 11, 12, 10, -4),  # tensor
+                (8, 5, 12, 6, -2),  # tensor_conj
+                (9, 10, -1),  # T2_ket
+                (4, 6, 9),  # T2_bra
+                (3, 4),  # C3
+                (7, 5, 3),  # T3_bra
+                (2, 11, 7),  # T3_ket
+                (2, 1),  # C4
+                (1, 8, 13),  # T4_bra
+                (13, 14, -3),  # T4_ket
+            ]
+        ],
+    }
+
+    ctmrg_split_transfer_left: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "T3_bra",
+                "T3_ket",
+                "C4",
+                "T4_bra",
+                "T4_ket",
+                "C1",
+                "T1_ket",
+                "T1_bra",
+            ]
+        ],
+        "network": [
+            [
+                (5, 8, 12, -4, 6),  # tensor
+                (11, 14, 12, -2, 10),  # tensor_conj
+                (13, 14, -1),  # T3_bra
+                (1, 8, 13),  # T3_ket
+                (1, 2),  # C4
+                (2, 11, 7),  # T4_bra
+                (7, 5, 3),  # T4_ket
+                (3, 4),  # C1
+                (4, 6, 9),  # T1_ket
+                (9, 10, -3),  # T1_bra
+            ]
+        ],
+    }
+
+    ctmrg_split_transfer_right: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "T1_ket",
+                "T1_bra",
+                "C2",
+                "T2_ket",
+                "T2_bra",
+                "C3",
+                "T3_bra",
+                "T3_ket",
+            ]
+        ],
+        "network": [
+            [
+                (-2, 10, 12, 11, 14),  # tensor
+                (-4, 5, 12, 6, 8),  # tensor_conj
+                (-1, 14, 13),  # T1_ket
+                (13, 8, 1),  # T1_bra
+                (1, 2),  # C2
+                (7, 11, 2),  # T2_ket
+                (3, 6, 7),  # T2_bra
+                (4, 3),  # C3
+                (9, 5, 4),  # T3_bra
+                (-3, 10, 9),  # T3_ket
+            ]
+        ],
+    }
+
+    ctmrg_split_transfer_top_full: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "T4_bra",
+                "T4_ket",
+                "C1",
+                "T1_ket",
+                "T1_bra",
+            ],
+            [
+                "tensor",
+                "tensor_conj",
+                "T1_ket",
+                "T1_bra",
+                "C2",
+                "T2_ket",
+                "T2_bra",
+            ],
+            "projector_left_bottom_ket",
+            "projector_right_bottom_bra",
+        ],
+        "network": [
+            [
+                (4, 7, 10, 23, 5),  # tensor
+                (9, -2, 10, 24, 11),  # tensor_conj
+                (1, 9, 6),  # T4_bra
+                (6, 4, 3),  # T4_ket
+                (3, 2),  # C1
+                (2, 5, 8),  # T1_ket
+                (8, 11, 25),  # T1_bra
+            ],
+            [
+                (23, -4, 20, 21, 22),  # tensor
+                (24, 15, 20, 16, 18),  # tensor_conj
+                (25, 22, 19),  # T1_ket
+                (19, 18, 13),  # T1_bra
+                (13, 12),  # C2
+                (17, 21, 12),  # T2_ket
+                (14, 16, 17),  # T2_bra
+            ],
+            (-1, 1, 7),  # projector_left_bottom_ket
+            (14, 15, -3),  # projector_right_bottom_bra
+        ],
+    }
+
+    ctmrg_split_transfer_bottom_full: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "T4_ket",
+                "T4_bra",
+                "C4",
+                "T3_ket",
+                "T3_bra",
+            ],
+            [
+                "tensor",
+                "tensor_conj",
+                "T3_ket",
+                "T3_bra",
+                "C3",
+                "T2_bra",
+                "T2_ket",
+            ],
+            "projector_left_top_ket",
+            "projector_right_top_bra",
+        ],
+        "network": [
+            [
+                (16, 18, 20, 25, 15),  # tensor
+                (21, 22, 20, 24, -4),  # tensor_conj
+                (17, 16, 14),  # T4_ket
+                (12, 21, 17),  # T4_bra
+                (13, 12),  # C4
+                (13, 18, 19),  # T3_ket
+                (19, 22, 23),  # T3_bra
+            ],
+            [
+                (25, 11, 10, 9, -2),  # tensor
+                (24, 5, 10, 4, 7),  # tensor_conj
+                (23, 11, 8),  # T3_ket
+                (8, 5, 2),  # T3_bra
+                (2, 3),  # C3
+                (3, 4, 6),  # T2_bra
+                (6, 9, 1),  # T2_ket
+            ],
+            (14, 15, -3),  # projector_left_top_ket
+            (-1, 1, 7),  # projector_right_top_bra
+        ],
+    }
+
+    ctmrg_split_transfer_left_full: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "T1_bra",
+                "T1_ket",
+                "C1",
+                "T4_ket",
+                "T4_bra",
+            ],
+            [
+                "tensor",
+                "tensor_conj",
+                "T4_ket",
+                "T4_bra",
+                "C4",
+                "T3_ket",
+                "T3_bra",
+            ],
+            "projector_top_right_ket",
+            "projector_bottom_right_bra",
+        ],
+        "network": [
+            [
+                (4, 24, 10, 7, 5),  # tensor
+                (11, 25, 10, -4, 9),  # tensor_conj
+                (6, 9, 1),  # T1_bra
+                (3, 5, 6),  # T1_ket
+                (2, 3),  # C1
+                (8, 4, 2),  # T4_ket
+                (23, 11, 8),  # T4_bra
+            ],
+            [
+                (22, 21, 20, -2, 24),  # tensor
+                (18, 16, 20, 15, 25),  # tensor_conj
+                (19, 22, 23),  # T4_ket
+                (13, 18, 19),  # T4_bra
+                (12, 13),  # C4
+                (12, 21, 17),  # T3_ket
+                (17, 16, 14),  # T3_bra
+            ],
+            (1, 7, -3),  # projector_top_right_ket
+            (-1, 14, 15),  # projector_bottom_right_bra
+        ],
+    }
+
+    ctmrg_split_transfer_right_full: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "T1_ket",
+                "T1_bra",
+                "C2",
+                "T2_ket",
+                "T2_bra",
+            ],
+            [
+                "tensor",
+                "tensor_conj",
+                "T2_ket",
+                "T2_bra",
+                "C3",
+                "T3_bra",
+                "T3_ket",
+            ],
+            "projector_top_left_ket",
+            "projector_bottom_left_bra",
+        ],
+        "network": [
+            [
+                (15, 25, 20, 18, 16),  # tensor
+                (-2, 24, 20, 22, 21),  # tensor_conj
+                (14, 16, 17),  # T1_ket
+                (17, 21, 12),  # T1_bra
+                (12, 13),  # C2
+                (19, 18, 13),  # T2_ket
+                (23, 22, 19),  # T2_bra
+            ],
+            [
+                (-4, 9, 10, 11, 25),  # tensor
+                (7, 5, 10, 4, 24),  # tensor_conj
+                (8, 11, 23),  # T2_ket
+                (2, 4, 8),  # T2_bra
+                (3, 2),  # C3
+                (6, 5, 3),  # T3_bra
+                (1, 9, 6),  # T3_ket
+            ],
+            (-1, 14, 15),  # projector_top_left_ket
+            (1, 7, -3),  # projector_bottom_left_bra
+        ],
+    }
+
+    ctmrg_split_transfer_phys_left_top: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "T4_ket",
+                "C1",
+                "T1_ket",
+                "T1_bra",
+            ]
+        ],
+        "network": [
+            [
+                (3, -2, -4, -6, 4),  # tensor
+                (-1, 3, 1),  # T4_ket
+                (1, 2),  # C1
+                (2, 4, 5),  # T1_ket
+                (5, -3, -5),  # T1_bra
+            ]
+        ],
+    }
+
+    ctmrg_split_transfer_phys_left_bottom: Definition = {
+        "tensors": [
+            [
+                "tensor_conj",
+                "T4_bra",
+                "C4",
+                "T3_ket",
+                "T3_bra",
+            ]
+        ],
+        "network": [
+            [
+                (4, 5, -6, -2, -5),  # tensor
+                (1, 4, -3),  # T4_bra
+                (2, 1),  # C4
+                (2, -4, 3),  # T3_ket
+                (3, 5, -1),  # T3_bra
+            ]
+        ],
+    }
+
+    ctmrg_split_transfer_phys_right_top: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "T1_ket",
+                "T1_bra",
+                "C2",
+                "T2_ket",
+            ]
+        ],
+        "network": [
+            [
+                (-2, -4, -6, 4, 5),  # tensor
+                (-1, 5, 3),  # T1_ket
+                (3, -5, 2),  # T1_bra
+                (2, 1),  # C2
+                (-3, 4, 1),  # T2_ket
+            ]
+        ],
+    }
+
+    ctmrg_split_transfer_phys_right_bottom: Definition = {
+        "tensors": [
+            [
+                "tensor_conj",
+                "T2_bra",
+                "C3",
+                "T3_bra",
+                "T3_ket",
+            ]
+        ],
+        "network": [
+            [
+                (-6, 4, -4, 3, -3),  # tensor_conj
+                (1, 3, -1),  # T2_bra
+                (2, 1),  # C3
+                (5, 4, 2),  # T3_bra
+                (-5, -2, 5),  # T3_ket
+            ]
+        ],
+    }
+
+    ctmrg_split_transfer_phys_top_left: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "T4_bra",
+                "T4_ket",
+                "C1",
+                "T1_ket",
+            ]
+        ],
+        "network": [
+            [
+                (4, -2, -6, -4, 3),  # tensor
+                (-1, -5, 5),  # T4_bra
+                (5, 4, 2),  # T4_ket
+                (2, 1),  # C1
+                (1, 3, -3),  # T1_ket
+            ]
+        ],
+    }
+
+    ctmrg_split_transfer_phys_top_right: Definition = {
+        "tensors": [
+            [
+                "tensor_conj",
+                "T1_bra",
+                "C2",
+                "T2_ket",
+                "T2_bra",
+            ]
+        ],
+        "network": [
+            [
+                (-3, -6, -4, 5, 4),  # tensor_conj
+                (-1, 4, 1),  # T1_bra
+                (1, 2),  # C2
+                (3, -2, 2),  # T2_ket
+                (-5, 5, 3),  # T2_bra
+            ]
+        ],
+    }
+
+    ctmrg_split_transfer_phys_bottom_left: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "T4_ket",
+                "T4_bra",
+                "C4",
+                "T3_ket",
+            ]
+        ],
+        "network": [
+            [
+                (5, 4, -4, -2, -6),  # tensor
+                (3, 5, -5),  # T4_ket
+                (2, -3, 3),  # T4_bra
+                (1, 2),  # C4
+                (1, 4, -1),  # T3_ket
+            ]
+        ],
+    }
+
+    ctmrg_split_transfer_phys_bottom_right: Definition = {
+        "tensors": [
+            [
+                "tensor_conj",
+                "T3_bra",
+                "C3",
+                "T2_bra",
+                "T2_ket",
+            ]
+        ],
+        "network": [
+            [
+                (-5, 4, -6, 3, -2),  # tensor_conj
+                (-3, 4, 2),  # T3_bra
+                (2, 1),  # C3
+                (1, 3, 5),  # T2_bra
+                (5, -4, -1),  # T2_ket
+            ]
+        ],
+    }
+
     ctmrg_absorption_left_C1: Definition = {
         "tensors": [["C1", "T1"], "projector_left_bottom"],
         "network": [
@@ -1657,6 +2137,374 @@ class Definitions:
 
     \\
     """
+
+    ctmrg_split_transfer_absorption_left_C1: Definition = {
+        "tensors": [
+            ["C1", "T1_ket", "T1_bra"],
+            "projector_left_bottom_ket",
+            "projector_left_bottom_bra",
+        ],
+        "network": [
+            [
+                (2, 1),  # C1
+                (1, 3, 4),  # T1_ket
+                (4, 6, -2),  # T1_bra
+            ],
+            (5, 2, 3),  # projector_left_bottom_ket
+            (-1, 5, 6),  # projector_left_bottom_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_left_T4: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T4_ket", "T4_bra"],
+            "projector_left_top_ket",
+            "projector_left_top_bra",
+            "projector_left_bottom_ket",
+            "projector_left_bottom_bra",
+        ],
+        "network": [
+            [
+                (4, 6, 10, -3, 3),  # tensor
+                (9, 12, 10, -2, 8),  # tensor_conj
+                (5, 4, 1),  # T4_ket
+                (2, 9, 5),  # T4_bra
+            ],
+            (1, 3, 7),  # projector_left_top_ket
+            (7, 8, -4),  # projector_left_top_bra
+            (11, 2, 6),  # projector_left_bottom_ket
+            (-1, 11, 12),  # projector_left_bottom_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_left_T4_ket: Definition = {
+        "tensors": [
+            ["tensor", "T4_ket"],
+            "projector_left_top_ket",
+            "projector_left_top_bra",
+            "projector_left_bottom_phys",
+        ],
+        "network": [
+            [
+                (2, 5, 6, -2, 3),  # tensor
+                (4, 2, 1),  # T4_ket
+            ],
+            (1, 3, 7),  # projector_left_top_ket
+            (7, 8, -3),  # projector_left_top_bra
+            (-1, 4, 5, 8, 6),  # projector_left_bottom_phys
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_left_T4_bra: Definition = {
+        "tensors": [
+            ["tensor_conj", "T4_bra"],
+            "projector_left_top_phys",
+            "projector_left_bottom_ket",
+            "projector_left_bottom_bra",
+        ],
+        "network": [
+            [
+                (4, 8, 6, -2, 5),  # tensor_conj
+                (1, 4, 2),  # T4_bra
+            ],
+            (2, 3, 5, 6, -3),  # projector_left_top_phys
+            (7, 1, 3),  # projector_left_bottom_ket
+            (-1, 7, 8),  # projector_left_bottom_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_left_C4: Definition = {
+        "tensors": [
+            ["T3_ket", "T3_bra", "C4"],
+            "projector_left_top_ket",
+            "projector_left_top_bra",
+        ],
+        "network": [
+            [
+                (1, 3, 4),  # T3_ket
+                (4, 6, -1),  # T3_bra
+                (1, 2),  # C4
+            ],
+            (2, 3, 5),  # projector_left_top_ket
+            (5, 6, -2),  # projector_left_top_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_right_C2: Definition = {
+        "tensors": [
+            ["T1_ket", "T1_bra", "C2"],
+            "projector_right_bottom_ket",
+            "projector_right_bottom_bra",
+        ],
+        "network": [
+            [
+                (-1, 6, 4),  # T1_ket
+                (4, 3, 1),  # T1_bra
+                (1, 2),  # C2
+            ],
+            (5, 6, -2),  # projector_right_bottom_ket
+            (2, 3, 5),  # projector_right_bottom_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_right_T2: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T2_ket", "T2_bra"],
+            "projector_right_top_ket",
+            "projector_right_top_bra",
+            "projector_right_bottom_ket",
+            "projector_right_bottom_bra",
+        ],
+        "network": [
+            [
+                (-3, 8, 10, 9, 12),  # tensor
+                (-2, 3, 10, 4, 6),  # tensor_conj
+                (5, 9, 2),  # T2_ket
+                (1, 4, 5),  # T2_bra
+            ],
+            (-4, 11, 12),  # projector_right_top_ket
+            (11, 2, 6),  # projector_right_top_bra
+            (7, 8, -1),  # projector_right_bottom_ket
+            (1, 3, 7),  # projector_right_bottom_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_right_T2_ket: Definition = {
+        "tensors": [
+            ["tensor", "T2_ket"],
+            "projector_right_top_ket",
+            "projector_right_top_bra",
+            "projector_right_bottom_phys",
+        ],
+        "network": [
+            [
+                (-2, 5, 6, 4, 8),  # tensor
+                (2, 4, 1),  # T2_ket
+            ],
+            (-3, 7, 8),  # projector_right_top_ket
+            (7, 1, 3),  # projector_right_top_bra
+            (2, 5, 3, 6, -1),  # projector_right_bottom_phys
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_right_T2_bra: Definition = {
+        "tensors": [
+            ["tensor_conj", "T2_bra"],
+            "projector_right_top_phys",
+            "projector_right_bottom_ket",
+            "projector_right_bottom_bra",
+        ],
+        "network": [
+            [
+                (-2, 3, 6, 2, 5),  # tensor_conj
+                (1, 2, 4),  # T2_bra
+            ],
+            (-3, 4, 8, 5, 6),  # projector_right_top_ket
+            (7, 8, -1),  # projector_right_bottom_ket
+            (1, 3, 7),  # projector_right_bottom_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_right_C3: Definition = {
+        "tensors": [
+            ["C3", "T3_ket", "T3_bra"],
+            "projector_right_top_ket",
+            "projector_right_top_bra",
+        ],
+        "network": [
+            [
+                (1, 2),  # C3
+                (-1, 6, 4),  # T3_ket
+                (4, 3, 1),  # T3_bra
+            ],
+            (-2, 5, 6),  # projector_right_top_ket
+            (5, 2, 3),  # projector_right_top_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_top_C1: Definition = {
+        "tensors": [
+            ["T4_ket", "T4_bra", "C1"],
+            "projector_top_right_ket",
+            "projector_top_right_bra",
+        ],
+        "network": [
+            [
+                (4, 3, 1),  # T4_ket
+                (-1, 6, 4),  # T4_bra
+                (1, 2),  # C1
+            ],
+            (2, 3, 5),  # projector_top_right_ket
+            (5, 6, -2),  # projector_top_right_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_top_T1: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T1_ket", "T1_bra"],
+            "projector_top_left_ket",
+            "projector_top_left_bra",
+            "projector_top_right_ket",
+            "projector_top_right_bra",
+        ],
+        "network": [
+            [
+                (3, -2, 10, 6, 4),  # tensor
+                (8, -3, 10, 12, 9),  # tensor_conj
+                (1, 4, 5),  # T1_ket
+                (5, 9, 2),  # T1_bra
+            ],
+            (7, 1, 3),  # projector_top_left_ket
+            (-1, 7, 8),  # projector_top_left_bra
+            (2, 6, 11),  # projector_top_right_ket
+            (11, 12, -4),  # projector_top_right_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_top_T1_ket: Definition = {
+        "tensors": [
+            ["tensor", "T1_ket"],
+            "projector_top_left_ket",
+            "projector_top_left_bra",
+            "projector_top_right_phys",
+        ],
+        "network": [
+            [
+                (3, -2, 6, 5, 2),  # tensor
+                (1, 2, 4),  # T1_ket
+            ],
+            (7, 1, 3),  # projector_top_left_ket
+            (-1, 7, 8),  # projector_top_left_bra
+            (4, 5, 8, 6, -3),  # projector_top_right_phys
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_top_T1_bra: Definition = {
+        "tensors": [
+            ["tensor_conj", "T1_bra"],
+            "projector_top_left_phys",
+            "projector_top_right_ket",
+            "projector_top_right_bra",
+        ],
+        "network": [
+            [
+                (5, -2, 6, 8, 4),  # tensor_conj
+                (2, 4, 1),  # T1_bra
+            ],
+            (-1, 2, 3, 5, 6),  # projector_top_left_phys
+            (1, 3, 7),  # projector_top_right_ket
+            (7, 8, -3),  # projector_top_right_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_top_C2: Definition = {
+        "tensors": [
+            ["C2", "T2_ket", "T2_bra"],
+            "projector_top_left_ket",
+            "projector_top_left_bra",
+        ],
+        "network": [
+            [
+                (2, 1),  # C2
+                (4, 3, 1),  # T2_ket
+                (-2, 6, 4),  # T2_bra
+            ],
+            (5, 2, 3),  # projector_top_left_ket
+            (-1, 5, 6),  # projector_top_left_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_bottom_C4: Definition = {
+        "tensors": [
+            ["C4", "T4_ket", "T4_bra"],
+            "projector_bottom_right_ket",
+            "projector_bottom_right_bra",
+        ],
+        "network": [
+            [
+                (2, 1),  # C4
+                (4, 6, -2),  # T4_ket
+                (1, 3, 4),  # T4_bra
+            ],
+            (-1, 5, 6),  # projector_bottom_right_ket
+            (5, 2, 3),  # projector_bottom_right_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_bottom_T3: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T3_ket", "T3_bra"],
+            "projector_bottom_left_ket",
+            "projector_bottom_left_bra",
+            "projector_bottom_right_ket",
+            "projector_bottom_right_bra",
+        ],
+        "network": [
+            [
+                (12, 9, 10, 8, -2),  # tensor
+                (6, 4, 10, 3, -3),  # tensor_conj
+                (2, 9, 5),  # T3_ket
+                (5, 4, 1),  # T3_bra
+            ],
+            (11, 12, -1),  # projector_bottom_left_ket
+            (2, 6, 11),  # projector_bottom_left_bra
+            (-4, 7, 8),  # projector_bottom_right_ket
+            (7, 1, 3),  # projector_bottom_right_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_bottom_T3_ket: Definition = {
+        "tensors": [
+            ["tensor", "T3_ket"],
+            "projector_bottom_left_ket",
+            "projector_bottom_left_bra",
+            "projector_bottom_right_phys",
+        ],
+        "network": [
+            [
+                (8, 4, 6, 5, -2),  # tensor
+                (1, 4, 2),  # T3_ket
+            ],
+            (7, 8, -1),  # projector_bottom_left_ket
+            (1, 3, 7),  # projector_bottom_left_bra
+            (-3, 2, 5, 3, 6),  # projector_bottom_right_phys
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_bottom_T3_bra: Definition = {
+        "tensors": [
+            ["tensor_conj", "T3_bra"],
+            "projector_bottom_left_phys",
+            "projector_bottom_right_ket",
+            "projector_bottom_right_bra",
+        ],
+        "network": [
+            [
+                (5, 2, 6, 3, -2),  # tensor_conj
+                (4, 2, 1),  # T3_bra
+            ],
+            (4, 8, 5, 6, -1),  # projector_bottom_left_phys
+            (-3, 7, 8),  # projector_bottom_right_ket
+            (7, 1, 3),  # projector_bottom_right_bra
+        ],
+    }
+
+    ctmrg_split_transfer_absorption_bottom_C3: Definition = {
+        "tensors": [
+            ["T2_ket", "T2_bra", "C3"],
+            "projector_bottom_left_ket",
+            "projector_bottom_left_bra",
+        ],
+        "network": [
+            [
+                (4, 6, -2),  # T2_ket
+                (1, 3, 4),  # T2_bra
+                (2, 1),  # C3
+            ],
+            (5, 6, -1),  # projector_bottom_left_ket
+            (2, 3, 5),  # projector_bottom_left_bra
+        ],
+    }
 
     ctmrg_gauge_fix_T1: Definition = {
         "tensors": [["T1"], "left_unitary", "right_unitary"],

@@ -9,12 +9,37 @@ Right_Projectors = namedtuple("Right_Projectors", ("top", "bottom"))
 Top_Projectors = namedtuple("Top_Projectors", ("left", "right"))
 Bottom_Projectors = namedtuple("Bottom_Projectors", ("left", "right"))
 
+Left_Projectors_Split_Transfer = namedtuple(
+    "Left_Projectors_Split_Transfer",
+    ("top_ket", "top_bra", "top_phys", "bottom_ket", "bottom_bra", "bottom_phys"),
+)
+Right_Projectors_Split_Transfer = namedtuple(
+    "Right_Projectors_Split_Transfer",
+    ("top_ket", "top_bra", "top_phys", "bottom_ket", "bottom_bra", "bottom_phys"),
+)
+Top_Projectors_Split_Transfer = namedtuple(
+    "Top_Projectors_Split_Transfer",
+    ("left_ket", "left_bra", "left_phys", "right_ket", "right_bra", "right_phys"),
+)
+Bottom_Projectors_Split_Transfer = namedtuple(
+    "Bottom_Projectors_Split_Transfer",
+    ("left_ket", "left_bra", "left_phys", "right_ket", "right_bra", "right_phys"),
+)
+
 Unit_Cell_Bond_Dim_Projectors = namedtuple(
     "Unit_Cell_Bond_Dim_Projectors", ("left", "right", "top", "bottom")
 )
 
 T_Projector = TypeVar(
     "T_Projector", Left_Projectors, Right_Projectors, Top_Projectors, Bottom_Projectors
+)
+
+T_Projector_Split_Transfer = TypeVar(
+    "T_Projector_Split_Transfer",
+    Left_Projectors_Split_Transfer,
+    Right_Projectors_Split_Transfer,
+    Top_Projectors_Split_Transfer,
+    Bottom_Projectors_Split_Transfer,
 )
 
 
