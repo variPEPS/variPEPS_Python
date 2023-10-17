@@ -194,7 +194,7 @@ class PEPS_AD_Config:
     optimizer_l_bfgs_maxlen: int = 50
     optimizer_preconverge_with_half_projectors: bool = True
     optimizer_preconverge_with_half_projectors_eps: float = 1e-3
-    optimizer_autosave_step_count: int = 5
+    optimizer_autosave_step_count: int = 2
     optimizer_random_noise_eps: float = 1e-4
     optimizer_random_noise_max_retries: int = 5
 

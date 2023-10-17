@@ -116,7 +116,16 @@ def _truncated_SVD(
         relevant_S_values, 1 / jnp.sqrt(jnp.where(relevant_S_values, S, 1)), 0
     )
 
-    return S_inv_sqrt, U, Vh, S[-1] / S[0]
+    matrix_norm = jnp.sum(jnp.abs(matrix) ** 2)
+    S_norm = jnp.sum(S**2)
+    trunc_error = 1 - S_norm / matrix_norm
+    trunc_error = jnp.where(
+        trunc_error < truncation_eps**2,
+        0,
+        jnp.sqrt(jnp.where(trunc_error < truncation_eps**2, 1, trunc_error)),
+    )
+
+    return S_inv_sqrt, U, Vh, trunc_error
 
 
 def _quarter_tensors_to_matrix(

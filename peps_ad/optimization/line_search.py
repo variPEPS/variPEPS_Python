@@ -212,6 +212,8 @@ def line_search(
         unitcell[0, 0][0][0].chi: (unitcell, gradient, descent_direction, current_value)
     }
 
+    max_trunc_error = jnp.nan
+
     count = 0
     while count < peps_ad_config.line_search_max_steps:
         new_tensors = _line_search_new_tensors(input_tensors, descent_direction, alpha)
@@ -234,7 +236,7 @@ def line_search(
             or peps_ad_config.line_search_method is Line_Search_Methods.ARMIJO
         ):
             try:
-                new_value, new_unitcell = calc_ctmrg_expectation(
+                new_value, (new_unitcell, max_trunc_error) = calc_ctmrg_expectation(
                     new_tensors,
                     new_unitcell,
                     expectation_func,
@@ -269,7 +271,7 @@ def line_search(
                         if peps_ad_config.ad_use_custom_vjp:
                             (
                                 current_value,
-                                unitcell,
+                                (unitcell, max_trunc_error),
                             ), tmp_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
                                 input_tensors,
                                 unitcell,
@@ -279,7 +281,7 @@ def line_search(
                         else:
                             (
                                 current_value,
-                                unitcell,
+                                (unitcell, max_trunc_error),
                             ), tmp_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
                                 input_tensors,
                                 unitcell,
@@ -307,7 +309,7 @@ def line_search(
                 if peps_ad_config.ad_use_custom_vjp:
                     (
                         new_value,
-                        new_unitcell,
+                        (new_unitcell, max_trunc_error),
                     ), new_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
                         new_tensors,
                         new_unitcell,
@@ -317,7 +319,7 @@ def line_search(
                 else:
                     (
                         new_value,
-                        new_unitcell,
+                        (new_unitcell, max_trunc_error),
                     ), new_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
                         new_tensors,
                         new_unitcell,
@@ -354,7 +356,7 @@ def line_search(
                         if peps_ad_config.ad_use_custom_vjp:
                             (
                                 current_value,
-                                unitcell,
+                                (unitcell, max_trunc_error),
                             ), tmp_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
                                 input_tensors,
                                 unitcell,
@@ -364,7 +366,7 @@ def line_search(
                         else:
                             (
                                 current_value,
-                                unitcell,
+                                (unitcell, max_trunc_error),
                             ), tmp_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
                                 input_tensors,
                                 unitcell,
@@ -542,4 +544,11 @@ def line_search(
     if count == peps_ad_config.line_search_max_steps:
         raise NoSuitableStepSizeError(f"Count {count}, Last alpha {alpha}")
 
-    return new_tensors, new_unitcell, new_value, alpha, signal_reset_descent_dir
+    return (
+        new_tensors,
+        new_unitcell,
+        new_value,
+        alpha,
+        signal_reset_descent_dir,
+        max_trunc_error,
+    )

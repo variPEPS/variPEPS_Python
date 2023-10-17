@@ -372,6 +372,7 @@ def calc_ctmrg_env(
     working_unitcell = unitcell
     peps_ad_global_state.ctmrg_effective_truncation_eps = None
 
+    norm_smallest_S = jnp.nan
     already_tried_chi = {working_unitcell[0, 0][0][0].chi}
 
     while True:
@@ -519,9 +520,9 @@ def calc_ctmrg_env(
         raise CTMRGNotConvergedError
 
     if _return_truncation_eps:
-        return working_unitcell, last_truncation_eps
+        return working_unitcell, last_truncation_eps, norm_smallest_S
 
-    return working_unitcell
+    return working_unitcell, norm_smallest_S
 
 
 @custom_vjp
@@ -561,10 +562,15 @@ def calc_ctmrg_env_fwd(
     Internal helper function of custom VJP to calculate the values in
     the forward sweep.
     """
-    new_unitcell, last_truncation_eps = calc_ctmrg_env_custom_rule(
+    new_unitcell, last_truncation_eps, norm_smallest_S = calc_ctmrg_env_custom_rule(
         peps_tensors, unitcell, _return_truncation_eps=True
     )
-    return new_unitcell, (peps_tensors, new_unitcell, unitcell, last_truncation_eps)
+    return (new_unitcell, norm_smallest_S), (
+        peps_tensors,
+        new_unitcell,
+        unitcell,
+        last_truncation_eps,
+    )
 
 
 def _ctmrg_rev_while_body(carry):
@@ -643,12 +649,14 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
 
 
 def calc_ctmrg_env_rev(
-    res: Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell], unitcell_bar: PEPS_Unit_Cell
+    res: Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell],
+    input_bar: Tuple[PEPS_Unit_Cell, float],
 ) -> Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell]:
     """
     Internal helper function of custom VJP to calculate the gradient in
     the backward sweep.
     """
+    unitcell_bar, _ = input_bar
     peps_tensors, new_unitcell, input_unitcell, last_truncation_eps = res
 
     peps_ad_global_state.ctmrg_effective_truncation_eps = last_truncation_eps

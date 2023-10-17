@@ -318,6 +318,7 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
         unitcell: PEPS_Unit_Cell,
         *,
         store_config: bool = True,
+        max_trunc_error_list: Optional[List[float]] = None,
     ) -> None:
         """
         Save unit cell to a HDF5 file.
@@ -337,6 +338,14 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
             grp = f.create_group("kagome_pess")
 
             cls.save_to_group(grp, tensors, unitcell, store_config=store_config)
+
+            if max_trunc_error_list is not None:
+                f.create_dataset(
+                    "max_trunc_error_list",
+                    data=jnp.array(max_trunc_error_list),
+                    compression="gzip",
+                    compression_opts=6,
+                )
 
     @staticmethod
     def save_to_group(
@@ -405,6 +414,7 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
         path: PathLike,
         *,
         return_config: bool = False,
+        return_max_trunc_error_list: bool = False,
     ) -> Union[
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell],
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell, peps_ad.config.PEPS_AD_Config],
@@ -432,9 +442,14 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
         """
         with h5py.File(path, "r") as f:
             out = cls.load_from_group(f["kagome_pess"], return_config=return_config)
+            max_trunc_error_list = f.get("max_trunc_error_list")
 
-        if return_config:
+        if return_config and return_max_trunc_error_list:
+            return out[0], out[1], out[2], max_trunc_error_list
+        elif return_config:
             return out[0], out[1], out[2]
+        elif return_max_trunc_error_list:
+            return out[0], out[1], max_trunc_error_list
 
         return out[0], out[1]
 
@@ -491,8 +506,20 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
         filename: PathLike,
         tensors: jnp.ndarray,
         unitcell: PEPS_Unit_Cell,
+        counter: Optional[int] = None,
+        max_trunc_error_list: Optional[float] = None,
     ) -> None:
-        cls.save_to_file(filename, tensors, unitcell)
+        if counter is not None:
+            cls.save_to_file(
+                f"{str(filename)}.{counter}",
+                tensors,
+                unitcell,
+                max_trunc_error_list=max_trunc_error_list,
+            )
+        else:
+            cls.save_to_file(
+                filename, tensors, unitcell, max_trunc_error_list=max_trunc_error_list
+            )
 
 
 class iPESS3_9Sites_Three_PEPS_Site:

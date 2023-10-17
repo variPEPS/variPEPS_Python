@@ -182,9 +182,18 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple):
 
 
 def autosave_function(
-    filename: PathLike, tensors: jnp.ndarray, unitcell: PEPS_Unit_Cell
+    filename: PathLike,
+    tensors: jnp.ndarray,
+    unitcell: PEPS_Unit_Cell,
+    counter: Optional[int] = None,
+    max_trunc_error_list: Optional[float] = None,
 ) -> None:
-    unitcell.save_to_file(filename)
+    if counter is not None:
+        unitcell.save_to_file(
+            f"{str(filename)}.{counter}", max_trunc_error_list=max_trunc_error_list
+        )
+    else:
+        unitcell.save_to_file(filename, max_trunc_error_list=max_trunc_error_list)
 
 
 def optimize_peps_network(
@@ -241,6 +250,8 @@ def optimize_peps_network(
     descent_dir = None
     working_value = None
 
+    max_trunc_error = jnp.nan
+
     best_value = jnp.inf
     best_tensors = None
     best_unitcell = None
@@ -261,6 +272,7 @@ def optimize_peps_network(
         float, jnp.ndarray
     ] = peps_ad_config.line_search_initial_step_size
     working_value: Union[float, jnp.ndarray]
+    max_trunc_error_list = []
 
     if (
         peps_ad_config.optimizer_preconverge_with_half_projectors
@@ -276,7 +288,7 @@ def optimize_peps_network(
                 if peps_ad_config.ad_use_custom_vjp:
                     (
                         working_value,
-                        working_unitcell,
+                        (working_unitcell, _),
                     ), working_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
                         working_tensors,
                         working_unitcell,
@@ -286,7 +298,7 @@ def optimize_peps_network(
                 else:
                     (
                         working_value,
-                        working_unitcell,
+                        (working_unitcell, _),
                     ), working_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
                         working_tensors,
                         working_unitcell,
@@ -304,6 +316,7 @@ def optimize_peps_network(
                     fun=working_value,
                     unitcell=working_unitcell,
                     nit=count,
+                    max_trunc_error_list=max_trunc_error_list,
                 )
 
             working_gradient = [elem.conj() for elem in working_gradient_seq]
@@ -375,6 +388,7 @@ def optimize_peps_network(
                     working_value,
                     linesearch_step,
                     signal_reset_descent_dir,
+                    max_trunc_error,
                 ) = line_search(
                     working_tensors,
                     working_unitcell,
@@ -438,8 +452,13 @@ def optimize_peps_network(
                     else:
                         conv = 0
 
+            max_trunc_error_list.append(max_trunc_error)
+
             if conv < peps_ad_config.optimizer_convergence_eps:
-                working_value, working_unitcell = calc_ctmrg_expectation(
+                working_value, (
+                    working_unitcell,
+                    max_trunc_error,
+                ) = calc_ctmrg_expectation(
                     working_tensors,
                     working_unitcell,
                     expectation_func,
@@ -447,6 +466,7 @@ def optimize_peps_network(
                     enforce_elementwise_convergence=peps_ad_config.ad_use_custom_vjp,
                 )
                 peps_ad_global_state.ctmrg_projector_method = None
+                max_trunc_error_list[-1] = max_trunc_error
                 break
 
             if (
@@ -458,7 +478,7 @@ def optimize_peps_network(
                     peps_ad_config.ctmrg_full_projector_method
                 )
 
-                working_value, working_unitcell = calc_ctmrg_expectation(
+                working_value, working_unitcell, _ = calc_ctmrg_expectation(
                     working_tensors,
                     working_unitcell,
                     expectation_func,
@@ -479,14 +499,21 @@ def optimize_peps_network(
                 {
                     "Energy": f"{working_value:0.10f}",
                     "Retries": random_noise_retries,
-                    "Convergence": f"{conv:0.10f}",
-                    "Line search step size": f"{linesearch_step:0.10f}",
+                    "Convergence": f"{conv:0.8f}",
+                    "Line search step": f"{linesearch_step:0.8f}",
+                    "Max. trunc. err.": f"{max_trunc_error:0.8g}",
                 }
             )
             pbar.refresh()
 
             if count % peps_ad_config.optimizer_autosave_step_count == 0:
-                autosave_func(autosave_filename, working_tensors, working_unitcell)
+                autosave_func(
+                    autosave_filename,
+                    working_tensors,
+                    working_unitcell,
+                    counter=random_noise_retries,
+                    max_trunc_error_list=max_trunc_error_list,
+                )
 
     if working_value < best_value:
         best_value = working_value
@@ -501,4 +528,5 @@ def optimize_peps_network(
         fun=best_value,
         unitcell=best_unitcell,
         nit=count,
+        max_trunc_error_list=max_trunc_error_list,
     )

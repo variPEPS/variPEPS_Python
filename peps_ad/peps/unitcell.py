@@ -696,7 +696,12 @@ class PEPS_Unit_Cell:
             sanity_checks=False,
         )
 
-    def save_to_file(self, path: PathLike, store_config: bool = True) -> None:
+    def save_to_file(
+        self,
+        path: PathLike,
+        store_config: bool = True,
+        max_trunc_error_list: Optional[List[float]] = None,
+    ) -> None:
         """
         Save unit cell to a HDF5 file.
 
@@ -714,6 +719,14 @@ class PEPS_Unit_Cell:
             grp = f.create_group("unitcell")
 
             self.save_to_group(grp, store_config)
+
+            if max_trunc_error_list is not None:
+                f.create_dataset(
+                    "max_trunc_error_list",
+                    data=jnp.array(max_trunc_error_list),
+                    compression="gzip",
+                    compression_opts=6,
+                )
 
     def save_to_group(self, grp: h5py.Group, store_config: bool = True) -> None:
         """
@@ -772,7 +785,10 @@ class PEPS_Unit_Cell:
 
     @classmethod
     def load_from_file(
-        cls: Type[T_PEPS_Unit_Cell], path: PathLike, return_config: bool = False
+        cls: Type[T_PEPS_Unit_Cell],
+        path: PathLike,
+        return_config: bool = False,
+        return_max_trunc_error_list: bool = False,
     ) -> Union[
         T_PEPS_Unit_Cell, Tuple[T_PEPS_Unit_Cell, peps_ad.config.PEPS_AD_Config]
     ]:
@@ -793,9 +809,14 @@ class PEPS_Unit_Cell:
         """
         with h5py.File(path, "r") as f:
             out = cls.load_from_group(f["unitcell"], return_config)
+            max_trunc_error_list = f.get("max_trunc_error_list")
 
-        if return_config:
+        if return_config and return_max_trunc_error_list:
+            return out[0], out[1], max_trunc_error_list
+        elif return_config:
             return out[0], out[1]
+        elif return_max_trunc_error_list:
+            return out, max_trunc_error_list
 
         return out
 

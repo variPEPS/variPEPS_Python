@@ -81,13 +81,16 @@ def calc_ctmrg_expectation(
         input_tensors, unitcell, convert_to_unitcell_func
     )
 
-    new_unitcell = calc_ctmrg_env(
+    new_unitcell, max_trunc_error = calc_ctmrg_env(
         peps_tensors,
         unitcell,
         enforce_elementwise_convergence=enforce_elementwise_convergence,
     )
 
-    return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), new_unitcell
+    return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), (
+        new_unitcell,
+        max_trunc_error,
+    )
 
 
 calc_ctmrg_expectation_value_and_grad = value_and_grad(
@@ -138,7 +141,7 @@ def calc_preconverged_ctmrg_value_and_grad(
     )
 
     if calc_preconverged:
-        preconverged_unitcell = calc_ctmrg_env(
+        preconverged_unitcell, _ = calc_ctmrg_env(
             peps_tensors,
             unitcell,
             eps=peps_ad_config.optimizer_ctmrg_preconverged_eps,
@@ -148,14 +151,14 @@ def calc_preconverged_ctmrg_value_and_grad(
 
     (
         expectation_value,
-        final_unitcell,
+        (final_unitcell, max_trunc_error),
     ), gradient = calc_ctmrg_expectation_value_and_grad(
         peps_tensors,
         preconverged_unitcell,
         expectation_func,
     )
 
-    return (expectation_value, final_unitcell), gradient
+    return (expectation_value, final_unitcell, max_trunc_error), gradient
 
 
 def calc_ctmrg_expectation_custom(
@@ -186,9 +189,12 @@ def calc_ctmrg_expectation_custom(
         input_tensors, unitcell, convert_to_unitcell_func
     )
 
-    new_unitcell = calc_ctmrg_env_custom_rule(peps_tensors, unitcell)
+    new_unitcell, max_trunc_error = calc_ctmrg_env_custom_rule(peps_tensors, unitcell)
 
-    return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), new_unitcell
+    return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), (
+        new_unitcell,
+        max_trunc_error,
+    )
 
 
 calc_ctmrg_expectation_custom_value_and_grad = value_and_grad(
