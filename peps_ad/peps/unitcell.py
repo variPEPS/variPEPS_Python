@@ -810,6 +810,8 @@ class PEPS_Unit_Cell:
         with h5py.File(path, "r") as f:
             out = cls.load_from_group(f["unitcell"], return_config)
             max_trunc_error_list = f.get("max_trunc_error_list")
+            if max_trunc_error_list is not None:
+                max_trunc_error_list = jnp.asarray(max_trunc_error_list)
 
         if return_config and return_max_trunc_error_list:
             return out[0], out[1], max_trunc_error_list
