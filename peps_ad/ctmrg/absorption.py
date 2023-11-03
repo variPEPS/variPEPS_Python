@@ -185,12 +185,23 @@ def do_left_absorption(
 
             T4_projector_top = left_projectors.get_projector(x, y, -1, 0).top
             T4_projector_bottom = left_projectors.get_projector(x, y, 0, 0).bottom
-            new_T4_tmp = apply_contraction_jitted(
-                "ctmrg_absorption_left_T4",
-                [working_tensor],
-                [working_tensor_obj],
-                [T4_projector_top, T4_projector_bottom],
-            )
+            if (
+                working_tensor_obj.d > working_tensor_obj.chi
+                or working_tensor_obj.d > working_tensor_obj.D[0] ** 2
+            ):
+                new_T4_tmp = apply_contraction_jitted(
+                    "ctmrg_absorption_left_T4_large_d",
+                    [working_tensor],
+                    [working_tensor_obj],
+                    [T4_projector_top, T4_projector_bottom],
+                )
+            else:
+                new_T4_tmp = apply_contraction_jitted(
+                    "ctmrg_absorption_left_T4",
+                    [working_tensor],
+                    [working_tensor_obj],
+                    [T4_projector_top, T4_projector_bottom],
+                )
             new_T4.append(_post_process_CTM_tensors(new_T4_tmp, config))
 
             C4_projector = left_projectors.get_projector(x, y, 0, 0).top
@@ -270,12 +281,23 @@ def do_right_absorption(
 
             T2_projector_top = right_projectors.get_projector(x, y, -1, 0).top
             T2_projector_bottom = right_projectors.get_projector(x, y, 0, 0).bottom
-            new_T2_tmp = apply_contraction_jitted(
-                "ctmrg_absorption_right_T2",
-                [working_tensor],
-                [working_tensor_obj],
-                [T2_projector_top, T2_projector_bottom],
-            )
+            if (
+                working_tensor_obj.d > working_tensor_obj.chi
+                or working_tensor_obj.d > working_tensor_obj.D[2] ** 2
+            ):
+                new_T2_tmp = apply_contraction_jitted(
+                    "ctmrg_absorption_right_T2_large_d",
+                    [working_tensor],
+                    [working_tensor_obj],
+                    [T2_projector_top, T2_projector_bottom],
+                )
+            else:
+                new_T2_tmp = apply_contraction_jitted(
+                    "ctmrg_absorption_right_T2",
+                    [working_tensor],
+                    [working_tensor_obj],
+                    [T2_projector_top, T2_projector_bottom],
+                )
             new_T2.append(_post_process_CTM_tensors(new_T2_tmp, config))
 
             C3_projector = right_projectors.get_projector(x, y, 0, 0).top
@@ -351,12 +373,23 @@ def do_top_absorption(
 
             T1_projector_left = top_projectors.get_projector(x, y, 0, -1).left  # type: ignore
             T1_projector_right = top_projectors.get_projector(x, y, 0, 0).right  # type: ignore
-            new_T1_tmp = apply_contraction_jitted(
-                "ctmrg_absorption_top_T1",
-                [working_tensor],
-                [working_tensor_obj],
-                [T1_projector_left, T1_projector_right],
-            )
+            if (
+                working_tensor_obj.d > working_tensor_obj.chi
+                or working_tensor_obj.d > working_tensor_obj.D[3] ** 2
+            ):
+                new_T1_tmp = apply_contraction_jitted(
+                    "ctmrg_absorption_top_T1_large_d",
+                    [working_tensor],
+                    [working_tensor_obj],
+                    [T1_projector_left, T1_projector_right],
+                )
+            else:
+                new_T1_tmp = apply_contraction_jitted(
+                    "ctmrg_absorption_top_T1",
+                    [working_tensor],
+                    [working_tensor_obj],
+                    [T1_projector_left, T1_projector_right],
+                )
             new_T1.append(_post_process_CTM_tensors(new_T1_tmp, config))
 
             C2_projector = top_projectors.get_projector(x, y, 0, 0).left  # type: ignore
@@ -434,12 +467,23 @@ def do_bottom_absorption(
 
             T3_projector_left = bottom_projectors.get_projector(x, y, 0, -1).left  # type: ignore
             T3_projector_right = bottom_projectors.get_projector(x, y, 0, 0).right  # type: ignore
-            new_T3_tmp = apply_contraction_jitted(
-                "ctmrg_absorption_bottom_T3",
-                [working_tensor],
-                [working_tensor_obj],
-                [T3_projector_left, T3_projector_right],
-            )
+            if (
+                working_tensor_obj.d > working_tensor_obj.chi
+                or working_tensor_obj.d > working_tensor_obj.D[1] ** 2
+            ):
+                new_T3_tmp = apply_contraction_jitted(
+                    "ctmrg_absorption_bottom_T3_large_d",
+                    [working_tensor],
+                    [working_tensor_obj],
+                    [T3_projector_left, T3_projector_right],
+                )
+            else:
+                new_T3_tmp = apply_contraction_jitted(
+                    "ctmrg_absorption_bottom_T3",
+                    [working_tensor],
+                    [working_tensor_obj],
+                    [T3_projector_left, T3_projector_right],
+                )
             new_T3.append(_post_process_CTM_tensors(new_T3_tmp, config))
 
             C3_projector = bottom_projectors.get_projector(x, y, 0, 0).left  # type: ignore

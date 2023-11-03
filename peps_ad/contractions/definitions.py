@@ -432,6 +432,23 @@ class Definitions:
         ],
     }
 
+    ctmrg_absorption_left_T4_large_d: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T4"],
+            "projector_left_top",
+            "projector_left_bottom",
+        ],
+        "network": [
+            [
+                (4, 8, 2, -3, 3),  # tensor
+                (5, 9, 2, -2, 6),  # tensor_conj
+                (7, 5, 4, 1),  # T4
+            ],
+            (1, 3, 6, -4),  # projector_left_top
+            (-1, 7, 8, 9),  # projector_left_bottom
+        ],
+    }
+
     ctmrg_absorption_left_C4: Definition = {
         "tensors": [["T3", "C4"], "projector_left_top"],
         "network": [
@@ -467,6 +484,23 @@ class Definitions:
                 (3, 5, 7, 1),  # T2
             ],
             (-4, 1, 4, 2),  # projector_right_top
+            (7, 9, 8, -3),  # projector_right_bottom
+        ],
+    }
+
+    ctmrg_absorption_right_T2_large_d: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T2"],
+            "projector_right_top",
+            "projector_right_bottom",
+        ],
+        "network": [
+            [
+                (-1, 8, 2, 4, 3),  # tensor
+                (-2, 9, 2, 6, 5),  # tensor_conj
+                (4, 6, 7, 1),  # T2
+            ],
+            (-4, 1, 5, 3),  # projector_right_top
             (7, 9, 8, -3),  # projector_right_bottom
         ],
     }
@@ -510,6 +544,23 @@ class Definitions:
         ],
     }
 
+    ctmrg_absorption_top_T1_large_d: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T1"],
+            "projector_top_left",
+            "projector_top_right",
+        ],
+        "network": [
+            [
+                (4, -2, 2, 8, 3),  # tensor
+                (6, -3, 2, 9, 5),  # tensor_conj
+                (1, 3, 5, 7),  # T1
+            ],
+            (-1, 1, 4, 6),  # projector_top_left
+            (7, 8, 9, -4),  # projector_top_right
+        ],
+    }
+
     ctmrg_absorption_top_C2: Definition = {
         "tensors": [["C2", "T2"], "projector_top_left"],
         "network": [
@@ -545,6 +596,23 @@ class Definitions:
                 (1, 7, 4, 2),  # T3
             ],
             (1, 5, 3, -1),  # projector_bottom_left
+            (-2, 7, 9, 8),  # projector_bottom_right
+        ],
+    }
+
+    ctmrg_absorption_bottom_T3_large_d: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T3"],
+            "projector_bottom_left",
+            "projector_bottom_right",
+        ],
+        "network": [
+            [
+                (4, 3, 2, 8, -4),  # tensor
+                (6, 5, 2, 9, -3),  # tensor_conj
+                (1, 7, 5, 3),  # T3
+            ],
+            (1, 6, 4, -1),  # projector_bottom_left
             (-2, 7, 9, 8),  # projector_bottom_right
         ],
     }
