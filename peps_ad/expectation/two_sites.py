@@ -1,14 +1,19 @@
 from dataclasses import dataclass
 from functools import partial
 
+import numpy as np
+
 import jax.numpy as jnp
 from jax import jit
 
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
 from peps_ad.contractions import apply_contraction
 from .model import Expectation_Model
+from .spiral_helpers import apply_unitary
 
-from typing import Sequence, List, Tuple, Union
+from peps_ad.utils.debug_print import debug_print
+
+from typing import Sequence, List, Tuple, Union, Optional
 
 
 @partial(jit, static_argnums=(3,))
@@ -112,7 +117,7 @@ def calc_two_sites_horizontal_multiple_gates(
         "density_matrix_two_sites_right", [peps_tensors[1]], [peps_tensor_objs[1]], []
     )
 
-    real_result = all(jnp.allclose(g, jnp.real(g)) for g in gates)
+    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _two_site_workhorse(
         density_matrix_1, density_matrix_2, tuple(gates), real_result
@@ -180,7 +185,7 @@ def calc_two_sites_vertical_multiple_gates(
         "density_matrix_two_sites_bottom", [peps_tensors[1]], [peps_tensor_objs[1]], []
     )
 
-    real_result = all(jnp.allclose(g, jnp.real(g)) for g in gates)
+    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _two_site_workhorse(
         density_matrix_1, density_matrix_2, tuple(gates), real_result
@@ -265,7 +270,7 @@ def calc_two_sites_diagonal_top_left_bottom_right_multiple_gates(
         [],
     )
 
-    real_result = all(jnp.allclose(g, jnp.real(g)) for g in gates)
+    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _two_site_diagonal_workhorse(
         density_matrix_top_left,
@@ -359,7 +364,7 @@ def calc_two_sites_diagonal_top_right_bottom_left_multiple_gates(
         "ctmrg_bottom_right", [peps_tensors[3]], [peps_tensor_objs[3]], []
     )
 
-    real_result = all(jnp.allclose(g, jnp.real(g)) for g in gates)
+    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _two_site_diagonal_workhorse(
         density_matrix_top_right,
@@ -410,6 +415,9 @@ class Two_Sites_Expectation_Value(Expectation_Model):
     horizontal_gates: Sequence[jnp.ndarray]
     vertical_gates: Sequence[jnp.ndarray]
 
+    is_spiral_peps: bool = False
+    spiral_unitary_operator: Optional[jnp.ndarray] = None
+
     def __post_init__(self) -> None:
         if (
             len(self.horizontal_gates) > 0
@@ -418,24 +426,63 @@ class Two_Sites_Expectation_Value(Expectation_Model):
         ):
             raise ValueError("Length of horizontal and vertical gates mismatch.")
 
+        if self.is_spiral_peps:
+            self._spiral_D, self._spiral_sigma = jnp.linalg.eigh(
+                self.spiral_unitary_operator
+            )
+
     def __call__(
         self,
         peps_tensors: Sequence[jnp.ndarray],
         unitcell: PEPS_Unit_Cell,
+        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
         *,
         normalize_by_size: bool = True,
         only_unique: bool = True,
     ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
         result_type = (
             jnp.float64
-            if all(jnp.allclose(g, jnp.real(g)) for g in self.horizontal_gates)
-            and all(jnp.allclose(g, jnp.real(g)) for g in self.vertical_gates)
+            if all(jnp.allclose(g, g.T.conj()) for g in self.horizontal_gates)
+            and all(jnp.allclose(g, g.T.conj()) for g in self.vertical_gates)
             else jnp.complex128
         )
         result = [
             jnp.array(0, dtype=result_type)
             for _ in range(max(len(self.horizontal_gates), len(self.vertical_gates)))
         ]
+
+        if self.is_spiral_peps:
+            if isinstance(spiral_vectors, jnp.ndarray):
+                spiral_vectors = (spiral_vectors,)
+            working_h_gates = [
+                apply_unitary(
+                    h,
+                    jnp.array((0, 1)),
+                    spiral_vectors,
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    int(np.sqrt(h.shape[0])),
+                    2,
+                    (1,),
+                )
+                for h in self.horizontal_gates
+            ]
+            working_v_gates = [
+                apply_unitary(
+                    v,
+                    jnp.array((1, 0)),
+                    spiral_vectors,
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    int(np.sqrt(v.shape[0])),
+                    2,
+                    (1,),
+                )
+                for v in self.vertical_gates
+            ]
+        else:
+            working_h_gates = self.horizontal_gates
+            working_v_gates = self.vertical_gates
 
         for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
             for y, view in iter_rows:
@@ -449,7 +496,7 @@ class Two_Sites_Expectation_Value(Expectation_Model):
                     step_result_horizontal = calc_two_sites_horizontal_multiple_gates(
                         horizontal_tensors,
                         horizontal_tensor_objs,
-                        self.horizontal_gates,
+                        working_h_gates,
                     )
 
                     for sr_i, sr in enumerate(step_result_horizontal):
@@ -464,7 +511,7 @@ class Two_Sites_Expectation_Value(Expectation_Model):
                     vertical_tensor_objs = [view[0, 0][0][0], view[1, 0][0][0]]
 
                     step_result_vertical = calc_two_sites_vertical_multiple_gates(
-                        vertical_tensors, vertical_tensor_objs, self.vertical_gates
+                        vertical_tensors, vertical_tensor_objs, working_v_gates
                     )
 
                     for sr_i, sr in enumerate(step_result_vertical):

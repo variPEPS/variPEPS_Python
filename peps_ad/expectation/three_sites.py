@@ -128,7 +128,7 @@ def calc_three_sites_triangle_without_top_left_multiple_gates(
         [],
     )
 
-    real_result = all(jnp.allclose(g, jnp.real(g)) for g in gates)
+    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _three_site_triangle_workhorse(
         traced_density_matrix_top_left,
@@ -233,7 +233,7 @@ def calc_three_sites_triangle_without_top_right_multiple_gates(
         [],
     )
 
-    real_result = all(jnp.allclose(g, jnp.real(g)) for g in gates)
+    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _three_site_triangle_workhorse(
         density_matrix_top_left,
@@ -338,7 +338,7 @@ def calc_three_sites_triangle_without_bottom_left_multiple_gates(
         [],
     )
 
-    real_result = all(jnp.allclose(g, jnp.real(g)) for g in gates)
+    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _three_site_triangle_workhorse(
         density_matrix_top_left,
@@ -443,7 +443,7 @@ def calc_three_sites_triangle_without_bottom_right_multiple_gates(
         [],
     )
 
-    real_result = all(jnp.allclose(g, jnp.real(g)) for g in gates)
+    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _three_site_triangle_workhorse(
         density_matrix_top_left,

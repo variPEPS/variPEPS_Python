@@ -144,6 +144,8 @@ def line_search(
     current_value: Union[float, jnp.ndarray],
     last_step_size: Union[float, jnp.ndarray],
     convert_to_unitcell_func: Optional[Map_To_PEPS_Model] = None,
+    generate_unitcell: bool = False,
+    spiral_indices: Optional[Sequence[int]] = None,
 ) -> Tuple[
     List[jnp.ndarray],
     PEPS_Unit_Cell,
@@ -173,6 +175,8 @@ def line_search(
       convert_to_unitcell_func (:obj:`~peps_ad.mapping.Map_To_PEPS_Model`):
         Function to convert the `input_tensors` to a PEPS unitcell. If ommited,
         it is assumed that a PEPS unitcell is the input.
+      generate_unitcell (:obj:`bool`):
+        Force generation of unitcell from new tensors
     Returns:
       :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~peps_ad.peps.PEPS_Unit_Cell`, :obj:`float`, :obj:`float`):
         Tuple with the optimized tensors, the new unitcell, the reduced
@@ -218,14 +222,20 @@ def line_search(
     while count < peps_ad_config.line_search_max_steps:
         new_tensors = _line_search_new_tensors(input_tensors, descent_direction, alpha)
 
-        if convert_to_unitcell_func is None:
+        if spiral_indices is not None:
+            for i in spiral_indices:
+                new_tensors[i] = new_tensors[i] % 4 - 2
+
+        tqdm.write(str(new_tensors))
+
+        if convert_to_unitcell_func is None or generate_unitcell:
             unitcell_tensors = unitcell.get_unique_tensors()
             new_unitcell = unitcell.replace_unique_tensors(
                 [
                     unitcell_tensors[i].replace_tensor(
                         new_tensors[i], reinitialize_env_as_identities=True
                     )
-                    for i in range(len(new_tensors))
+                    for i in range(unitcell.get_len_unique_tensors())
                 ]
             )
         else:

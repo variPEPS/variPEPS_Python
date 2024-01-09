@@ -54,7 +54,7 @@ def calc_one_site_multi_gates(
         "density_matrix_one_site", [peps_tensor], [peps_tensor_obj], []
     )
 
-    real_result = all(jnp.allclose(g, jnp.real(g)) for g in gates)
+    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _one_site_workhorse(density_matrix, tuple(gates), real_result)
 

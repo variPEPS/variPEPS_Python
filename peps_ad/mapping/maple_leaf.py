@@ -17,6 +17,7 @@ from peps_ad.expectation.two_sites import (
     _two_site_workhorse,
     _two_site_diagonal_workhorse,
 )
+from peps_ad.expectation.spiral_helpers import apply_unitary
 from peps_ad.typing import Tensor
 from peps_ad.mapping import Map_To_PEPS_Model
 from peps_ad.utils.random import PEPS_Random_Number_Generator
@@ -39,7 +40,7 @@ def maple_leaf_density_matrix_diagonal(
     open_physical_indices: Tuple[Tuple[int], Tuple[int]],
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """
-    Calculate the two parts of the diagonal two sites density matrix of the
+    Calculate the two parts of the diagxonal two sites density matrix of the
     mapped maple leaf lattice. Hereby, one can specify which physical indices
     should be open and which ones be traced before contracting the CTM
     structure.
@@ -345,6 +346,9 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
     real_d: int
     normalization_factor: int = 6
 
+    is_spiral_peps: bool = False
+    spiral_unitary_operator: Optional[jnp.ndarray] = None
+
     def __post_init__(self) -> None:
         if (len(self.green_gates) != len(self.blue_gates)) or (
             len(self.green_gates) != len(self.red_gates)
@@ -390,16 +394,22 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
 
         self._result_type = (
             jnp.float64
-            if all(jnp.allclose(g, jnp.real(g)) for g in self.green_gates)
-            and all(jnp.allclose(g, jnp.real(g)) for g in self.blue_gates)
-            and all(jnp.allclose(g, jnp.real(g)) for g in self.red_gates)
+            if all(jnp.allclose(g, g.T.conj()) for g in self.green_gates)
+            and all(jnp.allclose(g, g.T.conj()) for g in self.blue_gates)
+            and all(jnp.allclose(g, g.T.conj()) for g in self.red_gates)
             else jnp.complex128
         )
+
+        if self.is_spiral_peps:
+            self._spiral_D, self._spiral_sigma = jnp.linalg.eigh(
+                self.spiral_unitary_operator
+            )
 
     def __call__(
         self,
         peps_tensors: Sequence[jnp.ndarray],
         unitcell: PEPS_Unit_Cell,
+        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
         *,
         normalize_by_size: bool = True,
         only_unique: bool = True,
@@ -407,6 +417,70 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
         result = [
             jnp.array(0, dtype=self._result_type) for _ in range(len(self.green_gates))
         ]
+
+        if self.is_spiral_peps:
+            if isinstance(spiral_vectors, jnp.ndarray):
+                spiral_vectors = (
+                    spiral_vectors,
+                    spiral_vectors,
+                    spiral_vectors,
+                    spiral_vectors,
+                )
+            if len(spiral_vectors) == 4:
+                spiral_vectors = (
+                    spiral_vectors[0],
+                    spiral_vectors[1],
+                    None,
+                    None,
+                    spiral_vectors[2],
+                    spiral_vectors[3],
+                )
+            if len(spiral_vectors) != 6:
+                raise ValueError("Length mismatch for spiral vectors!")
+
+            working_h_gates = tuple(
+                apply_unitary(
+                    h,
+                    jnp.array((0, 1)),
+                    spiral_vectors[:2],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    3,
+                    (1, 2),
+                )
+                for h in self._right_tuple
+            )
+            working_v_gates = tuple(
+                apply_unitary(
+                    v,
+                    jnp.array((1, 0)),
+                    spiral_vectors[4:],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    3,
+                    (1, 2),
+                )
+                for v in self._down_tuple
+            )
+            working_d_gates = tuple(
+                apply_unitary(
+                    d,
+                    jnp.array((1, 1)),
+                    spiral_vectors[:1],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    3,
+                    (2,),
+                )
+                for d in self._diagonal_tuple
+            )
+        else:
+            working_h_gates = self._right_tuple
+            working_v_gates = self._down_tuple
+            working_d_gates = self._diagonal_tuple
 
         for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
             for y, view in iter_rows:
@@ -436,7 +510,7 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                     step_result_horizontal = _two_site_workhorse(
                         density_matrix_left,
                         density_matrix_right,
-                        self._right_tuple,
+                        working_h_gates,
                         self._result_type is jnp.float64,
                     )
 
@@ -455,7 +529,7 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                     step_result_vertical = _two_site_workhorse(
                         density_matrix_top,
                         density_matrix_bottom,
-                        self._down_tuple,
+                        working_v_gates,
                         self._result_type is jnp.float64,
                     )
 
@@ -494,7 +568,7 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                         density_matrix_bottom_right,
                         traced_density_matrix_top_right,
                         traced_density_matrix_bottom_left,
-                        self._diagonal_tuple,
+                        working_d_gates,
                         self._result_type is jnp.float64,
                     )
 

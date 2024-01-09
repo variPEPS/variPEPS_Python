@@ -14,6 +14,7 @@ from peps_ad.contractions import apply_contraction, Definitions
 from peps_ad.expectation.model import Expectation_Model
 from peps_ad.expectation.one_site import calc_one_site_multi_gates
 from peps_ad.expectation.two_sites import _two_site_workhorse
+from peps_ad.expectation.spiral_helpers import apply_unitary
 from peps_ad.typing import Tensor
 from peps_ad.mapping import Map_To_PEPS_Model
 from peps_ad.utils.random import PEPS_Random_Number_Generator
@@ -513,6 +514,9 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
     real_d: int
     normalization_factor: int = 6
 
+    is_spiral_peps: bool = False
+    spiral_unitary_operator: Optional[jnp.ndarray] = None
+
     def __post_init__(self) -> None:
         if len(self.cross_gates) > 0:
             raise NotImplementedError("Cross term calculation is not implemented yet.")
@@ -560,10 +564,16 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
 
         self._triangle_tuple = tuple(self.triangle_gates)
 
+        if self.is_spiral_peps:
+            self._spiral_D, self._spiral_sigma = jnp.linalg.eigh(
+                self.spiral_unitary_operator
+            )
+
     def __call__(
         self,
         peps_tensors: Sequence[jnp.ndarray],
         unitcell: PEPS_Unit_Cell,
+        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
         *,
         normalize_by_size: bool = True,
         only_unique: bool = True,
@@ -587,6 +597,60 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
                 )
             )
         ]
+
+        if self.is_spiral_peps:
+            if isinstance(spiral_vectors, jnp.ndarray):
+                spiral_vectors = (spiral_vectors, spiral_vectors, spiral_vectors)
+            if len(spiral_vectors) == 1:
+                spiral_vectors = (
+                    None,
+                    spiral_vectors[0],
+                    spiral_vectors[0],
+                    None,
+                    spiral_vectors[0],
+                    None,
+                )
+            if len(spiral_vectors) == 3:
+                spiral_vectors = (
+                    None,
+                    spiral_vectors[0],
+                    spiral_vectors[1],
+                    None,
+                    spiral_vectors[2],
+                    None,
+                )
+            if len(spiral_vectors) != 6:
+                raise ValueError("Length mismatch for spiral vectors!")
+
+            working_h_gates = tuple(
+                apply_unitary(
+                    h,
+                    jnp.array((0, 1)),
+                    spiral_vectors[1:3],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    3,
+                    (1, 2),
+                )
+                for h in self._triangle_tuple
+            )
+            working_v_gates = tuple(
+                apply_unitary(
+                    v,
+                    jnp.array((1, 0)),
+                    spiral_vectors[2:3] + spiral_vectors[4:5],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    3,
+                    (1, 2),
+                )
+                for v in self._triangle_tuple
+            )
+        else:
+            working_h_gates = self._triangle_tuple
+            working_v_gates = self._triangle_tuple
 
         for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
             for y, view in iter_rows:
@@ -623,7 +687,7 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
                     step_result_horizontal = _two_site_workhorse(
                         density_matrix_left,
                         density_matrix_right,
-                        self._triangle_tuple,
+                        working_h_gates,
                         result_type is jnp.float64,
                     )
 
@@ -642,7 +706,7 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
                     step_result_vertical = _two_site_workhorse(
                         density_matrix_top,
                         density_matrix_bottom,
-                        self._triangle_tuple,
+                        working_v_gates,
                         result_type is jnp.float64,
                     )
 

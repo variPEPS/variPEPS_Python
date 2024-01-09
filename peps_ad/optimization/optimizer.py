@@ -1,3 +1,4 @@
+import collections
 from collections import deque
 from functools import partial
 from os import PathLike
@@ -234,16 +235,28 @@ def optimize_peps_network(
     rng = PEPS_Random_Number_Generator.get_generator(backend="jax")
 
     def random_noise(a):
-        return a + a * rng.block(a.shape, dtype=a.dtype) * 1e-3
+        return a + a * rng.block(a.shape, dtype=a.dtype) * 1e-1
 
     if isinstance(input_tensors, PEPS_Unit_Cell):
         working_tensors = cast(
             List[jnp.ndarray], [i.tensor for i in input_tensors.get_unique_tensors()]
         )
         working_unitcell = input_tensors
+        generate_unitcell = True
     else:
-        working_tensors = input_tensors
-        working_unitcell = None
+        if isinstance(input_tensors, collections.abc.Sequence) and isinstance(
+            input_tensors[0], PEPS_Unit_Cell
+        ):
+            working_tensors = cast(
+                List[jnp.ndarray],
+                [i.tensor for i in input_tensors[0].get_unique_tensors()],
+            ) + list(input_tensors[1:])
+            working_unitcell = input_tensors[0]
+            generate_unitcell = True
+        else:
+            working_tensors = input_tensors
+            working_unitcell = None
+            generate_unitcell = False
 
     old_gradient = None
     old_descent_dir = None
@@ -259,6 +272,15 @@ def optimize_peps_network(
     random_noise_retries = 0
 
     signal_reset_descent_dir = False
+
+    spiral_indices = None
+    if hasattr(expectation_func, "is_spiral_peps") and expectation_func.is_spiral_peps:
+        if isinstance(input_tensors, collections.abc.Sequence) and isinstance(
+            input_tensors[0], PEPS_Unit_Cell
+        ):
+            spiral_indices = list(range(1, len(input_tensors)))
+        else:
+            raise NotImplementedError("Only support spiral PEPS for unitcell input yet")
 
     if peps_ad_config.optimizer_method is Optimizing_Methods.BFGS:
         bfgs_prefactor = 2 if any(jnp.iscomplexobj(t) for t in working_tensors) else 1
@@ -398,6 +420,8 @@ def optimize_peps_network(
                     working_value,
                     linesearch_step,
                     convert_to_unitcell_func,
+                    generate_unitcell,
+                    spiral_indices,
                 )
             except NoSuitableStepSizeError:
                 if peps_ad_config.optimizer_fail_if_no_step_size_found:
@@ -420,10 +444,19 @@ def optimize_peps_network(
                             best_tensors = working_tensors
                             best_unitcell = working_unitcell
 
-                        if isinstance(input_tensors, PEPS_Unit_Cell):
-                            working_tensors = cast(
-                                List[jnp.ndarray],
-                                [i.tensor for i in best_unitcell.get_unique_tensors()],
+                        if isinstance(input_tensors, PEPS_Unit_Cell) or (
+                            isinstance(input_tensors, collections.abc.Sequence)
+                            and isinstance(input_tensors[0], PEPS_Unit_Cell)
+                        ):
+                            working_tensors = (
+                                cast(
+                                    List[jnp.ndarray],
+                                    [
+                                        i.tensor
+                                        for i in best_unitcell.get_unique_tensors()
+                                    ],
+                                )
+                                + best_tensors[best_unitcell.get_len_unique_tensors() :]
                             )
 
                             working_tensors = [random_noise(i) for i in working_tensors]

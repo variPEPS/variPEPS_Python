@@ -1,16 +1,22 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 import jax.numpy as jnp
 
 from peps_ad.peps import PEPS_Unit_Cell
 
-from typing import Sequence, Union, List
+from typing import Sequence, Union, List, Optional
 
 
+@dataclass
 class Expectation_Model(ABC):
     """
     Abstract model of an general expectation value calculated for the complete
     unit cell.
+
+    Parameters:
+      is_spiral_peps (:obj:`bool`):
+        Flag if the expectation value is for a spiral iPEPS ansatz.
     """
 
     @abstractmethod
@@ -18,6 +24,7 @@ class Expectation_Model(ABC):
         self,
         peps_tensors: Sequence[jnp.ndarray],
         unitcell: PEPS_Unit_Cell,
+        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
         *,
         normalize_by_size: bool = True,
         only_unique: bool = True,
@@ -31,6 +38,9 @@ class Expectation_Model(ABC):
             The sequence of unique PEPS tensors in the unitcell.
           unitcell (:obj:`~peps_ad.peps.PEPS_Unit_Cell`):
             The PEPS unitcell.
+          spiral_vectors (single or :term:`sequence` of :obj:`jax.numpy.ndarray`):
+            If the expectation value is for a spiral iPEPS ansatz, in this
+            argument the q vectors are expected.
         Keyword args:
           normalize_by_size (:obj:`bool`):
             Flag if the expectation value should be normalized by the number

@@ -15,16 +15,27 @@ def _map_tensors(
     input_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
     convert_to_unitcell_func: Optional[Map_To_PEPS_Model],
+    is_spiral_peps: bool = False,
 ) -> Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell]:
     if convert_to_unitcell_func is not None:
         if unitcell is None:
-            peps_tensors, unitcell = convert_to_unitcell_func(
-                input_tensors, generate_unitcell=True
-            )
+            if is_spiral_peps:
+                peps_tensors, unitcell, spiral_vectors = convert_to_unitcell_func(
+                    input_tensors, generate_unitcell=True
+                )
+            else:
+                peps_tensors, unitcell = convert_to_unitcell_func(
+                    input_tensors, generate_unitcell=True
+                )
         else:
-            peps_tensors = convert_to_unitcell_func(
-                input_tensors, generate_unitcell=False
-            )
+            if is_spiral_peps:
+                peps_tensors, spiral_vectors = convert_to_unitcell_func(
+                    input_tensors, generate_unitcell=False
+                )
+            else:
+                peps_tensors = convert_to_unitcell_func(
+                    input_tensors, generate_unitcell=False
+                )
             old_tensors = unitcell.get_unique_tensors()
             if not all(
                 jnp.allclose(ti, tj_obj.tensor)
@@ -44,6 +55,8 @@ def _map_tensors(
     else:
         peps_tensors = input_tensors
 
+    if is_spiral_peps:
+        return peps_tensors, unitcell, spiral_vectors
     return peps_tensors, unitcell
 
 
@@ -77,9 +90,14 @@ def calc_ctmrg_expectation(
       :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         Tuple consisting of the calculated expectation value and the new unitcell.
     """
-    peps_tensors, unitcell = _map_tensors(
-        input_tensors, unitcell, convert_to_unitcell_func
-    )
+    if expectation_func.is_spiral_peps:
+        peps_tensors, unitcell, spiral_vectors = _map_tensors(
+            input_tensors, unitcell, convert_to_unitcell_func, True
+        )
+    else:
+        peps_tensors, unitcell = _map_tensors(
+            input_tensors, unitcell, convert_to_unitcell_func, False
+        )
 
     new_unitcell, max_trunc_error = calc_ctmrg_env(
         peps_tensors,
@@ -87,6 +105,13 @@ def calc_ctmrg_expectation(
         enforce_elementwise_convergence=enforce_elementwise_convergence,
     )
 
+    if expectation_func.is_spiral_peps:
+        return cast(
+            jnp.ndarray, expectation_func(peps_tensors, new_unitcell, spiral_vectors)
+        ), (
+            new_unitcell,
+            max_trunc_error,
+        )
     return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), (
         new_unitcell,
         max_trunc_error,
@@ -136,9 +161,14 @@ def calc_preconverged_ctmrg_value_and_grad(
         unitcell.
         2. The calculated gradient.
     """
-    peps_tensors, unitcell = _map_tensors(
-        input_tensors, unitcell, convert_to_unitcell_func
-    )
+    if expectation_func.is_spiral_peps:
+        peps_tensors, unitcell, spiral_vectors = _map_tensors(
+            input_tensors, unitcell, convert_to_unitcell_func, True
+        )
+    else:
+        peps_tensors, unitcell = _map_tensors(
+            input_tensors, unitcell, convert_to_unitcell_func, False
+        )
 
     if calc_preconverged:
         preconverged_unitcell, _ = calc_ctmrg_env(
@@ -185,12 +215,24 @@ def calc_ctmrg_expectation_custom(
       :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         Tuple consisting of the calculated expectation value and the new unitcell.
     """
-    peps_tensors, unitcell = _map_tensors(
-        input_tensors, unitcell, convert_to_unitcell_func
-    )
+    if expectation_func.is_spiral_peps:
+        peps_tensors, unitcell, spiral_vectors = _map_tensors(
+            input_tensors, unitcell, convert_to_unitcell_func, True
+        )
+    else:
+        peps_tensors, unitcell = _map_tensors(
+            input_tensors, unitcell, convert_to_unitcell_func, False
+        )
 
     new_unitcell, max_trunc_error = calc_ctmrg_env_custom_rule(peps_tensors, unitcell)
 
+    if expectation_func.is_spiral_peps:
+        return cast(
+            jnp.ndarray, expectation_func(peps_tensors, new_unitcell, spiral_vectors)
+        ), (
+            new_unitcell,
+            max_trunc_error,
+        )
     return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), (
         new_unitcell,
         max_trunc_error,
