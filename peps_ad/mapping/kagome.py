@@ -688,3 +688,158 @@ class iPESS3_9Sites_Three_PEPS_Site:
             (peps_tensor_obj_1, peps_tensor_obj_2, peps_tensor_obj_3),
             ((0, 1, 2), (2, 0, 1), (1, 2, 0)),
         )
+
+
+@dataclass
+class Kagome_Upper_Right_Expectation_Value(Expectation_Model):
+    """
+    Class to calculate expectation values for a mapped Kagome 3-PESS
+    structure.
+
+    Args:
+      upward_triangle_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the upward
+        triangles.
+      downward_triangle_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the downward
+        triangles.
+      normalization_factor (:obj:`int`):
+        Factor which should be used to normalize the calculated values.
+        If for example three sites are mapped into one PEPS site this
+        should be 3.
+    """
+
+    upward_triangle_gates: Sequence[jnp.ndarray]
+    downward_triangle_gates: Sequence[jnp.ndarray]
+    normalization_factor: int = 3
+    operation_before_sum: Optional[Callable[[T_float_complex], T_float_complex]] = None
+
+    def __post_init__(self) -> None:
+        if (
+            len(self.upward_triangle_gates) > 0
+            and len(self.downward_triangle_gates) > 0
+            and len(self.upward_triangle_gates) != len(self.downward_triangle_gates)
+        ):
+            raise ValueError("Length of upward and downward gates mismatch.")
+
+    def __call__(
+        self,
+        peps_tensors: Sequence[jnp.ndarray],
+        unitcell: PEPS_Unit_Cell,
+        *,
+        normalize_by_size: bool = True,
+        only_unique: bool = True,
+    ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
+        result_type = (
+            jnp.float64
+            if all(jnp.allclose(g, jnp.real(g)) for g in self.upward_triangle_gates)
+            and all(jnp.allclose(g, jnp.real(g)) for g in self.downward_triangle_gates)
+            else jnp.complex128
+        )
+        result = [
+            jnp.array(0, dtype=result_type)
+            for _ in range(
+                max(
+                    len(self.upward_triangle_gates),
+                    len(self.downward_triangle_gates),
+                )
+            )
+        ]
+
+        for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
+            for y, view in iter_rows:
+                if len(self.upward_triangle_gates) > 0:
+                    upward_tensors = peps_tensors[view.get_indices((0, 0))[0][0]]
+                    upward_tensor_objs = view[0, 0][0][0]
+
+                    step_result_upward = calc_one_site_multi_gates(
+                        upward_tensors,
+                        upward_tensor_objs,
+                        self.upward_triangle_gates,
+                    )
+
+                    for sr_i, sr in enumerate(step_result_upward):
+                        if self.operation_before_sum is not None:
+                            sr = self.operation_before_sum(sr)
+                        result[sr_i] += sr
+
+                if len(self.downward_triangle_gates) > 0:
+                    downward_tensors_i = view.get_indices(
+                        (slice(0, 2, None), slice(0, 2, None))
+                    )
+                    downward_tensors = [
+                        peps_tensors[i] for j in downward_tensors_i for i in j
+                    ]
+                    downward_tensor_objs = [t for tl in view[:2, :2] for t in tl]
+
+                    for ti in [0, 1, 3]:
+                        t = downward_tensors[ti]
+                        new_d = round(t.shape[2] ** (1 / 3))
+                        downward_tensors[ti] = t.reshape(
+                            t.shape[0],
+                            t.shape[1],
+                            new_d,
+                            new_d,
+                            new_d,
+                            t.shape[3],
+                            t.shape[4],
+                        )
+
+                    density_matrix_top_left = apply_contraction(
+                        "kagome_downward_triangle_top_left",
+                        [downward_tensors[0]],
+                        [downward_tensor_objs[0]],
+                        [],
+                        disable_identity_check=True,
+                    )
+
+                    density_matrix_top_right = apply_contraction(
+                        "kagome_downward_triangle_top_right",
+                        [downward_tensors[1]],
+                        [downward_tensor_objs[1]],
+                        [],
+                        disable_identity_check=True,
+                    )
+
+                    traced_density_matrix_bottom_left = apply_contraction(
+                        "ctmrg_bottom_left",
+                        [downward_tensors[2]],
+                        [downward_tensor_objs[2]],
+                        [],
+                    )
+
+                    density_matrix_bottom_right = apply_contraction(
+                        "kagome_downward_triangle_bottom_right",
+                        [downward_tensors[3]],
+                        [downward_tensor_objs[3]],
+                        [],
+                        disable_identity_check=True,
+                    )
+
+                    step_result_downward = _three_site_triangle_workhorse(
+                        density_matrix_top_left,
+                        density_matrix_top_right,
+                        traced_density_matrix_bottom_left,
+                        density_matrix_bottom_right,
+                        tuple(self.downward_triangle_gates),
+                        "bottom-left",
+                        result_type is jnp.float64,
+                    )
+
+                    for sr_i, sr in enumerate(step_result_downward):
+                        if self.operation_before_sum is not None:
+                            sr = self.operation_before_sum(sr)
+                        result[sr_i] += sr
+
+        if normalize_by_size:
+            if only_unique:
+                size = unitcell.get_len_unique_tensors()
+            else:
+                size = unitcell.get_size()[0] * unitcell.get_size()[1]
+            size = size * self.normalization_factor
+            result = [r / size for r in result]
+
+        if len(result) == 1:
+            return result[0]
+        else:
+            return result

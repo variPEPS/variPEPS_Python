@@ -685,6 +685,19 @@ class Definitions:
         ],
     }
 
+    kagome_downward_triangle_top_left: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T4", "C1", "T1"]],
+        "network": [
+            [
+                (3, -4, 7, 8, -1, -7, 4),  # tensor
+                (5, -5, 7, 8, -2, -8, 6),  # tensor_conj
+                (-3, 5, 3, 1),  # T4
+                (1, 2),  # C1
+                (2, 4, 6, -6),  # T1
+            ]
+        ],
+    }
+
     kagome_downward_triangle_top_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T1", "C2", "T2"]],
         "network": [
