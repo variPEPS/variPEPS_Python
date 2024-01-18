@@ -184,6 +184,54 @@ def maple_leaf_density_matrix_diagonal(
     return density_top_left, density_bottom_right
 
 
+def get_onsite_gates(g_e, b_e, r_e, d):
+    Id_other_sites = jnp.eye(d**4)
+
+    green_12 = jnp.kron(g_e, Id_other_sites)
+
+    green_34 = green_12.reshape(d, d, d, d, d, d, d, d, d, d, d, d)
+    green_34 = green_34.transpose((2, 3, 0, 1, 4, 5, 8, 9, 6, 7, 10, 11))
+    green_34 = green_34.reshape(d**6, d**6)
+
+    green_56 = jnp.kron(Id_other_sites, g_e)
+
+    blue_base = jnp.kron(b_e, Id_other_sites)
+    blue_base = blue_base.reshape(d, d, d, d, d, d, d, d, d, d, d, d)
+
+    blue_15 = blue_base.transpose((0, 2, 3, 4, 1, 5, 6, 8, 9, 10, 7, 11))
+    blue_15 = blue_15.reshape(d**6, d**6)
+
+    blue_23 = blue_base.transpose((2, 0, 1, 3, 4, 5, 8, 6, 7, 9, 10, 11))
+    blue_23 = blue_23.reshape(d**6, d**6)
+
+    blue_46 = blue_base.transpose((2, 3, 4, 0, 5, 1, 8, 9, 10, 6, 11, 7))
+    blue_46 = blue_46.reshape(d**6, d**6)
+
+    red_base = jnp.kron(r_e, Id_other_sites)
+    red_base = red_base.reshape(d, d, d, d, d, d, d, d, d, d, d, d)
+
+    red_24 = red_base.transpose((2, 0, 3, 1, 4, 5, 8, 6, 9, 7, 10, 11))
+    red_24 = red_24.reshape(d**6, d**6)
+
+    red_25 = red_base.transpose((2, 0, 3, 4, 1, 5, 8, 6, 9, 10, 7, 11))
+    red_25 = red_25.reshape(d**6, d**6)
+
+    red_45 = red_base.transpose((2, 3, 4, 0, 1, 5, 8, 9, 10, 6, 7, 11))
+    red_45 = red_45.reshape(d**6, d**6)
+
+    return (
+        green_12,
+        green_34,
+        green_56,
+        blue_15,
+        blue_23,
+        blue_46,
+        red_24,
+        red_25,
+        red_45,
+    )
+
+
 @partial(jit, static_argnums=(3, 4))
 def _calc_onsite_gate(
     green_gates: Sequence[jnp.ndarray],
@@ -194,42 +242,20 @@ def _calc_onsite_gate(
 ):
     result = [None] * result_length
 
-    Id_other_sites = jnp.eye(d**4)
-
     for i, (g_e, b_e, r_e) in enumerate(
         jax.util.safe_zip(green_gates, blue_gates, red_gates)
     ):
-        green_12 = jnp.kron(g_e, Id_other_sites)
-
-        green_34 = green_12.reshape(d, d, d, d, d, d, d, d, d, d, d, d)
-        green_34 = green_34.transpose((2, 3, 0, 1, 4, 5, 8, 9, 6, 7, 10, 11))
-        green_34 = green_34.reshape(d**6, d**6)
-
-        green_56 = jnp.kron(Id_other_sites, g_e)
-
-        blue_base = jnp.kron(b_e, Id_other_sites)
-        blue_base = blue_base.reshape(d, d, d, d, d, d, d, d, d, d, d, d)
-
-        blue_15 = blue_base.transpose((0, 2, 3, 4, 1, 5, 6, 8, 9, 10, 7, 11))
-        blue_15 = blue_15.reshape(d**6, d**6)
-
-        blue_23 = blue_base.transpose((2, 0, 1, 3, 4, 5, 8, 6, 7, 9, 10, 11))
-        blue_23 = blue_23.reshape(d**6, d**6)
-
-        blue_46 = blue_base.transpose((2, 3, 4, 0, 5, 1, 8, 9, 10, 6, 11, 7))
-        blue_46 = blue_46.reshape(d**6, d**6)
-
-        red_base = jnp.kron(r_e, Id_other_sites)
-        red_base = red_base.reshape(d, d, d, d, d, d, d, d, d, d, d, d)
-
-        red_24 = red_base.transpose((2, 0, 3, 1, 4, 5, 8, 6, 9, 7, 10, 11))
-        red_24 = red_24.reshape(d**6, d**6)
-
-        red_25 = red_base.transpose((2, 0, 3, 4, 1, 5, 8, 6, 9, 10, 7, 11))
-        red_25 = red_25.reshape(d**6, d**6)
-
-        red_45 = red_base.transpose((2, 3, 4, 0, 1, 5, 8, 9, 10, 6, 7, 11))
-        red_45 = red_45.reshape(d**6, d**6)
+        (
+            green_12,
+            green_34,
+            green_56,
+            blue_15,
+            blue_23,
+            blue_46,
+            red_24,
+            red_25,
+            red_45,
+        ) = get_onsite_gates(g_e, b_e, r_e, d)
 
         result[i] = (
             green_12
@@ -246,6 +272,19 @@ def _calc_onsite_gate(
     return result
 
 
+def get_right_gates(b_e, r_e, d):
+    Id_other_site = jnp.eye(d)
+
+    red_61 = jnp.kron(r_e, Id_other_site)
+
+    blue_62 = jnp.kron(b_e, Id_other_site)
+    blue_62 = blue_62.reshape(d, d, d, d, d, d)
+    blue_62 = blue_62.transpose((0, 2, 1, 3, 5, 4))
+    blue_62 = blue_62.reshape(d**3, d**3)
+
+    return red_61, blue_62
+
+
 @partial(jit, static_argnums=(2, 3))
 def _calc_right_gate(
     blue_gates: Sequence[jnp.ndarray],
@@ -255,19 +294,25 @@ def _calc_right_gate(
 ):
     result = [None] * result_length
 
-    Id_other_site = jnp.eye(d)
-
     for i, (b_e, r_e) in enumerate(jax.util.safe_zip(blue_gates, red_gates)):
-        red_61 = jnp.kron(r_e, Id_other_site)
-
-        blue_62 = jnp.kron(b_e, Id_other_site)
-        blue_62 = blue_62.reshape(d, d, d, d, d, d)
-        blue_62 = blue_62.transpose((0, 2, 1, 3, 5, 4))
-        blue_62 = blue_62.reshape(d**3, d**3)
+        red_61, blue_62 = get_right_gates(b_e, r_e, d)
 
         result[i] = red_61 + blue_62
 
     return result
+
+
+def get_down_gates(b_e, r_e, d):
+    Id_other_site = jnp.eye(d)
+
+    blue_35 = jnp.kron(b_e, Id_other_site)
+
+    red_36 = jnp.kron(r_e, Id_other_site)
+    red_36 = red_36.reshape(d, d, d, d, d, d)
+    red_36 = red_36.transpose((0, 2, 1, 3, 5, 4))
+    red_36 = red_36.reshape(d**3, d**3)
+
+    return blue_35, red_36
 
 
 @partial(jit, static_argnums=(2, 3))
@@ -279,19 +324,25 @@ def _calc_down_gate(
 ):
     result = [None] * result_length
 
-    Id_other_site = jnp.eye(d)
-
     for i, (b_e, r_e) in enumerate(jax.util.safe_zip(blue_gates, red_gates)):
-        blue_35 = jnp.kron(b_e, Id_other_site)
-
-        red_36 = jnp.kron(r_e, Id_other_site)
-        red_36 = red_36.reshape(d, d, d, d, d, d)
-        red_36 = red_36.transpose((0, 2, 1, 3, 5, 4))
-        red_36 = red_36.reshape(d**3, d**3)
+        blue_35, red_36 = get_down_gates(b_e, r_e, d)
 
         result[i] = blue_35 + red_36
 
     return result
+
+
+def get_diagonal_gates(b_e, r_e, d):
+    Id_other_site = jnp.eye(d)
+
+    blue_41 = jnp.kron(Id_other_site, b_e)
+
+    red_31 = jnp.kron(r_e, Id_other_site)
+    red_31 = red_31.reshape(d, d, d, d, d, d)
+    red_31 = red_31.transpose((0, 2, 1, 3, 5, 4))
+    red_31 = red_31.reshape(d**3, d**3)
+
+    return blue_41, red_31
 
 
 @partial(jit, static_argnums=(2, 3))
@@ -303,15 +354,8 @@ def _calc_diagonal_gate(
 ):
     result = [None] * result_length
 
-    Id_other_site = jnp.eye(d)
-
     for i, (b_e, r_e) in enumerate(jax.util.safe_zip(blue_gates, red_gates)):
-        blue_41 = jnp.kron(Id_other_site, b_e)
-
-        red_31 = jnp.kron(r_e, Id_other_site)
-        red_31 = red_31.reshape(d, d, d, d, d, d)
-        red_31 = red_31.transpose((0, 2, 1, 3, 5, 4))
-        red_31 = red_31.reshape(d**3, d**3)
+        blue_41, red_31 = get_diagonal_gates(b_e, r_e, d)
 
         result[i] = blue_41 + red_31
 
@@ -425,6 +469,15 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                     spiral_vectors,
                     spiral_vectors,
                     spiral_vectors,
+                )
+            if len(spiral_vectors) == 1:
+                spiral_vectors = (
+                    spiral_vectors[0],
+                    spiral_vectors[0],
+                    None,
+                    None,
+                    spiral_vectors[0],
+                    spiral_vectors[0],
                 )
             if len(spiral_vectors) == 4:
                 spiral_vectors = (
