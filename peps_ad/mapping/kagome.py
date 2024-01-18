@@ -8,7 +8,7 @@ import h5py
 
 import peps_ad.config
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
-from peps_ad.contractions import apply_contraction
+from peps_ad.contractions import apply_contraction, apply_contraction_jitted
 from peps_ad.expectation.model import Expectation_Model
 from peps_ad.expectation.one_site import calc_one_site_multi_gates
 from peps_ad.expectation.three_sites import _three_site_triangle_workhorse
@@ -843,3 +843,89 @@ class Kagome_Upper_Right_Expectation_Value(Expectation_Model):
             return result[0]
         else:
             return result
+
+
+@jit
+def _kagome_mapping_workhorse_upper_triangle(
+    up: jnp.ndarray,
+    down: jnp.ndarray,
+    site_1: jnp.ndarray,
+    site_2: jnp.ndarray,
+    site_3: jnp.ndarray,
+):
+    peps_tensor = apply_contraction_jitted(
+        "kagome_pess_mapping_upper_triangle",
+        [],
+        [],
+        [up, down, site_1, site_2, site_3],
+    )
+
+    return peps_tensor.reshape(
+        peps_tensor.shape[0],
+        peps_tensor.shape[1],
+        -1,
+        peps_tensor.shape[5],
+        peps_tensor.shape[6],
+    )
+
+
+@dataclass
+class Kagome_Map_PESS3_To_Single_PEPS_Site_Upper_Triangle(Map_To_PEPS_Model):
+    """
+    Map a 3-site Kagome iPESS unit cell to a iPEPS structure.
+
+    Create a PEPS unitcell from a Kagome 3-PESS structure. To this end, the
+    two simplex tensor and all three sites are mapped into PEPS sites.
+
+    The axes of the simplex tensors are expected to be in the order:
+    - Up: PESS site 1, PESS site 2, PESS site 3
+    - Down: PESS site 3, PESS site 2, PESS site 1
+
+    The axes of the site tensors are expected to be in the order
+    `connection to down simplex, physical bond, connection to up simplex`.
+
+    The PESS structure is contracted in the way that all site tensors are
+    connected to the up simplex and the down simplex to site 2.
+    """
+
+    unitcell_structure: Sequence[Sequence[int]]
+    chi: int
+    max_chi: Optional[int] = None
+
+    def __call__(
+        self,
+        input_tensors: Sequence[jnp.ndarray],
+        *,
+        generate_unitcell: bool = True,
+    ) -> Union[List[jnp.ndarray], Tuple[List[jnp.ndarray], PEPS_Unit_Cell]]:
+        num_peps_sites = len(input_tensors) // 5
+        if num_peps_sites * 5 != len(input_tensors):
+            raise ValueError(
+                "Input tensors seems not be a list for a square Kagome simplex system."
+            )
+
+        peps_tensors = [
+            _kagome_mapping_workhorse_upper_triangle(
+                *(input_tensors[(i * 5) : (i * 5 + 5)])
+            )
+            for i in range(num_peps_sites)
+        ]
+
+        if generate_unitcell:
+            peps_tensor_objs = [
+                PEPS_Tensor.from_tensor(
+                    i,
+                    i.shape[2],
+                    (i.shape[0], i.shape[1], i.shape[3], i.shape[4]),
+                    self.chi,
+                    self.max_chi,
+                )
+                for i in peps_tensors
+            ]
+            unitcell = PEPS_Unit_Cell.from_tensor_list(
+                peps_tensor_objs, self.unitcell_structure
+            )
+
+            return peps_tensors, unitcell
+
+        return peps_tensors

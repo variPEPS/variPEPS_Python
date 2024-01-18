@@ -737,6 +737,17 @@ class Definitions:
         ],
     }
 
+    kagome_pess_mapping_upper_triangle: Definition = {
+        "tensors": ["up", "down", "site_1", "site_2", "site_3"],
+        "network": [
+            [1, 2, 3],  # up
+            [-1, 4, -2],  # down
+            [-7, -3, 1],  # site_1
+            [4, -4, 2],  # site_2
+            [-6, -5, 3],  # site_3
+        ],
+    }
+
     honeycomb_density_matrix_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "C1", "T1", "T3", "C4", "T4"]],
         "network": [
