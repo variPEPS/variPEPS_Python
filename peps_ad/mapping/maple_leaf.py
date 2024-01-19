@@ -242,6 +242,8 @@ def _calc_onsite_gate(
 ):
     result = [None] * result_length
 
+    single_gates = [None] * result_length
+
     for i, (g_e, b_e, r_e) in enumerate(
         jax.util.safe_zip(green_gates, blue_gates, red_gates)
     ):
@@ -269,7 +271,19 @@ def _calc_onsite_gate(
             + red_45
         )
 
-    return result
+        single_gates[i] = (
+            green_12,
+            green_34,
+            green_56,
+            blue_15,
+            blue_23,
+            blue_46,
+            red_24,
+            red_25,
+            red_45,
+        )
+
+    return result, single_gates
 
 
 def get_right_gates(b_e, r_e, d):
@@ -294,12 +308,16 @@ def _calc_right_gate(
 ):
     result = [None] * result_length
 
+    single_gates = [None] * result_length
+
     for i, (b_e, r_e) in enumerate(jax.util.safe_zip(blue_gates, red_gates)):
         red_61, blue_62 = get_right_gates(b_e, r_e, d)
 
         result[i] = red_61 + blue_62
 
-    return result
+        single_gates[i] = (red_61, blue_62)
+
+    return result, single_gates
 
 
 def get_down_gates(b_e, r_e, d):
@@ -324,12 +342,16 @@ def _calc_down_gate(
 ):
     result = [None] * result_length
 
+    single_gates = [None] * result_length
+
     for i, (b_e, r_e) in enumerate(jax.util.safe_zip(blue_gates, red_gates)):
         blue_35, red_36 = get_down_gates(b_e, r_e, d)
 
         result[i] = blue_35 + red_36
 
-    return result
+        single_gates[i] = (blue_35, red_36)
+
+    return result, single_gates
 
 
 def get_diagonal_gates(b_e, r_e, d):
@@ -354,12 +376,16 @@ def _calc_diagonal_gate(
 ):
     result = [None] * result_length
 
+    single_gates = [None] * result_length
+
     for i, (b_e, r_e) in enumerate(jax.util.safe_zip(blue_gates, red_gates)):
         blue_41, red_31 = get_diagonal_gates(b_e, r_e, d)
 
         result[i] = blue_41 + red_31
 
-    return result
+        single_gates[i] = (blue_41, red_31)
+
+    return result, single_gates
 
 
 @dataclass
@@ -399,41 +425,45 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
         ):
             raise ValueError("Lengths of gate lists mismatch.")
 
-        self._full_onsite_tuple = tuple(
-            _calc_onsite_gate(
-                self.green_gates,
-                self.blue_gates,
-                self.red_gates,
-                self.real_d,
-                len(self.green_gates),
-            )
+        tmp_result = _calc_onsite_gate(
+            self.green_gates,
+            self.blue_gates,
+            self.red_gates,
+            self.real_d,
+            len(self.green_gates),
+        )
+        self._full_onsite_tuple, self._onsite_single_gates = tuple(
+            tmp_result[0]
+        ), tuple(tmp_result[1])
+
+        tmp_result = _calc_right_gate(
+            self.blue_gates,
+            self.red_gates,
+            self.real_d,
+            len(self.blue_gates),
+        )
+        self._right_tuple, self._right_single_gates = tuple(tmp_result[0]), tuple(
+            tmp_result[1]
         )
 
-        self._right_tuple = tuple(
-            _calc_right_gate(
-                self.blue_gates,
-                self.red_gates,
-                self.real_d,
-                len(self.blue_gates),
-            )
+        tmp_result = _calc_down_gate(
+            self.blue_gates,
+            self.red_gates,
+            self.real_d,
+            len(self.blue_gates),
+        )
+        self._down_tuple, self._down_single_gates = tuple(tmp_result[0]), tuple(
+            tmp_result[1]
         )
 
-        self._down_tuple = tuple(
-            _calc_down_gate(
-                self.blue_gates,
-                self.red_gates,
-                self.real_d,
-                len(self.blue_gates),
-            )
+        tmp_result = _calc_diagonal_gate(
+            self.blue_gates,
+            self.red_gates,
+            self.real_d,
+            len(self.blue_gates),
         )
-
-        self._diagonal_tuple = tuple(
-            _calc_diagonal_gate(
-                self.blue_gates,
-                self.red_gates,
-                self.real_d,
-                len(self.blue_gates),
-            )
+        self._diagonal_tuple, self._diagonal_single_gates = tuple(tmp_result[0]), tuple(
+            tmp_result[1]
         )
 
         self._result_type = (
@@ -457,10 +487,16 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
         *,
         normalize_by_size: bool = True,
         only_unique: bool = True,
+        return_single_gate_results: bool = False,
     ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
         result = [
             jnp.array(0, dtype=self._result_type) for _ in range(len(self.green_gates))
         ]
+
+        if return_single_gate_results:
+            single_gates_result = [dict()] * len(self.green_gates)
+
+        working_onsite_gates = tuple(o for e in self._onsite_single_gates for o in e)
 
         if self.is_spiral_peps:
             if isinstance(spiral_vectors, jnp.ndarray):
@@ -530,10 +566,65 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                 )
                 for d in self._diagonal_tuple
             )
+
+            if return_single_gate_results:
+                working_h_single_gates = tuple(
+                    apply_unitary(
+                        h,
+                        jnp.array((0, 1)),
+                        spiral_vectors[:2],
+                        self._spiral_D,
+                        self._spiral_sigma,
+                        self.real_d,
+                        3,
+                        (1, 2),
+                    )
+                    for e in self._right_single_gates
+                    for h in e
+                )
+                working_v_single_gates = tuple(
+                    apply_unitary(
+                        v,
+                        jnp.array((1, 0)),
+                        spiral_vectors[4:],
+                        self._spiral_D,
+                        self._spiral_sigma,
+                        self.real_d,
+                        3,
+                        (1, 2),
+                    )
+                    for e in self._down_single_gates
+                    for v in e
+                )
+                working_d_single_gates = tuple(
+                    apply_unitary(
+                        d,
+                        jnp.array((1, 1)),
+                        spiral_vectors[:1],
+                        self._spiral_D,
+                        self._spiral_sigma,
+                        self.real_d,
+                        3,
+                        (2,),
+                    )
+                    for e in self._diagonal_single_gates
+                    for d in e
+                )
         else:
             working_h_gates = self._right_tuple
             working_v_gates = self._down_tuple
             working_d_gates = self._diagonal_tuple
+
+            if return_single_gate_results:
+                working_h_single_gates = tuple(
+                    h for e in self._right_single_gates for h in e
+                )
+                working_v_single_gates = tuple(
+                    v for e in self._down_single_gates for v in e
+                )
+                working_d_single_gates = tuple(
+                    d for e in self._diagonal_single_gates for d in e
+                )
 
         for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
             for y, view in iter_rows:
@@ -542,11 +633,18 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                     onsite_tensor = peps_tensors[view.get_indices((0, 0))[0][0]]
                     onsite_tensor_obj = view[0, 0][0][0]
 
-                    step_result_onsite = calc_one_site_multi_gates(
-                        onsite_tensor,
-                        onsite_tensor_obj,
-                        self._full_onsite_tuple,
-                    )
+                    if return_single_gate_results:
+                        step_result_onsite = calc_one_site_multi_gates(
+                            onsite_tensor,
+                            onsite_tensor_obj,
+                            self._full_onsite_tuple + working_onsite_gates,
+                        )
+                    else:
+                        step_result_onsite = calc_one_site_multi_gates(
+                            onsite_tensor,
+                            onsite_tensor_obj,
+                            self._full_onsite_tuple,
+                        )
 
                     horizontal_tensors_i = view.get_indices((0, slice(0, 2, None)))
                     horizontal_tensors = [
@@ -560,12 +658,20 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                         horizontal_tensors, horizontal_tensor_objs, ((6,), (1, 2))
                     )
 
-                    step_result_horizontal = _two_site_workhorse(
-                        density_matrix_left,
-                        density_matrix_right,
-                        working_h_gates,
-                        self._result_type is jnp.float64,
-                    )
+                    if return_single_gate_results:
+                        step_result_horizontal = _two_site_workhorse(
+                            density_matrix_left,
+                            density_matrix_right,
+                            working_h_gates + working_h_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_horizontal = _two_site_workhorse(
+                            density_matrix_left,
+                            density_matrix_right,
+                            working_h_gates,
+                            self._result_type is jnp.float64,
+                        )
 
                     vertical_tensors_i = view.get_indices((slice(0, 2, None), 0))
                     vertical_tensors = [
@@ -579,12 +685,20 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                         vertical_tensors, vertical_tensor_objs, ((3,), (5, 6))
                     )
 
-                    step_result_vertical = _two_site_workhorse(
-                        density_matrix_top,
-                        density_matrix_bottom,
-                        working_v_gates,
-                        self._result_type is jnp.float64,
-                    )
+                    if return_single_gate_results:
+                        step_result_vertical = _two_site_workhorse(
+                            density_matrix_top,
+                            density_matrix_bottom,
+                            working_v_gates + working_v_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_vertical = _two_site_workhorse(
+                            density_matrix_top,
+                            density_matrix_bottom,
+                            working_v_gates,
+                            self._result_type is jnp.float64,
+                        )
 
                     diagonal_tensors_i = view.get_indices(
                         (slice(0, 2, None), slice(0, 2, None))
@@ -616,24 +730,101 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                         [],
                     )
 
-                    step_result_diagonal = _two_site_diagonal_workhorse(
-                        density_matrix_top_left,
-                        density_matrix_bottom_right,
-                        traced_density_matrix_top_right,
-                        traced_density_matrix_bottom_left,
-                        working_d_gates,
-                        self._result_type is jnp.float64,
-                    )
+                    if return_single_gate_results:
+                        step_result_diagonal = _two_site_diagonal_workhorse(
+                            density_matrix_top_left,
+                            density_matrix_bottom_right,
+                            traced_density_matrix_top_right,
+                            traced_density_matrix_bottom_left,
+                            working_d_gates + working_d_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_diagonal = _two_site_diagonal_workhorse(
+                            density_matrix_top_left,
+                            density_matrix_bottom_right,
+                            traced_density_matrix_top_right,
+                            traced_density_matrix_bottom_left,
+                            working_d_gates,
+                            self._result_type is jnp.float64,
+                        )
 
                     for sr_i, (sr_o, sr_h, sr_v, sr_d) in enumerate(
                         jax.util.safe_zip(
-                            step_result_onsite,
-                            step_result_horizontal,
-                            step_result_vertical,
-                            step_result_diagonal,
+                            step_result_onsite[: len(self.green_gates)],
+                            step_result_horizontal[: len(self.green_gates)],
+                            step_result_vertical[: len(self.green_gates)],
+                            step_result_diagonal[: len(self.green_gates)],
                         )
                     ):
                         result[sr_i] += sr_o + sr_h + sr_v + sr_d
+
+                    if return_single_gate_results:
+                        for sr_i in range(len(self.green_gates)):
+                            index_onsite = (
+                                len(self.green_gates)
+                                + len(self._onsite_single_gates[0]) * sr_i
+                            )
+                            index_horizontal = (
+                                len(self.green_gates)
+                                + len(self._right_single_gates[0]) * sr_i
+                            )
+                            index_vertical = (
+                                len(self.green_gates)
+                                + len(self._down_single_gates[0]) * sr_i
+                            )
+                            index_diagonal = (
+                                len(self.green_gates)
+                                + len(self._diagonal_single_gates[0]) * sr_i
+                            )
+
+                            single_gates_result[sr_i][(x, y)] = dict(
+                                zip(
+                                    (
+                                        "green_12",
+                                        "green_34",
+                                        "green_56",
+                                        "blue_15",
+                                        "blue_23",
+                                        "blue_46",
+                                        "red_24",
+                                        "red_25",
+                                        "red_45",
+                                        "red_61",
+                                        "blue_62",
+                                        "blue_35",
+                                        "red_36",
+                                        "blue_41",
+                                        "red_31",
+                                    ),
+                                    (
+                                        step_result_onsite[
+                                            index_onsite : (
+                                                index_onsite
+                                                + len(self._onsite_single_gates[0])
+                                            )
+                                        ]
+                                        + step_result_horizontal[
+                                            index_horizontal : (
+                                                index_horizontal
+                                                + len(self._right_single_gates[0])
+                                            )
+                                        ]
+                                        + step_result_vertical[
+                                            index_vertical : (
+                                                index_vertical
+                                                + len(self._down_single_gates[0])
+                                            )
+                                        ]
+                                        + step_result_diagonal[
+                                            index_diagonal : (
+                                                index_diagonal
+                                                + len(self._diagonal_single_gates[0])
+                                            )
+                                        ]
+                                    ),
+                                )
+                            )
 
         if normalize_by_size:
             if only_unique:
@@ -644,7 +835,10 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
             result = [r / size for r in result]
 
         if len(result) == 1:
-            return result[0]
+            result = result[0]
+
+        if return_single_gate_results:
+            return result, single_gates_result
         else:
             return result
 
