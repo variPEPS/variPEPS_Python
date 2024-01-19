@@ -4,6 +4,7 @@ PEPS unit cell
 
 from __future__ import annotations
 
+import collections
 from dataclasses import dataclass
 import pathlib
 from os import PathLike
@@ -33,6 +34,7 @@ from typing import (
     Any,
     Iterator,
     Set,
+    Dict,
 )
 from peps_ad.typing import Tensor, is_int
 
@@ -700,7 +702,7 @@ class PEPS_Unit_Cell:
         self,
         path: PathLike,
         store_config: bool = True,
-        max_trunc_error_list: Optional[List[float]] = None,
+        auxiliary_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Save unit cell to a HDF5 file.
@@ -720,13 +722,28 @@ class PEPS_Unit_Cell:
 
             self.save_to_group(grp, store_config)
 
-            if max_trunc_error_list is not None:
-                f.create_dataset(
-                    "max_trunc_error_list",
-                    data=jnp.array(max_trunc_error_list),
-                    compression="gzip",
-                    compression_opts=6,
-                )
+            if auxiliary_data is not None:
+                grp_aux = f.create_group("auxiliary_data")
+
+                grp_aux.attrs["keys"] = list(auxiliary_data.keys())
+
+                for key, val in auxiliary_data.items():
+                    if key == "keys":
+                        raise ValueError(
+                            "Name 'keys' forbidden as name for auxiliary data"
+                        )
+
+                    if isinstance(
+                        val, (jnp.ndarray, np.ndarray, collections.abc.Sequence)
+                    ):
+                        grp_aux.create_dataset(
+                            key,
+                            data=jnp.asarray(val),
+                            compression="gzip",
+                            compression_opts=6,
+                        )
+                    else:
+                        grp_aux.attrs[key] = val
 
     def save_to_group(self, grp: h5py.Group, store_config: bool = True) -> None:
         """
@@ -788,7 +805,7 @@ class PEPS_Unit_Cell:
         cls: Type[T_PEPS_Unit_Cell],
         path: PathLike,
         return_config: bool = False,
-        return_max_trunc_error_list: bool = False,
+        return_auxiliary_data: bool = False,
     ) -> Union[
         T_PEPS_Unit_Cell, Tuple[T_PEPS_Unit_Cell, peps_ad.config.PEPS_AD_Config]
     ]:
@@ -809,16 +826,30 @@ class PEPS_Unit_Cell:
         """
         with h5py.File(path, "r") as f:
             out = cls.load_from_group(f["unitcell"], return_config)
-            max_trunc_error_list = f.get("max_trunc_error_list")
-            if max_trunc_error_list is not None:
-                max_trunc_error_list = jnp.asarray(max_trunc_error_list)
 
-        if return_config and return_max_trunc_error_list:
-            return out[0], out[1], max_trunc_error_list
+            auxiliary_data = {}
+            auxiliary_data_grp = f.get("auxiliary_data")
+            if auxiliary_data_grp is not None:
+                for k in auxiliary_data_grp.attrs["keys"]:
+                    aux_d = auxiliary_data_grp.get(k)
+                    if aux_d is None:
+                        aux_d = auxiliary_data_grp.attrs[k]
+                    else:
+                        aux_d = jnp.asarray(aux_d)
+                    auxiliary_data[k] = aux_d
+            else:
+                max_trunc_error_list = f.get("max_trunc_error_list")
+                if max_trunc_error_list is not None:
+                    auxiliary_data["max_trunc_error_list"] = jnp.asarray(
+                        max_trunc_error_list
+                    )
+
+        if return_config and return_auxiliary_data:
+            return out[0], out[1], auxiliary_data
         elif return_config:
             return out[0], out[1]
-        elif return_max_trunc_error_list:
-            return out, max_trunc_error_list
+        elif return_auxiliary_data:
+            return out, auxiliary_data
 
         return out
 

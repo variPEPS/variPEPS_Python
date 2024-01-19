@@ -28,7 +28,7 @@ from .inner_function import (
 )
 from .line_search import line_search, NoSuitableStepSizeError, _scalar_descent_grad
 
-from typing import List, Union, Tuple, cast, Sequence, Callable, Optional
+from typing import List, Union, Tuple, cast, Sequence, Callable, Optional, Dict, Any
 
 
 @jit
@@ -187,14 +187,14 @@ def autosave_function(
     tensors: jnp.ndarray,
     unitcell: PEPS_Unit_Cell,
     counter: Optional[int] = None,
-    max_trunc_error_list: Optional[float] = None,
+    auxiliary_data: Optional[Dict[str, Any]] = None,
 ) -> None:
     if counter is not None:
         unitcell.save_to_file(
-            f"{str(filename)}.{counter}", max_trunc_error_list=max_trunc_error_list
+            f"{str(filename)}.{counter}", auxiliary_data=auxiliary_data
         )
     else:
-        unitcell.save_to_file(filename, max_trunc_error_list=max_trunc_error_list)
+        unitcell.save_to_file(filename, auxiliary_data=auxiliary_data)
 
 
 def optimize_peps_network(
@@ -235,7 +235,7 @@ def optimize_peps_network(
     rng = PEPS_Random_Number_Generator.get_generator(backend="jax")
 
     def random_noise(a):
-        return a + a * rng.block(a.shape, dtype=a.dtype) * 1e-1
+        return a + a * rng.block(a.shape, dtype=a.dtype) * 5e-1
 
     if isinstance(input_tensors, PEPS_Unit_Cell):
         working_tensors = cast(
@@ -540,12 +540,22 @@ def optimize_peps_network(
             pbar.refresh()
 
             if count % peps_ad_config.optimizer_autosave_step_count == 0:
+                auxiliary_data = {
+                    "max_trunc_error_list": max_trunc_error_list,
+                }
+
+                if spiral_indices is not None:
+                    for spiral_i in spiral_indices:
+                        auxiliary_data[f"spiral_vector_{spiral_i:d}"] = working_tensors[
+                            spiral_i
+                        ]
+
                 autosave_func(
                     autosave_filename,
                     working_tensors,
                     working_unitcell,
                     counter=random_noise_retries,
-                    max_trunc_error_list=max_trunc_error_list,
+                    auxiliary_data=auxiliary_data,
                 )
 
     if working_value < best_value:
