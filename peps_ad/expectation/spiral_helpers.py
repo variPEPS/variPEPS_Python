@@ -28,6 +28,8 @@ def apply_unitary(
 
         if w_q.ndim == 0:
             w_q = jnp.array((w_q, w_q))
+        elif w_q.size == 1:
+            w_q = jnp.array((w_q[0], w_q[0]))
 
         w_q = w_q % 4 - 2
 

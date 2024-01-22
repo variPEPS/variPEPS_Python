@@ -736,6 +736,12 @@ class PEPS_Unit_Cell:
                     if isinstance(
                         val, (jnp.ndarray, np.ndarray, collections.abc.Sequence)
                     ):
+                        try:
+                            if val.ndim == 0:
+                                val = val.reshape(1)
+                        except AttributeError:
+                            pass
+
                         grp_aux.create_dataset(
                             key,
                             data=jnp.asarray(val),
