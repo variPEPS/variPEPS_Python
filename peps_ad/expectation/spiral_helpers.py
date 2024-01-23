@@ -1,5 +1,6 @@
 from functools import partial
 
+from peps_ad.config import Wavevector_Type
 import jax.numpy as jnp
 import jax.scipy as jsp
 from jax import jit
@@ -7,7 +8,7 @@ from jax import jit
 from typing import Sequence, Union
 
 
-@partial(jit, static_argnums=(5, 6, 7))
+@partial(jit, static_argnums=(5, 6, 7, 8))
 def apply_unitary(
     gate: jnp.ndarray,
     delta_r: jnp.ndarray,
@@ -17,6 +18,7 @@ def apply_unitary(
     phys_d: int,
     number_sites: int,
     apply_to_index: Sequence[int],
+    wavevector_type: Wavevector_Type,
 ):
     if len(q) != len(apply_to_index):
         raise ValueError("Length mismatch!")
@@ -31,7 +33,12 @@ def apply_unitary(
         elif w_q.size == 1:
             w_q = jnp.array((w_q[0], w_q[0]))
 
-        w_q = w_q % 4 - 2
+        if wavevector_type is Wavevector_Type.TWO_PI_POSITIVE_ONLY:
+            w_q = w_q % 2
+        elif wavevector_type is Wavevector_Type.TWO_PI_SYMMETRIC:
+            w_q = w_q % 4 - 2
+        else:
+            raise ValueError("Unknown wavevector type!")
 
         # U = jsp.linalg.expm(1j * jnp.pi * jnp.dot(w_q, delta_r) * unitary_operator)
         U = jnp.exp(1j * jnp.pi * jnp.dot(w_q, delta_r) * unitary_operator_D)

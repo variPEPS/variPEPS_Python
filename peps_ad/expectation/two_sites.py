@@ -464,6 +464,7 @@ class Two_Sites_Expectation_Value(Expectation_Model):
                     int(np.sqrt(h.shape[0])),
                     2,
                     (1,),
+                    peps_ad_config.spiral_wavevector_type,
                 )
                 for h in self.horizontal_gates
             ]
@@ -477,6 +478,7 @@ class Two_Sites_Expectation_Value(Expectation_Model):
                     int(np.sqrt(v.shape[0])),
                     2,
                     (1,),
+                    peps_ad_config.spiral_wavevector_type,
                 )
                 for v in self.vertical_gates
             ]

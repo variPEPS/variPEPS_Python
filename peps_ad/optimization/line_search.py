@@ -5,7 +5,7 @@ from jax import jit
 from jax.flatten_util import ravel_pytree
 
 from peps_ad import peps_ad_config
-from peps_ad.config import Line_Search_Methods
+from peps_ad.config import Line_Search_Methods, Wavevector_Type
 from peps_ad.ctmrg import CTMRGNotConvergedError, CTMRGGradientNotConvergedError
 from peps_ad.peps import PEPS_Unit_Cell
 from peps_ad.expectation import Expectation_Model
@@ -224,7 +224,18 @@ def line_search(
 
         if spiral_indices is not None:
             for i in spiral_indices:
-                new_tensors[i] = new_tensors[i] % 4 - 2
+                if (
+                    peps_ad_config.spiral_wavevector_type
+                    is Wavevector_Type.TWO_PI_POSITIVE_ONLY
+                ):
+                    new_tensors[i] = new_tensors[i] % 2
+                elif (
+                    peps_ad_config.spiral_wavevector_type
+                    is Wavevector_Type.TWO_PI_SYMMETRIC
+                ):
+                    new_tensors[i] = new_tensors[i] % 4 - 2
+                else:
+                    raise ValueError("Unknown wavevector type!")
 
         tqdm.write(str(new_tensors))
 

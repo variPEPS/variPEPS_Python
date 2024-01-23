@@ -8,6 +8,7 @@ import jax.numpy as jnp
 from jax import jit
 import jax.util
 
+from peps_ad import peps_ad_config
 import peps_ad.config
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
 from peps_ad.contractions import apply_contraction, Definitions
@@ -632,6 +633,7 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
                     self.real_d,
                     3,
                     (1, 2),
+                    peps_ad_config.spiral_wavevector_type,
                 )
                 for h in self._triangle_tuple
             )
@@ -645,6 +647,7 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
                     self.real_d,
                     3,
                     (1, 2),
+                    peps_ad_config.spiral_wavevector_type,
                 )
                 for v in self._triangle_tuple
             )

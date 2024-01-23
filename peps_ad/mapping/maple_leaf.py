@@ -8,6 +8,7 @@ import jax.numpy as jnp
 from jax import jit
 import jax.util
 
+from peps_ad import peps_ad_config
 import peps_ad.config
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
 from peps_ad.contractions import apply_contraction, Definitions
@@ -537,6 +538,7 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                     self.real_d,
                     3,
                     (1, 2),
+                    peps_ad_config.spiral_wavevector_type,
                 )
                 for h in self._right_tuple
             )
@@ -550,6 +552,7 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                     self.real_d,
                     3,
                     (1, 2),
+                    peps_ad_config.spiral_wavevector_type,
                 )
                 for v in self._down_tuple
             )
@@ -563,6 +566,7 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                     self.real_d,
                     3,
                     (2,),
+                    peps_ad_config.spiral_wavevector_type,
                 )
                 for d in self._diagonal_tuple
             )
@@ -578,6 +582,7 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                         self.real_d,
                         3,
                         (1, 2),
+                        peps_ad_config.spiral_wavevector_type,
                     )
                     for e in self._right_single_gates
                     for h in e
@@ -592,6 +597,7 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                         self.real_d,
                         3,
                         (1, 2),
+                        peps_ad_config.spiral_wavevector_type,
                     )
                     for e in self._down_single_gates
                     for v in e
@@ -606,6 +612,7 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                         self.real_d,
                         3,
                         (2,),
+                        peps_ad_config.spiral_wavevector_type,
                     )
                     for e in self._diagonal_single_gates
                     for d in e

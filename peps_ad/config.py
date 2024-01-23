@@ -30,6 +30,12 @@ class Projector_Method(IntEnum):
     FISHMAN = auto()  #: Use the Fishman method for projector calculation
 
 
+@unique
+class Wavevector_Type(IntEnum):
+    TWO_PI_POSITIVE_ONLY = auto()  #: Use interval [0, 2pi) for q vectors
+    TWO_PI_SYMMETRIC = auto()  #: Use interval [-2pi, 2pi) for q vectors
+
+
 @dataclass
 @register_pytree_node_class
 class PEPS_AD_Config:
@@ -153,6 +159,8 @@ class PEPS_AD_Config:
       basinhopping_niter_success (:obj:`int`):
         Value for parameter `niterniter_success` of
         :obj:`scipy.optimize.basinhopping`. See this function for details.
+      spiral_wavevector_type (:obj:`Wavevector_Type`):
+        Type of wavevector to be used (only positive/symmetric interval/...).
     """
 
     # AD config
@@ -211,6 +219,9 @@ class PEPS_AD_Config:
     basinhopping_niter: int = 20
     basinhopping_T: float = 0.001
     basinhopping_niter_success: int = 5
+
+    # Spiral PEPS
+    spiral_wavevector_type: Wavevector_Type = Wavevector_Type.TWO_PI_POSITIVE_ONLY
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
         aux_data = (
