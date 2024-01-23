@@ -237,8 +237,6 @@ def line_search(
                 else:
                     raise ValueError("Unknown wavevector type!")
 
-        tqdm.write(str(new_tensors))
-
         if convert_to_unitcell_func is None or generate_unitcell:
             unitcell_tensors = unitcell.get_unique_tensors()
             new_unitcell = unitcell.replace_unique_tensors(
