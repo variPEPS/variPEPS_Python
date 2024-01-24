@@ -49,6 +49,9 @@ class Kagome_PESS3_Expectation_Value(Expectation_Model):
     normalization_factor: int = 3
     operation_before_sum: Optional[Callable[[T_float_complex], T_float_complex]] = None
 
+    is_spiral_peps: bool = False
+    spiral_unitary_operator: Optional[jnp.ndarray] = None
+
     def __post_init__(self) -> None:
         if (
             len(self.upward_triangle_gates) > 0
@@ -57,13 +60,18 @@ class Kagome_PESS3_Expectation_Value(Expectation_Model):
         ):
             raise ValueError("Length of upward and downward gates mismatch.")
 
+        if self.is_spiral_peps:
+            raise NotImplementedError
+
     def __call__(
         self,
         peps_tensors: Sequence[jnp.ndarray],
         unitcell: PEPS_Unit_Cell,
+        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
         *,
         normalize_by_size: bool = True,
         only_unique: bool = True,
+        return_single_gate_results: bool = False,
     ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
         result_type = (
             jnp.float64

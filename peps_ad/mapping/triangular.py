@@ -52,13 +52,18 @@ class Triangular_Expectation_Value(Expectation_Model):
     nearest_neighbor_gates: Sequence[jnp.ndarray]
     normalization_factor: int = 1
 
+    is_spiral_peps: bool = False
+    spiral_unitary_operator: Optional[jnp.ndarray] = None
+
     def __call__(
         self,
         peps_tensors: Sequence[jnp.ndarray],
         unitcell: PEPS_Unit_Cell,
+        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
         *,
         normalize_by_size: bool = True,
         only_unique: bool = True,
+        return_single_gate_results: bool = False,
     ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
         result_type = (
             jnp.float64

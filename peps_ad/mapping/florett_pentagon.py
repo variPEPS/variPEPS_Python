@@ -732,6 +732,9 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
     real_d: int
     normalization_factor: int = 9
 
+    is_spiral_peps: bool = False
+    spiral_unitary_operator: Optional[jnp.ndarray] = None
+
     def __post_init__(self) -> None:
         if (len(self.green_gates) != len(self.blue_gates)) or (
             len(self.green_gates) != len(self.black_gates)
@@ -782,13 +785,18 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
             else jnp.complex128
         )
 
+        if self.is_spiral_peps:
+            raise NotImplementedError
+
     def __call__(
         self,
         peps_tensors: Sequence[jnp.ndarray],
         unitcell: PEPS_Unit_Cell,
+        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
         *,
         normalize_by_size: bool = True,
         only_unique: bool = True,
+        return_single_gate_results: bool = False,
     ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
         result = [
             jnp.array(0, dtype=self._result_type) for _ in range(len(self.black_gates))
