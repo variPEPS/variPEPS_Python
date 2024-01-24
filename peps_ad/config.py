@@ -135,6 +135,8 @@ class PEPS_AD_Config:
         gradient norm is below this threshold.
       optimizer_random_noise_max_retries (:obj:`int`):
         Maximal retries for optimization with random noise.
+      optimizer_random_noise_relative_amplitude (:obj:`float`):
+        Relative amplitude used for random noise.
       line_search_method (:obj:`Line_Search_Methods`):
         Method used for the line search routine.
       line_search_initial_step_size (:obj:`float`):
@@ -205,6 +207,7 @@ class PEPS_AD_Config:
     optimizer_autosave_step_count: int = 2
     optimizer_random_noise_eps: float = 1e-4
     optimizer_random_noise_max_retries: int = 5
+    optimizer_random_noise_relative_amplitude: float = 1e-1
 
     # Line search
     line_search_method: Line_Search_Methods = Line_Search_Methods.WOLFE

@@ -235,7 +235,12 @@ def optimize_peps_network(
     rng = PEPS_Random_Number_Generator.get_generator(backend="jax")
 
     def random_noise(a):
-        return a + a * rng.block(a.shape, dtype=a.dtype) * 5e-1
+        return (
+            a
+            + a
+            * rng.block(a.shape, dtype=a.dtype)
+            * peps_ad_config.optimizer_random_noise_relative_amplitude
+        )
 
     if isinstance(input_tensors, PEPS_Unit_Cell):
         working_tensors = cast(
