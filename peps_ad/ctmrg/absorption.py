@@ -202,6 +202,10 @@ def do_left_absorption(
                     [working_tensor_obj],
                     [T4_projector_top, T4_projector_bottom],
                 )
+
+            new_T4_tmp += new_T4_tmp.conj().transpose(0, 2, 1, 3)
+            new_T4_tmp /= 2
+
             new_T4.append(_post_process_CTM_tensors(new_T4_tmp, config))
 
             C4_projector = left_projectors.get_projector(x, y, 0, 0).top
@@ -298,6 +302,10 @@ def do_right_absorption(
                     [working_tensor_obj],
                     [T2_projector_top, T2_projector_bottom],
                 )
+
+            new_T2_tmp += new_T2_tmp.conj().transpose(1, 0, 2, 3)
+            new_T2_tmp /= 2
+
             new_T2.append(_post_process_CTM_tensors(new_T2_tmp, config))
 
             C3_projector = right_projectors.get_projector(x, y, 0, 0).top
@@ -390,6 +398,10 @@ def do_top_absorption(
                     [working_tensor_obj],
                     [T1_projector_left, T1_projector_right],
                 )
+
+            new_T1_tmp += new_T1_tmp.conj().transpose(0, 2, 1, 3)
+            new_T1_tmp /= 2
+
             new_T1.append(_post_process_CTM_tensors(new_T1_tmp, config))
 
             C2_projector = top_projectors.get_projector(x, y, 0, 0).left  # type: ignore
@@ -484,6 +496,10 @@ def do_bottom_absorption(
                     [working_tensor_obj],
                     [T3_projector_left, T3_projector_right],
                 )
+
+            new_T3_tmp += new_T3_tmp.conj().transpose(0, 1, 3, 2)
+            new_T3_tmp /= 2
+
             new_T3.append(_post_process_CTM_tensors(new_T3_tmp, config))
 
             C3_projector = bottom_projectors.get_projector(x, y, 0, 0).left  # type: ignore
