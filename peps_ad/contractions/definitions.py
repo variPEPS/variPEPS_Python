@@ -2,6 +2,8 @@
 Definitions for contractions in this module.
 """
 
+from collections import Counter
+
 import tensornetwork as tn
 
 from typing import Dict, Optional, Union, List, Tuple, Sequence
@@ -66,6 +68,7 @@ class Definitions:
     @staticmethod
     def _create_filter_and_network(
         contraction: Definition,
+        name: str,
     ) -> Tuple[
         List[Sequence[str]],
         List[str],
@@ -81,7 +84,7 @@ class Definitions:
         for t in contraction["tensors"]:
             if isinstance(t, (list, tuple)):
                 if len(filter_additional_tensors) != 0:
-                    raise ValueError("Invalid specification for contraction.")
+                    raise ValueError(f'Invalid specification for contraction "{name}".')
 
                 filter_peps_tensors.append(t)
             else:
@@ -92,19 +95,19 @@ class Definitions:
                 isinstance(ni, (list, tuple)) for ni in n
             ):
                 if len(network_additional_tensors) != 0:
-                    raise ValueError("Invalid specification for contraction.")
+                    raise ValueError(f'Invalid specification for contraction "{name}".')
 
                 network_peps_tensors.append(n)  # type: ignore
             elif isinstance(n, (list, tuple)) and all(isinstance(ni, int) for ni in n):
                 network_additional_tensors.append(n)  # type: ignore
             else:
-                raise ValueError("Invalid specification for contraction.")
+                raise ValueError(f'Invalid specification for contraction "{name}".')
 
         if len(network_peps_tensors) != len(filter_peps_tensors) or not all(
             len(network_peps_tensors[i]) == len(filter_peps_tensors[i])
             for i in range(len(filter_peps_tensors))
         ):
-            raise ValueError("Invalid specification for contraction.")
+            raise ValueError(f'Invalid specification for contraction "{name}".')
 
         return (
             filter_peps_tensors,
@@ -114,17 +117,31 @@ class Definitions:
         )
 
     @classmethod
-    def _process_def(cls, e):
+    def _process_def(cls, e, name):
         (
             filter_peps_tensors,
             filter_additional_tensors,
             network_peps_tensors,
             network_additional_tensors,
-        ) = cls._create_filter_and_network(e)
+        ) = cls._create_filter_and_network(e, name)
 
         ncon_network = [
             j for i in network_peps_tensors for j in i
         ] + network_additional_tensors
+
+        flatted_ncon_list = [j for i in ncon_network for j in i]
+        counter_ncon_list = Counter(flatted_ncon_list)
+        for ind, c in counter_ncon_list.items():
+            if (ind > 0 and c != 2) or (ind < 0 and c != 1) or ind == 0:
+                raise ValueError(
+                    f'Invalid definition found for "{name}": Element {ind:d} has counter {c:d}.'
+                )
+        sorted_ncon_list = sorted(c for c in counter_ncon_list if c > 0)
+        if len(sorted_ncon_list) != sorted_ncon_list[-1]:
+            raise ValueError(
+                f'Non-monotonous indices in definition "{name}". Please check!'
+            )
+
         (
             mapped_ncon_network,
             mapping,
@@ -150,13 +167,13 @@ class Definitions:
 
     @classmethod
     def _prepare_defs(cls):
-        for e in dir(cls):
-            if e.startswith("_"):
+        for name in dir(cls):
+            if name.startswith("_"):
                 continue
 
-            e = getattr(cls, e)
+            e = getattr(cls, name)
 
-            cls._process_def(e)
+            cls._process_def(e, name)
 
     density_matrix_one_site: Definition = {
         "tensors": [
