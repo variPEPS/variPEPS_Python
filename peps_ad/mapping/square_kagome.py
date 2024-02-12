@@ -107,7 +107,9 @@ def square_kagome_density_matrix_horizontal(
                 ]
             ],
         }
-        Definitions._process_def(contraction_left)
+        Definitions._process_def(
+            contraction_left, f"square_kagome_horizontal_left_open_{left_i[0]}"
+        )
 
         density_left = apply_contraction(
             f"square_kagome_horizontal_left_open_{left_i[0]}",
@@ -143,7 +145,9 @@ def square_kagome_density_matrix_horizontal(
                 ]
             ],
         }
-        Definitions._process_def(contraction_left)
+        Definitions._process_def(
+            contraction_left, f"square_kagome_horizontal_left_open_{left_i}"
+        )
 
         density_left = apply_contraction(
             f"square_kagome_horizontal_left_open_{left_i}",
@@ -185,7 +189,9 @@ def square_kagome_density_matrix_horizontal(
                 ]
             ],
         }
-        Definitions._process_def(contraction_right)
+        Definitions._process_def(
+            contraction_right, f"square_kagome_horizontal_right_open_{right_i[0]}"
+        )
 
         density_right = apply_contraction(
             f"square_kagome_horizontal_right_open_{right_i[0]}",
@@ -217,7 +223,9 @@ def square_kagome_density_matrix_horizontal(
                 ]
             ],
         }
-        Definitions._process_def(contraction_right)
+        Definitions._process_def(
+            contraction_right, f"square_kagome_horizontal_right_open_{right_i}"
+        )
 
         density_right = apply_contraction(
             f"square_kagome_horizontal_right_open_{right_i}",
@@ -317,7 +325,9 @@ def square_kagome_density_matrix_vertical(
                 ]
             ],
         }
-        Definitions._process_def(contraction_top)
+        Definitions._process_def(
+            contraction_top, f"square_kagome_horizontal_top_open_{top_i[0]}"
+        )
 
         density_top = apply_contraction(
             f"square_kagome_horizontal_top_open_{top_i[0]}",
@@ -353,7 +363,9 @@ def square_kagome_density_matrix_vertical(
                 ]
             ],
         }
-        Definitions._process_def(contraction_top)
+        Definitions._process_def(
+            contraction_top, f"square_kagome_horizontal_top_open_{top_i}"
+        )
 
         density_top = apply_contraction(
             f"square_kagome_horizontal_top_open_{top_i}",
@@ -395,7 +407,9 @@ def square_kagome_density_matrix_vertical(
                 ]
             ],
         }
-        Definitions._process_def(contraction_bottom)
+        Definitions._process_def(
+            contraction_bottom, f"square_kagome_horizontal_bottom_open_{bottom_i[0]}"
+        )
 
         density_bottom = apply_contraction(
             f"square_kagome_horizontal_bottom_open_{bottom_i[0]}",
@@ -427,7 +441,9 @@ def square_kagome_density_matrix_vertical(
                 ]
             ],
         }
-        Definitions._process_def(contraction_bottom)
+        Definitions._process_def(
+            contraction_bottom, f"square_kagome_horizontal_bottom_open_{bottom_i}"
+        )
 
         density_bottom = apply_contraction(
             f"square_kagome_horizontal_bottom_open_{bottom_i}",

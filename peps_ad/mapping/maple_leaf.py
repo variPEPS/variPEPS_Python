@@ -113,7 +113,9 @@ def maple_leaf_density_matrix_diagonal(
             ]
         ],
     }
-    Definitions._process_def(contraction_top_left)
+    Definitions._process_def(
+        contraction_top_left, f"maple_leaf_diagonal_top_left_open_{top_left_i}"
+    )
 
     density_top_left = apply_contraction(
         f"maple_leaf_diagonal_top_left_open_{top_left_i}",
@@ -160,7 +162,10 @@ def maple_leaf_density_matrix_diagonal(
             ]
         ],
     }
-    Definitions._process_def(contraction_bottom_right)
+    Definitions._process_def(
+        contraction_bottom_right,
+        f"maple_leap_diagonal_bottom_right_open_{bottom_right_i}",
+    )
 
     density_bottom_right = apply_contraction(
         f"maple_leap_diagonal_bottom_right_open_{bottom_right_i}",
