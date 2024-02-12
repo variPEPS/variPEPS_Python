@@ -130,7 +130,9 @@ def florett_pentagon_density_matrix_horizontal(
                 ]
             ],
         }
-        Definitions._process_def(contraction_left)
+        Definitions._process_def(
+            contraction_left, f"florett_pentagon_horizontal_left_open_{left_i}"
+        )
 
         density_left = apply_contraction(
             f"florett_pentagon_horizontal_left_open_{left_i}",
@@ -188,7 +190,9 @@ def florett_pentagon_density_matrix_horizontal(
                 ]
             ],
         }
-        Definitions._process_def(contraction_right)
+        Definitions._process_def(
+            contraction_right, f"florett_pentagon_horizontal_right_open_{right_i}"
+        )
 
         density_right = apply_contraction(
             f"florett_pentagon_horizontal_right_open_{right_i}",
@@ -317,7 +321,9 @@ def florett_pentagon_density_matrix_vertical(
                 ]
             ],
         }
-        Definitions._process_def(contraction_top)
+        Definitions._process_def(
+            contraction_top, f"florett_pentagon_horizontal_top_open_{top_i}"
+        )
 
         density_top = apply_contraction(
             f"florett_pentagon_horizontal_top_open_{top_i}",
@@ -372,7 +378,9 @@ def florett_pentagon_density_matrix_vertical(
                 ]
             ],
         }
-        Definitions._process_def(contraction_bottom)
+        Definitions._process_def(
+            contraction_bottom, f"florett_pentagon_horizontal_bottom_open_{bottom_i}"
+        )
 
         density_bottom = apply_contraction(
             f"florett_pentagon_horizontal_bottom_open_{bottom_i}",
@@ -479,7 +487,9 @@ def florett_pentagon_density_matrix_diagonal(
             ]
         ],
     }
-    Definitions._process_def(contraction_top_left)
+    Definitions._process_def(
+        contraction_top_left, f"florett_pentagon_diagonal_top_left_open_{top_left_i}"
+    )
 
     density_top_left = apply_contraction(
         f"florett_pentagon_diagonal_top_left_open_{top_left_i}",
@@ -526,7 +536,10 @@ def florett_pentagon_density_matrix_diagonal(
             ]
         ],
     }
-    Definitions._process_def(contraction_bottom_right)
+    Definitions._process_def(
+        contraction_bottom_right,
+        f"florett_pentagon_diagonal_bottom_right_open_{bottom_right_i}",
+    )
 
     density_bottom_right = apply_contraction(
         f"florett_pentagon_diagonal_bottom_right_open_{bottom_right_i}",
@@ -560,6 +573,8 @@ def _calc_onsite_gate(
     result_length: int,
 ):
     result = [None] * result_length
+
+    single_gates = [None] * result_length
 
     Id_other_sites = jnp.eye(d**7)
 
@@ -630,7 +645,19 @@ def _calc_onsite_gate(
             + green_79
         )
 
-    return result
+        single_gates[i] = (
+            black_12,
+            black_13,
+            blue_36,
+            green_24,
+            green_45,
+            green_46,
+            green_37,
+            green_78,
+            green_79,
+        )
+
+    return result, single_gates
 
 
 @partial(jit, static_argnums=(2, 3))
@@ -641,6 +668,8 @@ def _calc_right_gate(
     result_length: int,
 ):
     result = [None] * result_length
+
+    single_gates = [None] * result_length
 
     Id_other_site = jnp.eye(d)
 
@@ -654,7 +683,9 @@ def _calc_right_gate(
 
         result[i] = black_51 + blue_59
 
-    return result
+        single_gates[i] = (black_51, blue_59)
+
+    return result, single_gates
 
 
 @partial(jit, static_argnums=(2, 3))
@@ -665,6 +696,8 @@ def _calc_down_gate(
     result_length: int,
 ):
     result = [None] * result_length
+
+    single_gates = [None] * result_length
 
     Id_other_site = jnp.eye(d**2)
 
@@ -681,7 +714,9 @@ def _calc_down_gate(
 
         result[i] = black_91 + blue_82
 
-    return result
+        single_gates[i] = (black_91, blue_82)
+
+    return result, single_gates
 
 
 @partial(jit, static_argnums=(1, 2))
@@ -691,6 +726,8 @@ def _calc_diagonal_gate(
     result_length: int,
 ):
     result = [None] * result_length
+
+    single_gates = [None] * result_length
 
     Id_other_site = jnp.eye(d)
 
@@ -703,7 +740,9 @@ def _calc_diagonal_gate(
 
         result[i] = black_61 + black_81
 
-    return result
+        single_gates[i] = (black_61, black_81)
+
+    return result, single_gates
 
 
 @dataclass
@@ -741,7 +780,7 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
         ):
             raise ValueError("Lengths of gate lists mismatch.")
 
-        self._full_onsite_tuple = tuple(
+        tmp_result = tuple(
             _calc_onsite_gate(
                 self.black_gates,
                 self.green_gates,
@@ -750,8 +789,11 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                 len(self.black_gates),
             )
         )
+        self._full_onsite_tuple, self._onsite_single_gates = tuple(
+            tmp_result[0]
+        ), tuple(tmp_result[1])
 
-        self._right_tuple = tuple(
+        tmp_result = tuple(
             _calc_right_gate(
                 self.black_gates,
                 self.blue_gates,
@@ -759,8 +801,11 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                 len(self.black_gates),
             )
         )
+        self._right_tuple, self._right_single_gates = tuple(tmp_result[0]), tuple(
+            tmp_result[1]
+        )
 
-        self._down_tuple = tuple(
+        tmp_result = tuple(
             _calc_down_gate(
                 self.black_gates,
                 self.blue_gates,
@@ -768,13 +813,19 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                 len(self.black_gates),
             )
         )
+        self._down_tuple, self._down_single_gates = tuple(tmp_result[0]), tuple(
+            tmp_result[1]
+        )
 
-        self._diagonal_tuple = tuple(
+        tmp_result = tuple(
             _calc_diagonal_gate(
                 self.black_gates,
                 self.real_d,
                 len(self.black_gates),
             )
+        )
+        self._diagonal_tuple, self._diagonal_single_gates = tuple(tmp_result[0]), tuple(
+            tmp_result[1]
         )
 
         self._result_type = (
@@ -802,6 +853,22 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
             jnp.array(0, dtype=self._result_type) for _ in range(len(self.black_gates))
         ]
 
+        if return_single_gate_results:
+            single_gates_result = [dict()] * len(self.black_gates)
+
+            working_onsite_gates = tuple(
+                o for e in self._onsite_single_gates for o in e
+            )
+            working_h_single_gates = tuple(
+                h for e in self._right_single_gates for h in e
+            )
+            working_v_single_gates = tuple(
+                v for e in self._down_single_gates for v in e
+            )
+            working_d_single_gates = tuple(
+                d for e in self._diagonal_single_gates for d in e
+            )
+
         for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
             for y, view in iter_rows:
                 # On site term
@@ -809,11 +876,18 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                     onsite_tensor = peps_tensors[view.get_indices((0, 0))[0][0]]
                     onsite_tensor_obj = view[0, 0][0][0]
 
-                    step_result_onsite = calc_one_site_multi_gates(
-                        onsite_tensor,
-                        onsite_tensor_obj,
-                        self._full_onsite_tuple,
-                    )
+                    if return_single_gate_results:
+                        step_result_onsite = calc_one_site_multi_gates(
+                            onsite_tensor,
+                            onsite_tensor_obj,
+                            self._full_onsite_tuple + working_onsite_gates,
+                        )
+                    else:
+                        step_result_onsite = calc_one_site_multi_gates(
+                            onsite_tensor,
+                            onsite_tensor_obj,
+                            self._full_onsite_tuple,
+                        )
 
                     horizontal_tensors_i = view.get_indices((0, slice(0, 2, None)))
                     horizontal_tensors = [
@@ -827,12 +901,20 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                         horizontal_tensors, horizontal_tensor_objs, ((5,), (1, 9))
                     )
 
-                    step_result_horizontal = _two_site_workhorse(
-                        density_matrix_left,
-                        density_matrix_right,
-                        self._right_tuple,
-                        self._result_type is jnp.float64,
-                    )
+                    if return_single_gate_results:
+                        step_result_horizontal = _two_site_workhorse(
+                            density_matrix_left,
+                            density_matrix_right,
+                            self._right_tuple + working_h_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_horizontal = _two_site_workhorse(
+                            density_matrix_left,
+                            density_matrix_right,
+                            self._right_tuple,
+                            self._result_type is jnp.float64,
+                        )
 
                     vertical_tensors_i = view.get_indices((slice(0, 2, None), 0))
                     vertical_tensors = [
@@ -846,12 +928,20 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                         vertical_tensors, vertical_tensor_objs, ((8, 9), (1, 2))
                     )
 
-                    step_result_vertical = _two_site_workhorse(
-                        density_matrix_top,
-                        density_matrix_bottom,
-                        self._down_tuple,
-                        self._result_type is jnp.float64,
-                    )
+                    if return_single_gate_results:
+                        step_result_vertical = _two_site_workhorse(
+                            density_matrix_top,
+                            density_matrix_bottom,
+                            self._down_tuple + working_v_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_vertical = _two_site_workhorse(
+                            density_matrix_top,
+                            density_matrix_bottom,
+                            self._down_tuple,
+                            self._result_type is jnp.float64,
+                        )
 
                     diagonal_tensors_i = view.get_indices(
                         (slice(0, 2, None), slice(0, 2, None))
@@ -883,24 +973,101 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                         [],
                     )
 
-                    step_result_diagonal = _two_site_diagonal_workhorse(
-                        density_matrix_top_left,
-                        density_matrix_bottom_right,
-                        traced_density_matrix_top_right,
-                        traced_density_matrix_bottom_left,
-                        self._diagonal_tuple,
-                        self._result_type is jnp.float64,
-                    )
+                    if return_single_gate_results:
+                        step_result_diagonal = _two_site_diagonal_workhorse(
+                            density_matrix_top_left,
+                            density_matrix_bottom_right,
+                            traced_density_matrix_top_right,
+                            traced_density_matrix_bottom_left,
+                            self._diagonal_tuple + working_d_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_diagonal = _two_site_diagonal_workhorse(
+                            density_matrix_top_left,
+                            density_matrix_bottom_right,
+                            traced_density_matrix_top_right,
+                            traced_density_matrix_bottom_left,
+                            self._diagonal_tuple,
+                            self._result_type is jnp.float64,
+                        )
 
                     for sr_i, (sr_o, sr_h, sr_v, sr_d) in enumerate(
                         jax.util.safe_zip(
-                            step_result_onsite,
-                            step_result_horizontal,
-                            step_result_vertical,
-                            step_result_diagonal,
+                            step_result_onsite[: len(self.black_gates)],
+                            step_result_horizontal[: len(self.black_gates)],
+                            step_result_vertical[: len(self.black_gates)],
+                            step_result_diagonal[: len(self.black_gates)],
                         )
                     ):
                         result[sr_i] += sr_o + sr_h + sr_v + sr_d
+
+                    if return_single_gate_results:
+                        for sr_i in range(len(self.black_gates)):
+                            index_onsite = (
+                                len(self.black_gates)
+                                + len(self._onsite_single_gates[0]) * sr_i
+                            )
+                            index_horizontal = (
+                                len(self.black_gates)
+                                + len(self._right_single_gates[0]) * sr_i
+                            )
+                            index_vertical = (
+                                len(self.black_gates)
+                                + len(self._down_single_gates[0]) * sr_i
+                            )
+                            index_diagonal = (
+                                len(self.black_gates)
+                                + len(self._diagonal_single_gates[0]) * sr_i
+                            )
+
+                            single_gates_result[sr_i][(x, y)] = dict(
+                                zip(
+                                    (
+                                        "black_12",
+                                        "black_13",
+                                        "blue_36",
+                                        "green_24",
+                                        "green_45",
+                                        "green_46",
+                                        "green_37",
+                                        "green_78",
+                                        "green_79",
+                                        "black_51",
+                                        "blue_59",
+                                        "black_91",
+                                        "blue_82",
+                                        "black_61",
+                                        "black_81",
+                                    ),
+                                    (
+                                        step_result_onsite[
+                                            index_onsite : (
+                                                index_onsite
+                                                + len(self._onsite_single_gates[0])
+                                            )
+                                        ]
+                                        + step_result_horizontal[
+                                            index_horizontal : (
+                                                index_horizontal
+                                                + len(self._right_single_gates[0])
+                                            )
+                                        ]
+                                        + step_result_vertical[
+                                            index_vertical : (
+                                                index_vertical
+                                                + len(self._down_single_gates[0])
+                                            )
+                                        ]
+                                        + step_result_diagonal[
+                                            index_diagonal : (
+                                                index_diagonal
+                                                + len(self._diagonal_single_gates[0])
+                                            )
+                                        ]
+                                    ),
+                                )
+                            )
 
         if normalize_by_size:
             if only_unique:
@@ -911,6 +1078,9 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
             result = [r / size for r in result]
 
         if len(result) == 1:
-            return result[0]
+            result = result[0]
+
+        if return_single_gate_results:
+            return result, single_gates_result
         else:
             return result
