@@ -18,7 +18,7 @@ from .inner_function import (
     calc_ctmrg_expectation_custom_value_and_grad,
 )
 
-from typing import Sequence, Tuple, List, Union, Optional
+from typing import Sequence, Tuple, List, Union, Optional, Dict
 
 
 @jit
@@ -146,6 +146,7 @@ def line_search(
     convert_to_unitcell_func: Optional[Map_To_PEPS_Model] = None,
     generate_unitcell: bool = False,
     spiral_indices: Optional[Sequence[int]] = None,
+    additional_input: Dict[str, jnp.ndarray] = {},
 ) -> Tuple[
     List[jnp.ndarray],
     PEPS_Unit_Cell,
@@ -260,6 +261,7 @@ def line_search(
                     new_unitcell,
                     expectation_func,
                     convert_to_unitcell_func,
+                    additional_input,
                     enforce_elementwise_convergence=enforce_elementwise_convergence,
                 )
 
@@ -296,6 +298,7 @@ def line_search(
                                 unitcell,
                                 expectation_func,
                                 convert_to_unitcell_func,
+                                additional_input,
                             )
                         else:
                             (
@@ -306,6 +309,7 @@ def line_search(
                                 unitcell,
                                 expectation_func,
                                 convert_to_unitcell_func,
+                                additional_input,
                                 calc_preconverged=True,
                             )
                         gradient = [elem.conj() for elem in tmp_gradient_seq]
@@ -334,6 +338,7 @@ def line_search(
                         new_unitcell,
                         expectation_func,
                         convert_to_unitcell_func,
+                        additional_input,
                     )
                 else:
                     (
@@ -344,6 +349,7 @@ def line_search(
                         new_unitcell,
                         expectation_func,
                         convert_to_unitcell_func,
+                        additional_input,
                         calc_preconverged=True,
                     )
                 new_gradient = [elem.conj() for elem in new_gradient_seq]
@@ -381,6 +387,7 @@ def line_search(
                                 unitcell,
                                 expectation_func,
                                 convert_to_unitcell_func,
+                                additional_input,
                             )
                         else:
                             (
@@ -391,6 +398,7 @@ def line_search(
                                 unitcell,
                                 expectation_func,
                                 convert_to_unitcell_func,
+                                additional_input,
                                 calc_preconverged=True,
                             )
                         gradient = [elem.conj() for elem in tmp_gradient_seq]

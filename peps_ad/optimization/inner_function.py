@@ -8,7 +8,7 @@ from peps_ad.expectation import Expectation_Model
 from peps_ad.ctmrg import calc_ctmrg_env, calc_ctmrg_env_custom_rule
 from peps_ad.mapping import Map_To_PEPS_Model
 
-from typing import Sequence, Tuple, cast, Optional, Callable
+from typing import Sequence, Tuple, cast, Optional, Callable, Dict
 
 
 def _map_tensors(
@@ -65,6 +65,7 @@ def calc_ctmrg_expectation(
     unitcell: PEPS_Unit_Cell,
     expectation_func: Expectation_Model,
     convert_to_unitcell_func: Optional[Map_To_PEPS_Model],
+    additional_input: Dict[str, jnp.ndarray] = dict(),
     *,
     enforce_elementwise_convergence: Optional[bool] = None,
 ) -> Tuple[jnp.ndarray, PEPS_Unit_Cell]:
@@ -82,6 +83,9 @@ def calc_ctmrg_expectation(
       convert_to_unitcell_func (:obj:`~peps_ad.mapping.Map_To_PEPS_Model`):
         Function to convert the `input_tensors` to a PEPS unitcell. If ommited,
         it is assumed that a PEPS unitcell is the input.
+      additional_input (:obj:`dict` of :obj:`str` to :obj:`jax.numpy.ndarray` mapping):
+        Optional dict with additional inputs which should be considered in the
+        calculation of the expectation value.
     Keyword args:
       enforce_elementwise_convergence (obj:`bool`):
         Enforce elementwise convergence of the CTM tensors instead of only
@@ -90,7 +94,8 @@ def calc_ctmrg_expectation(
       :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         Tuple consisting of the calculated expectation value and the new unitcell.
     """
-    if expectation_func.is_spiral_peps:
+    spiral_vectors = additional_input.get("spiral_vectors")
+    if expectation_func.is_spiral_peps and spiral_vectors is None:
         peps_tensors, unitcell, spiral_vectors = _map_tensors(
             input_tensors, unitcell, convert_to_unitcell_func, True
         )
@@ -128,6 +133,7 @@ def calc_preconverged_ctmrg_value_and_grad(
     unitcell: PEPS_Unit_Cell,
     expectation_func: Expectation_Model,
     convert_to_unitcell_func: Optional[Map_To_PEPS_Model],
+    additional_input: Dict[str, jnp.ndarray] = dict(),
     *,
     calc_preconverged: bool = True,
 ) -> Tuple[Tuple[jnp.ndarray, PEPS_Unit_Cell], Sequence[jnp.ndarray]]:
@@ -150,6 +156,9 @@ def calc_preconverged_ctmrg_value_and_grad(
       convert_to_unitcell_func (:obj:`~peps_ad.mapping.Map_To_PEPS_Model`):
         Function to convert the `input_tensors` to a PEPS unitcell. If ommited,
         it is assumed that a PEPS unitcell is the input.
+      additional_input (:obj:`dict` of :obj:`str` to :obj:`jax.numpy.ndarray` mapping):
+        Optional dict with additional inputs which should be considered in the
+        calculation of the expectation value.
     Keyword args:
       calc_preconverged (:obj:`bool`):
         Flag if the above described procedure to calculate a pre-converged
@@ -161,7 +170,8 @@ def calc_preconverged_ctmrg_value_and_grad(
         unitcell.
         2. The calculated gradient.
     """
-    if expectation_func.is_spiral_peps:
+    spiral_vectors = additional_input.get("spiral_vectors")
+    if expectation_func.is_spiral_peps and spiral_vectors is None:
         peps_tensors, unitcell, spiral_vectors = _map_tensors(
             input_tensors, unitcell, convert_to_unitcell_func, True
         )
@@ -196,6 +206,7 @@ def calc_ctmrg_expectation_custom(
     unitcell: PEPS_Unit_Cell,
     expectation_func: Expectation_Model,
     convert_to_unitcell_func: Optional[Map_To_PEPS_Model],
+    additional_input: Dict[str, jnp.ndarray] = dict(),
 ) -> Tuple[jnp.ndarray, PEPS_Unit_Cell]:
     """
     Calculate the CTMRG environment and the (energy) expectation value for a
@@ -211,11 +222,15 @@ def calc_ctmrg_expectation_custom(
       convert_to_unitcell_func (:obj:`~peps_ad.mapping.Map_To_PEPS_Model`):
         Function to convert the `input_tensors` to a PEPS unitcell. If ommited,
         it is assumed that a PEPS unitcell is the input.
+      additional_input (:obj:`dict` of :obj:`str` to :obj:`jax.numpy.ndarray` mapping):
+        Dict with additional inputs which should be considered in the
+        calculation of the expectation value.
     Returns:
       :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~peps_ad.peps.PEPS_Unit_Cell`):
         Tuple consisting of the calculated expectation value and the new unitcell.
     """
-    if expectation_func.is_spiral_peps:
+    spiral_vectors = additional_input.get("spiral_vectors")
+    if expectation_func.is_spiral_peps and spiral_vectors is None:
         peps_tensors, unitcell, spiral_vectors = _map_tensors(
             input_tensors, unitcell, convert_to_unitcell_func, True
         )

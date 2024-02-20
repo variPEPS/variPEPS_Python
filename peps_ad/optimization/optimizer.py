@@ -205,6 +205,7 @@ def optimize_peps_network(
     autosave_func: Callable[
         [PathLike, Sequence[jnp.ndarray], PEPS_Unit_Cell], None
     ] = autosave_function,
+    additional_input: Dict[str, jnp.ndarray] = {},
 ) -> Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell, Union[float, jnp.ndarray]]:
     """
     Optimize a PEPS unitcell using a variational method.
@@ -279,7 +280,11 @@ def optimize_peps_network(
     signal_reset_descent_dir = False
 
     spiral_indices = None
-    if hasattr(expectation_func, "is_spiral_peps") and expectation_func.is_spiral_peps:
+    if (
+        hasattr(expectation_func, "is_spiral_peps")
+        and expectation_func.is_spiral_peps
+        and additional_input.get("spiral_vectors") is None
+    ):
         if isinstance(input_tensors, collections.abc.Sequence) and isinstance(
             input_tensors[0], PEPS_Unit_Cell
         ):
@@ -321,6 +326,7 @@ def optimize_peps_network(
                         working_unitcell,
                         expectation_func,
                         convert_to_unitcell_func,
+                        additional_input,
                     )
                 else:
                     (
@@ -331,6 +337,7 @@ def optimize_peps_network(
                         working_unitcell,
                         expectation_func,
                         convert_to_unitcell_func,
+                        additional_input,
                         calc_preconverged=(count == 0),
                     )
             except (CTMRGNotConvergedError, CTMRGGradientNotConvergedError) as e:
@@ -427,6 +434,7 @@ def optimize_peps_network(
                     convert_to_unitcell_func,
                     generate_unitcell,
                     spiral_indices,
+                    additional_input,
                 )
             except NoSuitableStepSizeError:
                 if peps_ad_config.optimizer_fail_if_no_step_size_found:
@@ -521,6 +529,7 @@ def optimize_peps_network(
                     working_unitcell,
                     expectation_func,
                     convert_to_unitcell_func,
+                    additional_input,
                     enforce_elementwise_convergence=peps_ad_config.ad_use_custom_vjp,
                 )
                 descent_dir = None
