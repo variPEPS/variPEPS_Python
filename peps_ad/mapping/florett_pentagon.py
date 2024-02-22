@@ -775,6 +775,15 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
     spiral_unitary_operator: Optional[jnp.ndarray] = None
 
     def __post_init__(self) -> None:
+        if isinstance(self.black_gates, jnp.ndarray):
+            self.black_gates = (self.black_gates,)
+
+        if isinstance(self.green_gates, jnp.ndarray):
+            self.green_gates = (self.green_gates,)
+
+        if isinstance(self.blue_gates, jnp.ndarray):
+            self.blue_gates = (self.blue_gates,)
+
         if (len(self.green_gates) != len(self.blue_gates)) or (
             len(self.green_gates) != len(self.black_gates)
         ):

@@ -55,6 +55,15 @@ class Honeycomb_Expectation_Value(Expectation_Model):
     spiral_unitary_operator: Optional[jnp.ndarray] = None
 
     def __post_init__(self) -> None:
+        if isinstance(self.x_gates, jnp.ndarray):
+            self.x_gates = (self.x_gates,)
+
+        if isinstance(self.y_gates, jnp.ndarray):
+            self.y_gates = (self.y_gates,)
+
+        if isinstance(self.z_gates, jnp.ndarray):
+            self.z_gates = (self.z_gates,)
+
         if (
             (
                 len(self.x_gates) > 0

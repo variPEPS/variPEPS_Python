@@ -53,6 +53,12 @@ class Kagome_PESS3_Expectation_Value(Expectation_Model):
     spiral_unitary_operator: Optional[jnp.ndarray] = None
 
     def __post_init__(self) -> None:
+        if isinstance(self.upward_triangle_gates, jnp.ndarray):
+            self.upward_triangle_gates = (self.upward_triangle_gates,)
+
+        if isinstance(self.downward_triangle_gates, jnp.ndarray):
+            self.downward_triangle_gates = (self.downward_triangle_gates,)
+
         if (
             len(self.upward_triangle_gates) > 0
             and len(self.downward_triangle_gates) > 0

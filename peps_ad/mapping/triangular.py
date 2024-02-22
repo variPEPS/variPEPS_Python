@@ -55,6 +55,10 @@ class Triangular_Expectation_Value(Expectation_Model):
     is_spiral_peps: bool = False
     spiral_unitary_operator: Optional[jnp.ndarray] = None
 
+    def __post_init__(self) -> None:
+        if isinstance(self.nearest_neighbor_gates, jnp.ndarray):
+            self.nearest_neighbor_gates = (self.nearest_neighbor_gates,)
+
     def __call__(
         self,
         peps_tensors: Sequence[jnp.ndarray],

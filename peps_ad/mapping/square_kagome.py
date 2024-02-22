@@ -535,6 +535,18 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
     spiral_unitary_operator: Optional[jnp.ndarray] = None
 
     def __post_init__(self) -> None:
+        if isinstance(self.triangle_gates, jnp.ndarray):
+            self.triangle_gates = (self.triangle_gates,)
+
+        if isinstance(self.square_gates, jnp.ndarray):
+            self.square_gates = (self.square_gates,)
+
+        if isinstance(self.plus_gates, jnp.ndarray):
+            self.plus_gates = (self.plus_gates,)
+
+        if isinstance(self.cross_gates, jnp.ndarray):
+            self.cross_gates = (self.cross_gates,)
+
         if len(self.cross_gates) > 0:
             raise NotImplementedError("Cross term calculation is not implemented yet.")
 

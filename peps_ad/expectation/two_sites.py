@@ -6,6 +6,7 @@ import numpy as np
 import jax.numpy as jnp
 from jax import jit
 
+from peps_ad import peps_ad_config
 from peps_ad.peps import PEPS_Tensor, PEPS_Unit_Cell
 from peps_ad.contractions import apply_contraction
 from .model import Expectation_Model
@@ -419,6 +420,12 @@ class Two_Sites_Expectation_Value(Expectation_Model):
     spiral_unitary_operator: Optional[jnp.ndarray] = None
 
     def __post_init__(self) -> None:
+        if isinstance(self.horizontal_gates, jnp.ndarray):
+            self.horizontal_gates = (self.horizontal_gates,)
+
+        if isinstance(self.vertical_gates, jnp.ndarray):
+            self.vertical_gates = (self.vertical_gates,)
+
         if (
             len(self.horizontal_gates) > 0
             and len(self.horizontal_gates) > 0
