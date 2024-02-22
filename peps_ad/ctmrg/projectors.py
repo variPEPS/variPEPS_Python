@@ -274,7 +274,7 @@ def _left_projectors_workhorse(
             _,
         ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
         top_matrix /= jnp.linalg.norm(top_matrix)
-        bottom_matrix /= jnp.linalg.norm(top_matrix)
+        bottom_matrix /= jnp.linalg.norm(bottom_matrix)
     elif projector_method is Projector_Method.FISHMAN:
         top_U, top_S, _, _, bottom_S, bottom_Vh = _fishman_horizontal_cut(
             top_left, top_right, bottom_left, bottom_right, truncation_eps
@@ -282,7 +282,7 @@ def _left_projectors_workhorse(
         top_matrix = top_U * jnp.sqrt(top_S)[jnp.newaxis, :]
         bottom_matrix = jnp.sqrt(bottom_S)[:, jnp.newaxis] * bottom_Vh
         top_matrix /= jnp.linalg.norm(top_matrix)
-        bottom_matrix /= jnp.linalg.norm(top_matrix)
+        bottom_matrix /= jnp.linalg.norm(bottom_matrix)
     else:
         raise ValueError("Invalid projector method!")
 
@@ -381,7 +381,7 @@ def _right_projectors_workhorse(
             bottom_matrix,
         ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
         top_matrix /= jnp.linalg.norm(top_matrix)
-        bottom_matrix /= jnp.linalg.norm(top_matrix)
+        bottom_matrix /= jnp.linalg.norm(bottom_matrix)
     elif projector_method is Projector_Method.FISHMAN:
         _, top_S, top_Vh, bottom_U, bottom_S, _ = _fishman_horizontal_cut(
             top_left, top_right, bottom_left, bottom_right, truncation_eps
@@ -389,7 +389,7 @@ def _right_projectors_workhorse(
         top_matrix = jnp.sqrt(top_S)[:, jnp.newaxis] * top_Vh
         bottom_matrix = bottom_U * jnp.sqrt(bottom_S)[jnp.newaxis, :]
         top_matrix /= jnp.linalg.norm(top_matrix)
-        bottom_matrix /= jnp.linalg.norm(top_matrix)
+        bottom_matrix /= jnp.linalg.norm(bottom_matrix)
     else:
         raise ValueError("Invalid projector method!")
 
