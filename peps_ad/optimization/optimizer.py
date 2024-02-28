@@ -563,6 +563,13 @@ def optimize_peps_network(
                         auxiliary_data[f"spiral_vector_{spiral_i:d}"] = working_tensors[
                             spiral_i
                         ]
+                elif additional_input.get("spiral_vectors") is not None:
+                    add_input_spiral = additional_input.get("spiral_vectors")
+                    if isinstance(add_input_spiral, jnp.ndarray):
+                        add_input_spiral = (add_input_spiral,)
+                    for spiral_i, elem in enumerate(add_input_spiral):
+                        spiral_i += 1
+                        auxiliary_data[f"spiral_vector_{spiral_i:d}"] = elem
 
                 autosave_func(
                     autosave_filename,
