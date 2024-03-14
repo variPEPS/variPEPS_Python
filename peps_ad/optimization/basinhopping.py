@@ -50,9 +50,9 @@ class PEPS_AD_Basinhopping:
     expectation_func: Expectation_Model
     convert_to_unitcell_func: Optional[Map_To_PEPS_Model] = None
     autosave_filename: PathLike = "data/autosave.hdf5"
-    autosave_func: Callable[
-        [PathLike, Sequence[jnp.ndarray], PEPS_Unit_Cell], None
-    ] = autosave_function
+    autosave_func: Callable[[PathLike, Sequence[jnp.ndarray], PEPS_Unit_Cell], None] = (
+        autosave_function
+    )
 
     def __post_init__(self):
         if isinstance(self.initial_guess, PEPS_Unit_Cell):

@@ -413,9 +413,11 @@ def calc_ctmrg_env(
                 peps_tensors,
                 working_unitcell,
                 False,
-                corner_singular_vals
-                if corner_singular_vals is not None
-                else init_corner_singular_vals,
+                (
+                    corner_singular_vals
+                    if corner_singular_vals is not None
+                    else init_corner_singular_vals
+                ),
                 eps,
                 tmp_count,
                 enforce_elementwise_convergence,

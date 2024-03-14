@@ -2,7 +2,10 @@ from functools import partial
 
 import jax.numpy as jnp
 from jax.lax import scan
+from jax.lax.linalg import svd as lax_svd
 from jax import jit, custom_jvp, lax
+
+from jax._src.numpy.util import promote_dtypes_inexact, check_arraylike
 
 from peps_ad import peps_ad_config
 
@@ -19,18 +22,20 @@ def _H(x):
 
 @custom_jvp
 def svd_wrapper(a):
-    return jnp.linalg.svd(a, full_matrices=False, compute_uv=True)
+    check_arraylike("jnp.linalg.svd", a)
+    (a,) = promote_dtypes_inexact(jnp.asarray(a))
+    return lax_svd(a, full_matrices=False, compute_uv=True)
 
 
 @svd_wrapper.defjvp
 def _svd_jvp_rule(primals, tangents):
     (A,) = primals
     (dA,) = tangents
-    U, s, Vt = jnp.linalg.svd(A, full_matrices=False, compute_uv=True)
+    U, s, Vt = lax_svd(A, full_matrices=False, compute_uv=True)
 
     Ut, V = _H(U), _H(Vt)
     s_dim = s[..., None, :]
-    dS = jnp.matmul(jnp.matmul(Ut, dA), V)
+    dS = Ut @ dA @ V
     ds = jnp.real(jnp.diagonal(dS, 0, -2, -1))
 
     s_diffs = (s_dim + _T(s_dim)) * (s_dim - _T(s_dim))
@@ -39,23 +44,23 @@ def _svd_jvp_rule(primals, tangents):
     )  # is 1. where s_diffs is 0. and is 0. everywhere else
     s_diffs_zeros = lax.expand_dims(s_diffs_zeros, range(s_diffs.ndim - 2))
     F = 1 / (s_diffs + s_diffs_zeros) - s_diffs_zeros
-    dSS = s_dim * dS  # dS.dot(jnp.diag(s))
-    SdS = _T(s_dim) * dS  # jnp.diag(s).dot(dS)
+    dSS = s_dim.astype(A.dtype) * dS  # dS.dot(jnp.diag(s))
+    SdS = _T(s_dim.astype(A.dtype)) * dS  # jnp.diag(s).dot(dS)
 
-    s_zeros = jnp.ones((), dtype=A.dtype) * (s == 0.0)
+    s_zeros = (s == 0).astype(s.dtype)
     s_inv = 1 / (s + s_zeros) - s_zeros
     s_inv_mat = jnp.vectorize(jnp.diag, signature="(k)->(k,k)")(s_inv)
-    dUdV_diag = 0.5 * (dS - _H(dS)) * s_inv_mat
-    dU = jnp.matmul(U, F * (dSS + _H(dSS)) + dUdV_diag)
-    dV = jnp.matmul(V, F * (SdS + _H(SdS)))
+    dUdV_diag = 0.5 * (dS - _H(dS)) * s_inv_mat.astype(A.dtype)
+    dU = U @ (F.astype(A.dtype) * (dSS + _H(dSS)) + dUdV_diag)
+    dV = V @ (F.astype(A.dtype) * (SdS + _H(SdS)))
 
     m, n = A.shape[-2:]
     if m > n:
-        I = lax.expand_dims(jnp.eye(m, dtype=A.dtype), range(U.ndim - 2))
-        dU = dU + jnp.matmul(I - jnp.matmul(U, Ut), jnp.matmul(dA, V)) / s_dim
+        dAV = dA @ V
+        dU = dU + (dAV - U @ (Ut @ dAV)) / s_dim.astype(A.dtype)
     if n > m:
-        I = lax.expand_dims(jnp.eye(n, dtype=A.dtype), range(V.ndim - 2))
-        dV = dV + jnp.matmul(I - jnp.matmul(V, Vt), jnp.matmul(_H(dA), U)) / s_dim
+        dAHU = _H(dA) @ U
+        dV = dV + (dAHU - V @ (Vt @ dAHU)) / s_dim.astype(A.dtype)
 
     return (U, s, Vt), (dU, ds, _H(dV))
 

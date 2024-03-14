@@ -891,10 +891,10 @@ class PEPS_Unit_Cell:
                 if grp["config"].attrs.get(config_attr) is not None
             }
             if config_dict.get("ctmrg_full_projector_method"):
-                config_dict[
-                    "ctmrg_full_projector_method"
-                ] = peps_ad.config.Projector_Method(
-                    config_dict["ctmrg_full_projector_method"]
+                config_dict["ctmrg_full_projector_method"] = (
+                    peps_ad.config.Projector_Method(
+                        config_dict["ctmrg_full_projector_method"]
+                    )
                 )
             if config_dict.get("optimizer_method"):
                 config_dict["optimizer_method"] = peps_ad.config.Optimizing_Methods(

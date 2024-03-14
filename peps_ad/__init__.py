@@ -14,7 +14,7 @@ from . import utils
 
 from .__version__ import __version__
 
-from jax.config import config as jax_config
+from jax import config as jax_config
 
 jax_config.update("jax_enable_x64", True)
 

@@ -349,12 +349,16 @@ def calc_left_projectors(
         top_right,
         bottom_left,
         bottom_right,
-        config.ctmrg_truncation_eps
-        if state.ctmrg_effective_truncation_eps is None
-        else state.ctmrg_effective_truncation_eps,
-        config.ctmrg_full_projector_method
-        if state.ctmrg_projector_method is None
-        else state.ctmrg_projector_method,
+        (
+            config.ctmrg_truncation_eps
+            if state.ctmrg_effective_truncation_eps is None
+            else state.ctmrg_effective_truncation_eps
+        ),
+        (
+            config.ctmrg_full_projector_method
+            if state.ctmrg_projector_method is None
+            else state.ctmrg_projector_method
+        ),
         chi,
     )
 
@@ -456,12 +460,16 @@ def calc_right_projectors(
         top_right,
         bottom_left,
         bottom_right,
-        config.ctmrg_truncation_eps
-        if state.ctmrg_effective_truncation_eps is None
-        else state.ctmrg_effective_truncation_eps,
-        config.ctmrg_full_projector_method
-        if state.ctmrg_projector_method is None
-        else state.ctmrg_projector_method,
+        (
+            config.ctmrg_truncation_eps
+            if state.ctmrg_effective_truncation_eps is None
+            else state.ctmrg_effective_truncation_eps
+        ),
+        (
+            config.ctmrg_full_projector_method
+            if state.ctmrg_projector_method is None
+            else state.ctmrg_projector_method
+        ),
         chi,
     )
 
@@ -563,12 +571,16 @@ def calc_top_projectors(
         top_right,
         bottom_left,
         bottom_right,
-        config.ctmrg_truncation_eps
-        if state.ctmrg_effective_truncation_eps is None
-        else state.ctmrg_effective_truncation_eps,
-        config.ctmrg_full_projector_method
-        if state.ctmrg_projector_method is None
-        else state.ctmrg_projector_method,
+        (
+            config.ctmrg_truncation_eps
+            if state.ctmrg_effective_truncation_eps is None
+            else state.ctmrg_effective_truncation_eps
+        ),
+        (
+            config.ctmrg_full_projector_method
+            if state.ctmrg_projector_method is None
+            else state.ctmrg_projector_method
+        ),
         chi,
     )
 
@@ -670,11 +682,15 @@ def calc_bottom_projectors(
         top_right,
         bottom_left,
         bottom_right,
-        config.ctmrg_truncation_eps
-        if state.ctmrg_effective_truncation_eps is None
-        else state.ctmrg_effective_truncation_eps,
-        config.ctmrg_full_projector_method
-        if state.ctmrg_projector_method is None
-        else state.ctmrg_projector_method,
+        (
+            config.ctmrg_truncation_eps
+            if state.ctmrg_effective_truncation_eps is None
+            else state.ctmrg_effective_truncation_eps
+        ),
+        (
+            config.ctmrg_full_projector_method
+            if state.ctmrg_projector_method is None
+            else state.ctmrg_projector_method
+        ),
         chi,
     )
