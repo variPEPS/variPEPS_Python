@@ -147,6 +147,7 @@ def line_search(
     generate_unitcell: bool = False,
     spiral_indices: Optional[Sequence[int]] = None,
     additional_input: Dict[str, jnp.ndarray] = {},
+    reinitialize_env_as_identities: bool = True,
 ) -> Tuple[
     List[jnp.ndarray],
     PEPS_Unit_Cell,
@@ -243,7 +244,8 @@ def line_search(
             new_unitcell = unitcell.replace_unique_tensors(
                 [
                     unitcell_tensors[i].replace_tensor(
-                        new_tensors[i], reinitialize_env_as_identities=True
+                        new_tensors[i],
+                        reinitialize_env_as_identities=reinitialize_env_as_identities,
                     )
                     for i in range(unitcell.get_len_unique_tensors())
                 ]

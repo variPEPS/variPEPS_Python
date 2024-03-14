@@ -137,6 +137,9 @@ class PEPS_AD_Config:
         Maximal retries for optimization with random noise.
       optimizer_random_noise_relative_amplitude (:obj:`float`):
         Relative amplitude used for random noise.
+      optimizer_reuse_env_eps (:obj:`float`):
+        Reuse CTMRG environment of previous step if norm of gradient is below
+        this threshold.
       line_search_method (:obj:`Line_Search_Methods`):
         Method used for the line search routine.
       line_search_initial_step_size (:obj:`float`):
@@ -208,6 +211,7 @@ class PEPS_AD_Config:
     optimizer_random_noise_eps: float = 1e-4
     optimizer_random_noise_max_retries: int = 5
     optimizer_random_noise_relative_amplitude: float = 1e-1
+    optimizer_reuse_env_eps: float = 1e-3
 
     # Line search
     line_search_method: Line_Search_Methods = Line_Search_Methods.WOLFE

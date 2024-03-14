@@ -435,6 +435,7 @@ def optimize_peps_network(
                     generate_unitcell,
                     spiral_indices,
                     additional_input,
+                    conv > peps_ad_config.optimizer_reuse_env_eps,
                 )
             except NoSuitableStepSizeError:
                 if peps_ad_config.optimizer_fail_if_no_step_size_found:
