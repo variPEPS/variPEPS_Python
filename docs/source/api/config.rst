@@ -1,10 +1,10 @@
-.. _peps_ad_config:
+.. _varipeps_config:
 
-.. currentmodule:: peps_ad.config
+.. currentmodule:: varipeps.config
 
-Config of PEPS-AD module (:mod:`peps_ad.config`)
+Config of PEPS-AD module (:mod:`varipeps.config`)
 ================================================
 
-.. automodule:: peps_ad.config
+.. automodule:: varipeps.config
    :members:
    :show-inheritance:

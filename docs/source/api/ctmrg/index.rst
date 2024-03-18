@@ -1,10 +1,10 @@
-.. _peps_ad_ctmrg:
+.. _varipeps_ctmrg:
 
-.. py:module:: peps_ad.ctmrg
+.. py:module:: varipeps.ctmrg
 
-.. currentmodule:: peps_ad.ctmrg
+.. currentmodule:: varipeps.ctmrg
 
-CTMRG method (:mod:`peps_ad.ctmrg`)
+CTMRG method (:mod:`varipeps.ctmrg`)
 ===================================
 
 .. toctree::
@@ -14,7 +14,7 @@ CTMRG method (:mod:`peps_ad.ctmrg`)
    projectors
    routine
 
-.. automodule:: peps_ad.ctmrg
+.. automodule:: varipeps.ctmrg
    :members:
    :undoc-members:
    :show-inheritance:

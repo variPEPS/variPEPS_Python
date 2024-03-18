@@ -1,10 +1,10 @@
-.. _peps_ad_peps:
+.. _varipeps_peps:
 
-.. py:module:: peps_ad.peps
+.. py:module:: varipeps.peps
 
-.. currentmodule:: peps_ad.peps
+.. currentmodule:: varipeps.peps
 
-Implementation of PEPS structure (:mod:`peps_ad.peps`)
+Implementation of PEPS structure (:mod:`varipeps.peps`)
 ======================================================
 
 .. toctree::

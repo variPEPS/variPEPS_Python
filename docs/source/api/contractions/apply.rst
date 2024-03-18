@@ -1,8 +1,8 @@
-.. _peps_ad_contractions_apply:
+.. _varipeps_contractions_apply:
 
-.. currentmodule:: peps_ad.contractions
+.. currentmodule:: varipeps.contractions
 
-Apply a contraction (:func:`peps_ad.contractions.apply_contraction`)
+Apply a contraction (:func:`varipeps.contractions.apply_contraction`)
 ====================================================================
 
 .. autofunction:: apply_contraction

@@ -1,11 +1,11 @@
-.. _peps_ad_optimization_basinhopping:
+.. _varipeps_optimization_basinhopping:
 
-.. currentmodule:: peps_ad.optimization.basinhopping
+.. currentmodule:: varipeps.optimization.basinhopping
 
-Implementation of the basinhopping optimizer for the PEPS model (:mod:`peps_ad.optimization.basinhopping`)
+Implementation of the basinhopping optimizer for the PEPS model (:mod:`varipeps.optimization.basinhopping`)
 ==========================================================================================================
 
-.. automodule:: peps_ad.optimization.basinhopping
+.. automodule:: varipeps.optimization.basinhopping
    :members:
    :undoc-members:
    :show-inheritance:

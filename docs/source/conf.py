@@ -20,11 +20,11 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Project information -----------------------------------------------------
 
 project = "peps-ad"
-copyright = "2021, Philipp Schmoll, Augustine Kshetrimayum, Frederik Wilde, Jan Naumann"
-author = "Philipp Schmoll, Augustine Kshetrimayum, Frederik Wilde, Jan Naumann"
+copyright = "2021-2024, Jan Naumann, Philipp Schmoll, Frederik Wilde, Finn Krein"
+author = "Jan Naumann, Philipp Schmoll, Frederik Wilde, Finn Krein"
 
 # The full version, including alpha/beta/rc tags
-release = importlib.metadata.version("peps_ad")
+release = importlib.metadata.version("varipeps")
 
 
 # -- General configuration ---------------------------------------------------
@@ -47,7 +47,7 @@ napoleon_preprocess_types = False
 autodoc_type_aliases = {
     "T_PEPS_Unit_Cell": "PEPS_Unit_Cell",
     "T_PEPS_Tensor": "PEPS_Tensor",
-    "PEPS_Unit_Cell.Unit_Cell_Data": "peps_ad.peps.PEPS_Unit_Cell.Unit_Cell_Data",
+    "PEPS_Unit_Cell.Unit_Cell_Data": "varipeps.peps.PEPS_Unit_Cell.Unit_Cell_Data",
     "jax._src.numpy.lax_numpy.ndarray": "jax.numpy.ndarray",
     "h5py._hl.group.Group": "h5py.Group",
 }

@@ -1,10 +1,10 @@
-.. _peps_ad_utils:
+.. _varipeps_utils:
 
-.. py:module:: peps_ad.utils
+.. py:module:: varipeps.utils
 
-.. currentmodule:: peps_ad.utils
+.. currentmodule:: varipeps.utils
 
-Utility functions (:mod:`peps_ad.utils`)
+Utility functions (:mod:`varipeps.utils`)
 ========================================
 
 .. toctree::
@@ -14,7 +14,7 @@ Utility functions (:mod:`peps_ad.utils`)
    random
    svd
 
-.. automodule:: peps_ad.utils
+.. automodule:: varipeps.utils
    :members:
    :undoc-members:
    :show-inheritance:

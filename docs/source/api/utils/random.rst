@@ -1,13 +1,13 @@
-.. _peps_ad_utils_random:
+.. _varipeps_utils_random:
 
-.. py:module:: peps_ad.utils.random
+.. py:module:: varipeps.utils.random
 
-.. currentmodule:: peps_ad.utils.random
+.. currentmodule:: varipeps.utils.random
 
-Random number helpers (:mod:`peps_ad.utils.random`)
+Random number helpers (:mod:`varipeps.utils.random`)
 ===================================================
 
-.. automodule:: peps_ad.utils.random
+.. automodule:: varipeps.utils.random
    :members:
    :undoc-members:
    :show-inheritance:

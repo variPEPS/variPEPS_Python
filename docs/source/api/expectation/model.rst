@@ -1,11 +1,11 @@
-.. _peps_ad_expectation_model:
+.. _varipeps_expectation_model:
 
-.. currentmodule:: peps_ad.expectation.model
+.. currentmodule:: varipeps.expectation.model
 
 Model of general expectation value calculation
 ==============================================
 
-.. automodule:: peps_ad.expectation.model
+.. automodule:: varipeps.expectation.model
    :members:
    :undoc-members:
    :show-inheritance:

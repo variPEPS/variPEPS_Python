@@ -1,13 +1,13 @@
-.. _peps_ad_typing:
+.. _varipeps_typing:
 
-.. py:module:: peps_ad.typing
+.. py:module:: varipeps.typing
 
-.. currentmodule:: peps_ad.typing
+.. currentmodule:: varipeps.typing
 
-Typing helper (:mod:`peps_ad.typing`)
+Typing helper (:mod:`varipeps.typing`)
 =====================================
 
-.. automodule:: peps_ad.typing
+.. automodule:: varipeps.typing
    :members:
    :undoc-members:
    :show-inheritance:

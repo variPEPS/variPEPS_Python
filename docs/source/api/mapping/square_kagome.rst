@@ -1,11 +1,11 @@
-.. _peps_ad_mapping_square_kagome:
+.. _varipeps_mapping_square_kagome:
 
-.. currentmodule:: peps_ad.mapping.square_kagome
+.. currentmodule:: varipeps.mapping.square_kagome
 
-Mapping of Square-Kagome structures (:mod:`peps_ad.mapping.square_kagome`)
+Mapping of Square-Kagome structures (:mod:`varipeps.mapping.square_kagome`)
 ==========================================================================
 
-.. automodule:: peps_ad.mapping.square_kagome
+.. automodule:: varipeps.mapping.square_kagome
    :members:
    :undoc-members:
    :show-inheritance:

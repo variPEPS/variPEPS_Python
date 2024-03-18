@@ -1,11 +1,11 @@
-.. _peps_ad_expectation_two_sites:
+.. _varipeps_expectation_two_sites:
 
-.. currentmodule:: peps_ad.expectation.two_sites
+.. currentmodule:: varipeps.expectation.two_sites
 
 Calculation of two sites expectation values
 ===========================================
 
-.. automodule:: peps_ad.expectation.two_sites
+.. automodule:: varipeps.expectation.two_sites
    :members:
    :undoc-members:
    :show-inheritance:

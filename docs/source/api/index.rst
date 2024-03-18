@@ -1,12 +1,12 @@
 .. _api:
 
-.. module:: peps_ad
+.. module:: varipeps
 
 #####################
 PEPS-AD API reference
 #####################
 
-This reference documents the public API of the :mod:`peps_ad` module.
+This reference documents the public API of the :mod:`varipeps` module.
 
 .. toctree::
    :maxdepth: 2

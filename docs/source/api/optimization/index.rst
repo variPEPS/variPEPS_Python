@@ -1,10 +1,10 @@
-.. _peps_ad_optimization:
+.. _varipeps_optimization:
 
-.. py:module:: peps_ad.optimization
+.. py:module:: varipeps.optimization
 
-.. currentmodule:: peps_ad.optimization
+.. currentmodule:: varipeps.optimization
 
-Variational optimizer for the PEPS network (:mod:`peps_ad.optimization`)
+Variational optimizer for the PEPS network (:mod:`varipeps.optimization`)
 ========================================================================
 
 .. toctree::
@@ -15,7 +15,7 @@ Variational optimizer for the PEPS network (:mod:`peps_ad.optimization`)
    line_search
    optimizer
 
-.. automodule:: peps_ad.optimization
+.. automodule:: varipeps.optimization
    :members:
    :undoc-members:
    :show-inheritance:

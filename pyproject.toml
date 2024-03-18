@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "peps-ad"
+name = "variPEPS"
 version = "0.4.7"
-description = "Library to solve iPEPS networks using AD methods"
-authors = ["Jan Naumann <j.naumann@fu-berlin.de>", "Philipp Schmoll <philipp.schmoll@fu-berlin.de>", "Frederik Wilde"]
+description = "Versatile tensor network library for variational ground state simulations in two spatial dimensions"
+authors = ["Jan Naumann <j.naumann@fu-berlin.de>", "Philipp Schmoll <philipp.schmoll@fu-berlin.de>", "Frederik Wilde", "Finn Krein"]
 license = "GPL-3.0"
 readme = "README.md"
-packages = [{include = "peps_ad"}]
+packages = [{include = "varipeps"}]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"

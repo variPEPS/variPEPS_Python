@@ -1,8 +1,8 @@
-.. _peps_ad_contractions_definitions:
+.. _varipeps_contractions_definitions:
 
-.. currentmodule:: peps_ad.contractions
+.. currentmodule:: varipeps.contractions
 
-Definitions for contractions (:class:`peps_ad.contractions.Definitions`)
+Definitions for contractions (:class:`varipeps.contractions.Definitions`)
 ========================================================================
 
 .. autoclass:: Definitions

@@ -1,8 +1,8 @@
-.. _peps_ad_ctmrg_routine:
+.. _varipeps_ctmrg_routine:
 
-.. currentmodule:: peps_ad.ctmrg
+.. currentmodule:: varipeps.ctmrg
 
-Calculate the new converged CTMRG tensors (:func:`peps_ad.ctmrg.calc_ctmrg_env` and :func:`peps_ad.ctmrg.calc_ctmrg_env_custom_rule`)
+Calculate the new converged CTMRG tensors (:func:`varipeps.ctmrg.calc_ctmrg_env` and :func:`peps_ad.ctmrg.calc_ctmrg_env_custom_rule`)
 =====================================================================================================================================
 
 .. autofunction:: calc_ctmrg_env

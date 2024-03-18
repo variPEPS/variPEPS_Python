@@ -1,11 +1,11 @@
-.. _peps_ad_mapping_kagome:
+.. _varipeps_mapping_kagome:
 
-.. currentmodule:: peps_ad.mapping.kagome
+.. currentmodule:: varipeps.mapping.kagome
 
-Mapping of Kagome structures (:mod:`peps_ad.mapping.kagome`)
+Mapping of Kagome structures (:mod:`varipeps.mapping.kagome`)
 ============================================================
 
-.. automodule:: peps_ad.mapping.kagome
+.. automodule:: varipeps.mapping.kagome
    :members:
    :undoc-members:
    :show-inheritance:

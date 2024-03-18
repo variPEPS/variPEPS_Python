@@ -1,10 +1,10 @@
-.. _peps_ad_contractions:
+.. _varipeps_contractions:
 
-.. py:module:: peps_ad.contractions
+.. py:module:: varipeps.contractions
 
-.. currentmodule:: peps_ad.contractions
+.. currentmodule:: varipeps.contractions
 
-Contractions definitions and helper methods (:mod:`peps_ad.contractions`)
+Contractions definitions and helper methods (:mod:`varipeps.contractions`)
 =========================================================================
 
 .. toctree::
@@ -13,7 +13,7 @@ Contractions definitions and helper methods (:mod:`peps_ad.contractions`)
    definitions
    apply
 
-.. automodule:: peps_ad.contractions
+.. automodule:: varipeps.contractions
    :members:
    :undoc-members:
    :show-inheritance:

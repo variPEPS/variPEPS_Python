@@ -1,10 +1,10 @@
-.. _peps_ad_mapping:
+.. _varipeps_mapping:
 
-.. py:module:: peps_ad.mapping
+.. py:module:: varipeps.mapping
 
-.. currentmodule:: peps_ad.mapping
+.. currentmodule:: varipeps.mapping
 
-Mapping of other structures to PEPS unitcells (:mod:`peps_ad.mapping`)
+Mapping of other structures to PEPS unitcells (:mod:`varipeps.mapping`)
 ======================================================================
 
 .. toctree::
@@ -15,7 +15,7 @@ Mapping of other structures to PEPS unitcells (:mod:`peps_ad.mapping`)
    square_kagome
    triangular
 
-.. automodule:: peps_ad.mapping
+.. automodule:: varipeps.mapping
    :members:
    :undoc-members:
    :show-inheritance:

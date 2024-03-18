@@ -1,11 +1,11 @@
-.. _peps_ad_mapping_triangular:
+.. _varipeps_mapping_triangular:
 
-.. currentmodule:: peps_ad.mapping.triangular
+.. currentmodule:: varipeps.mapping.triangular
 
-Mapping of Triangular structures (:mod:`peps_ad.mapping.triangular`)
+Mapping of Triangular structures (:mod:`varipeps.mapping.triangular`)
 =====================================================================
 
-.. automodule:: peps_ad.mapping.triangular
+.. automodule:: varipeps.mapping.triangular
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,13 +1,13 @@
-.. _peps_ad_ctmrg_absorption:
+.. _varipeps_ctmrg_absorption:
 
-.. module:: peps_ad.ctmrg.absorption
+.. module:: varipeps.ctmrg.absorption
 
-.. currentmodule:: peps_ad.ctmrg.absorption
+.. currentmodule:: varipeps.ctmrg.absorption
 
-Calculate the new CTMRG tensors for a single step (:mod:`peps_ad.ctmrg.absorption`)
+Calculate the new CTMRG tensors for a single step (:mod:`varipeps.ctmrg.absorption`)
 ===================================================================================
 
-.. automodule:: peps_ad.ctmrg.absorption
+.. automodule:: varipeps.ctmrg.absorption
    :members:
    :show-inheritance:
    :noindex:

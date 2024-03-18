@@ -1,10 +1,10 @@
-.. _peps_ad_expectation:
+.. _varipeps_expectation:
 
-.. py:module:: peps_ad.expectation
+.. py:module:: varipeps.expectation
 
-.. currentmodule:: peps_ad.expectation
+.. currentmodule:: varipeps.expectation
 
-Calculation of expectation values (:mod:`peps_ad.expectation`)
+Calculation of expectation values (:mod:`varipeps.expectation`)
 ==============================================================
 
 .. toctree::
@@ -15,7 +15,7 @@ Calculation of expectation values (:mod:`peps_ad.expectation`)
    two_sites
    three_sites
 
-.. automodule:: peps_ad.expectation
+.. automodule:: varipeps.expectation
    :members:
    :undoc-members:
    :show-inheritance:

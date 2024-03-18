@@ -1,8 +1,8 @@
-.. _peps_ad_peps_tensor:
+.. _varipeps_peps_tensor:
 
-.. currentmodule:: peps_ad.peps
+.. currentmodule:: varipeps.peps
 
-Single PEPS tensor (:class:`peps_ad.peps.PEPS_Tensor`)
+Single PEPS tensor (:class:`varipeps.peps.PEPS_Tensor`)
 ======================================================
 
 .. autoclass:: PEPS_Tensor

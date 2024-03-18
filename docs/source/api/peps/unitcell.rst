@@ -1,8 +1,8 @@
-.. _peps_ad_peps_unit_cell:
+.. _varipeps_peps_unit_cell:
 
-.. currentmodule:: peps_ad.peps
+.. currentmodule:: varipeps.peps
 
-PEPS Unit cell (:class:`peps_ad.peps.PEPS_Unit_Cell`)
+PEPS Unit cell (:class:`varipeps.peps.PEPS_Unit_Cell`)
 =====================================================
 
 .. autoclass:: PEPS_Unit_Cell
