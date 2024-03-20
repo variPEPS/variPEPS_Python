@@ -324,8 +324,15 @@ def calc_left_projectors(
         to the x axis, the column (second) index to y.
       peps_tensor_objs (:term:`sequence` of :term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
         Nested list of the PEPS tensor objects. Same format as for `peps_tensors`.
+      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+        Global configuration object of the variPEPS library. Please see its
+        class definition for details.
+      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+        Global state object of the variPEPS library. It is used to transport
+        a common state across different parts of the framework. Please see its
+        class definition for details.
     Returns:
-      :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`jax.numpy.ndarray`):
+      :obj:`~varipeps.utils.projector_dict.Left_Projectors`:
         The left top and bottom projectors.
     """
     chi = _check_chi(peps_tensor_objs)
@@ -435,8 +442,15 @@ def calc_right_projectors(
         to the x axis, the column (second) index to y.
       peps_tensor_objs (:term:`sequence` of :term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
         Nested list of the PEPS tensor objects. Same format as for `peps_tensors`.
+      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+        Global configuration object of the variPEPS library. Please see its
+        class definition for details.
+      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+        Global state object of the variPEPS library. It is used to transport
+        a common state across different parts of the framework. Please see its
+        class definition for details.
     Returns:
-      :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`jax.numpy.ndarray`):
+      :obj:`~varipeps.utils.projector_dict.Right_Projectors`:
         The right top and bottom projectors.
     """
     chi = _check_chi(peps_tensor_objs)
@@ -546,8 +560,15 @@ def calc_top_projectors(
         to the x axis, the column (second) index to y.
       peps_tensor_objs (:term:`sequence` of :term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
         Nested list of the PEPS tensor objects. Same format as for `peps_tensors`.
+      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+        Global configuration object of the variPEPS library. Please see its
+        class definition for details.
+      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+        Global state object of the variPEPS library. It is used to transport
+        a common state across different parts of the framework. Please see its
+        class definition for details.
     Returns:
-      :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`jax.numpy.ndarray`):
+      :obj:`~varipeps.utils.projector_dict.Top_Projectors`:
         The top left and right projectors.
     """
     chi = _check_chi(peps_tensor_objs)
@@ -657,8 +678,15 @@ def calc_bottom_projectors(
         to the x axis, the column (second) index to y.
       peps_tensor_objs (:term:`sequence` of :term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
         Nested list of the PEPS tensor objects. Same format as for `peps_tensors`.
+      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+        Global configuration object of the variPEPS library. Please see its
+        class definition for details.
+      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+        Global state object of the variPEPS library. It is used to transport
+        a common state across different parts of the framework. Please see its
+        class definition for details.
     Returns:
-      :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`jax.numpy.ndarray`):
+      :obj:`~varipeps.utils.projector_dict.Bottom_Projectors`:
         The bottom left and right projectors.
     """
     chi = _check_chi(peps_tensor_objs)

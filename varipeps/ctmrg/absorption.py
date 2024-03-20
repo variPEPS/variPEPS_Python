@@ -110,6 +110,13 @@ def do_left_absorption(
         The sequence of unique PEPS tensors the unitcell consists of.
       unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
+      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+        Global configuration object of the variPEPS library. Please see its
+        class definition for details.
+      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+        Global state object of the variPEPS library. It is used to transport
+        a common state across different parts of the framework. Please see its
+        class definition for details.
     Returns:
       :obj:`~varipeps.peps.PEPS_Unit_Cell`:
         New instance of the unitcell with the updated left CTMRG tensors of
@@ -202,6 +209,13 @@ def do_right_absorption(
         The sequence of unique PEPS tensors the unitcell consists of.
       unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
+      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+        Global configuration object of the variPEPS library. Please see its
+        class definition for details.
+      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+        Global state object of the variPEPS library. It is used to transport
+        a common state across different parts of the framework. Please see its
+        class definition for details.
     Returns:
       :obj:`~varipeps.peps.PEPS_Unit_Cell`:
         New instance of the unitcell with the updated right CTMRG tensors of
@@ -298,6 +312,13 @@ def do_top_absorption(
         The sequence of unique PEPS tensors the unitcell consists of.
       unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
+      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+        Global configuration object of the variPEPS library. Please see its
+        class definition for details.
+      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+        Global state object of the variPEPS library. It is used to transport
+        a common state across different parts of the framework. Please see its
+        class definition for details.
     Returns:
       :obj:`~varipeps.peps.PEPS_Unit_Cell`:
         New instance of the unitcell with the updated top CTMRG tensors of
@@ -390,6 +411,13 @@ def do_bottom_absorption(
         The sequence of unique PEPS tensors the unitcell consists of.
       unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
+      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+        Global configuration object of the variPEPS library. Please see its
+        class definition for details.
+      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+        Global state object of the variPEPS library. It is used to transport
+        a common state across different parts of the framework. Please see its
+        class definition for details.
     Returns:
       :obj:`~varipeps.peps.PEPS_Unit_Cell`:
         New instance of the unitcell with the updated bottom CTMRG tensors of
@@ -583,6 +611,13 @@ def do_absorption_step(
         The sequence of unique PEPS tensors the unitcell consists of.
       unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
+      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+        Global configuration object of the variPEPS library. Please see its
+        class definition for details.
+      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+        Global state object of the variPEPS library. It is used to transport
+        a common state across different parts of the framework. Please see its
+        class definition for details.
     Returns:
       :obj:`~varipeps.peps.PEPS_Unit_Cell`:
         New instance of the unitcell with the all updated CTMRG tensors of

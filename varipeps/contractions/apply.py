@@ -67,6 +67,12 @@ def apply_contraction(
       disable_identity_check (:obj:`bool`):
         Disable the check if the tensor is identical to the one of the
         corresponding object.
+      custom_definition (:obj:`~varipeps.contractions.apply.Definition`, optional):
+        Use a custom definition for the contraction which is not defined in the
+        :class:`varipeps.contractions.Definitions` class.
+      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+        Global configuration object of the variPEPS library. Please see its
+        class definition for details.
     Returns:
       jax.numpy.ndarray:
         The contracted tensor.
