@@ -498,6 +498,229 @@ class PEPS_Unit_Cell:
             sanity_checks=False,
         )
 
+    def change_D(self: T_PEPS_Unit_Cell, new_D: int) -> T_PEPS_Unit_Cell:
+        """
+        Change iPEPS bond dimension of all tensors in the unit cell.
+
+        Args:
+          new_D (:obj:`int`):
+            New value for the iPEPS bond dimension.
+        Returns:
+          PEPS_Unit_Cell:
+            New instance of PEPS unit cell with the new tensor list.
+        """
+        old_D = self.get_unique_tensors()[0].D[0]
+        if any(D != old_D for t in self.get_unique_tensors() for D in t.D):
+            raise NotImplementedError(
+                "Only supporting isotropic bond dim at the moment"
+            )
+
+        if new_D == old_D:
+            return self.copy()
+
+        from varipeps.utils.projector_dict import Projector_Dict
+        from varipeps.utils.svd import svd_wrapper
+        from varipeps.contractions import apply_contraction_jitted
+
+        max_x, max_y = self.get_size()
+        projectors = Projector_Dict(max_x=max_x, max_y=max_y)
+        working_unitcell = self.copy()
+
+        new_D = int(new_D)
+
+        for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
+            for y, view in iter_rows:
+                working_tensor_obj_top_left = view[0, 0][0][0]
+                working_tensor_obj_top_right = view[0, 1][0][0]
+                working_tensor_obj_bottom_left = view[1, 0][0][0]
+
+                rho_left = apply_contraction_jitted(
+                    "unitcell_bond_dim_change_left",
+                    [working_tensor_obj_top_left.tensor],
+                    [working_tensor_obj_top_left],
+                    [],
+                )
+                rho_left = rho_left / jnp.linalg.norm(rho_left)
+
+                rho_right = apply_contraction_jitted(
+                    "unitcell_bond_dim_change_right",
+                    [working_tensor_obj_top_right.tensor],
+                    [working_tensor_obj_top_right],
+                    [],
+                )
+                rho_right = rho_right / jnp.linalg.norm(rho_right)
+
+                rho_top = apply_contraction_jitted(
+                    "unitcell_bond_dim_change_top",
+                    [working_tensor_obj_top_left.tensor],
+                    [working_tensor_obj_top_left],
+                    [],
+                )
+                rho_top = rho_top / jnp.linalg.norm(rho_top)
+
+                rho_bottom = apply_contraction_jitted(
+                    "unitcell_bond_dim_change_bottom",
+                    [working_tensor_obj_bottom_left.tensor],
+                    [working_tensor_obj_bottom_left],
+                    [],
+                )
+                rho_bottom = rho_bottom / jnp.linalg.norm(rho_bottom)
+
+                rho_left_matrix = rho_left.reshape(
+                    rho_left.shape[0] * rho_left.shape[1] * rho_left.shape[2],
+                    rho_left.shape[3],
+                )
+                rho_right_matrix = rho_right.reshape(
+                    rho_right.shape[0],
+                    rho_right.shape[1] * rho_right.shape[2] * rho_right.shape[3],
+                )
+                rho_top_matrix = rho_top.reshape(
+                    rho_top.shape[0] * rho_top.shape[1] * rho_top.shape[2],
+                    rho_top.shape[3],
+                )
+                rho_bottom_matrix = rho_bottom.reshape(
+                    rho_bottom.shape[0],
+                    rho_bottom.shape[1] * rho_bottom.shape[2] * rho_bottom.shape[3],
+                )
+
+                U, S, Vh = svd_wrapper(rho_left_matrix @ rho_right_matrix)
+                # Truncate the singular values
+                S = S[:new_D]
+                U = U[:, :new_D]
+                Vh = Vh[:new_D, :]
+
+                if new_D > old_D:
+                    for i in range(old_D, new_D):
+                        S = S.at[i].set(S[i - 1] * 1e-1)
+
+                relevant_S_values = (S / S[0]) > varipeps_config.ctmrg_truncation_eps
+                S_inv_sqrt = jnp.where(
+                    relevant_S_values,
+                    1 / jnp.sqrt(jnp.where(relevant_S_values, S, 1)),
+                    0,
+                )
+
+                projector_left = jnp.dot(
+                    U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], rho_left_matrix
+                )
+                projector_right = jnp.dot(
+                    rho_right_matrix, Vh.transpose().conj() * S_inv_sqrt
+                )
+
+                U, S, Vh = svd_wrapper(rho_top_matrix @ rho_bottom_matrix)
+                # Truncate the singular values
+                S = S[:new_D]
+                U = U[:, :new_D]
+                Vh = Vh[:new_D, :]
+
+                if new_D > old_D:
+                    for i in range(old_D, new_D):
+                        S = S.at[i].set(S[i - 1] * 1e-1)
+
+                relevant_S_values = (S / S[0]) > varipeps_config.ctmrg_truncation_eps
+                S_inv_sqrt = jnp.where(
+                    relevant_S_values,
+                    1 / jnp.sqrt(jnp.where(relevant_S_values, S, 1)),
+                    0,
+                )
+
+                projector_top = jnp.dot(
+                    U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], rho_top_matrix
+                )
+                projector_bottom = jnp.dot(
+                    rho_bottom_matrix, Vh.transpose().conj() * S_inv_sqrt
+                )
+
+                projectors[(x, y)] = (
+                    projector_left,
+                    projector_right,
+                    projector_top,
+                    projector_bottom,
+                )
+
+        for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
+            for y, view in iter_rows:
+                working_tensor_obj_top_left = view[0, 0][0][0]
+                working_tensor_obj_top_right = view[0, 1][0][0]
+                working_tensor_obj_bottom_left = view[1, 0][0][0]
+
+                projector_left, projector_right, projector_top, projector_bottom = (
+                    projectors.get_projector(x, y, 0, 0)
+                )
+
+                new_top_left_D = list(working_tensor_obj_top_left.D)
+                new_top_left = jnp.tensordot(
+                    working_tensor_obj_top_left.tensor, projector_left, ((3,), (1,))
+                )
+                new_top_left = new_top_left.transpose(0, 1, 2, 4, 3)
+                new_top_left_D[2] = new_D
+
+                new_top_left = jnp.tensordot(new_top_left, projector_top, ((1,), (1,)))
+                new_top_left = new_top_left.transpose(0, 4, 1, 2, 3)
+                new_top_left_D[1] = new_D
+
+                if working_tensor_obj_top_right is working_tensor_obj_top_left:
+                    new_top_left = jnp.tensordot(
+                        projector_right, new_top_left, ((0,), (0,))
+                    )
+                    new_top_left_D[0] = new_D
+                else:
+                    new_top_right = jnp.tensordot(
+                        projector_right,
+                        working_tensor_obj_top_right.tensor,
+                        ((0,), (0,)),
+                    )
+                    new_top_right_D = list(working_tensor_obj_top_right.D)
+                    new_top_right_D[0] = new_D
+                    new_top_right_D = tuple(new_top_right_D)
+
+                if working_tensor_obj_bottom_left is working_tensor_obj_top_left:
+                    new_top_left = jnp.tensordot(
+                        new_top_left, projector_bottom, ((4,), (0,))
+                    )
+                    new_top_left_D[3] = new_D
+                else:
+                    new_bottom_left = jnp.tensordot(
+                        working_tensor_obj_bottom_left.tensor,
+                        projector_bottom,
+                        ((4,), (0,)),
+                    )
+                    new_bottom_left_D = list(working_tensor_obj_bottom_left.D)
+                    new_bottom_left_D[3] = new_D
+                    new_bottom_left_D = tuple(new_bottom_left_D)
+
+                new_top_left_D = tuple(new_top_left_D)
+                working_tensor_obj_top_left = (
+                    working_tensor_obj_top_left.replace_tensor(
+                        new_top_left,
+                        reinitialize_env_as_identities=True,
+                        new_D=new_top_left_D,
+                    )
+                )
+                view[0, 0] = working_tensor_obj_top_left
+
+                if view[0, 0][0][0] is not view[0, 1][0][0]:
+                    working_tensor_obj_top_right = (
+                        working_tensor_obj_top_right.replace_tensor(
+                            new_top_right,
+                            reinitialize_env_as_identities=True,
+                            new_D=new_top_right_D,
+                        )
+                    )
+                    view[0, 1] = working_tensor_obj_top_right
+
+                if view[0, 0][0][0] is not view[1, 0][0][0]:
+                    working_tensor_obj_bottom_left = (
+                        working_tensor_obj_bottom_left.replace_tensor(
+                            new_bottom_left,
+                            reinitialize_env_as_identities=True,
+                            new_D=new_bottom_left_D,
+                        )
+                    )
+                    view[1, 0] = working_tensor_obj_bottom_left
+
+        return working_unitcell
+
     def move(self: T_PEPS_Unit_Cell, new_xi: int, new_yi: int) -> T_PEPS_Unit_Cell:
         """
         Move origin of the unit cell coordination system.

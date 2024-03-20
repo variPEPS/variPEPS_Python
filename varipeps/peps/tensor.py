@@ -327,6 +327,7 @@ class PEPS_Tensor:
         new_tensor: Tensor,
         *,
         reinitialize_env_as_identities: bool = True,
+        new_D: Optional[Tuple[int, int, int, int]] = None,
     ) -> T_PEPS_Tensor:
         """
         Replace the PEPS tensor and returns new object of the class.
@@ -337,10 +338,17 @@ class PEPS_Tensor:
         Keyword args:
           reinitialize_env_as_identities (:obj:`bool`):
             Reinitialize the CTM tensors as identities.
+          new_D (:obj:`tuple` of four :obj:`int`, optional):
+            Tuple of new iPEPS bond dimensions if tensor has changed dimensions
         Returns:
           :obj:`~varipeps.peps.PEPS_Tensor`:
             New instance of the class with the tensor replaced.
         """
+        if new_D is None:
+            new_D = self.D
+        elif not isinstance(new_D, tuple) and len(new_D) != 4:
+            raise ValueError("Invalid argument for parameter new_D")
+
         if reinitialize_env_as_identities:
             return type(self)(
                 tensor=new_tensor,
@@ -348,20 +356,20 @@ class PEPS_Tensor:
                 C2=jnp.ones((1, 1), dtype=self.C2.dtype),
                 C3=jnp.ones((1, 1), dtype=self.C3.dtype),
                 C4=jnp.ones((1, 1), dtype=self.C4.dtype),
-                T1=jnp.eye(self.D[3], dtype=self.T1.dtype).reshape(
-                    1, self.D[3], self.D[3], 1
+                T1=jnp.eye(new_D[3], dtype=self.T1.dtype).reshape(
+                    1, new_D[3], new_D[3], 1
                 ),
-                T2=jnp.eye(self.D[2], dtype=self.T2.dtype).reshape(
-                    self.D[2], self.D[2], 1, 1
+                T2=jnp.eye(new_D[2], dtype=self.T2.dtype).reshape(
+                    new_D[2], new_D[2], 1, 1
                 ),
-                T3=jnp.eye(self.D[1], dtype=self.T3.dtype).reshape(
-                    1, 1, self.D[1], self.D[1]
+                T3=jnp.eye(new_D[1], dtype=self.T3.dtype).reshape(
+                    1, 1, new_D[1], new_D[1]
                 ),
-                T4=jnp.eye(self.D[0], dtype=self.T4.dtype).reshape(
-                    1, self.D[0], self.D[0], 1
+                T4=jnp.eye(new_D[0], dtype=self.T4.dtype).reshape(
+                    1, new_D[0], new_D[0], 1
                 ),
                 d=self.d,
-                D=self.D,
+                D=new_D,
                 chi=self.chi,
                 max_chi=self.max_chi,
             )
@@ -377,7 +385,7 @@ class PEPS_Tensor:
                 T3=self.T3,
                 T4=self.T4,
                 d=self.d,
-                D=self.D,
+                D=new_D,
                 chi=self.chi,
                 max_chi=self.max_chi,
             )

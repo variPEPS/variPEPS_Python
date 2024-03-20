@@ -10,12 +10,12 @@ from varipeps.peps import PEPS_Tensor, PEPS_Unit_Cell
 from varipeps.contractions import apply_contraction, apply_contraction_jitted
 from varipeps.utils.svd import gauge_fixed_svd
 from varipeps.utils.periodic_indices import calculate_periodic_indices
+from varipeps.utils.projector_dict import Projector_Dict
 from .projectors import (
     calc_left_projectors,
     calc_right_projectors,
     calc_top_projectors,
     calc_bottom_projectors,
-    T_Projector,
 )
 from varipeps.expectation.one_site import calc_one_site_single_gate_obj
 from varipeps.config import PEPS_AD_Config
@@ -25,40 +25,6 @@ from varipeps.global_state import PEPS_AD_Global_State
 from typing import Sequence, Tuple, List, Dict, Literal
 
 CTMRG_Orientation = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
-
-
-@dataclass
-class _Projector_Dict(collections.abc.MutableMapping):
-    max_x: int
-    max_y: int
-    projector_dict: Dict[Tuple[int, int], T_Projector] = field(default_factory=dict)  # type: ignore
-
-    def __getitem__(self, key: Tuple[int, int]) -> T_Projector:
-        return self.projector_dict[key]
-
-    def __setitem__(self, key: Tuple[int, int], value: T_Projector) -> None:
-        self.projector_dict[key] = value
-
-    def __delitem__(self, key: Tuple[int, int]) -> None:
-        self.projector_dict.__delitem__(key)
-
-    def __iter__(self):
-        return self.projector_dict.__iter__()
-
-    def __len__(self):
-        return self.projector_dict.__len__()
-
-    def get_projector(
-        self,
-        current_x: int,
-        current_y: int,
-        relative_x: int,
-        relative_y: int,
-    ) -> T_Projector:
-        select_x = (current_x + relative_x) % self.max_x
-        select_y = (current_y + relative_y) % self.max_y
-
-        return self.projector_dict[(select_x, select_y)]
 
 
 def _tensor_list_from_indices(
@@ -150,7 +116,7 @@ def do_left_absorption(
         all elements of the unitcell.
     """
     max_x, max_y = unitcell.get_size()
-    left_projectors = _Projector_Dict(max_x=max_x, max_y=max_y)
+    left_projectors = Projector_Dict(max_x=max_x, max_y=max_y)
 
     working_unitcell = unitcell.copy()
 
@@ -242,7 +208,7 @@ def do_right_absorption(
         all elements of the unitcell.
     """
     max_x, max_y = unitcell.get_size()
-    right_projectors = _Projector_Dict(max_x=max_x, max_y=max_y)
+    right_projectors = Projector_Dict(max_x=max_x, max_y=max_y)
 
     working_unitcell = unitcell.copy()
 
@@ -338,7 +304,7 @@ def do_top_absorption(
         all elements of the unitcell.
     """
     max_x, max_y = unitcell.get_size()
-    top_projectors = _Projector_Dict(max_x=max_x, max_y=max_y)
+    top_projectors = Projector_Dict(max_x=max_x, max_y=max_y)
 
     working_unitcell = unitcell.copy()
 
@@ -430,7 +396,7 @@ def do_bottom_absorption(
         all elements of the unitcell.
     """
     max_x, max_y = unitcell.get_size()
-    bottom_projectors = _Projector_Dict(max_x=max_x, max_y=max_y)
+    bottom_projectors = Projector_Dict(max_x=max_x, max_y=max_y)
 
     working_unitcell = unitcell.copy()
 

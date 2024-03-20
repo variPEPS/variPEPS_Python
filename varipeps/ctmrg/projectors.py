@@ -1,4 +1,3 @@
-from collections import namedtuple
 import enum
 from functools import partial
 
@@ -10,20 +9,16 @@ from varipeps.contractions import apply_contraction
 from varipeps import varipeps_config
 from varipeps.utils.func_cache import Checkpointing_Cache
 from varipeps.utils.svd import gauge_fixed_svd
+from varipeps.utils.projector_dict import (
+    Left_Projectors,
+    Right_Projectors,
+    Top_Projectors,
+    Bottom_Projectors,
+)
 from varipeps.config import Projector_Method, PEPS_AD_Config
 from varipeps.global_state import PEPS_AD_Global_State
 
 from typing import Sequence, Tuple, TypeVar
-
-
-Left_Projectors = namedtuple("Left_Projectors", ("top", "bottom"))
-Right_Projectors = namedtuple("Right_Projectors", ("top", "bottom"))
-Top_Projectors = namedtuple("Top_Projectors", ("left", "right"))
-Bottom_Projectors = namedtuple("Bottom_Projectors", ("left", "right"))
-
-T_Projector = TypeVar(
-    "T_Projector", Left_Projectors, Right_Projectors, Top_Projectors, Bottom_Projectors
-)
 
 
 class _Projectors_Func_Cache:
