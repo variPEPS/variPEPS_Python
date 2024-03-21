@@ -1,0 +1,69 @@
+{
+    "creators": [
+        {
+            "orcid": "0000-0003-4513-5139",
+            "affiliation": "Freie Universität Berlin",
+            "name": "Naumann, Jan"
+        },
+        {
+            "orcid": "0000-0001-5534-6103",
+            "affiliation": "Freie Universität Berlin",
+            "name": "Schmoll, Philipp"
+        },
+        {
+            "orcid": "0000-0002-6224-1964",
+            "affiliation": "Freie Universität Berlin",
+            "name": "Wilde, Frederik"
+        },
+        {
+            "affiliation": "Freie Universität Berlin",
+            "name": "Krein, Finn"
+        }
+    ],
+
+    "contributors": [
+        {
+            "orcid": "0009-0006-8139-8648",
+            "affiliation": "University of Cologne",
+            "name": "Weerda, Erik Lennart",
+            "type": "Researcher"
+        },
+        {
+            "orcid": "0000-0002-8283-1005",
+            "affiliation": "University of Cologne",
+            "name": "Rizzi, Matteo",
+            "type": "Supervisor"
+        },
+        {
+            "orcid": "0000-0003-3033-1292",
+            "affiliation": "Freie Universität Berlin",
+            "name": "Eisert, Jens",
+            "type": "Supervisor"
+        }
+    ],
+
+    "description": "A versatile tensor network library for variational ground state simulations in two spatial dimensions.",
+
+    "license": "GPL-3.0-or-later",
+
+    "title": "variPEPS (Python version)",
+
+    "related_identifiers": [
+        {
+            "identifier": "arXiv:2308.12358",
+            "relation": "isDocumentedBy",
+            "resource_type": "publication-preprint"
+        },
+        {
+            "identifier": "https://varipeps.readthedocs.io/en/stable/",
+            "relation": "isDocumentedBy",
+            "resource_type": "publication-softwaredocumentation"
+        }
+    ],
+
+    "keywords": ["peps", "tensor-networks", "variational-optimization"],
+
+    "communities": [
+        {"identifier": "crc183"}
+    ]
+}

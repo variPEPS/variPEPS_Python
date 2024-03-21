@@ -16,7 +16,18 @@ from varipeps.typing import Tensor
 from varipeps.utils.random import PEPS_Random_Number_Generator
 from varipeps.mapping import Map_To_PEPS_Model
 
-from typing import Sequence, Union, List, Callable, TypeVar, Optional, Tuple, Type
+from typing import (
+    Sequence,
+    Union,
+    List,
+    Callable,
+    TypeVar,
+    Optional,
+    Tuple,
+    Type,
+    Dict,
+    Any,
+)
 
 T_float_complex = TypeVar("T_float_complex", float, complex)
 T_Kagome_Map_PESS3_To_Single_PEPS_Site = TypeVar(
@@ -31,6 +42,17 @@ class Kagome_PESS3_Expectation_Value(Expectation_Model):
     Class to calculate expectation values for a mapped Kagome 3-PESS
     structure.
 
+    .. figure:: /images/kagome_structure.*
+       :align: center
+       :width: 70%
+       :alt: Structure of the Kagome lattice with smallest possible unit cell
+             marked by dashed lines.
+
+       Structure of the Kagome lattice with smallest possible unit cell marked
+       by dashed lines.
+
+    \\
+
     Args:
       upward_triangle_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
         Sequence with the gates that should be applied to the upward
@@ -42,6 +64,14 @@ class Kagome_PESS3_Expectation_Value(Expectation_Model):
         Factor which should be used to normalize the calculated values.
         If for example three sites are mapped into one PEPS site this
         should be 3.
+      operation_before_sum (:term:`callable` of type :obj:`float`/:obj:`complex` to :obj:`float`/:obj:`complex`):
+        Function which should be applied to the expectation values before they
+        are summed up.
+      is_spiral_peps (:obj:`bool`):
+        Flag if the expectation value is for a spiral iPEPS ansatz.
+      spiral_unitary_operator (:obj:`jax.numpy.ndarray`):
+        Operator used to generate unitary for spiral iPEPS ansatz. Required
+        if spiral iPEPS ansatz is used.
     """
 
     upward_triangle_gates: Sequence[jnp.ndarray]
@@ -236,6 +266,17 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
 
     The PESS structure is contracted in the way that all site tensors are
     connected to the up simplex and the down simplex to site 1.
+
+    Args:
+      unitcell_structure (:term:`sequence` of :term:`sequence` of :obj:`int` or 2d array):
+        Two dimensional array modeling the structure of the unit cell. For
+        details see the description of :obj:`~varipeps.peps.PEPS_Unit_Cell`.
+      chi (:obj:`int`):
+        Bond dimension of environment tensors which should be used for the
+        unit cell generated.
+      max_chi (:obj:`int`):
+        Maximal allowed bond dimension of environment tensors which should be
+        used for the unit cell generated.
     """
 
     unitcell_structure: Sequence[Sequence[int]]
@@ -332,10 +373,10 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
         unitcell: PEPS_Unit_Cell,
         *,
         store_config: bool = True,
-        max_trunc_error_list: Optional[List[float]] = None,
+        auxiliary_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
-        Save unit cell to a HDF5 file.
+        Save Kagome PESS tensors and unit cell to a HDF5 file.
 
         This function creates a single group "kagome_pess" in the file
         and pass this group to the method
@@ -344,22 +385,51 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
         Args:
           path (:obj:`os.PathLike`):
             Path of the new file. Caution: The file will overwritten if existing.
+          tensors (:obj:`list` of :obj:`jax.numpy.ndarray`):
+            List with the PEPS tensors which should be stored in the file.
+          unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
+            Full unit cell object which should be stored in the file.
+        Keyword args:
           store_config (:obj:`bool`):
             Store the current values of the global config object into the HDF5
             file as attrs of an extra group.
+          auxiliary_data (:obj:`dict` with :obj:`str` to storable objects, optional):
+            Dictionary with string indexed auxiliary HDF5-storable entries which
+            should be stored along the other data in the file.
         """
         with h5py.File(path, "w", libver=("earliest", "v110")) as f:
             grp = f.create_group("kagome_pess")
 
             cls.save_to_group(grp, tensors, unitcell, store_config=store_config)
 
-            if max_trunc_error_list is not None:
-                f.create_dataset(
-                    "max_trunc_error_list",
-                    data=jnp.array(max_trunc_error_list),
-                    compression="gzip",
-                    compression_opts=6,
-                )
+            if auxiliary_data is not None:
+                grp_aux = f.create_group("auxiliary_data")
+
+                grp_aux.attrs["keys"] = list(auxiliary_data.keys())
+
+                for key, val in auxiliary_data.items():
+                    if key == "keys":
+                        raise ValueError(
+                            "Name 'keys' forbidden as name for auxiliary data"
+                        )
+
+                    if isinstance(
+                        val, (jnp.ndarray, np.ndarray, collections.abc.Sequence)
+                    ):
+                        try:
+                            if val.ndim == 0:
+                                val = val.reshape(1)
+                        except AttributeError:
+                            pass
+
+                        grp_aux.create_dataset(
+                            key,
+                            data=jnp.asarray(val),
+                            compression="gzip",
+                            compression_opts=6,
+                        )
+                    else:
+                        grp_aux.attrs[key] = val
 
     @staticmethod
     def save_to_group(
@@ -370,11 +440,17 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
         store_config: bool = True,
     ) -> None:
         """
-        Save unit cell to a HDF5 group which is be passed to the method.
+        Save Kagome PESS tensors and unit cell to a HDF5 group which is be
+        passed to the method.
 
         Args:
           grp (:obj:`h5py.Group`):
             HDF5 group object to store the data into.
+          tensors (:obj:`list` of :obj:`jax.numpy.ndarray`):
+            List with the PEPS tensors which should be stored in the file.
+          unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
+            Full unit cell object which should be stored in the file.
+        Keyword args:
           store_config (:obj:`bool`):
             Store the current values of the global config object into the HDF5
             file as attrs of an extra group.
@@ -434,7 +510,7 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell, varipeps.config.PEPS_AD_Config],
     ]:
         """
-        Load unit cell from a HDF5 file.
+        Load Kagome PESS tensors and unit cell from a HDF5 file.
 
         This function read the group "kagome_pess" from the file and pass
         this group to the method
@@ -443,27 +519,48 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
         Args:
           path (:obj:`os.PathLike`):
             Path of the HDF5 file.
+        Keyword args:
           return_config (:obj:`bool`):
             Return a config object initialized with the values from the HDF5
             files. If no config is stored in the file, just the data is returned.
             Missing config flags in the file uses the default values from the
             config object.
+          return_auxiliary_data (:obj:`bool`):
+            Return dictionary with string indexed auxiliary data which has been
+            should be stored along the other data in the file.
         Returns:
           :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`) or :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`, :obj:`~varipeps.config.PEPS_AD_Config`):
             The tuple with the list of the PESS tensors and the PEPS unitcell
             is returned. If ``return_config = True``. the config is returned
-            as well.
+            as well. If ``return_auxiliary_data = True``. the auxiliary data is
+            returned as well.
         """
         with h5py.File(path, "r") as f:
             out = cls.load_from_group(f["kagome_pess"], return_config=return_config)
-            max_trunc_error_list = f.get("max_trunc_error_list")
 
-        if return_config and return_max_trunc_error_list:
-            return out[0], out[1], out[2], max_trunc_error_list
+            auxiliary_data = {}
+            auxiliary_data_grp = f.get("auxiliary_data")
+            if auxiliary_data_grp is not None:
+                for k in auxiliary_data_grp.attrs["keys"]:
+                    aux_d = auxiliary_data_grp.get(k)
+                    if aux_d is None:
+                        aux_d = auxiliary_data_grp.attrs[k]
+                    else:
+                        aux_d = jnp.asarray(aux_d)
+                    auxiliary_data[k] = aux_d
+            else:
+                max_trunc_error_list = f.get("max_trunc_error_list")
+                if max_trunc_error_list is not None:
+                    auxiliary_data["max_trunc_error_list"] = jnp.asarray(
+                        max_trunc_error_list
+                    )
+
+        if return_config and return_auxiliary_data:
+            return out[0], out[1], out[2], auxiliary_data
         elif return_config:
             return out[0], out[1], out[2]
-        elif return_max_trunc_error_list:
-            return out[0], out[1], max_trunc_error_list
+        elif return_auxiliary_data:
+            return out[0], out[1], auxiliary_data
 
         return out[0], out[1]
 
@@ -477,11 +574,13 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell, varipeps.config.PEPS_AD_Config],
     ]:
         """
-        Load the unit cell from a HDF5 group which is be passed to the method.
+        Load the Kagome PESS tensors and  unit cell from a HDF5 group which is
+        be passed to the method.
 
         Args:
           grp (:obj:`h5py.Group`):
             HDF5 group object to load the data from.
+        Keyword args:
           return_config (:obj:`bool`):
             Return a config object initialized with the values from the HDF5
             files. If no config is stored in the file, just the data is returned.
@@ -721,6 +820,9 @@ class Kagome_Upper_Right_Expectation_Value(Expectation_Model):
         Factor which should be used to normalize the calculated values.
         If for example three sites are mapped into one PEPS site this
         should be 3.
+      operation_before_sum (:term:`callable` of type :obj:`float`/:obj:`complex` to :obj:`float`/:obj:`complex`):
+        Function which should be applied to the expectation values before they
+        are summed up.
     """
 
     upward_triangle_gates: Sequence[jnp.ndarray]
@@ -900,6 +1002,17 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site_Upper_Triangle(Map_To_PEPS_Model):
 
     The PESS structure is contracted in the way that all site tensors are
     connected to the up simplex and the down simplex to site 2.
+
+    Args:
+      unitcell_structure (:term:`sequence` of :term:`sequence` of :obj:`int` or 2d array):
+        Two dimensional array modeling the structure of the unit cell. For
+        details see the description of :obj:`~varipeps.peps.PEPS_Unit_Cell`.
+      chi (:obj:`int`):
+        Bond dimension of environment tensors which should be used for the
+        unit cell generated.
+      max_chi (:obj:`int`):
+        Maximal allowed bond dimension of environment tensors which should be
+        used for the unit cell generated.
     """
 
     unitcell_structure: Sequence[Sequence[int]]

@@ -5,7 +5,7 @@
 .. currentmodule:: varipeps.expectation
 
 Calculation of expectation values (:mod:`varipeps.expectation`)
-==============================================================
+===============================================================
 
 .. toctree::
    :maxdepth: 2
@@ -14,6 +14,7 @@ Calculation of expectation values (:mod:`varipeps.expectation`)
    one_site
    two_sites
    three_sites
+   spiral_helpers
 
 .. automodule:: varipeps.expectation
    :members:

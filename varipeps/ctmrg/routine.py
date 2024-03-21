@@ -330,7 +330,9 @@ def calc_ctmrg_env(
     _return_truncation_eps: bool = False,
 ) -> PEPS_Unit_Cell:
     """
-    Calculate the new converged CTMRG tensors for the unitcell.
+    Calculate the new converged CTMRG tensors for the unit cell. The function
+    updates the environment all iPEPS tensors in the unit cell according to the
+    periodic structure.
 
     Args:
       peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):

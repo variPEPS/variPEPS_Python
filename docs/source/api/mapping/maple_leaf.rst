@@ -3,7 +3,7 @@
 .. currentmodule:: varipeps.mapping.maple_leaf
 
 Mapping of Maple leaf structures (:mod:`varipeps.mapping.maple_leaf`)
-====================================================================
+=====================================================================
 
 .. automodule:: varipeps.mapping.maple_leaf
    :members:

@@ -3,7 +3,7 @@
 .. currentmodule:: varipeps.mapping.kagome
 
 Mapping of Kagome structures (:mod:`varipeps.mapping.kagome`)
-============================================================
+=============================================================
 
 .. automodule:: varipeps.mapping.kagome
    :members:

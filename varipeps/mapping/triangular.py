@@ -32,9 +32,16 @@ class Triangular_Expectation_Value(Expectation_Model):
     Class to calculate expectation values for a mapped triangular PESS
     structure.
 
-    It is assumed that the simplex tensors are placed in the upper triangular
-    and each site tensor is coarse-grained with the simplex tensor sitting
-    up right of it.
+    .. figure:: /images/triangular_structure.*
+       :align: center
+       :width: 70%
+       :alt: Structure of the triangular lattice with smallest possible unit
+             cell marked by dashed lines.
+
+       Structure of the triangular lattice with smallest possible unit cell
+       marked by dashed lines.
+
+    \\
 
     Args:
       nearest_neighbor_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
@@ -46,7 +53,12 @@ class Triangular_Expectation_Value(Expectation_Model):
       normalization_factor (:obj:`int`):
         Factor which should be used to normalize the calculated values.
         If for example three sites are mapped into one PEPS site this
-        should be 3.
+        should be 1.
+      is_spiral_peps (:obj:`bool`):
+        Flag if the expectation value is for a spiral iPEPS ansatz.
+      spiral_unitary_operator (:obj:`jax.numpy.ndarray`):
+        Operator used to generate unitary for spiral iPEPS ansatz. Required
+        if spiral iPEPS ansatz is used.
     """
 
     nearest_neighbor_gates: Sequence[jnp.ndarray]

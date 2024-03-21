@@ -40,7 +40,7 @@ class Expectation_Model(ABC):
             The PEPS unitcell.
           spiral_vectors (single or :term:`sequence` of :obj:`jax.numpy.ndarray`):
             If the expectation value is for a spiral iPEPS ansatz, in this
-            argument the q vectors are expected.
+            argument the wavevectors are expected.
         Keyword args:
           normalize_by_size (:obj:`bool`):
             Flag if the expectation value should be normalized by the number

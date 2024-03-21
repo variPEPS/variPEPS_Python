@@ -508,6 +508,17 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
     Class to calculate expectation values for a mapped Square-Kagome
     structure.
 
+    .. figure:: /images/square_kagome_structure.*
+       :align: center
+       :width: 80%
+       :alt: Structure of the square Kagome lattice with smallest possible unit
+             cell marked by dashed lines.
+
+       Structure of the square Kagome lattice with smallest possible unit cell
+       marked by dashed lines.
+
+    \\
+
     Args:
       triangle_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
         Sequence with the gates that should be applied to the triangles.
@@ -521,7 +532,12 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
         Physical dimension of a single site before mapping.
       normalization_factor (:obj:`int`):
         Factor which should be used to normalize the calculated values.
-        Likely will be 6 for the a single layer structure..
+        Likely will be 6 for the a single layer structure.
+      is_spiral_peps (:obj:`bool`):
+        Flag if the expectation value is for a spiral iPEPS ansatz.
+      spiral_unitary_operator (:obj:`jax.numpy.ndarray`):
+        Operator used to generate unitary for spiral iPEPS ansatz. Required
+        if spiral iPEPS ansatz is used.
     """
 
     triangle_gates: Sequence[jnp.ndarray]

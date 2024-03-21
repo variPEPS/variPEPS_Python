@@ -1,0 +1,43 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: variPEPS (Python version)
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Jan
+    family-names: Naumann
+    email: j.naumann@fu-berlin.de
+    affiliation: Freie Universität Berlin
+    orcid: 'https://orcid.org/0000-0003-4513-5139'
+  - given-names: Schmoll
+    family-names: Philipp
+    affiliation: Freie Universität Berlin
+    orcid: 'https://orcid.org/0000-0001-5534-6103'
+    email: philipp.schmoll@fu-berlin.de
+  - given-names: Wilde
+    orcid: 'https://orcid.org/0000-0002-6224-1964'
+    family-names: Frederik
+    affiliation: Freie Universität Berlin
+  - given-names: Krein
+    family-names: Finn
+identifiers:
+  - type: doi
+    value: 10.48550/arXiv.2308.12358
+    description: arXiv preprint of the description of the method
+  - type: doi
+    value: 10.5281/zenodo.10852390
+    description: Zenodo DOI for current version of the code
+repository-code: 'https://github.com/variPEPS/variPEPS_Python'
+url: 'https://varipeps.readthedocs.io/en/stable'
+abstract: >-
+  A versatile tensor network library for variational ground
+  state simulations in two spatial dimensions
+keywords:
+  - peps
+  - tensor-networks
+  - variational-optimization
+license: GPL-3.0-or-later

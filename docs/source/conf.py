@@ -12,14 +12,16 @@
 #
 import os
 import sys
+import importlib
 import importlib.metadata
+import inspect
 
 sys.path.insert(0, os.path.abspath(".."))
 
 
 # -- Project information -----------------------------------------------------
 
-project = "peps-ad"
+project = "varipeps"
 copyright = "2021-2024, Jan Naumann, Philipp Schmoll, Frederik Wilde, Finn Krein"
 author = "Jan Naumann, Philipp Schmoll, Frederik Wilde, Finn Krein"
 
@@ -35,10 +37,12 @@ release = importlib.metadata.version("varipeps")
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
+    "sphinx.ext.linkcode",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_defaultargs",
+    "sphinx_subfigure",
 ]
 
 napoleon_include_private_with_doc = True
@@ -69,6 +73,63 @@ templates_path = ["_templates"]
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
+
+from varipeps import git_commit, git_tag
+
+code_url = "https://github.com/variPEPS/variPEPS_Python/blob/{blob}"
+
+if git_tag is not None:
+    code_url = code_url.format(blob=git_tag)
+elif git_commit is not None:
+    code_url = code_url.format(blob=git_commit)
+else:
+    code_url = code_url.format(blob=release)
+
+
+def linkcode_resolve(domain, info):
+    # Code adapted from function in websockets module
+    # https://github.com/python-websockets/websockets/blob/e217458ef8b692e45ca6f66c5aeb7fad0aee97ee/docs/conf.py
+
+    if domain != "py":
+        return None
+    if not info["module"]:
+        return None
+
+    mod = importlib.import_module(info["module"])
+    if "." in info["fullname"]:
+        objname_parts = info["fullname"].split(".")
+
+        obj = getattr(mod, objname_parts[0])
+
+        for name in objname_parts[1:-1]:
+            obj = getattr(obj, name)
+
+        attrname = objname_parts[-1]
+
+        try:
+            # object is a method of a class
+            obj = getattr(obj, attrname)
+        except AttributeError:
+            # object is an attribute of a class
+            return None
+    else:
+        obj = getattr(mod, info["fullname"])
+
+    try:
+        filename = inspect.getsourcefile(obj)
+        lines = inspect.getsourcelines(obj)
+    except TypeError:
+        # e.g. object is a typing.Union
+        return None
+
+    filename = os.path.relpath(filename, os.path.abspath(".."))
+
+    if not filename.startswith("varipeps"):
+        # e.g. object is a typing.NewType
+        return None
+    start, end = lines[1], lines[1] + len(lines[0]) - 1
+
+    return f"{code_url}/{filename}#L{start}-L{end}"
 
 
 # -- Options for HTML output -------------------------------------------------

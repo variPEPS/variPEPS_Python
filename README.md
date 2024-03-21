@@ -1,5 +1,8 @@
-PEPS algorithms in Python
-=========================
+variPEPS -- Versatile tensor network library for variational ground state simulations in two spatial dimensions.
+================================================================================================================
+
+[![DOI](https://zenodo.org/badge/773767511.svg)](https://zenodo.org/doi/10.5281/zenodo.10852390)
+[![Documentation Status](https://readthedocs.org/projects/varipeps/badge/?version=latest)](https://varipeps.readthedocs.io/en/stable/?badge=latest)
 
 Install dependencies
 --------------------

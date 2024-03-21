@@ -5,7 +5,7 @@
 .. currentmodule:: varipeps.typing
 
 Typing helper (:mod:`varipeps.typing`)
-=====================================
+======================================
 
 .. automodule:: varipeps.typing
    :members:

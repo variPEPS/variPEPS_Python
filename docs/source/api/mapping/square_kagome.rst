@@ -3,7 +3,7 @@
 .. currentmodule:: varipeps.mapping.square_kagome
 
 Mapping of Square-Kagome structures (:mod:`varipeps.mapping.square_kagome`)
-==========================================================================
+===========================================================================
 
 .. automodule:: varipeps.mapping.square_kagome
    :members:

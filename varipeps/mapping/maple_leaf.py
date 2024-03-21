@@ -397,23 +397,43 @@ def _calc_diagonal_gate(
 @dataclass
 class Maple_Leaf_Expectation_Value(Expectation_Model):
     """
-    Class to calculate expectation values for a mapped Square-Kagome
+    Class to calculate expectation values for a mapped Maple-Leaf
     structure.
 
+    .. figure:: /images/maple_leaf_structure.*
+       :align: center
+       :width: 90%
+       :alt: Structure of the Maple-Leaf lattice with the smallest possible
+             unit cell marked by dashed lines, the different interaction types
+             marked by color and the numbering of the single sites inside one
+             unit cell block shown.
+
+       Structure of the Maple-Leaf lattice with the smallest possible unit cell
+       marked by dashed lines, the different interaction types marked by color
+       and the numbering of the single sites inside one unit cell block shown.
+
+    \\
+
     Args:
-      triangle_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence with the gates that should be applied to the triangles.
-      square_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence with the gates that should be applied to the squares.
-      plus_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence with the gates that should be applied to the plus term.
-      cross_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence with the gates that should be applied to the cross term.
+      green_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the green bonds as
+        shown in the image above.
+      blue_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the green bonds as
+        shown in the image above.
+      red_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the green bonds as
+        shown in the image above.
       real_d (:obj:`int`):
         Physical dimension of a single site before mapping.
       normalization_factor (:obj:`int`):
         Factor which should be used to normalize the calculated values.
-        Likely will be 6 for the a single layer structure..
+        Likely will be 6 for the a single layer structure.
+      is_spiral_peps (:obj:`bool`):
+        Flag if the expectation value is for a spiral iPEPS ansatz.
+      spiral_unitary_operator (:obj:`jax.numpy.ndarray`):
+        Operator used to generate unitary for spiral iPEPS ansatz. Required
+        if spiral iPEPS ansatz is used.
     """
 
     green_gates: Sequence[jnp.ndarray]

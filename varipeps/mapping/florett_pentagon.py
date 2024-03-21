@@ -751,18 +751,41 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
     Class to calculate expectation values for a mapped Florett Pentagon
     structure.
 
+    .. subfigure:: AB
+       :layout-sm: A|B
+       :align: center
+       :width: 100%
+       :subcaptions: below
+       :gap: 8px
+
+       .. image:: /images/floret_pentagon_structure.*
+          :alt: Structure of the floret-pentagon lattice with the smallest possible unit cell
+
+       .. image:: /images/floret_pentagon_bond_colors.*
+          :alt: Structure of the floret-pentagon lattice with the bond types marked in color
+
+    \\
+
     Args:
-      triangle_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence with the gates that should be applied to the triangles.
-      square_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence with the gates that should be applied to the squares.
-      plus_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence with the gates that should be applied to the plus term.
+      black_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the bonds marked in
+        black in the image above.
+      green_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the bonds marked in
+        green in the image above.
+      blue_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the bonds marked in
+        blue in the image above.
       real_d (:obj:`int`):
         Physical dimension of a single site before mapping.
       normalization_factor (:obj:`int`):
         Factor which should be used to normalize the calculated values.
-        Likely will be 6 for the a single layer structure..
+        Likely will be 9 for the a single layer structure.
+      is_spiral_peps (:obj:`bool`):
+        Flag if the expectation value is for a spiral iPEPS ansatz.
+      spiral_unitary_operator (:obj:`jax.numpy.ndarray`):
+        Operator used to generate unitary for spiral iPEPS ansatz. Required
+        if spiral iPEPS ansatz is used.
     """
 
     black_gates: Sequence[jnp.ndarray]
