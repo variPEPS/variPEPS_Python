@@ -19,7 +19,39 @@ def apply_unitary(
     number_sites: int,
     apply_to_index: Sequence[int],
     wavevector_type: Wavevector_Type,
-):
+) -> jnp.ndarray:
+    """
+    Apply the unitary of the spiral iPEPS approach to a gate. The function
+    calculates the relative unitary gate from the operator, the spatial
+    difference and the wavevector.
+
+    Args:
+      gate (:obj:`jax.numpy.ndarray`):
+        The gate which should be updated with the unitary operator.
+      delta_r (:obj:`jax.numpy.ndarray`):
+        Vector for the spatial difference.
+      q (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the relevant wavevector for the different indices of
+        the gate.
+      unitary_operator_D (:obj:`jax.numpy.ndarray`):
+        Array with the eigenvalues of the operator from which the unitary
+        is generated.
+      unitary_operator_D (:obj:`jax.numpy.ndarray`):
+        Array with the eigenvectors of the operator from which the unitary
+        is generated.
+      phys_d (:obj:`int`):
+        Physical dimension of the indices of the gate.
+      number_sites (:obj:`int`):
+        Number of sites the gate is applied to.
+      apply_to_index (:term:`sequence` of :obj:`int`):
+        The indices of the gate which should be modified by the unitary
+        generated to the same ordered sequence of wavevectors.
+      wavevector_type (:obj:`~varipeps.config.Wavevector_Type`):
+        Type of the wavevector (see type definition for details).
+    Returns:
+      :obj:`jax.numpy.ndarray`:
+        The updated gate with the unitary applied.
+    """
     if len(q) != len(apply_to_index):
         raise ValueError("Length mismatch!")
 

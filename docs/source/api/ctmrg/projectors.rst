@@ -5,7 +5,7 @@
 .. currentmodule:: varipeps.ctmrg.projectors
 
 Calculation of CTMRG projectors (:mod:`varipeps.ctmrg.projectors`)
-=================================================================
+==================================================================
 
 .. automodule:: varipeps.ctmrg.projectors
    :members:

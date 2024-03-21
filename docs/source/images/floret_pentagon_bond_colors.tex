@@ -1,0 +1,151 @@
+\documentclass[tikz]{standalone}
+
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{braket}
+
+\usepackage{tikz}
+\usetikzlibrary{math, calc, decorations, positioning}
+
+% load TikZ grafic definitions
+%\input{gfx_TikZ}
+
+% main document
+\begin{document}
+
+\pgfdeclarelayer{v1}    % background  layer
+\pgfdeclarelayer{v2}    % foreground  layer
+\pgfsetlayers{v1,main,v2}  % set the order of the layers (main is the standard layer)
+\tikzset{
+  bonda/.style={black, line width=.65pt},
+  bondb/.style={blue!80!white, line width=.65pt},
+  bondc/.style={green!80!black, line width=0.65pt}}
+
+\begin{tikzpicture}
+  \tikzmath {
+    \ang0 = 0;
+    \lb = 0.5;
+    \la = 2*\lb;
+    int \sa;
+    int \sb;
+    \nt = 1;
+    for \sa  in {-\nt,...,\nt}{
+      int \sbmin, \sbmax;
+      \sbmin = max(-\nt, -\nt-\sa);
+      \sbmax = min(\nt, \nt-\sa);
+      for \sb  in {\sbmin,...,\sbmax}{
+        coordinate \oo;
+        \oo = (70.89339464913091+\ang0:9.16515138991168*\sa*\lb/2)
+        + (10.893394649130906+\ang0:9.16515138991168*\sb*\lb/2);
+        int \i;
+        for \i in {0,1,2,3,4,5}{
+          \angr = 60*\i+\ang0;
+          \a1 = 0+\angr;
+          \a2 = 60+\angr;
+          \a3 = 120+\angr;
+          \a4 = 180+\angr;
+          {
+            \draw[bonda] (\oo) coordinate (oo) coordinate (oo a\sa b\sb) --
+            ++(\a1:\la) coordinate (pa \i) coordinate (pa \i a\sa b\sb)
+            ++ (\a2:\lb) coordinate (pb \i) coordinate (pb \i a\sa b\sb)
+            ++ (\a3:\lb) coordinate (pc \i) coordinate (pc \i a\sa b\sb)
+            ++ (\a4:\lb) coordinate (pd \i) coordinate (pd \i a\sa b\sb);
+          };
+        };
+        {
+
+          % \draw (pa 0) -- (pb 0) -- (pc 0) -- (pd 0);
+          % \draw (pa 1) -- (pb 1) -- (pc 1) -- (pd 1);
+          % \draw (pa 2) -- (pb 2) -- (pc 2);
+          % \draw (pc 5) -- (pa 0);
+          \draw[bondb]  (pa 0) -- (pb 0);
+          \draw[bondc] (pb 0) -- (pc 0);
+          \draw[bondc] (pc 0) -- (pd 0);
+          \draw[bondb] (pa 1) -- (pb 1);
+          \draw[bondc] (pb 1) -- (pc 1);
+          \draw[bondc] (pc 1) -- (pd 1);
+          \draw[bondb] (pa 2) -- (pb 2);
+          \draw[bondc] (pb 2) -- (pc 2);
+          \draw[bondc] (pc 5) -- (pa 0);
+        };
+        if (\sb==\sbmin) then {
+          {
+            \draw (pc 2)[bondc] -- (pd 2);
+            \draw (pd 2)[bondb] -- (pb 3);
+            \draw (pb 3)[bondc] -- (pc 3);
+          };
+        };
+        if \sa<1 then {
+          if (\sb==\sbmin || \sa==-\nt then {
+            {
+              \draw[bondc] (pc 3) -- (pd 3);
+              \draw[bondb] (pd 3) -- (pb 4);
+              \draw[bondc] (pb 4) -- (pc 4);
+            };
+          };
+          if (\sb==\sbmax || \sa==-\nt then {
+            {
+              \draw[bondc] (pc 4) -- (pd 4);
+              \draw[bondb] (pd 4) -- (pb 5);
+              \draw[bondc] (pb 5) -- (pc 5);
+            };
+          };
+        };
+        {
+          \draw[fill=red] (oo) circle [radius=1.5pt];
+          \draw[fill=red] (pa 0) circle [radius=1.5pt];
+          \draw[fill=red] (pa 1) circle [radius=1.5pt];
+          \draw[fill=red] (pa 2) circle [radius=1.5pt];
+          \draw[fill=red] (pa 3) circle [radius=1.5pt];
+          \draw[fill=red] (pa 4) circle [radius=1.5pt];
+          \draw[fill=red] (pa 5) circle [radius=1.5pt];
+
+          \draw[fill=red] (pb 0) circle [radius=1.5pt];
+          \draw[fill=red] (pb 1) circle [radius=1.5pt];
+          \draw[fill=red] (pb 2) circle [radius=1.5pt];
+          \draw[fill=red] (pb 3) circle [radius=1.5pt];
+          \draw[fill=red] (pb 4) circle [radius=1.5pt];
+          \draw[fill=red] (pb 5) circle [radius=1.5pt];
+
+          \draw[fill=red] (pc 0) circle [radius=1.5pt];
+          \draw[fill=red] (pc 1) circle [radius=1.5pt];
+          \draw[fill=red] (pc 2) circle [radius=1.5pt];
+          \draw[fill=red] (pc 3) circle [radius=1.5pt];
+          \draw[fill=red] (pc 4) circle [radius=1.5pt];
+          \draw[fill=red] (pc 5) circle [radius=1.5pt];
+        };
+      };
+    };
+    {
+      \tikzset{ucirc/.style={fill=blue}}
+      \begin{pgfonlayer}{v2}
+        % \draw[line width=1pt,-stealth] (oo a0b0) -> (oo a0b1);
+        % \draw[line width=1pt,-stealth] (oo a0b0) -> (oo a1b0);
+        % \draw[line width=1pt,dashed,gray] (oo a0b1) -> (oo a1b1);
+        % \draw[line width=1pt,dashed,gray] (oo a1b0) -> (oo a1b1);
+      \end{pgfonlayer}{v2}
+      % \draw[ucirc] (oo a0b0) circle [radius=1.5pt];
+      % \draw[ucirc] (pb 0a0b0) circle [radius=1.5pt];
+      % \draw[ucirc] (pc 0a0b0) circle [radius=1.5pt];
+      % \draw[ucirc] (pd 0a0b0) circle [radius=1.5pt];
+
+      % \draw[ucirc] (pb 1a0b1) circle [radius=1.5pt];
+      % \draw[ucirc] (pc 1a0b1) circle [radius=1.5pt];
+      % \draw[ucirc] (pd 1a0b1) circle [radius=1.5pt];
+
+      % \draw[ucirc] (pa 5a1b0) circle [radius=1.5pt];
+      % \draw[ucirc] (pd 5a1b0) circle [radius=1.5pt];
+    };
+    {
+      % \node at (3,-1) {$v_1 = \frac{a}{2}\mqty(3\\5\sqrt{3})$};
+      % \node at (6,-1) {$v_2 = \frac{a}{2}\mqty(9\\\sqrt{3})$};
+    };
+  }
+\end{tikzpicture}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

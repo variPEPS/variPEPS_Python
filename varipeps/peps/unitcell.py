@@ -939,6 +939,9 @@ class PEPS_Unit_Cell:
           store_config (:obj:`bool`):
             Store the current values of the global config object into the HDF5
             file as attrs of an extra group.
+          auxiliary_data (:obj:`dict` with :obj:`str` to storable objects, optional):
+            Dictionary with string indexed auxiliary HDF5-storable entries which
+            should be stored along the other data in the file.
         """
         with h5py.File(path, "w", libver=("earliest", "v110")) as f:
             grp = f.create_group("unitcell")
@@ -1001,33 +1004,11 @@ class PEPS_Unit_Cell:
             grp_version = grp.create_group("version")
             grp_version.attrs["version"] = varipeps.__version__
 
-            try:
-                git_hash = (
-                    subprocess.check_output(
-                        ["git", "rev-parse", "HEAD"],
-                        cwd=pathlib.Path(__file__).parent,
-                        stderr=subprocess.DEVNULL,
-                    )
-                    .decode("ascii")
-                    .strip()
-                )
-                grp_version.attrs["git_hash"] = git_hash
-            except subprocess.CalledProcessError:
-                pass
+            if varipeps.git_commit is not None:
+                grp_version.attrs["git_hash"] = varipeps.git_commit
 
-            try:
-                git_tag = (
-                    subprocess.check_output(
-                        ["git", "describe", "--exact-match", "--tags", "HEAD"],
-                        cwd=pathlib.Path(__file__).parent,
-                        stderr=subprocess.DEVNULL,
-                    )
-                    .decode("ascii")
-                    .strip()
-                )
-                grp_version.attrs["git_tag"] = git_tag
-            except subprocess.CalledProcessError:
-                pass
+            if varipeps.git_tag is not None:
+                grp_version.attrs["git_tag"] = varipeps.git_tag
 
     @classmethod
     def load_from_file(
@@ -1052,6 +1033,9 @@ class PEPS_Unit_Cell:
             files. If no config is stored in the file, just the data is returned.
             Missing config flags in the file uses the default values from the
             config object.
+          return_auxiliary_data (:obj:`bool`):
+            Return dictionary with string indexed auxiliary data which has been
+            should be stored along the other data in the file.
         """
         with h5py.File(path, "r") as f:
             out = cls.load_from_group(f["unitcell"], return_config)

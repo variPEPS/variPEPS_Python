@@ -5,7 +5,7 @@
 .. currentmodule:: varipeps.contractions
 
 Contractions definitions and helper methods (:mod:`varipeps.contractions`)
-=========================================================================
+==========================================================================
 
 .. toctree::
    :maxdepth: 2

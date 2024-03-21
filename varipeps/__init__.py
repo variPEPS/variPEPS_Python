@@ -12,7 +12,7 @@ from . import peps
 from . import typing
 from . import utils
 
-from .__version__ import __version__
+from .__version__ import __version__, git_commit, git_tag
 
 from jax import config as jax_config
 

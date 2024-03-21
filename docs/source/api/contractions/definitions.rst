@@ -3,7 +3,7 @@
 .. currentmodule:: varipeps.contractions
 
 Definitions for contractions (:class:`varipeps.contractions.Definitions`)
-========================================================================
+=========================================================================
 
 .. autoclass:: Definitions
    :members:

@@ -1,0 +1,200 @@
+\documentclass[tikz]{standalone}
+
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{braket}
+
+\usepackage{tikz}
+\usetikzlibrary{math, calc, decorations, positioning}
+
+% load TikZ grafic definitions
+%\input{gfx_TikZ}
+
+% main document
+\begin{document}
+
+\pgfdeclarelayer{v1}    % background  layer
+\pgfdeclarelayer{v2}    % foreground  layer
+\pgfsetlayers{v1,main,v2}  % set the order of the layers (main is the standard layer)
+\tikzset{
+  bonda/.style={black},
+  bondb/.style={black},
+  bondc/.style={black}}
+\tikzset{sitenode/.style={fill=red, draw, circle, inner sep=1pt}}
+\tikzset{llegs/.style={gray, dashed, thin}}
+\tikzset{cggroup/.style={
+    draw, dashed, shape=circle,
+    minimum size=32pt,
+    line width=.6pt,
+    fill=black!80!white,
+    fill opacity=.1,}}
+
+\tikzset{cgnode/.style={
+    draw, shape=circle,
+    minimum size=12pt,
+    line width=.6pt,
+    fill=black,
+    fill opacity=.6,}}
+
+\tikzset{middlenode/.style={
+    draw,
+    minimum size=12pt,
+    line width=.6pt,
+    fill=red,
+    fill opacity=.6}}
+\begin{tikzpicture}
+  \tikzmath {
+    \ang0 = 0;
+    \lb = 0.5;
+    \la = 2*\lb;
+    int \sa;
+    int \sb;
+    int \samin;
+    int \samax;
+    \samin = -1;
+    \samax = 1;
+    function gsbmin(\fsa) {
+      return max(\samin, \samin-\fsa);
+      % return -\nt;
+      % return -1;
+    };
+    function gsbmax(\fsa) {
+      return min(\samax, \samax-\fsa);
+      % return \samax;
+    };
+    function ispart(\fa, \fb){
+      return (\fa<=\samax && \fa>=\samin &&
+       \fb<=gsbmax(\fa) && \fb>=gsbmin(\fa));
+    };
+    for \sa  in {\samin,...,\samax}{
+      int \sbmin, \sbmax;
+      \sbmin = gsbmin(\sa);
+      \sbmax = gsbmax(\sa);
+      for \sb  in {\sbmin,...,\sbmax}{
+        int \sbp, \sbm, \sap, \sam;
+        \sbp = \sb + 1;
+        \sbm = \sb - 1;
+        \sap = \sa + 1;
+        \sam = \sa - 1;
+        coordinate \oo;
+        \oo = (70.89339464913091+\ang0:9.16515138991168*\sa*\lb/2)
+        + (10.893394649130906+\ang0:9.16515138991168*\sb*\lb/2);
+        int \i;
+        for \i in {0,1,2,3,4,5}{
+          \angr = 60*\i+\ang0;
+          \a1 = 0+\angr;
+          \a2 = 60+\angr;
+          \a3 = 120+\angr;
+          \a4 = 180+\angr;
+          {
+            \draw[bonda] (\oo) coordinate (oo) coordinate (oo a\sa b\sb) --
+            ++(\a1:\la) coordinate (pa \i) coordinate (pa \i a\sa b\sb)
+            ++ (\a2:\lb) coordinate (pb \i) coordinate (pb \i a\sa b\sb)
+            ++ (\a3:\lb) coordinate (pc \i) coordinate (pc \i a\sa b\sb)
+            ++ (\a4:\lb) coordinate (pd \i) coordinate (pd \i a\sa b\sb);
+          };
+        };
+        {
+          \begin{pgfonlayer}{v1}
+          \draw[bonda] (pa 0) -- (pb 0) -- (pc 0) -- (pd 0);
+          \draw[bonda] (pa 1) -- (pb 1) -- (pc 1) -- (pd 1);
+          \draw[bonda] (pa 2) -- (pb 2) -- (pc 2);
+          \draw[bonda] (pc 5) -- (pa 0);
+          \end{pgfonlayer}
+        };
+        if (!ispart(\sa, \sb-1)) then {
+          {
+            \draw[bonda] (pc 2) -- (pd 2) -- (pb 3) -- (pc 3);
+          };
+        };
+        if (!ispart(\sa-1, \sb)) then {
+          {
+            \draw[bonda] (pc 3) -- (pd 3) -- (pb 4) -- (pc 4);
+          };
+        };
+        if (!ispart(\sa-1, \sb+1)) then {
+          {
+            \draw[bonda] (pc 4) -- (pd 4) -- (pb 5) -- (pc 5);
+          };
+        };
+        {
+          \node[sitenode,name=noo a\sa b\sb] at (oo) {};
+
+          \node[sitenode,name=npa 0a\sa b\sb] at (pa 0) {};
+          \node[sitenode,name=npa 1a\sa b\sb] at (pa 1) {};
+          \node[sitenode,name=npa 2a\sa b\sb] at (pa 2) {};
+          \node[sitenode,name=npa 3a\sa b\sb] at (pa 3) {};
+          \node[sitenode,name=npa 4a\sa b\sb] at (pa 4) {};
+          \node[sitenode,name=npa 5a\sa b\sb] at (pa 5) {};
+
+          \node[sitenode,name=npb 0a\sa b\sb] at (pb 0) {};
+          \node[sitenode,name=npb 1a\sa b\sb] at (pb 1) {};
+          \node[sitenode,name=npb 2a\sa b\sb] at (pb 2) {};
+          \node[sitenode,name=npb 3a\sa b\sb] at (pb 3) {};
+          \node[sitenode,name=npb 4a\sa b\sb] at (pb 4) {};
+          \node[sitenode,name=npb 5a\sa b\sb] at (pb 5) {};
+
+          \node[sitenode,name=npc 0a\sa b\sb] at (pc 0) {};
+          \node[sitenode,name=npc 1a\sa b\sb] at (pc 1) {};
+          \node[sitenode,name=npc 2a\sa b\sb] at (pc 2) {};
+          \node[sitenode,name=npc 3a\sa b\sb] at (pc 3) {};
+          \node[sitenode,name=npc 4a\sa b\sb] at (pc 4) {};
+          \node[sitenode,name=npc 5a\sa b\sb] at (pc 5) {};
+        };
+      };
+    };
+    for \sa  in {\samin,...,\samax}{
+      int \sbmin, \sbmax;
+      \sbmin = gsbmin(\sa);
+      \sbmax = gsbmax(\sa);
+      for \sb  in {\sbmin,...,\sbmax}{
+        int \sbp, \sbm, \sap, \sam;
+        \sbp = \sb + 1;
+        \sbm = \sb - 1;
+        \sap = \sa + 1;
+        \sam = \sa - 1;
+        int \i;
+        for \i in {0,1,2,3,4,5}{
+          \angr = 60*\i+\ang0;
+          \a1 = 0+\angr;
+          \a2 = 60+\angr;
+          \a3 = 120+\angr;
+          \a4 = 180+\angr;
+          {
+            \path (oo a\sa b\sb) coordinate (oo)
+            ++(\a1:\la) coordinate (pa \i) coordinate (pa \i a\sa b\sb)
+            ++ (\a2:\lb) coordinate (pb \i) coordinate (pb \i a\sa b\sb)
+            ++ (\a3:\lb) coordinate (pc \i) coordinate (pc \i a\sa b\sb)
+            ++ (\a4:\lb) coordinate (pd \i) coordinate (pd \i a\sa b\sb);
+          };
+        };
+      };
+    };
+    {
+      \tikzset{ucirc/.style={sitenode, fill=blue}};
+      \begin{pgfonlayer}{v2}
+      \draw[line width=1pt,dashed,gray] (oo a0b1) -> (oo a-1b1);
+      \draw[line width=1pt,dashed,gray] (oo a-1b0) -> (oo a-1b1);
+      \draw[line width=.75pt,-stealth] (oo a0b0) -> (oo a0b1) node[midway, label=110:$v_2$] {};
+      \draw[line width=.75pt,-stealth] (oo a0b0) -> (oo a-1b0) node[midway, label=110:$v_1$] {};
+
+      \node[ucirc, label={\small 1}] at (oo a0b0) {};
+      \node[ucirc, label=200:{\small 2}] at (pa 0a0b0) {};
+      \node[ucirc, label={\small 3}] at (pa 5a0b0) {};
+      \node[ucirc, label={\small 4}] at (pc 5a0b0) {};
+      \node[ucirc, label={\small 5}] at (pb 5a0b0) {};
+      \node[ucirc, label={\small 6}] at (pa 4a0b1) {};
+      \node[ucirc, label={\small 7}] at (pc 4a0b0) {};
+      \node[ucirc, label={\small 8}] at (pb 4a0b0) {};
+      \node[ucirc, label={\small 9}] at (pb 0a-1b0) {};
+      \end{pgfonlayer}{v2}
+    };
+  }
+\end{tikzpicture}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

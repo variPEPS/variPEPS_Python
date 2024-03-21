@@ -5,7 +5,7 @@
 .. currentmodule:: varipeps.ctmrg
 
 CTMRG method (:mod:`varipeps.ctmrg`)
-===================================
+====================================
 
 .. toctree::
    :maxdepth: 2
