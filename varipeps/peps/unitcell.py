@@ -1017,7 +1017,7 @@ class PEPS_Unit_Cell:
         return_config: bool = False,
         return_auxiliary_data: bool = False,
     ) -> Union[
-        T_PEPS_Unit_Cell, Tuple[T_PEPS_Unit_Cell, varipeps.config.PEPS_AD_Config]
+        T_PEPS_Unit_Cell, Tuple[T_PEPS_Unit_Cell, varipeps.config.VariPEPS_Config]
     ]:
         """
         Load unit cell from a HDF5 file.
@@ -1070,7 +1070,7 @@ class PEPS_Unit_Cell:
     def load_from_group(
         cls: Type[T_PEPS_Unit_Cell], grp: h5py.Group, return_config: bool = False
     ) -> Union[
-        T_PEPS_Unit_Cell, Tuple[T_PEPS_Unit_Cell, varipeps.config.PEPS_AD_Config]
+        T_PEPS_Unit_Cell, Tuple[T_PEPS_Unit_Cell, varipeps.config.VariPEPS_Config]
     ]:
         """
         Load the unit cell from a HDF5 group which is be passed to the method.
@@ -1114,7 +1114,7 @@ class PEPS_Unit_Cell:
 
             return cls(
                 data=data, real_ix=real_ix, real_iy=real_iy
-            ), varipeps.config.PEPS_AD_Config(**config_dict)
+            ), varipeps.config.VariPEPS_Config(**config_dict)
 
         return cls(data=data, real_ix=real_ix, real_iy=real_iy)
 

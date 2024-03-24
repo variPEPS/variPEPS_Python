@@ -15,8 +15,8 @@ from varipeps.utils.projector_dict import (
     Top_Projectors,
     Bottom_Projectors,
 )
-from varipeps.config import Projector_Method, PEPS_AD_Config
-from varipeps.global_state import PEPS_AD_Global_State
+from varipeps.config import Projector_Method, VariPEPS_Config
+from varipeps.global_state import VariPEPS_Global_State
 
 from typing import Sequence, Tuple, TypeVar
 
@@ -312,8 +312,8 @@ def _left_projectors_workhorse(
 def calc_left_projectors(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
-    config: PEPS_AD_Config,
-    state: PEPS_AD_Global_State,
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
 ) -> Left_Projectors:
     """
     Calculate the left projectors for the CTMRG method.
@@ -324,10 +324,10 @@ def calc_left_projectors(
         to the x axis, the column (second) index to y.
       peps_tensor_objs (:term:`sequence` of :term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
         Nested list of the PEPS tensor objects. Same format as for `peps_tensors`.
-      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+      config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
-      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+      state (:obj:`~varipeps.global_state.VariPEPS_Global_State`):
         Global state object of the variPEPS library. It is used to transport
         a common state across different parts of the framework. Please see its
         class definition for details.
@@ -430,8 +430,8 @@ def _right_projectors_workhorse(
 def calc_right_projectors(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
-    config: PEPS_AD_Config,
-    state: PEPS_AD_Global_State,
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
 ) -> Right_Projectors:
     """
     Calculate the right projectors for the CTMRG method.
@@ -442,10 +442,10 @@ def calc_right_projectors(
         to the x axis, the column (second) index to y.
       peps_tensor_objs (:term:`sequence` of :term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
         Nested list of the PEPS tensor objects. Same format as for `peps_tensors`.
-      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+      config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
-      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+      state (:obj:`~varipeps.global_state.VariPEPS_Global_State`):
         Global state object of the variPEPS library. It is used to transport
         a common state across different parts of the framework. Please see its
         class definition for details.
@@ -548,8 +548,8 @@ def _top_projectors_workhorse(
 def calc_top_projectors(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
-    config: PEPS_AD_Config,
-    state: PEPS_AD_Global_State,
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
 ) -> Top_Projectors:
     """
     Calculate the top projectors for the CTMRG method.
@@ -560,10 +560,10 @@ def calc_top_projectors(
         to the x axis, the column (second) index to y.
       peps_tensor_objs (:term:`sequence` of :term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
         Nested list of the PEPS tensor objects. Same format as for `peps_tensors`.
-      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+      config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
-      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+      state (:obj:`~varipeps.global_state.VariPEPS_Global_State`):
         Global state object of the variPEPS library. It is used to transport
         a common state across different parts of the framework. Please see its
         class definition for details.
@@ -666,8 +666,8 @@ def _bottom_projectors_workhorse(
 def calc_bottom_projectors(
     peps_tensors: Sequence[Sequence[jnp.ndarray]],
     peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]],
-    config: PEPS_AD_Config,
-    state: PEPS_AD_Global_State,
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
 ) -> Bottom_Projectors:
     """
     Calculate the bottom projectors for the CTMRG method.
@@ -678,10 +678,10 @@ def calc_bottom_projectors(
         to the x axis, the column (second) index to y.
       peps_tensor_objs (:term:`sequence` of :term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
         Nested list of the PEPS tensor objects. Same format as for `peps_tensors`.
-      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+      config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
-      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+      state (:obj:`~varipeps.global_state.VariPEPS_Global_State`):
         Global state object of the variPEPS library. It is used to transport
         a common state across different parts of the framework. Please see its
         class definition for details.

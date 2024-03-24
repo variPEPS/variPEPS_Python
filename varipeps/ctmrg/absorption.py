@@ -18,8 +18,8 @@ from .projectors import (
     calc_bottom_projectors,
 )
 from varipeps.expectation.one_site import calc_one_site_single_gate_obj
-from varipeps.config import PEPS_AD_Config
-from varipeps.global_state import PEPS_AD_Global_State
+from varipeps.config import VariPEPS_Config
+from varipeps.global_state import VariPEPS_Global_State
 
 
 from typing import Sequence, Tuple, List, Dict, Literal
@@ -61,7 +61,7 @@ def _get_ctmrg_2x2_structure(
     return view_tensors, view_tensor_objs
 
 
-def _post_process_CTM_tensors(a: jnp.ndarray, config: PEPS_AD_Config) -> jnp.ndarray:
+def _post_process_CTM_tensors(a: jnp.ndarray, config: VariPEPS_Config) -> jnp.ndarray:
     a = a / jnp.linalg.norm(a)
     a_abs = jnp.abs(a)
     a_abs_max = jnp.max(a_abs)
@@ -98,8 +98,8 @@ def _post_process_CTM_tensors(a: jnp.ndarray, config: PEPS_AD_Config) -> jnp.nda
 def do_left_absorption(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
-    config: PEPS_AD_Config,
-    state: PEPS_AD_Global_State,
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
 ) -> PEPS_Unit_Cell:
     """
     Calculate the left CTMRG tensors after one absorption step and returns
@@ -110,10 +110,10 @@ def do_left_absorption(
         The sequence of unique PEPS tensors the unitcell consists of.
       unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
-      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+      config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
-      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+      state (:obj:`~varipeps.global_state.VariPEPS_Global_State`):
         Global state object of the variPEPS library. It is used to transport
         a common state across different parts of the framework. Please see its
         class definition for details.
@@ -197,8 +197,8 @@ def do_left_absorption(
 def do_right_absorption(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
-    config: PEPS_AD_Config,
-    state: PEPS_AD_Global_State,
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
 ) -> PEPS_Unit_Cell:
     """
     Calculate the right CTMRG tensors after one absorption step and returns
@@ -209,10 +209,10 @@ def do_right_absorption(
         The sequence of unique PEPS tensors the unitcell consists of.
       unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
-      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+      config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
-      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+      state (:obj:`~varipeps.global_state.VariPEPS_Global_State`):
         Global state object of the variPEPS library. It is used to transport
         a common state across different parts of the framework. Please see its
         class definition for details.
@@ -300,8 +300,8 @@ def do_right_absorption(
 def do_top_absorption(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
-    config: PEPS_AD_Config,
-    state: PEPS_AD_Global_State,
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
 ) -> PEPS_Unit_Cell:
     """
     Calculate the top CTMRG tensors after one absorption step and returns
@@ -312,10 +312,10 @@ def do_top_absorption(
         The sequence of unique PEPS tensors the unitcell consists of.
       unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
-      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+      config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
-      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+      state (:obj:`~varipeps.global_state.VariPEPS_Global_State`):
         Global state object of the variPEPS library. It is used to transport
         a common state across different parts of the framework. Please see its
         class definition for details.
@@ -399,8 +399,8 @@ def do_top_absorption(
 def do_bottom_absorption(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
-    config: PEPS_AD_Config,
-    state: PEPS_AD_Global_State,
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
 ) -> PEPS_Unit_Cell:
     """
     Calculate the bottom CTMRG tensors after one absorption step and returns
@@ -411,10 +411,10 @@ def do_bottom_absorption(
         The sequence of unique PEPS tensors the unitcell consists of.
       unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
-      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+      config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
-      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+      state (:obj:`~varipeps.global_state.VariPEPS_Global_State`):
         Global state object of the variPEPS library. It is used to transport
         a common state across different parts of the framework. Please see its
         class definition for details.
@@ -599,8 +599,8 @@ def gauge_fix_ctmrg_tensors(
 def do_absorption_step(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
-    config: PEPS_AD_Config,
-    state: PEPS_AD_Global_State,
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
 ) -> PEPS_Unit_Cell:
     """
     Calculate the all CTMRG tensors after one absorption step and returns
@@ -611,10 +611,10 @@ def do_absorption_step(
         The sequence of unique PEPS tensors the unitcell consists of.
       unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
         The unitcell to work on.
-      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+      config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
-      state (:obj:`~varipeps.global_state.PEPS_AD_Global_State`):
+      state (:obj:`~varipeps.global_state.VariPEPS_Global_State`):
         Global state object of the variPEPS library. It is used to transport
         a common state across different parts of the framework. Please see its
         class definition for details.

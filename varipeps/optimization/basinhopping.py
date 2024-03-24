@@ -20,7 +20,7 @@ from typing import List, Union, Tuple, cast, Sequence, Callable, Optional
 
 
 @dataclass
-class PEPS_AD_Basinhopping:
+class VariPEPS_Basinhopping:
     """
     Class to wrap the basinhopping algorithm for the variational update
     of PEPS or mapped structures.

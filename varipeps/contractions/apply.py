@@ -12,7 +12,7 @@ from tensornetwork.ncon_interface import _jittable_ncon
 
 from varipeps.peps import PEPS_Tensor
 from varipeps import varipeps_config
-from varipeps.config import PEPS_AD_Config
+from varipeps.config import VariPEPS_Config
 from varipeps.utils.func_cache import Checkpointing_Cache
 
 from .definitions import Definitions, Definition
@@ -43,7 +43,7 @@ def apply_contraction(
     *,
     disable_identity_check: bool = False,
     custom_definition: Optional[Definition] = None,
-    config: PEPS_AD_Config = varipeps_config,
+    config: VariPEPS_Config = varipeps_config,
     _jitable: bool = False,
 ) -> jnp.ndarray:
     """
@@ -70,7 +70,7 @@ def apply_contraction(
       custom_definition (:obj:`~varipeps.contractions.apply.Definition`, optional):
         Use a custom definition for the contraction which is not defined in the
         :class:`varipeps.contractions.Definitions` class.
-      config (:obj:`~varipeps.config.PEPS_AD_Config`):
+      config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
     Returns:

@@ -6,12 +6,12 @@ from typing import TypeVar, Tuple, Any, Type, Optional
 
 from .config import Projector_Method
 
-T_PEPS_AD_Global_State = TypeVar("T_PEPS_AD_Global_State", bound="PEPS_AD_Global_State")
+T_VariPEPS_Global_State = TypeVar("T_VariPEPS_Global_State", bound="VariPEPS_Global_State")
 
 
 @dataclass
 @register_pytree_node_class
-class PEPS_AD_Global_State:
+class VariPEPS_Global_State:
     """
     Class to track internal global state. Values of the instance of this
     class should not be modified by users.
@@ -30,13 +30,13 @@ class PEPS_AD_Global_State:
 
     @classmethod
     def tree_unflatten(
-        cls: Type[T_PEPS_AD_Global_State],
+        cls: Type[T_VariPEPS_Global_State],
         aux_data: Tuple[Any, ...],
         children: Tuple[Any, ...],
-    ) -> T_PEPS_AD_Global_State:
+    ) -> T_VariPEPS_Global_State:
         (data_dict,) = aux_data
 
         return cls(**data_dict)
 
 
-global_state = PEPS_AD_Global_State()
+global_state = VariPEPS_Global_State()

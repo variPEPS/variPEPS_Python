@@ -5,7 +5,7 @@ from jax.tree_util import register_pytree_node_class
 
 from typing import TypeVar, Tuple, Any, Type
 
-T_PEPS_AD_Config = TypeVar("T_PEPS_AD_Config", bound="PEPS_AD_Config")
+T_VariPEPS_Config = TypeVar("T_VariPEPS_Config", bound="VariPEPS_Config")
 
 
 @unique
@@ -38,7 +38,7 @@ class Wavevector_Type(IntEnum):
 
 @dataclass
 @register_pytree_node_class
-class PEPS_AD_Config:
+class VariPEPS_Config:
     """
     Config class for peps-ad module. Normally only the blow created instance
     :obj:`config` is used.
@@ -239,13 +239,13 @@ class PEPS_AD_Config:
 
     @classmethod
     def tree_unflatten(
-        cls: Type[T_PEPS_AD_Config],
+        cls: Type[T_VariPEPS_Config],
         aux_data: Tuple[Any, ...],
         children: Tuple[Any, ...],
-    ) -> T_PEPS_AD_Config:
+    ) -> T_VariPEPS_Config:
         (data_dict,) = aux_data
 
         return cls(**data_dict)
 
 
-config = PEPS_AD_Config()
+config = VariPEPS_Config()

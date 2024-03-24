@@ -354,7 +354,7 @@ class Triangular_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         return_max_trunc_error_list: bool = False,
     ) -> Union[
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell],
-        Tuple[List[jnp.ndarray], PEPS_Unit_Cell, varipeps.config.PEPS_AD_Config],
+        Tuple[List[jnp.ndarray], PEPS_Unit_Cell, varipeps.config.VariPEPS_Config],
     ]:
         """
         Load unit cell from a HDF5 file.
@@ -372,7 +372,7 @@ class Triangular_Map_PESS_To_PEPS(Map_To_PEPS_Model):
             Missing config flags in the file uses the default values from the
             config object.
         Returns:
-          :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`) or :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`, :obj:`~varipeps.config.PEPS_AD_Config`):
+          :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`) or :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`, :obj:`~varipeps.config.VariPEPS_Config`):
             The tuple with the list of the PESS tensors and the PEPS unitcell
             is returned. If ``return_config = True``. the config is returned
             as well.
@@ -397,7 +397,7 @@ class Triangular_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         return_config: bool = False,
     ) -> Union[
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell],
-        Tuple[List[jnp.ndarray], PEPS_Unit_Cell, varipeps.config.PEPS_AD_Config],
+        Tuple[List[jnp.ndarray], PEPS_Unit_Cell, varipeps.config.VariPEPS_Config],
     ]:
         """
         Load the unit cell from a HDF5 group which is be passed to the method.
@@ -411,7 +411,7 @@ class Triangular_Map_PESS_To_PEPS(Map_To_PEPS_Model):
             Missing config flags in the file uses the default values from the
             config object.
         Returns:
-          :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`) or :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`, :obj:`~varipeps.config.PEPS_AD_Config`):
+          :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`) or :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`, :obj:`~varipeps.config.VariPEPS_Config`):
             The tuple with the list of the PESS tensors and the PEPS unitcell
             is returned. If ``return_config = True``. the config is returned
             as well.
