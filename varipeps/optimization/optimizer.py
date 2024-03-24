@@ -510,6 +510,7 @@ def optimize_peps_network(
                     working_unitcell,
                     expectation_func,
                     convert_to_unitcell_func,
+                    additional_input,
                     enforce_elementwise_convergence=varipeps_config.ad_use_custom_vjp,
                 )
                 varipeps_global_state.ctmrg_projector_method = None
