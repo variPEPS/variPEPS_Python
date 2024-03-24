@@ -2,9 +2,9 @@
 
 .. module:: varipeps
 
-#####################
-PEPS-AD API reference
-#####################
+######################
+variPEPS API reference
+######################
 
 This reference documents the public API of the :mod:`varipeps` module.
 

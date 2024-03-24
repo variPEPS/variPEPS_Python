@@ -40,7 +40,7 @@ class Wavevector_Type(IntEnum):
 @register_pytree_node_class
 class VariPEPS_Config:
     """
-    Config class for peps-ad module. Normally only the blow created instance
+    Config class for varipeps module. Normally only the blow created instance
     :obj:`config` is used.
 
     Parameters:

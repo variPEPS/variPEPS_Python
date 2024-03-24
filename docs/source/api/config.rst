@@ -2,8 +2,8 @@
 
 .. currentmodule:: varipeps.config
 
-Config of PEPS-AD module (:mod:`varipeps.config`)
-=================================================
+Config of variPEPS module (:mod:`varipeps.config`)
+==================================================
 
 .. automodule:: varipeps.config
    :members:
