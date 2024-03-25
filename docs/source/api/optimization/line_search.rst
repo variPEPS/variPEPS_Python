@@ -3,7 +3,7 @@
 .. currentmodule:: varipeps.optimization.line_search
 
 Implementation of line search methods for the CTMRG variational optimization (:mod:`varipeps.optimization.line_search`)
-======================================================================================================================
+=======================================================================================================================
 
 .. automodule:: varipeps.optimization.line_search
    :members:

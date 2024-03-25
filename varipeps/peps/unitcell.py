@@ -274,7 +274,7 @@ class PEPS_Unit_Cell:
           dtype (:term:`type` of :obj:`jax.numpy.number`):
             Data type of the PEPS tensors.
           max_chi (:obj:`int`):
-            Maximal bond dimension for the environment tensors
+            Maximal allowed bond dimension for the environment tensors
         Keyword args:
           seed (:obj:`int`, optional):
             Seed for random number generator

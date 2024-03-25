@@ -3,7 +3,7 @@
 .. currentmodule:: varipeps.peps
 
 Single PEPS tensor (:class:`varipeps.peps.PEPS_Tensor`)
-======================================================
+=======================================================
 
 .. autoclass:: PEPS_Tensor
    :members:

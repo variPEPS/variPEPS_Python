@@ -5,12 +5,14 @@
 .. currentmodule:: varipeps.utils
 
 Utility functions (:mod:`varipeps.utils`)
-========================================
+=========================================
 
 .. toctree::
    :maxdepth: 2
 
+   debug_print
    periodic_indices
+   projector_dict
    random
    svd
 

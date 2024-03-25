@@ -3,7 +3,7 @@
 .. currentmodule:: varipeps.utils.svd
 
 SVD helpers (:mod:`varipeps.utils.svd`)
-======================================
+=======================================
 
 .. automodule:: varipeps.utils.svd
    :members:

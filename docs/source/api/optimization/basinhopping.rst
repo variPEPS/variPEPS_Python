@@ -3,7 +3,7 @@
 .. currentmodule:: varipeps.optimization.basinhopping
 
 Implementation of the basinhopping optimizer for the PEPS model (:mod:`varipeps.optimization.basinhopping`)
-==========================================================================================================
+===========================================================================================================
 
 .. automodule:: varipeps.optimization.basinhopping
    :members:

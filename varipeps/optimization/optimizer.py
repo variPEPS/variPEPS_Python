@@ -227,6 +227,9 @@ def optimize_peps_network(
       autosave_func (:term:`callable`):
         Function which is called to autosave the intermediate results.
         The function has to accept the arguments `(filename, tensors, unitcell)`.
+      additional_input (:obj:`dict` of :obj:`str` to :obj:`jax.numpy.ndarray` mapping):
+        Dict with additional inputs which should be considered in the
+        calculation of the expectation value.
     Returns:
       :obj:`scipy.optimize.OptimizeResult`:
         OptimizeResult object with the optimized tensors, network and the

@@ -28,7 +28,7 @@ from varipeps.mapping.square_kagome import (
     square_kagome_density_matrix_vertical,
 )
 
-from typing import Sequence, Union, List, Callable, TypeVar, Optional, Tuple, Type
+from typing import Sequence, Union, List, Callable, TypeVar, Optional, Tuple, Type, Dict, Any
 
 T_Maple_Leaf_Map_PESS_To_PEPS = TypeVar(
     "T_Maple_Leaf_Map_PESS_To_PEPS", bound="Maple_Leaf_Map_PESS_To_PEPS"
@@ -906,6 +906,9 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
       chi (:obj:`int`):
         Bond dimension of environment tensors which should be used for the
         unit cell generated.
+      max_chi (:obj:`int`):
+        Maximal allowed bond dimension of environment tensors which should be
+        used for the unit cell generated.
     """
 
     unitcell_structure: Sequence[Sequence[int]]
@@ -1025,10 +1028,10 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         unitcell: PEPS_Unit_Cell,
         *,
         store_config: bool = True,
-        max_trunc_error_list: Optional[List[float]] = None,
+        auxiliary_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
-        Save unit cell to a HDF5 file.
+        Save Maple-Leaf PESS tensors and unit cell to a HDF5 file.
 
         This function creates a single group "maple_leaf_pess" in the file
         and pass this group to the method
@@ -1037,22 +1040,51 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         Args:
           path (:obj:`os.PathLike`):
             Path of the new file. Caution: The file will overwritten if existing.
+          tensors (:obj:`list` of :obj:`jax.numpy.ndarray`):
+            List with the PEPS tensors which should be stored in the file.
+          unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
+            Full unit cell object which should be stored in the file.
+        Keyword args:
           store_config (:obj:`bool`):
             Store the current values of the global config object into the HDF5
             file as attrs of an extra group.
+          auxiliary_data (:obj:`dict` with :obj:`str` to storable objects, optional):
+            Dictionary with string indexed auxiliary HDF5-storable entries which
+            should be stored along the other data in the file.
         """
         with h5py.File(path, "w", libver=("earliest", "v110")) as f:
             grp = f.create_group("maple_leaf_pess")
 
             cls.save_to_group(grp, tensors, unitcell, store_config=store_config)
 
-            if max_trunc_error_list is not None:
-                f.create_dataset(
-                    "max_trunc_error_list",
-                    data=jnp.array(max_trunc_error_list),
-                    compression="gzip",
-                    compression_opts=6,
-                )
+            if auxiliary_data is not None:
+                grp_aux = f.create_group("auxiliary_data")
+
+                grp_aux.attrs["keys"] = list(auxiliary_data.keys())
+
+                for key, val in auxiliary_data.items():
+                    if key == "keys":
+                        raise ValueError(
+                            "Name 'keys' forbidden as name for auxiliary data"
+                        )
+
+                    if isinstance(
+                        val, (jnp.ndarray, np.ndarray, collections.abc.Sequence)
+                    ):
+                        try:
+                            if val.ndim == 0:
+                                val = val.reshape(1)
+                        except AttributeError:
+                            pass
+
+                        grp_aux.create_dataset(
+                            key,
+                            data=jnp.asarray(val),
+                            compression="gzip",
+                            compression_opts=6,
+                        )
+                    else:
+                        grp_aux.attrs[key] = val
 
     @staticmethod
     def save_to_group(
@@ -1068,6 +1100,11 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         Args:
           grp (:obj:`h5py.Group`):
             HDF5 group object to store the data into.
+          tensors (:obj:`list` of :obj:`jax.numpy.ndarray`):
+            List with the PEPS tensors which should be stored in the file.
+          unitcell (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
+            Full unit cell object which should be stored in the file.
+        Keyword args:
           store_config (:obj:`bool`):
             Store the current values of the global config object into the HDF5
             file as attrs of an extra group.
@@ -1115,13 +1152,13 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         path: PathLike,
         *,
         return_config: bool = False,
-        return_max_trunc_error_list: bool = False,
+        return_auxiliary_data: bool = False,
     ) -> Union[
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell],
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell, varipeps.config.VariPEPS_Config],
     ]:
         """
-        Load unit cell from a HDF5 file.
+        Load Maple-Leaf PESS tensors and unit cell from a HDF5 file.
 
         This function read the group "maple_leaf_pess" from the file and pass
         this group to the method
@@ -1130,16 +1167,21 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         Args:
           path (:obj:`os.PathLike`):
             Path of the HDF5 file.
+        Keyword args:
           return_config (:obj:`bool`):
             Return a config object initialized with the values from the HDF5
             files. If no config is stored in the file, just the data is returned.
             Missing config flags in the file uses the default values from the
             config object.
+          return_auxiliary_data (:obj:`bool`):
+            Return dictionary with string indexed auxiliary data which has been
+            should be stored along the other data in the file.
         Returns:
           :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`) or :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`, :obj:`~varipeps.config.VariPEPS_Config`):
             The tuple with the list of the PESS tensors and the PEPS unitcell
             is returned. If ``return_config = True``. the config is returned
-            as well.
+            as well. If ``return_auxiliary_data = True``. the auxiliary data is
+            returned as well.
         """
         with h5py.File(path, "r") as f:
             try:
@@ -1150,14 +1192,30 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
                 out = cls.load_from_group(
                     f["maple_lead_pess"], return_config=return_config
                 )
-            max_trunc_error_list = f.get("max_trunc_error_list")
 
-        if return_config and return_max_trunc_error_list:
-            return out[0], out[1], out[2], max_trunc_error_list
+            auxiliary_data = {}
+            auxiliary_data_grp = f.get("auxiliary_data")
+            if auxiliary_data_grp is not None:
+                for k in auxiliary_data_grp.attrs["keys"]:
+                    aux_d = auxiliary_data_grp.get(k)
+                    if aux_d is None:
+                        aux_d = auxiliary_data_grp.attrs[k]
+                    else:
+                        aux_d = jnp.asarray(aux_d)
+                    auxiliary_data[k] = aux_d
+            else:
+                max_trunc_error_list = f.get("max_trunc_error_list")
+                if max_trunc_error_list is not None:
+                    auxiliary_data["max_trunc_error_list"] = jnp.asarray(
+                        max_trunc_error_list
+                    )
+
+        if return_config and return_auxiliary_data:
+            return out[0], out[1], out[2], auxiliary_data
         elif return_config:
             return out[0], out[1], out[2]
-        elif return_max_trunc_error_list:
-            return out[0], out[1], max_trunc_error_list
+        elif return_auxiliary_data:
+            return out[0], out[1], auxiliary_data
 
         return out[0], out[1]
 
@@ -1176,6 +1234,7 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         Args:
           grp (:obj:`h5py.Group`):
             HDF5 group object to load the data from.
+        Keyword args:
           return_config (:obj:`bool`):
             Return a config object initialized with the values from the HDF5
             files. If no config is stored in the file, just the data is returned.
@@ -1215,16 +1274,16 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         tensors: jnp.ndarray,
         unitcell: PEPS_Unit_Cell,
         counter: Optional[int] = None,
-        max_trunc_error_list: Optional[float] = None,
+        auxiliary_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         if counter is not None:
             cls.save_to_file(
                 f"{str(filename)}.{counter}",
                 tensors,
                 unitcell,
-                max_trunc_error_list=max_trunc_error_list,
+                auxiliary_data=auxiliary_data,
             )
         else:
             cls.save_to_file(
-                filename, tensors, unitcell, max_trunc_error_list=max_trunc_error_list
+                filename, tensors, unitcell, auxiliary_data=auxiliary_data
             )

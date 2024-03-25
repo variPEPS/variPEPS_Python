@@ -5,7 +5,7 @@
 .. currentmodule:: varipeps.optimization
 
 Variational optimizer for the PEPS network (:mod:`varipeps.optimization`)
-========================================================================
+=========================================================================
 
 .. toctree::
    :maxdepth: 2

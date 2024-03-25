@@ -5,7 +5,7 @@
 .. currentmodule:: varipeps.utils.random
 
 Random number helpers (:mod:`varipeps.utils.random`)
-===================================================
+====================================================
 
 .. automodule:: varipeps.utils.random
    :members:

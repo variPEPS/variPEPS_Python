@@ -5,7 +5,7 @@
 .. currentmodule:: varipeps.peps
 
 Implementation of PEPS structure (:mod:`varipeps.peps`)
-======================================================
+=======================================================
 
 .. toctree::
    :maxdepth: 2

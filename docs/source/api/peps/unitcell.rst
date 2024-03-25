@@ -3,7 +3,7 @@
 .. currentmodule:: varipeps.peps
 
 PEPS Unit cell (:class:`varipeps.peps.PEPS_Unit_Cell`)
-=====================================================
+======================================================
 
 .. autoclass:: PEPS_Unit_Cell
    :members:

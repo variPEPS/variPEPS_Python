@@ -179,6 +179,14 @@ def line_search(
         it is assumed that a PEPS unitcell is the input.
       generate_unitcell (:obj:`bool`):
         Force generation of unitcell from new tensors
+      spiral_indices (:term:`sequence` of :obj:`int`):
+        If spiral iPEPS ansatz is used, this argument contains the indices
+        of the wave vectors in the input tensor list.
+      additional_input (:obj:`dict` of :obj:`str` to :obj:`jax.numpy.ndarray` mapping):
+        Dict with additional inputs which should be considered in the
+        calculation of the expectation value.
+      reinitialize_env_as_identities (:obj:`bool`):
+        Flag if the env tensors should be reinitialized with identities.
     Returns:
       :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`, :obj:`float`, :obj:`float`):
         Tuple with the optimized tensors, the new unitcell, the reduced

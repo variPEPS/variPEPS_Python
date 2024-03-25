@@ -47,10 +47,14 @@ class PEPS_Tensor:
         T3 tensor
       T4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
         T4 tensor
-      d (:obj:`int`): Physical dimension of the PEPS tensor
+      d (:obj:`int`):
+        Physical dimension of the PEPS tensor
       D (:term:`sequence` of :obj:`int`):
         Sequence of the bond dimensions of the PEPS tensor
-      chi (:obj:`int`): Bond dimension for the CTM tensors
+      chi (:obj:`int`):
+        Bond dimension for the CTM tensors
+      max_chi (:obj:`int`):
+        Maximal allowed bond dimension of environment tensors.
     """
 
     tensor: Tensor
@@ -147,7 +151,7 @@ class PEPS_Tensor:
           chi (:obj:`int`):
             Bond dimension for the environment tensors
           max_chi (:obj:`int`):
-            Maximal bond dimension for the environment tensors
+            Maximal allowed bond dimension for the environment tensors
         Keyword args:
           ctm_tensors_are_identities (:obj:`bool`, optional):
             Flag if the CTM tensors are initialized as identities. Otherwise,
@@ -254,7 +258,7 @@ class PEPS_Tensor:
           dtype (:obj:`numpy.dtype` or :obj:`jax.numpy.dtype`):
             Dtype of the generated tensors
           max_chi (:obj:`int`):
-            Maximal bond dimension for the environment tensors
+            Maximal allowed bond dimension for the environment tensors
         Keyword args:
           ctm_tensors_are_identities (:obj:`bool`, optional):
             Flag if the CTM tensors are initialized as identities. Otherwise,

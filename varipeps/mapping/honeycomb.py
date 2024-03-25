@@ -615,16 +615,16 @@ class Honeycomb_Map_To_Square(Map_To_PEPS_Model):
         tensors: jnp.ndarray,
         unitcell: PEPS_Unit_Cell,
         counter: Optional[int] = None,
-        max_trunc_error_list: Optional[float] = None,
+        auxiliary_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         if counter is not None:
             cls.save_to_file(
                 f"{str(filename)}.{counter}",
                 tensors,
                 unitcell,
-                max_trunc_error_list=max_trunc_error_list,
+                auxiliary_data=auxiliary_data
             )
         else:
             cls.save_to_file(
-                filename, tensors, unitcell, max_trunc_error_list=max_trunc_error_list
+                filename, tensors, unitcell, auxiliary_data=auxiliary_data
             )
