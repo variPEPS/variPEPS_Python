@@ -37,10 +37,10 @@ release = importlib.metadata.version("varipeps")
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
+    "sphinx.ext.linkcode",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
-    "sphinx.ext.linkcode",
     "sphinx_autodoc_defaultargs",
     "sphinx_subfigure",
 ]
@@ -122,7 +122,7 @@ def linkcode_resolve(domain, info):
         # e.g. object is a typing.Union
         return None
 
-    filename = os.path.relpath(filename, os.path.abspath(".."))
+    filename = os.path.relpath(filename, os.path.abspath("../.."))
 
     if not filename.startswith("varipeps"):
         # e.g. object is a typing.NewType
