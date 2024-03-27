@@ -3,7 +3,7 @@ name = "variPEPS"
 version = "0.5.3"
 description = "Versatile tensor network library for variational ground state simulations in two spatial dimensions"
 authors = ["Jan Naumann <j.naumann@fu-berlin.de>", "Philipp Schmoll <philipp.schmoll@fu-berlin.de>", "Frederik Wilde", "Finn Krein"]
-license = "GPL-3.0 or later"
+license = "GPL-3.0-or-later"
 readme = "README.md"
 packages = [{include = "varipeps"}]
 
