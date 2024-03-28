@@ -36,7 +36,7 @@ def apply_unitary(
       unitary_operator_D (:obj:`jax.numpy.ndarray`):
         Array with the eigenvalues of the operator from which the unitary
         is generated.
-      unitary_operator_D (:obj:`jax.numpy.ndarray`):
+      unitary_operator_sigma (:obj:`jax.numpy.ndarray`):
         Array with the eigenvectors of the operator from which the unitary
         is generated.
       phys_d (:obj:`int`):
