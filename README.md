@@ -39,7 +39,6 @@ For detailed information how to use the package we want to point out to the [doc
 We are happy if you want to use the framework for your research. For the citation of our work we ask to use the following references (the publication with the method description, the Zenodo reference for this Git repository and the repository itself):
 * J. Naumann, E. L. Weerda, M. Rizzi, J. Eisert, and P. Schmoll, variPEPS -- a versatile tensor network library for variational ground state simulations in two spatial dimensions (2023), [arXiv:2308.12358](https://arxiv.org/abs/2308.12358).
 * J. Naumann, P. Schmoll, F. Wilde, and F. Krein, [variPEPS (Python version)](https://zenodo.org/doi/10.5281/zenodo.10852390), Zenodo.
-* J. Naumann, P. Schmoll, F. Wilde, and F. Krein, [variPEPS -- a versatile tensor network library for variational ground state simulations in two  spatial dimensions](https://github.com/variPEPS/variPEPS_Python), GitHub.
 
 The BibTeX code for these references are:
 ```bibtex
@@ -58,12 +57,5 @@ The BibTeX code for these references are:
     howpublished =  {Zenodo},
     url =           {https://doi.org/10.5281/ZENODO.10852390},
     doi =           {10.5281/ZENODO.10852390},
-}
-
-@software{varipeps_python_github,
-    author =        {Jan Naumann and Philipp Schmoll and Frederik Wilde and Finn Krein},
-    title =         {{\emph{variPEPS} -- a versatile tensor network library for variational ground state simulations in two spatial dimensions}},
-    url =           {https://github.com/variPEPS/variPEPS_Python},
-    howpublished =  {GitHub},
 }
 ```
