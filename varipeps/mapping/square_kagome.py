@@ -20,7 +20,18 @@ from varipeps.typing import Tensor
 from varipeps.mapping import Map_To_PEPS_Model
 from varipeps.utils.random import PEPS_Random_Number_Generator
 
-from typing import Sequence, Union, List, Callable, TypeVar, Optional, Tuple, Type, Dict, Any
+from typing import (
+    Sequence,
+    Union,
+    List,
+    Callable,
+    TypeVar,
+    Optional,
+    Tuple,
+    Type,
+    Dict,
+    Any,
+)
 
 T_Square_Kagome_Map_PESS_To_PEPS = TypeVar(
     "T_Square_Kagome_Map_PESS_To_PEPS", bound="Square_Kagome_Map_PESS_To_PEPS"
@@ -1235,12 +1246,10 @@ class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):
                 f"{str(filename)}.{counter}",
                 tensors,
                 unitcell,
-                auxiliary_data=auxiliary_data
+                auxiliary_data=auxiliary_data,
             )
         else:
-            cls.save_to_file(
-                filename, tensors, unitcell, auxiliary_data=auxiliary_data
-            )
+            cls.save_to_file(filename, tensors, unitcell, auxiliary_data=auxiliary_data)
 
 
 @jit
@@ -1611,9 +1620,7 @@ class Square_Kagome_Map_4_1_1_To_PEPS(Map_To_PEPS_Model):
                 f"{str(filename)}.{counter}",
                 tensors,
                 unitcell,
-                auxiliary_data=auxiliary_data
+                auxiliary_data=auxiliary_data,
             )
         else:
-            cls.save_to_file(
-                filename, tensors, unitcell, auxiliary_data=auxiliary_data
-            )
+            cls.save_to_file(filename, tensors, unitcell, auxiliary_data=auxiliary_data)

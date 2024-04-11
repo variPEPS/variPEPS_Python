@@ -627,12 +627,10 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
                 f"{str(filename)}.{counter}",
                 tensors,
                 unitcell,
-                auxiliary_data=auxiliary_data
+                auxiliary_data=auxiliary_data,
             )
         else:
-            cls.save_to_file(
-                filename, tensors, unitcell, auxiliary_data=auxiliary_data
-            )
+            cls.save_to_file(filename, tensors, unitcell, auxiliary_data=auxiliary_data)
 
 
 class iPESS3_9Sites_Three_PEPS_Site:

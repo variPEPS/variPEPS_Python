@@ -19,7 +19,18 @@ from varipeps.typing import Tensor
 from varipeps.utils.random import PEPS_Random_Number_Generator
 from varipeps.mapping import Map_To_PEPS_Model
 
-from typing import Sequence, Union, List, Callable, TypeVar, Optional, Tuple, Type, Dict, Any
+from typing import (
+    Sequence,
+    Union,
+    List,
+    Callable,
+    TypeVar,
+    Optional,
+    Tuple,
+    Type,
+    Dict,
+    Any,
+)
 
 T_Triangular_Map_PESS_To_PEPS = TypeVar(
     "T_Triangular_Map_PESS_To_PEPS", bound="Triangular_Map_PESS_To_PEPS"
@@ -507,9 +518,7 @@ class Triangular_Map_PESS_To_PEPS(Map_To_PEPS_Model):
                 f"{str(filename)}.{counter}",
                 tensors,
                 unitcell,
-                auxiliary_data=auxiliary_data
+                auxiliary_data=auxiliary_data,
             )
         else:
-            cls.save_to_file(
-                filename, tensors, unitcell, auxiliary_data=auxiliary_data
-            )
+            cls.save_to_file(filename, tensors, unitcell, auxiliary_data=auxiliary_data)

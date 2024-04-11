@@ -28,7 +28,18 @@ from varipeps.mapping.square_kagome import (
     square_kagome_density_matrix_vertical,
 )
 
-from typing import Sequence, Union, List, Callable, TypeVar, Optional, Tuple, Type, Dict, Any
+from typing import (
+    Sequence,
+    Union,
+    List,
+    Callable,
+    TypeVar,
+    Optional,
+    Tuple,
+    Type,
+    Dict,
+    Any,
+)
 
 T_Maple_Leaf_Map_PESS_To_PEPS = TypeVar(
     "T_Maple_Leaf_Map_PESS_To_PEPS", bound="Maple_Leaf_Map_PESS_To_PEPS"
@@ -1284,6 +1295,4 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
                 auxiliary_data=auxiliary_data,
             )
         else:
-            cls.save_to_file(
-                filename, tensors, unitcell, auxiliary_data=auxiliary_data
-            )
+            cls.save_to_file(filename, tensors, unitcell, auxiliary_data=auxiliary_data)

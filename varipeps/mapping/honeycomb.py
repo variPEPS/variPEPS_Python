@@ -622,9 +622,7 @@ class Honeycomb_Map_To_Square(Map_To_PEPS_Model):
                 f"{str(filename)}.{counter}",
                 tensors,
                 unitcell,
-                auxiliary_data=auxiliary_data
+                auxiliary_data=auxiliary_data,
             )
         else:
-            cls.save_to_file(
-                filename, tensors, unitcell, auxiliary_data=auxiliary_data
-            )
+            cls.save_to_file(filename, tensors, unitcell, auxiliary_data=auxiliary_data)

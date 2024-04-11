@@ -6,7 +6,9 @@ from typing import TypeVar, Tuple, Any, Type, Optional
 
 from .config import Projector_Method
 
-T_VariPEPS_Global_State = TypeVar("T_VariPEPS_Global_State", bound="VariPEPS_Global_State")
+T_VariPEPS_Global_State = TypeVar(
+    "T_VariPEPS_Global_State", bound="VariPEPS_Global_State"
+)
 
 
 @dataclass
