@@ -598,37 +598,37 @@ def _calc_onsite_gate(
         )
         blue_36 = blue_36.reshape(d**9, d**9)
 
-        green_12 = jnp.kron(g_e, Id_other_sites)
-        green_12 = green_12.reshape(
+        green_base = jnp.kron(g_e, Id_other_sites)
+        green_base = green_base.reshape(
             d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d
         )
 
-        green_24 = green_12.transpose(
+        green_24 = green_base.transpose(
             2, 0, 3, 1, 4, 5, 6, 7, 8, 11, 9, 12, 10, 13, 14, 15, 16, 17
         )
         green_24 = green_24.reshape(d**9, d**9)
 
-        green_45 = green_12.transpose(
+        green_45 = green_base.transpose(
             2, 3, 4, 0, 1, 5, 6, 7, 8, 11, 12, 13, 9, 10, 14, 15, 16, 17
         )
         green_45 = green_45.reshape(d**9, d**9)
 
-        green_46 = green_12.transpose(
+        green_46 = green_base.transpose(
             2, 3, 4, 0, 5, 1, 6, 7, 8, 11, 12, 13, 9, 14, 10, 15, 16, 17
         )
         green_46 = green_46.reshape(d**9, d**9)
 
-        green_37 = green_12.transpose(
+        green_37 = green_base.transpose(
             2, 3, 0, 4, 5, 6, 1, 7, 8, 11, 12, 9, 13, 14, 15, 10, 16, 17
         )
         green_37 = green_37.reshape(d**9, d**9)
 
-        green_78 = green_12.transpose(
+        green_78 = green_base.transpose(
             2, 3, 4, 5, 6, 7, 0, 1, 8, 11, 12, 13, 14, 15, 16, 9, 10, 17
         )
         green_78 = green_78.reshape(d**9, d**9)
 
-        green_79 = green_12.transpose(
+        green_79 = green_base.transpose(
             2, 3, 4, 5, 6, 7, 0, 8, 1, 11, 12, 13, 14, 15, 16, 9, 17, 10
         )
         green_79 = green_79.reshape(d**9, d**9)
@@ -869,7 +869,9 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
         )
 
         if self.is_spiral_peps:
-            raise NotImplementedError
+            self._spiral_D, self._spiral_sigma = jnp.linalg.eigh(
+                self.spiral_unitary_operator
+            )
 
     def __call__(
         self,
@@ -891,15 +893,145 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
             working_onsite_gates = tuple(
                 o for e in self._onsite_single_gates for o in e
             )
-            working_h_single_gates = tuple(
-                h for e in self._right_single_gates for h in e
+
+        if self.is_spiral_peps:
+            if isinstance(spiral_vectors, jnp.ndarray):
+                spiral_vectors = (
+                    spiral_vectors,
+                    spiral_vectors,
+                    spiral_vectors,
+                )
+            if len(spiral_vectors) == 1:
+                spiral_vectors = (
+                    spiral_vectors[0],
+                    spiral_vectors[0],
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    spiral_vectors[0],
+                )
+            if len(spiral_vectors) == 4:
+                spiral_vectors = (
+                    spiral_vectors[0],
+                    spiral_vectors[1],
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    spiral_vectors[2],
+                )
+            if len(spiral_vectors) != 9:
+                raise ValueError("Length mismatch for spiral vectors!")
+
+            working_h_gates = tuple(
+                apply_unitary(
+                    h,
+                    jnp.array((0, 1)),
+                    spiral_vectors[0:9:8],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    3,
+                    (1, 2),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for h in self._right_tuple
             )
-            working_v_single_gates = tuple(
-                v for e in self._down_single_gates for v in e
+            working_v_gates = tuple(
+                apply_unitary(
+                    v,
+                    jnp.array((1, 0)),
+                    spiral_vectors[:2],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    4,
+                    (2, 3),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for v in self._down_tuple
             )
-            working_d_single_gates = tuple(
-                d for e in self._diagonal_single_gates for d in e
+            working_d_gates = tuple(
+                apply_unitary(
+                    d,
+                    jnp.array((1, 1)),
+                    spiral_vectors[:1],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    3,
+                    (2,),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for d in self._diagonal_tuple
             )
+
+            if return_single_gate_results:
+                working_h_single_gates = tuple(
+                    apply_unitary(
+                        h,
+                        jnp.array((0, 1)),
+                        spiral_vectors[0:9:8],
+                        self._spiral_D,
+                        self._spiral_sigma,
+                        self.real_d,
+                        3,
+                        (1, 2),
+                        varipeps_config.spiral_wavevector_type,
+                    )
+                    for e in self._right_single_gates
+                    for h in e
+                )
+                working_v_single_gates = tuple(
+                    apply_unitary(
+                        v,
+                        jnp.array((1, 0)),
+                        spiral_vectors[:2],
+                        self._spiral_D,
+                        self._spiral_sigma,
+                        self.real_d,
+                        4,
+                        (2, 3),
+                        varipeps_config.spiral_wavevector_type,
+                    )
+                    for e in self._down_single_gates
+                    for v in e
+                )
+                working_d_single_gates = tuple(
+                    apply_unitary(
+                        d,
+                        jnp.array((1, 1)),
+                        spiral_vectors[:1],
+                        self._spiral_D,
+                        self._spiral_sigma,
+                        self.real_d,
+                        3,
+                        (2,),
+                        varipeps_config.spiral_wavevector_type,
+                    )
+                    for e in self._diagonal_single_gates
+                    for d in e
+                )
+        else:
+            working_h_gates = self._right_tuple
+            working_v_gates = self._down_tuple
+            working_d_gates = self._diagonal_tuple
+
+            if return_single_gate_results:
+                working_h_single_gates = tuple(
+                    h for e in self._right_single_gates for h in e
+                )
+                working_v_single_gates = tuple(
+                    v for e in self._down_single_gates for v in e
+                )
+                working_d_single_gates = tuple(
+                    d for e in self._diagonal_single_gates for d in e
+                )
 
         for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
             for y, view in iter_rows:
@@ -937,14 +1069,14 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                         step_result_horizontal = _two_site_workhorse(
                             density_matrix_left,
                             density_matrix_right,
-                            self._right_tuple + working_h_single_gates,
+                            working_h_gates + working_h_single_gates,
                             self._result_type is jnp.float64,
                         )
                     else:
                         step_result_horizontal = _two_site_workhorse(
                             density_matrix_left,
                             density_matrix_right,
-                            self._right_tuple,
+                            working_h_gates,
                             self._result_type is jnp.float64,
                         )
 
@@ -964,14 +1096,14 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                         step_result_vertical = _two_site_workhorse(
                             density_matrix_top,
                             density_matrix_bottom,
-                            self._down_tuple + working_v_single_gates,
+                            working_v_gates + working_v_single_gates,
                             self._result_type is jnp.float64,
                         )
                     else:
                         step_result_vertical = _two_site_workhorse(
                             density_matrix_top,
                             density_matrix_bottom,
-                            self._down_tuple,
+                            working_v_gates,
                             self._result_type is jnp.float64,
                         )
 
@@ -1011,7 +1143,7 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                             density_matrix_bottom_right,
                             traced_density_matrix_top_right,
                             traced_density_matrix_bottom_left,
-                            self._diagonal_tuple + working_d_single_gates,
+                            working_d_gates + working_d_single_gates,
                             self._result_type is jnp.float64,
                         )
                     else:
@@ -1020,7 +1152,7 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                             density_matrix_bottom_right,
                             traced_density_matrix_top_right,
                             traced_density_matrix_bottom_left,
-                            self._diagonal_tuple,
+                            working_d_gates,
                             self._result_type is jnp.float64,
                         )
 
