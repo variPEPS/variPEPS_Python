@@ -277,6 +277,7 @@ def optimize_peps_network(
     best_value = jnp.inf
     best_tensors = None
     best_unitcell = None
+    best_run = None
 
     random_noise_retries = 0
 
@@ -307,7 +308,10 @@ def optimize_peps_network(
         varipeps_config.line_search_initial_step_size
     )
     working_value: Union[float, jnp.ndarray]
-    max_trunc_error_list = []
+    max_trunc_error_list = {random_noise_retries: []}
+    step_energies = {random_noise_retries: []}
+    step_chi = {random_noise_retries: []}
+    step_conv = {random_noise_retries: []}
 
     if (
         varipeps_config.optimizer_preconverge_with_half_projectors
@@ -417,6 +421,7 @@ def optimize_peps_network(
                 descent_dir = [-elem for elem in working_gradient]
 
             conv = jnp.linalg.norm(ravel_pytree(working_gradient)[0])
+            step_conv[random_noise_retries].append(conv)
 
             try:
                 (
@@ -460,6 +465,7 @@ def optimize_peps_network(
                             best_value = working_value
                             best_tensors = working_tensors
                             best_unitcell = working_unitcell
+                            best_run = random_noise_retries
 
                         if isinstance(input_tensors, PEPS_Unit_Cell) or (
                             isinstance(input_tensors, collections.abc.Sequence)
@@ -497,12 +503,22 @@ def optimize_peps_network(
                         signal_reset_descent_dir = True
                         count = -1
                         random_noise_retries += 1
+
+                        step_energies[random_noise_retries] = []
+                        step_chi[random_noise_retries] = []
+                        step_conv[random_noise_retries] = []
+                        max_trunc_error_list[random_noise_retries] = []
+
                         pbar.reset()
                         pbar.refresh()
                     else:
                         conv = 0
-
-            max_trunc_error_list.append(max_trunc_error)
+            else:
+                max_trunc_error_list[random_noise_retries].append(max_trunc_error)
+                step_energies[random_noise_retries].append(working_value)
+                step_chi[random_noise_retries].append(
+                    working_unitcell.get_unique_tensors()[0].chi
+                )
 
             if conv < varipeps_config.optimizer_convergence_eps:
                 working_value, (
@@ -517,7 +533,8 @@ def optimize_peps_network(
                     enforce_elementwise_convergence=varipeps_config.ad_use_custom_vjp,
                 )
                 varipeps_global_state.ctmrg_projector_method = None
-                max_trunc_error_list[-1] = max_trunc_error
+                max_trunc_error_list[random_noise_retries][-1] = max_trunc_error
+                step_energies[random_noise_retries][-1] = working_value
                 break
 
             if (
@@ -561,7 +578,16 @@ def optimize_peps_network(
 
             if count % varipeps_config.optimizer_autosave_step_count == 0:
                 auxiliary_data = {
-                    "max_trunc_error_list": max_trunc_error_list,
+                    "max_trunc_error_list": tuple(
+                        max_trunc_error_list[k]
+                        for k in sorted(max_trunc_error_list.keys())
+                    ),
+                    "step_energies": tuple(
+                        step_energies[k] for k in sorted(step_energies.keys())
+                    ),
+                    "step_chi": tuple(step_chi[k] for k in sorted(step_chi.keys())),
+                    "step_conv": tuple(step_conv[k] for k in sorted(step_conv.keys())),
+                    "best_run": best_run if best_run is not None else 0,
                 }
 
                 if spiral_indices is not None:
@@ -589,6 +615,7 @@ def optimize_peps_network(
         best_value = working_value
         best_tensors = working_tensors
         best_unitcell = working_unitcell
+        best_run = random_noise_retries
 
     print(f"Best energy result found: {best_value}")
 
@@ -599,4 +626,8 @@ def optimize_peps_network(
         unitcell=best_unitcell,
         nit=count,
         max_trunc_error_list=max_trunc_error_list,
+        step_energies=step_energies,
+        step_chi=step_chi,
+        step_conv=step_conv,
+        best_run=best_run,
     )
