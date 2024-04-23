@@ -578,17 +578,16 @@ def optimize_peps_network(
 
             if count % varipeps_config.optimizer_autosave_step_count == 0:
                 auxiliary_data = {
-                    "max_trunc_error_list": tuple(
-                        max_trunc_error_list[k]
-                        for k in sorted(max_trunc_error_list.keys())
-                    ),
-                    "step_energies": tuple(
-                        step_energies[k] for k in sorted(step_energies.keys())
-                    ),
-                    "step_chi": tuple(step_chi[k] for k in sorted(step_chi.keys())),
-                    "step_conv": tuple(step_conv[k] for k in sorted(step_conv.keys())),
                     "best_run": best_run if best_run is not None else 0,
                 }
+
+                for k in sorted(max_trunc_error_list.keys()):
+                    auxiliary_data[f"max_trunc_error_list_{k:d}"] = (
+                        max_trunc_error_list[k]
+                    )
+                    auxiliary_data[f"step_energies_{k:d}"] = step_energies[k]
+                    auxiliary_data[f"step_chi_{k:d}"] = step_chi[k]
+                    auxiliary_data[f"step_conv_{k:d}"] = step_conv[k]
 
                 if spiral_indices is not None:
                     for spiral_i in spiral_indices:
