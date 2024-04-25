@@ -186,7 +186,7 @@ def autosave_function(
     filename: PathLike,
     tensors: jnp.ndarray,
     unitcell: PEPS_Unit_Cell,
-    counter: Optional[int] = None,
+    counter: Optional[Union[int, str]] = None,
     auxiliary_data: Optional[Dict[str, Any]] = None,
 ) -> None:
     if counter is not None:
@@ -195,6 +195,52 @@ def autosave_function(
         )
     else:
         unitcell.save_to_file(filename, auxiliary_data=auxiliary_data)
+
+
+def _autosave_wrapper(
+    autosave_func,
+    autosave_filename,
+    working_tensors,
+    working_unitcell,
+    working_value,
+    counter,
+    best_run,
+    max_trunc_error_list,
+    step_energies,
+    step_chi,
+    step_conv,
+    spiral_indices,
+    additional_input,
+):
+    auxiliary_data = {
+        "best_run": best_run if best_run is not None else 0,
+        "current_energy": working_value,
+    }
+
+    for k in sorted(max_trunc_error_list.keys()):
+        auxiliary_data[f"max_trunc_error_list_{k:d}"] = max_trunc_error_list[k]
+        auxiliary_data[f"step_energies_{k:d}"] = step_energies[k]
+        auxiliary_data[f"step_chi_{k:d}"] = step_chi[k]
+        auxiliary_data[f"step_conv_{k:d}"] = step_conv[k]
+
+    if spiral_indices is not None:
+        for spiral_i in spiral_indices:
+            auxiliary_data[f"spiral_vector_{spiral_i:d}"] = working_tensors[spiral_i]
+    elif additional_input.get("spiral_vectors") is not None:
+        add_input_spiral = additional_input.get("spiral_vectors")
+        if isinstance(add_input_spiral, jnp.ndarray):
+            add_input_spiral = (add_input_spiral,)
+        for spiral_i, elem in enumerate(add_input_spiral):
+            spiral_i += 1
+            auxiliary_data[f"spiral_vector_{spiral_i:d}"] = elem
+
+    autosave_func(
+        autosave_filename,
+        working_tensors,
+        working_unitcell,
+        counter=counter,
+        auxiliary_data=auxiliary_data,
+    )
 
 
 def optimize_peps_network(
@@ -467,6 +513,22 @@ def optimize_peps_network(
                             best_unitcell = working_unitcell
                             best_run = random_noise_retries
 
+                            _autosave_wrapper(
+                                autosave_func,
+                                autosave_filename,
+                                working_tensors,
+                                working_unitcell,
+                                working_value,
+                                "best",
+                                best_run,
+                                max_trunc_error_list,
+                                step_energies,
+                                step_chi,
+                                step_conv,
+                                spiral_indices,
+                                additional_input,
+                            )
+
                         if isinstance(input_tensors, PEPS_Unit_Cell) or (
                             isinstance(input_tensors, collections.abc.Sequence)
                             and isinstance(input_tensors[0], PEPS_Unit_Cell)
@@ -577,37 +639,20 @@ def optimize_peps_network(
             pbar.refresh()
 
             if count % varipeps_config.optimizer_autosave_step_count == 0:
-                auxiliary_data = {
-                    "best_run": best_run if best_run is not None else 0,
-                }
-
-                for k in sorted(max_trunc_error_list.keys()):
-                    auxiliary_data[f"max_trunc_error_list_{k:d}"] = (
-                        max_trunc_error_list[k]
-                    )
-                    auxiliary_data[f"step_energies_{k:d}"] = step_energies[k]
-                    auxiliary_data[f"step_chi_{k:d}"] = step_chi[k]
-                    auxiliary_data[f"step_conv_{k:d}"] = step_conv[k]
-
-                if spiral_indices is not None:
-                    for spiral_i in spiral_indices:
-                        auxiliary_data[f"spiral_vector_{spiral_i:d}"] = working_tensors[
-                            spiral_i
-                        ]
-                elif additional_input.get("spiral_vectors") is not None:
-                    add_input_spiral = additional_input.get("spiral_vectors")
-                    if isinstance(add_input_spiral, jnp.ndarray):
-                        add_input_spiral = (add_input_spiral,)
-                    for spiral_i, elem in enumerate(add_input_spiral):
-                        spiral_i += 1
-                        auxiliary_data[f"spiral_vector_{spiral_i:d}"] = elem
-
-                autosave_func(
+                _autosave_wrapper(
+                    autosave_func,
                     autosave_filename,
                     working_tensors,
                     working_unitcell,
-                    counter=random_noise_retries,
-                    auxiliary_data=auxiliary_data,
+                    working_value,
+                    random_noise_retries,
+                    best_run,
+                    max_trunc_error_list,
+                    step_energies,
+                    step_chi,
+                    step_conv,
+                    spiral_indices,
+                    additional_input,
                 )
 
     if working_value < best_value:
@@ -615,6 +660,22 @@ def optimize_peps_network(
         best_tensors = working_tensors
         best_unitcell = working_unitcell
         best_run = random_noise_retries
+
+        _autosave_wrapper(
+            autosave_func,
+            autosave_filename,
+            working_tensors,
+            working_unitcell,
+            working_value,
+            "best",
+            best_run,
+            max_trunc_error_list,
+            step_energies,
+            step_chi,
+            step_conv,
+            spiral_indices,
+            additional_input,
+        )
 
     print(f"Best energy result found: {best_value}")
 
