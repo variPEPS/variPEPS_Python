@@ -302,6 +302,10 @@ def optimize_peps_network(
         if isinstance(input_tensors, collections.abc.Sequence) and isinstance(
             input_tensors[0], PEPS_Unit_Cell
         ):
+            if len(input_tensors[0].get_unique_tensors()) != 1:
+                raise ValueError(
+                    "You want to use spiral PEPS but you use a unit cell with more than one site. Seems wrong to me!"
+                )
             working_tensors = cast(
                 List[jnp.ndarray],
                 [i.tensor for i in input_tensors[0].get_unique_tensors()],
