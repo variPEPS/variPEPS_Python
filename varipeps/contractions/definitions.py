@@ -195,6 +195,254 @@ class Definitions:
         ],
     }
 
+    density_matrix_one_site_C1_phase: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "C1_phase",
+                "T1",
+                "C2",
+                "T2",
+                "C3",
+                "T3",
+                "C4",
+                "T4",
+            ]
+        ],
+        "network": [
+            [
+                (6, 7, -1, 10, 9),  # tensor
+                (13, 14, -2, 15, 16),  # tensor_conj
+                (2, 12),  # C1_phase
+                (12, 9, 16, 3),  # T1
+                (3, 8),  # C2
+                (10, 15, 4, 8),  # T2
+                (11, 4),  # C3
+                (1, 11, 14, 7),  # T3
+                (1, 5),  # C4
+                (5, 13, 6, 2),  # T4
+            ]
+        ],
+    }
+
+    density_matrix_one_site_C2_phase: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "C1",
+                "T1",
+                "C2_phase",
+                "T2",
+                "C3",
+                "T3",
+                "C4",
+                "T4",
+            ]
+        ],
+        "network": [
+            [
+                (6, 7, -1, 10, 9),  # tensor
+                (13, 14, -2, 15, 16),  # tensor_conj
+                (2, 12),  # C1
+                (12, 9, 16, 3),  # T1
+                (3, 8),  # C2_phase
+                (10, 15, 4, 8),  # T2
+                (11, 4),  # C3
+                (1, 11, 14, 7),  # T3
+                (1, 5),  # C4
+                (5, 13, 6, 2),  # T4
+            ]
+        ],
+    }
+
+    density_matrix_one_site_C3_phase: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "C1",
+                "T1",
+                "C2",
+                "T2",
+                "C3_phase",
+                "T3",
+                "C4",
+                "T4",
+            ]
+        ],
+        "network": [
+            [
+                (6, 7, -1, 10, 9),  # tensor
+                (13, 14, -2, 15, 16),  # tensor_conj
+                (2, 12),  # C1
+                (12, 9, 16, 3),  # T1
+                (3, 8),  # C2
+                (10, 15, 4, 8),  # T2
+                (11, 4),  # C3_phase
+                (1, 11, 14, 7),  # T3
+                (1, 5),  # C4
+                (5, 13, 6, 2),  # T4
+            ]
+        ],
+    }
+
+    density_matrix_one_site_C4_phase: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "C1",
+                "T1",
+                "C2",
+                "T2",
+                "C3",
+                "T3",
+                "C4_phase",
+                "T4",
+            ]
+        ],
+        "network": [
+            [
+                (6, 7, -1, 10, 9),  # tensor
+                (13, 14, -2, 15, 16),  # tensor_conj
+                (2, 12),  # C1
+                (12, 9, 16, 3),  # T1
+                (3, 8),  # C2
+                (10, 15, 4, 8),  # T2
+                (11, 4),  # C3
+                (1, 11, 14, 7),  # T3
+                (1, 5),  # C4_phase
+                (5, 13, 6, 2),  # T4
+            ]
+        ],
+    }
+
+    density_matrix_one_site_T1_phase: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "C1",
+                "T1_phase",
+                "C2",
+                "T2",
+                "C3",
+                "T3",
+                "C4",
+                "T4",
+            ]
+        ],
+        "network": [
+            [
+                (6, 7, -1, 10, 9),  # tensor
+                (13, 14, -2, 15, 16),  # tensor_conj
+                (2, 12),  # C1
+                (12, 9, 16, 3),  # T1_phase
+                (3, 8),  # C2
+                (10, 15, 4, 8),  # T2
+                (11, 4),  # C3
+                (1, 11, 14, 7),  # T3
+                (1, 5),  # C4
+                (5, 13, 6, 2),  # T4
+            ]
+        ],
+    }
+
+    density_matrix_one_site_T2_phase: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "C1",
+                "T1",
+                "C2",
+                "T2_phase",
+                "C3",
+                "T3",
+                "C4",
+                "T4",
+            ]
+        ],
+        "network": [
+            [
+                (6, 7, -1, 10, 9),  # tensor
+                (13, 14, -2, 15, 16),  # tensor_conj
+                (2, 12),  # C1
+                (12, 9, 16, 3),  # T1
+                (3, 8),  # C2
+                (10, 15, 4, 8),  # T2_phase
+                (11, 4),  # C3
+                (1, 11, 14, 7),  # T3
+                (1, 5),  # C4
+                (5, 13, 6, 2),  # T4
+            ]
+        ],
+    }
+
+    density_matrix_one_site_T3_phase: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "C1",
+                "T1",
+                "C2",
+                "T2",
+                "C3",
+                "T3_phase",
+                "C4",
+                "T4",
+            ]
+        ],
+        "network": [
+            [
+                (6, 7, -1, 10, 9),  # tensor
+                (13, 14, -2, 15, 16),  # tensor_conj
+                (2, 12),  # C1
+                (12, 9, 16, 3),  # T1
+                (3, 8),  # C2
+                (10, 15, 4, 8),  # T2
+                (11, 4),  # C3
+                (1, 11, 14, 7),  # T3_phase
+                (1, 5),  # C4
+                (5, 13, 6, 2),  # T4
+            ]
+        ],
+    }
+
+    density_matrix_one_site_T4_phase: Definition = {
+        "tensors": [
+            [
+                "tensor",
+                "tensor_conj",
+                "C1",
+                "T1",
+                "C2",
+                "T2",
+                "C3",
+                "T3",
+                "C4",
+                "T4_phase",
+            ]
+        ],
+        "network": [
+            [
+                (6, 7, -1, 10, 9),  # tensor
+                (13, 14, -2, 15, 16),  # tensor_conj
+                (2, 12),  # C1
+                (12, 9, 16, 3),  # T1
+                (3, 8),  # C2
+                (10, 15, 4, 8),  # T2
+                (11, 4),  # C3
+                (1, 11, 14, 7),  # T3
+                (1, 5),  # C4
+                (5, 13, 6, 2),  # T4_phase
+            ]
+        ],
+    }
+
     density_matrix_two_sites_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "C1", "T1", "T3", "C4", "T4"]],
         "network": [
@@ -522,6 +770,51 @@ class Definitions:
     \\
     """
 
+    ctmrg_absorption_left_C1_phase_1: Definition = {
+        "tensors": [["C1_phase", "T1"], "projector_left_bottom"],
+        "network": [
+            [
+                (2, 1),  # C1_phase
+                (1, 3, 4, -2),  # T1
+            ],
+            (-1, 2, 3, 4),  # projector_left_bottom
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_L_C1.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C1 during left absorption with contraction order shown.
+
+       Contraction for C1 during left absorption. Here C1 is the tensor with
+       structure factor phase included which is grown by a normal T1 tensor.
+
+    \\
+    """
+
+    ctmrg_absorption_left_C1_phase_2: Definition = {
+        "tensors": [["C1", "T1_phase"], "projector_left_bottom"],
+        "network": [
+            [
+                (2, 1),  # C1
+                (1, 3, 4, -2),  # T1_phase
+            ],
+            (-1, 2, 3, 4),  # projector_left_bottom
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_L_C1.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C1 during left absorption with contraction order shown.
+
+       Contraction for C1 during left absorption. Here C1 is the tensor with
+       structure factor phase not included yet which is grown by a T1 tensor
+       which includes a phase already.
+
+    \\
+    """
+
     ctmrg_absorption_left_T4: Definition = {
         "tensors": [
             ["tensor", "tensor_conj", "T4"],
@@ -566,6 +859,42 @@ class Definitions:
         ],
     }
 
+    ctmrg_absorption_left_T4_large_d_phase_1: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T4_phase"],
+            "projector_left_top",
+            "projector_left_bottom",
+        ],
+        "network": [
+            [
+                (4, 8, 2, -3, 3),  # tensor
+                (5, 9, 2, -2, 6),  # tensor_conj
+                (7, 5, 4, 1),  # T4
+            ],
+            (1, 3, 6, -4),  # projector_left_top
+            (-1, 7, 8, 9),  # projector_left_bottom
+        ],
+    }
+
+    ctmrg_absorption_left_T4_large_d_phase_2: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T4"],
+            "projector_left_top",
+            "projector_left_bottom",
+            "structure_factor_gate",
+        ],
+        "network": [
+            [
+                (5, 9, 2, -3, 4),  # tensor
+                (6, 10, 3, -2, 7),  # tensor_conj
+                (8, 6, 5, 1),  # T4
+            ],
+            (1, 4, 7, -4),  # projector_left_top
+            (-1, 8, 9, 10),  # projector_left_bottom
+            (2, 3),  # structure_factor_gate
+        ],
+    }
+
     ctmrg_absorption_left_C4: Definition = {
         "tensors": [["T3", "C4"], "projector_left_top"],
         "network": [
@@ -587,6 +916,51 @@ class Definitions:
     \\
     """
 
+    ctmrg_absorption_left_C4_phase_1: Definition = {
+        "tensors": [["T3", "C4_phase"], "projector_left_top"],
+        "network": [
+            [
+                (1, -1, 4, 3),  # T3
+                (1, 2),  # C4_phase
+            ],
+            (2, 3, 4, -2),  # projector_left_top
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_L_C4.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C4 during left absorption with contraction order shown.
+
+       Contraction for C4 during left absorption. Here C4 is the tensor with
+       structure factor phase included which is grown by a normal T3 tensor.
+
+    \\
+    """
+
+    ctmrg_absorption_left_C4_phase_2: Definition = {
+        "tensors": [["T3_phase", "C4"], "projector_left_top"],
+        "network": [
+            [
+                (1, -1, 4, 3),  # T3_phase
+                (1, 2),  # C4
+            ],
+            (2, 3, 4, -2),  # projector_left_top
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_L_C4.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C4 during left absorption with contraction order shown.
+
+       Contraction for C4 during left absorption. Here C3 is the tensor with
+       structure factor phase not included yet which is grown by a T3 tensor
+       which includes a phase already.
+
+    \\
+    """
+
     ctmrg_absorption_right_C2: Definition = {
         "tensors": [["T1", "C2"], "projector_right_bottom"],
         "network": [
@@ -604,6 +978,51 @@ class Definitions:
        :alt: Contraction for C2 during right absorption with contraction order shown.
 
        Contraction for C2 during right absorption.
+
+    \\
+    """
+
+    ctmrg_absorption_right_C2_phase_1: Definition = {
+        "tensors": [["T1", "C2_phase"], "projector_right_bottom"],
+        "network": [
+            [
+                (-1, 3, 4, 1),  # T1
+                (1, 2),  # C2_phase
+            ],
+            (2, 4, 3, -2),  # projector_right_bottom
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_R_C2.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C2 during right absorption with contraction order shown.
+
+       Contraction for C2 during right absorption. Here C2 is the tensor with
+       structure factor phase included which is grown by a normal T1 tensor.
+
+    \\
+    """
+
+    ctmrg_absorption_right_C2_phase_2: Definition = {
+        "tensors": [["T1_phase", "C2"], "projector_right_bottom"],
+        "network": [
+            [
+                (-1, 3, 4, 1),  # T1_phase
+                (1, 2),  # C2
+            ],
+            (2, 4, 3, -2),  # projector_right_bottom
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_R_C2.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C2 during right absorption with contraction order shown.
+
+       Contraction for C2 during right absorption. Here C2 is the tensor with
+       structure factor phase not included yet which is grown by a T1 tensor
+       which includes a phase already.
 
     \\
     """
@@ -652,6 +1071,42 @@ class Definitions:
         ],
     }
 
+    ctmrg_absorption_right_T2_large_d_phase_1: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T2_phase"],
+            "projector_right_top",
+            "projector_right_bottom",
+        ],
+        "network": [
+            [
+                (-1, 8, 2, 4, 3),  # tensor
+                (-2, 9, 2, 6, 5),  # tensor_conj
+                (4, 6, 7, 1),  # T2_phase
+            ],
+            (-4, 1, 5, 3),  # projector_right_top
+            (7, 9, 8, -3),  # projector_right_bottom
+        ],
+    }
+
+    ctmrg_absorption_right_T2_large_d_phase_2: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T2"],
+            "projector_right_top",
+            "projector_right_bottom",
+            "structure_factor_gate",
+        ],
+        "network": [
+            [
+                (-1, 9, 2, 5, 4),  # tensor
+                (-2, 10, 3, 7, 6),  # tensor_conj
+                (5, 7, 8, 1),  # T2_phase
+            ],
+            (-4, 1, 6, 4),  # projector_right_top
+            (8, 10, 9, -3),  # projector_right_bottom
+            (2, 3),  # structure_factor_gate
+        ],
+    }
+
     ctmrg_absorption_right_C3: Definition = {
         "tensors": [["C3", "T3"], "projector_right_top"],
         "network": [
@@ -673,6 +1128,51 @@ class Definitions:
     \\
     """
 
+    ctmrg_absorption_right_C3_phase_1: Definition = {
+        "tensors": [["C3_phase", "T3"], "projector_right_top"],
+        "network": [
+            [
+                (1, 2),  # C3_phase
+                (-1, 1, 4, 3),  # T3
+            ],
+            (-2, 2, 4, 3),  # projector_right_top
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_R_C3.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C3 during right absorption with contraction order shown.
+
+       Contraction for C3 during right absorption. Here C3 is the tensor with
+       structure factor phase included which is grown by a normal T3 tensor.
+
+    \\
+    """
+
+    ctmrg_absorption_right_C3_phase_2: Definition = {
+        "tensors": [["C3", "T3_phase"], "projector_right_top"],
+        "network": [
+            [
+                (1, 2),  # C3
+                (-1, 1, 4, 3),  # T3_phase
+            ],
+            (-2, 2, 4, 3),  # projector_right_top
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_R_C3.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C3 during right absorption with contraction order shown.
+
+       Contraction for C3 during right absorption. Here C3 is the tensor with
+       structure factor phase not included yet which is grown by a T3 tensor
+       which includes a phase already.
+
+    \\
+    """
+
     ctmrg_absorption_top_C1: Definition = {
         "tensors": [["T4", "C1"], "projector_top_right"],
         "network": [
@@ -690,6 +1190,51 @@ class Definitions:
        :alt: Contraction for C1 during top absorption with contraction order shown.
 
        Contraction for C1 during top absorption.
+
+    \\
+    """
+
+    ctmrg_absorption_top_C1_phase_1: Definition = {
+        "tensors": [["T4", "C1_phase"], "projector_top_right"],
+        "network": [
+            [
+                (-1, 4, 3, 1),  # T4
+                (1, 2),  # C1_phase
+            ],
+            (2, 3, 4, -2),  # projector_top_right
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_U_C1.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C1 during top absorption with contraction order shown.
+
+       Contraction for C1 during top absorption. Here C1 is the tensor with
+       structure factor phase included which is grown by a normal T4 tensor.
+
+    \\
+    """
+
+    ctmrg_absorption_top_C1_phase_2: Definition = {
+        "tensors": [["T4_phase", "C1"], "projector_top_right"],
+        "network": [
+            [
+                (-1, 4, 3, 1),  # T4_phase
+                (1, 2),  # C1
+            ],
+            (2, 3, 4, -2),  # projector_top_right
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_U_C1.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C1 during top absorption with contraction order shown.
+
+       Contraction for C1 during top absorption. Here C1 is the tensor with
+       structure factor phase not included yet which is grown by a T4 tensor
+       which includes a phase already.
 
     \\
     """
@@ -738,6 +1283,42 @@ class Definitions:
         ],
     }
 
+    ctmrg_absorption_top_T1_large_d_phase_1: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T1_phase"],
+            "projector_top_left",
+            "projector_top_right",
+        ],
+        "network": [
+            [
+                (4, -2, 2, 8, 3),  # tensor
+                (6, -3, 2, 9, 5),  # tensor_conj
+                (1, 3, 5, 7),  # T1_phase
+            ],
+            (-1, 1, 4, 6),  # projector_top_left
+            (7, 8, 9, -4),  # projector_top_right
+        ],
+    }
+
+    ctmrg_absorption_top_T1_large_d_phase_2: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T1"],
+            "projector_top_left",
+            "projector_top_right",
+            "structure_factor_gate",
+        ],
+        "network": [
+            [
+                (5, -2, 2, 9, 4),  # tensor
+                (7, -3, 3, 10, 6),  # tensor_conj
+                (1, 4, 6, 8),  # T1
+            ],
+            (-1, 1, 5, 7),  # projector_top_left
+            (8, 9, 10, -4),  # projector_top_right
+            (2, 3),  # structure_factor_gate
+        ],
+    }
+
     ctmrg_absorption_top_C2: Definition = {
         "tensors": [["C2", "T2"], "projector_top_left"],
         "network": [
@@ -759,6 +1340,51 @@ class Definitions:
     \\
     """
 
+    ctmrg_absorption_top_C2_phase_1: Definition = {
+        "tensors": [["C2_phase", "T2"], "projector_top_left"],
+        "network": [
+            [
+                (2, 1),  # C2_phase
+                (3, 4, -2, 1),  # T2
+            ],
+            (-1, 2, 3, 4),  # projector_top_left
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_U_C2.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C2 during top absorption with contraction order shown.
+
+       Contraction for C2 during top absorption. Here C2 is the tensor with
+       structure factor phase included which is grown by a normal T2 tensor.
+
+    \\
+    """
+
+    ctmrg_absorption_top_C2_phase_2: Definition = {
+        "tensors": [["C2", "T2_phase"], "projector_top_left"],
+        "network": [
+            [
+                (2, 1),  # C2
+                (3, 4, -2, 1),  # T2_phase
+            ],
+            (-1, 2, 3, 4),  # projector_top_left
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_U_C2.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C2 during top absorption with contraction order shown.
+
+       Contraction for C2 during top absorption. Here C2 is the tensor with
+       structure factor phase not included yet which is grown by a T2 tensor
+       which includes a phase already.
+
+    \\
+    """
+
     ctmrg_absorption_bottom_C4: Definition = {
         "tensors": [["C4", "T4"], "projector_bottom_right"],
         "network": [
@@ -776,6 +1402,51 @@ class Definitions:
        :alt: Contraction for C4 during bottom absorption with contraction order shown.
 
        Contraction for C4 during bottom absorption.
+
+    \\
+    """
+
+    ctmrg_absorption_bottom_C4_phase_1: Definition = {
+        "tensors": [["C4_phase", "T4"], "projector_bottom_right"],
+        "network": [
+            [
+                (2, 1),  # C4_phase
+                (1, 4, 3, -2),  # T4
+            ],
+            (-1, 2, 4, 3),  # projector_bottom_right
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_D_C4.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C4 during bottom absorption with contraction order shown.
+
+       Contraction for C4 during bottom absorption. Here C4 is the tensor with
+       structure factor phase included which is grown by a normal T4 tensor.
+
+    \\
+    """
+
+    ctmrg_absorption_bottom_C4_phase_2: Definition = {
+        "tensors": [["C4", "T4_phase"], "projector_bottom_right"],
+        "network": [
+            [
+                (2, 1),  # C4
+                (1, 4, 3, -2),  # T4_phase
+            ],
+            (-1, 2, 4, 3),  # projector_bottom_right
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_D_C4.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C4 during bottom absorption with contraction order shown.
+
+       Contraction for C4 during bottom absorption. Here C4 is the tensor with
+       structure factor phase not included yet which is grown by a T4 tensor
+       which includes a phase already.
 
     \\
     """
@@ -824,6 +1495,42 @@ class Definitions:
         ],
     }
 
+    ctmrg_absorption_bottom_T3_large_d_phase_1: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T3_phase"],
+            "projector_bottom_left",
+            "projector_bottom_right",
+        ],
+        "network": [
+            [
+                (4, 3, 2, 8, -4),  # tensor
+                (6, 5, 2, 9, -3),  # tensor_conj
+                (1, 7, 5, 3),  # T3_phase
+            ],
+            (1, 6, 4, -1),  # projector_bottom_left
+            (-2, 7, 9, 8),  # projector_bottom_right
+        ],
+    }
+
+    ctmrg_absorption_bottom_T3_large_d_phase_2: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T3"],
+            "projector_bottom_left",
+            "projector_bottom_right",
+            "structure_factor_gate",
+        ],
+        "network": [
+            [
+                (5, 4, 2, 9, -4),  # tensor
+                (7, 6, 3, 10, -3),  # tensor_conj
+                (1, 8, 6, 4),  # T3
+            ],
+            (1, 7, 5, -1),  # projector_bottom_left
+            (-2, 8, 10, 9),  # projector_bottom_right
+            (2, 3),  # structure_factor_gate
+        ],
+    }
+
     ctmrg_absorption_bottom_C3: Definition = {
         "tensors": [["T2", "C3"], "projector_bottom_left"],
         "network": [
@@ -841,6 +1548,51 @@ class Definitions:
        :alt: Contraction for C3 during bottom absorption with contraction order shown.
 
        Contraction for C3 during bottom absorption.
+
+    \\
+    """
+
+    ctmrg_absorption_bottom_C3_phase_1: Definition = {
+        "tensors": [["T2", "C3_phase"], "projector_bottom_left"],
+        "network": [
+            [
+                (3, 4, 1, -2),  # T2
+                (2, 1),  # C3_phase
+            ],
+            (2, 4, 3, -1),  # projector_bottom_left
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_D_C3.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C3 during bottom absorption with contraction order shown.
+
+       Contraction for C3 during bottom absorption. Here C3 is the tensor with
+       structure factor phase included which is grown by a normal T2 tensor.
+
+    \\
+    """
+
+    ctmrg_absorption_bottom_C3_phase_2: Definition = {
+        "tensors": [["T2_phase", "C3"], "projector_bottom_left"],
+        "network": [
+            [
+                (3, 4, 1, -2),  # T2_phase
+                (2, 1),  # C3
+            ],
+            (2, 4, 3, -1),  # projector_bottom_left
+        ],
+    }
+    """
+    .. figure:: /images/CTMRG_Absorption_D_C3.*
+       :align: center
+       :width: 60%
+       :alt: Contraction for C3 during bottom absorption with contraction order shown.
+
+       Contraction for C3 during bottom absorption. Here C3 is the tensor with
+       structure factor phase not included yet which is grown by a T2 tensor
+       which includes a phase already.
 
     \\
     """
