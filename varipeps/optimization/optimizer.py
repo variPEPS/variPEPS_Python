@@ -599,8 +599,17 @@ def optimize_peps_network(
                     enforce_elementwise_convergence=varipeps_config.ad_use_custom_vjp,
                 )
                 varipeps_global_state.ctmrg_projector_method = None
-                max_trunc_error_list[random_noise_retries][-1] = max_trunc_error
-                step_energies[random_noise_retries][-1] = working_value
+
+                try:
+                    max_trunc_error_list[random_noise_retries][-1] = max_trunc_error
+                except IndexError:
+                    max_trunc_error_list[random_noise_retries].append(max_trunc_error)
+
+                try:
+                    step_energies[random_noise_retries][-1] = working_value
+                except IndexError:
+                    step_energies[random_noise_retries].append(working_value)
+
                 break
 
             if (
