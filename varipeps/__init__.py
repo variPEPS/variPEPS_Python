@@ -4,6 +4,7 @@ from .config import config as varipeps_config
 from .global_state import global_state as varipeps_global_state
 
 from . import contractions
+from . import corrlength
 from . import ctmrg
 from . import expectation
 from . import mapping

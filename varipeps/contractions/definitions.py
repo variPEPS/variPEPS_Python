@@ -1947,5 +1947,99 @@ class Definitions:
         ],
     }
 
+    corrlength_transfer_right: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T1", "T3"]],
+        "network": [
+            [
+                (-2, 4, 1, -6, 2),  # tensor
+                (-3, 5, 1, -7, 3),  # tensor_conj
+                (-1, 2, 3, -5),  # T1
+                (-4, -8, 5, 4),  # T3
+            ]
+        ],
+    }
+
+    corrlength_vector_left: Definition = {
+        "tensors": [["C1", "T4", "C4"]],
+        "network": [
+            [
+                (1, -1),  # C1
+                (2, -3, -2, 1),  # T4
+                (-4, 2),  # C4
+            ]
+        ],
+    }
+
+    corrlength_vector_right: Definition = {
+        "tensors": [["C2", "T2", "C3"]],
+        "network": [
+            [
+                (-1, 1),  # C2
+                (-2, -3, 2, 1),  # T2
+                (-4, 2),  # C3
+            ]
+        ],
+    }
+
+    corrlength_transfer_bottom: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T4", "T2"]],
+        "network": [
+            [
+                (2, -6, 1, 4, -2),  # tensor
+                (3, -7, 1, 5, -3),  # tensor_conj
+                (-5, 3, 2, -1),  # T4
+                (4, 5, -8, -4),  # T2
+            ]
+        ],
+    }
+
+    corrlength_vector_top: Definition = {
+        "tensors": [["C1", "T1", "C2"]],
+        "network": [
+            [
+                (-1, 1),  # C1
+                (1, -2, -3, 2),  # T1
+                (2, -4),  # C2
+            ]
+        ],
+    }
+
+    corrlength_vector_bottom: Definition = {
+        "tensors": [["C4", "T3", "C3"]],
+        "network": [
+            [
+                (1, -1),  # C4
+                (1, 2, -3, -2),  # T3
+                (2, -4),  # C3
+            ]
+        ],
+    }
+
+    corrlength_absorb_one_column: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T1", "T3"], "vec"],
+        "network": [
+            [
+                (3, 8, 2, -2, 4),  # tensor
+                (5, 9, 2, -3, 6),  # tensor_conj
+                (1, 4, 6, -1),  # T1
+                (7, -4, 9, 8),  # T3
+            ],
+            [1, 3, 5, 7],  # vec
+        ],
+    }
+
+    corrlength_absorb_one_row: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T4", "T2"], "vec"],
+        "network": [
+            [
+                (4, -2, 2, 8, 3),  # tensor
+                (6, -3, 2, 9, 5),  # tensor_conj
+                (-1, 6, 4, 1),  # T4
+                (8, 9, -4, 7),  # T3
+            ],
+            [1, 3, 5, 7],  # vec
+        ],
+    }
+
 
 Definitions._prepare_defs()
