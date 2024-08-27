@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import partial
 from os import PathLike
 
 import jax.numpy as jnp
@@ -6,18 +7,25 @@ from jax import jit
 import jax.util
 import h5py
 
+from varipeps import varipeps_config
 import varipeps.config
 from varipeps.peps import PEPS_Tensor, PEPS_Unit_Cell
-from varipeps.contractions import apply_contraction
+from varipeps.contractions import apply_contraction, apply_contraction_jitted
 from varipeps.expectation.model import Expectation_Model
 from varipeps.expectation.two_sites import (
     calc_two_sites_vertical_multiple_gates,
     calc_two_sites_horizontal_multiple_gates,
     calc_two_sites_diagonal_top_left_bottom_right_multiple_gates,
+    calc_two_sites_diagonal_horizontal_rectangle_multiple_gates,
+    calc_two_sites_diagonal_vertical_rectangle_multiple_gates,
 )
+from varipeps.expectation.four_sites import calc_four_sites_quadrat_multiple_gates
+from varipeps.expectation.spiral_helpers import apply_unitary
 from varipeps.typing import Tensor
 from varipeps.utils.random import PEPS_Random_Number_Generator
 from varipeps.mapping import Map_To_PEPS_Model
+
+from varipeps.utils.debug_print import debug_print
 
 from typing import (
     Sequence,
@@ -522,3 +530,346 @@ class Triangular_Map_PESS_To_PEPS(Map_To_PEPS_Model):
             )
         else:
             cls.save_to_file(filename, tensors, unitcell, auxiliary_data=auxiliary_data)
+
+
+@partial(jit, static_argnums=(2, 3))
+def _calc_quadrat_gate_next_nearest(
+    nearest_gates: Sequence[jnp.ndarray],
+    next_nearest_gates: Sequence[jnp.ndarray],
+    d: int,
+    result_length: int,
+):
+    result = [None] * result_length
+
+    single_gates = [None] * result_length
+
+    Id_other_sites = jnp.eye(d**2)
+
+    for i, (n_e, n_n_e) in enumerate(
+        jax.util.safe_zip(nearest_gates, next_nearest_gates)
+    ):
+        nearest_34 = jnp.kron(Id_other_sites, n_e)
+
+        nearest_13 = nearest_34.reshape(d, d, d, d, d, d, d, d)
+        nearest_14 = nearest_34.reshape(d, d, d, d, d, d, d, d)
+
+        nearest_13 = nearest_13.transpose(2, 0, 3, 1, 6, 4, 7, 5)
+        nearest_13 = nearest_13.reshape(d**4, d**4)
+
+        nearest_14 = nearest_14.transpose(2, 0, 1, 3, 6, 4, 5, 7)
+        nearest_14 = nearest_14.reshape(d**4, d**4)
+
+        next_nearest_23 = jnp.kron(n_n_e, Id_other_sites)
+        next_nearest_23 = next_nearest_23.reshape(d, d, d, d, d, d, d, d)
+        next_nearest_23 = next_nearest_23.transpose(2, 0, 1, 3, 6, 4, 5, 7)
+        next_nearest_23 = next_nearest_23.reshape(d**4, d**4)
+
+        result[i] = nearest_13 + nearest_14 + nearest_34 + next_nearest_23
+
+        single_gates[i] = (nearest_13, nearest_14, nearest_34, next_nearest_23)
+
+    return result, single_gates
+
+
+@dataclass
+class Triangular_Next_Nearest_Expectation_Value(Expectation_Model):
+    """
+    Class to calculate expectation values for a triangular structure with
+    next-nearest interactions.
+
+    Args:
+      nearest_neighbor_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to each nearest
+        neighbor.
+      next_nearest_neighbor_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to each next-nearest
+        neighbor.
+      real_d (:obj:`int`):
+        Physical dimension of a single site before mapping.
+      normalization_factor (:obj:`int`):
+        Factor which should be used to normalize the calculated values.
+        For a single layer triangular structure this should be normally 1.
+      is_spiral_peps (:obj:`bool`):
+        Flag if the expectation value is for a spiral iPEPS ansatz.
+      spiral_unitary_operator (:obj:`jax.numpy.ndarray`):
+        Operator used to generate unitary for spiral iPEPS ansatz. Required
+        if spiral iPEPS ansatz is used.
+    """
+
+    nearest_neighbor_gates: Sequence[jnp.ndarray]
+    next_nearest_neighbor_gates: Sequence[jnp.ndarray]
+    real_d: int
+    normalization_factor: int = 1
+
+    is_spiral_peps: bool = False
+    spiral_unitary_operator: Optional[jnp.ndarray] = None
+
+    def __post_init__(self) -> None:
+        if isinstance(self.nearest_neighbor_gates, jnp.ndarray):
+            self.nearest_neighbor_gates = (self.nearest_neighbor_gates,)
+        if isinstance(self.next_nearest_neighbor_gates, jnp.ndarray):
+            self.next_nearest_neighbor_gates = (self.next_nearest_neighbor_gates,)
+        if len(self.nearest_neighbor_gates) != len(self.next_nearest_neighbor_gates):
+            raise ValueError("Length mismatch for sequence of gates.")
+
+        tmp_result = _calc_quadrat_gate_next_nearest(
+            self.nearest_neighbor_gates,
+            self.next_nearest_neighbor_gates,
+            self.real_d,
+            len(self.nearest_neighbor_gates),
+        )
+        self._quadrat_tuple, self._quadrat_single_gates = tuple(tmp_result[0]), tuple(
+            tmp_result[1]
+        )
+
+        self._result_type = (
+            jnp.float64
+            if all(
+                jnp.allclose(g, g.T.conj())
+                for g in self.nearest_neighbor_gates + self.next_nearest_neighbor_gates
+            )
+            else jnp.complex128
+        )
+
+        if self.is_spiral_peps:
+            self._spiral_D, self._spiral_sigma = jnp.linalg.eigh(
+                self.spiral_unitary_operator
+            )
+
+    def __call__(
+        self,
+        peps_tensors: Sequence[jnp.ndarray],
+        unitcell: PEPS_Unit_Cell,
+        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
+        *,
+        normalize_by_size: bool = True,
+        only_unique: bool = True,
+        return_single_gate_results: bool = False,
+    ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
+        result = [
+            jnp.array(0, dtype=self._result_type)
+            for _ in range(len(self.nearest_neighbor_gates))
+        ]
+
+        if return_single_gate_results:
+            single_gates_result = [dict()] * len(self.nearest_neighbor_gates)
+
+        if self.is_spiral_peps:
+            if not isinstance(spiral_vectors, jnp.ndarray):
+                raise ValueError("Expect spiral vector as jax.numpy array.")
+
+            working_q_gates = tuple(
+                apply_unitary(
+                    q,
+                    (jnp.array((0, 1)), jnp.array((1, 0)), jnp.array((1, 1))),
+                    (spiral_vectors, spiral_vectors, spiral_vectors),
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    4,
+                    (1, 2, 3),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for q in self._quadrat_tuple
+            )
+
+            working_next_horizontal_gates = tuple(
+                apply_unitary(
+                    e,
+                    jnp.array((1, 2)),
+                    (spiral_vectors,),
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    2,
+                    (1,),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for e in self.next_nearest_neighbor_gates
+            )
+
+            working_next_vertical_gates = tuple(
+                apply_unitary(
+                    e,
+                    jnp.array((2, 1)),
+                    (spiral_vectors,),
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    2,
+                    (1,),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for e in self.next_nearest_neighbor_gates
+            )
+
+            if return_single_gate_results:
+                working_q_single_gates = tuple(
+                    e
+                    for q in self._quadrat_single_gates
+                    for e in (
+                        apply_unitary(
+                            q[0],
+                            jnp.array((1, 0)),
+                            (spiral_vectors,),
+                            self._spiral_D,
+                            self._spiral_sigma,
+                            self.real_d,
+                            4,
+                            (2,),
+                            varipeps_config.spiral_wavevector_type,
+                        ),
+                        apply_unitary(
+                            q[1],
+                            jnp.array((1, 1)),
+                            (spiral_vectors,),
+                            self._spiral_D,
+                            self._spiral_sigma,
+                            self.real_d,
+                            4,
+                            (3,),
+                            varipeps_config.spiral_wavevector_type,
+                        ),
+                        apply_unitary(
+                            q[2],
+                            (jnp.array((1, 0)), jnp.array((1, 1))),
+                            (spiral_vectors, spiral_vectors),
+                            self._spiral_D,
+                            self._spiral_sigma,
+                            self.real_d,
+                            4,
+                            (2, 3),
+                            varipeps_config.spiral_wavevector_type,
+                        ),
+                        apply_unitary(
+                            q[3],
+                            (jnp.array((0, 1)), jnp.array((1, 0))),
+                            (spiral_vectors, spiral_vectors),
+                            self._spiral_D,
+                            self._spiral_sigma,
+                            self.real_d,
+                            4,
+                            (1, 2),
+                            varipeps_config.spiral_wavevector_type,
+                        ),
+                    )
+                )
+        else:
+            working_q_gates = self._quadrat_tuple
+            working_next_horizontal_gates = self.next_nearest_neighbor_gates
+            working_next_vertical_gates = self.next_nearest_neighbor_gates
+
+            if return_single_gate_results:
+                working_q_single_gates = tuple(
+                    q for e in self._quadrat_single_gates for q in e
+                )
+
+        for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
+            for y, view in iter_rows:
+                quadrat_tensors_i = view.get_indices(
+                    (slice(0, 2, None), slice(0, 2, None))
+                )
+                quadrat_tensors = [
+                    peps_tensors[i] for j in quadrat_tensors_i for i in j
+                ]
+                quadrat_tensor_objs = [t for tl in view[:2, :2] for t in tl]
+
+                if return_single_gate_results:
+                    step_result_quadrat = calc_four_sites_quadrat_multiple_gates(
+                        quadrat_tensors,
+                        quadrat_tensor_objs,
+                        working_q_gates + working_q_single_gates,
+                    )
+                else:
+                    step_result_quadrat = calc_four_sites_quadrat_multiple_gates(
+                        quadrat_tensors,
+                        quadrat_tensor_objs,
+                        working_q_gates,
+                    )
+
+                horizontal_rect_tensors_i = view.get_indices(
+                    (slice(0, 2, None), slice(0, 3, None))
+                )
+                horizontal_rect_tensors = [
+                    peps_tensors[i] for j in horizontal_rect_tensors_i for i in j
+                ]
+                horizontal_rect_tensor_objs = [t for tl in view[:2, :3] for t in tl]
+
+                step_result_horizontal_rect = (
+                    calc_two_sites_diagonal_horizontal_rectangle_multiple_gates(
+                        horizontal_rect_tensors,
+                        horizontal_rect_tensor_objs,
+                        working_next_horizontal_gates,
+                    )
+                )
+
+                vertical_rect_tensors_i = view.get_indices(
+                    (slice(0, 3, None), slice(0, 2, None))
+                )
+                vertical_rect_tensors = [
+                    peps_tensors[i] for j in vertical_rect_tensors_i for i in j
+                ]
+                vertical_rect_tensor_objs = [t for tl in view[:3, :2] for t in tl]
+
+                step_result_vertical_rect = (
+                    calc_two_sites_diagonal_vertical_rectangle_multiple_gates(
+                        vertical_rect_tensors,
+                        vertical_rect_tensor_objs,
+                        working_next_vertical_gates,
+                    )
+                )
+
+                for sr_i, (sr_q, sr_h, sr_v) in enumerate(
+                    jax.util.safe_zip(
+                        step_result_quadrat[: len(self.nearest_neighbor_gates)],
+                        step_result_horizontal_rect[: len(self.nearest_neighbor_gates)],
+                        step_result_vertical_rect[: len(self.nearest_neighbor_gates)],
+                    )
+                ):
+                    result[sr_i] += sr_q + sr_h + sr_v
+
+                if return_single_gate_results:
+                    for sr_i in range(len(self.nearest_neighbor_gates)):
+                        index_quadrat = (
+                            len(self.nearest_neighbor_gates)
+                            + len(self._quadrat_single_gates[0]) * sr_i
+                        )
+
+                        single_gates_result[sr_i][(x, y)] = dict(
+                            zip(
+                                (
+                                    "nearest_13",
+                                    "nearest_14",
+                                    "nearest_34",
+                                    "next_nearest_23",
+                                    "next_nearest_horizontal_rect",
+                                    "next_nearest_vertical_rect",
+                                ),
+                                (
+                                    step_result_quadrat[
+                                        index_quadrat : (
+                                            index_quadrat
+                                            + len(self._quadrat_single_gates[0])
+                                        )
+                                    ]
+                                    + step_result_horizontal_rect[sr_i : sr_i + 1]
+                                    + step_result_vertical_rect[sr_i : sr_i + 1]
+                                ),
+                            )
+                        )
+
+        if normalize_by_size:
+            if only_unique:
+                size = unitcell.get_len_unique_tensors()
+            else:
+                size = unitcell.get_size()[0] * unitcell.get_size()[1]
+            size = size * self.normalization_factor
+            result = [r / size for r in result]
+
+        if len(result) == 1:
+            result = result[0]
+
+        if return_single_gate_results:
+            return result, single_gates_result
+        else:
+            return result

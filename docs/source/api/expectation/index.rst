@@ -14,6 +14,7 @@ Calculation of expectation values (:mod:`varipeps.expectation`)
    one_site
    two_sites
    three_sites
+   four_sites
    spiral_helpers
 
 .. automodule:: varipeps.expectation

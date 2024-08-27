@@ -503,6 +503,67 @@ class Definitions:
         ],
     }
 
+    density_matrix_two_sites_horizontal_rectangle: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T1"],  # top_middle
+            ["tensor", "tensor_conj", "T3"],  # bottom_middle
+            "top_left",
+            "top_right",
+            "bottom_left",
+            "bottom_right",
+        ],
+        "network": [
+            [
+                (5, 11, 9, 19, 6),  # tensor
+                (7, 13, 9, 20, 8),  # tensor_conj
+                (4, 6, 8, 18),  # T1
+            ],
+            [
+                (10, 16, 14, 25, 11),  # tensor
+                (12, 17, 14, 26, 13),  # tensor_conj
+                (15, 24, 17, 16),  # T3
+            ],
+            (-1, -3, 1, 2, 3, 4, 5, 7),  # top_left
+            (18, 19, 20, 21, 22, 23),  # top_right
+            (
+                15,
+                12,
+                10,
+                1,
+                2,
+                3,
+            ),  # bottom_left
+            (-2, -4, 21, 22, 23, 24, 26, 25),  # bottom_right
+        ],
+    }
+
+    density_matrix_two_sites_vertical_rectangle: Definition = {
+        "tensors": [
+            ["tensor", "tensor_conj", "T4"],
+            ["tensor", "tensor_conj", "T2"],
+            "top_left",
+            "top_right",
+            "bottom_left",
+            "bottom_right",
+        ],
+        "network": [
+            [
+                (6, 19, 9, 11, 5),  # tensor
+                (8, 20, 9, 13, 7),  # tensor_conj
+                (18, 8, 6, 4),  # T4
+            ],
+            [
+                (11, 22, 14, 16, 10),  # tensor
+                (13, 23, 14, 17, 12),  # tensor_conj
+                (16, 17, 21, 15),  # T2
+            ],
+            (-1, -3, 4, 5, 7, 1, 2, 3),  # top_left
+            (1, 2, 3, 15, 12, 10),  # top_right
+            (24, 25, 26, 18, 19, 20),  # bottom_left
+            (-2, -4, 21, 23, 22, 24, 25, 26),  # bottom_right
+        ],
+    }
+
     density_matrix_four_sites_top_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "T4", "C1", "T1"]],
         "network": [

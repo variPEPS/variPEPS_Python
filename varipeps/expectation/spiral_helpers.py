@@ -29,7 +29,8 @@ def apply_unitary(
       gate (:obj:`jax.numpy.ndarray`):
         The gate which should be updated with the unitary operator.
       delta_r (:obj:`jax.numpy.ndarray`):
-        Vector for the spatial difference.
+        Vector for the spatial difference. Can be a sequence if the spatial
+        difference are different for the single indices.
       q (:term:`sequence` of :obj:`jax.numpy.ndarray`):
         Sequence with the relevant wavevector for the different indices of
         the gate.
@@ -52,13 +53,17 @@ def apply_unitary(
       :obj:`jax.numpy.ndarray`:
         The updated gate with the unitary applied.
     """
-    if len(q) != len(apply_to_index):
+    if isinstance(delta_r, jnp.ndarray):
+        delta_r = (delta_r,) * len(apply_to_index)
+
+    if len(q) != len(apply_to_index) or len(q) != len(delta_r):
         raise ValueError("Length mismatch!")
 
     working_gate = gate.reshape((phys_d,) * 2 * number_sites)
 
     for index, i in enumerate(apply_to_index):
         w_q = q[index]
+        w_r = delta_r[index]
 
         if w_q.ndim == 0:
             w_q = jnp.array((w_q, w_q))
@@ -72,8 +77,8 @@ def apply_unitary(
         else:
             raise ValueError("Unknown wavevector type!")
 
-        # U = jsp.linalg.expm(1j * jnp.pi * jnp.dot(w_q, delta_r) * unitary_operator)
-        U = jnp.exp(1j * jnp.pi * jnp.dot(w_q, delta_r) * unitary_operator_D)
+        # U = jsp.linalg.expm(1j * jnp.pi * jnp.dot(w_q, w_r) * unitary_operator)
+        U = jnp.exp(1j * jnp.pi * jnp.dot(w_q, w_r) * unitary_operator_D)
         U = jnp.dot(
             unitary_operator_sigma * U[jnp.newaxis, :], unitary_operator_sigma.T.conj()
         )

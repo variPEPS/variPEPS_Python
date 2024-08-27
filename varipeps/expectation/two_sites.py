@@ -8,7 +8,7 @@ from jax import jit
 
 from varipeps import varipeps_config
 from varipeps.peps import PEPS_Tensor, PEPS_Unit_Cell
-from varipeps.contractions import apply_contraction
+from varipeps.contractions import apply_contraction, apply_contraction_jitted
 from .model import Expectation_Model
 from .spiral_helpers import apply_unitary
 
@@ -69,6 +69,30 @@ def _two_site_diagonal_workhorse(
     )
 
     density_matrix = density_matrix.transpose((0, 2, 1, 3))
+    density_matrix = density_matrix.reshape(
+        density_matrix.shape[0] * density_matrix.shape[1],
+        density_matrix.shape[2] * density_matrix.shape[3],
+    )
+
+    norm = jnp.trace(density_matrix)
+
+    if real_result:
+        return [
+            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
+            for g in gates
+        ]
+    else:
+        return [
+            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
+        ]
+
+
+@partial(jit, static_argnums=(2,))
+def _two_site_full_density_workhorse(
+    density_matrix: jnp.ndarray,
+    gates: Tuple[jnp.ndarray, ...],
+    real_result: bool = False,
+) -> List[jnp.ndarray]:
     density_matrix = density_matrix.reshape(
         density_matrix.shape[0] * density_matrix.shape[1],
         density_matrix.shape[2] * density_matrix.shape[3],
@@ -409,6 +433,144 @@ def calc_two_sites_diagonal_top_right_bottom_left_single_gate(
     return calc_two_sites_diagonal_top_right_bottom_left_multiple_gates(
         peps_tensors, peps_tensor_objs, (gate,)
     )[0]
+
+
+def calc_two_sites_diagonal_horizontal_rectangle_multiple_gates(
+    peps_tensors: Sequence[jnp.ndarray],
+    peps_tensor_objs: Sequence[PEPS_Tensor],
+    gates: Sequence[jnp.ndarray],
+) -> List[jnp.ndarray]:
+    """
+    Calculate the two site expectation values for two from top left to the
+    bottom right site of in a 2x3 horizontal rectangle ordered PEPS tensors and
+    their environment.
+
+    The order of the PEPS sequence have to be
+    [top-left, top-middle, top-right, bottom-left, bottom-middle, bottom-right].
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The PEPS tensor arrays. Have to be the same objects as the tensor
+        attribute of the `peps_tensor_obj` argument.
+      peps_tensor_objs (:term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
+        PEPS tensor objects.
+      gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates which should be applied to the PEPS tensors.
+        Gates are expected to be a matrix with first axis corresponding to
+        the Hilbert space and the second axis corresponding to the dual room.
+    Returns:
+      :obj:`list` of :obj:`jax.numpy.ndarray`:
+        List with the calculated expectation values of each gate.
+    """
+
+    density_matrix_top_left = apply_contraction_jitted(
+        "density_matrix_four_sites_top_left",
+        [peps_tensors[0]],
+        [peps_tensor_objs[0]],
+        [],
+    )
+
+    traced_density_matrix_top_right = apply_contraction_jitted(
+        "ctmrg_top_right", [peps_tensors[2]], [peps_tensor_objs[2]], []
+    )
+
+    traced_density_matrix_bottom_left = apply_contraction_jitted(
+        "ctmrg_bottom_left", [peps_tensors[3]], [peps_tensor_objs[3]], []
+    )
+
+    density_matrix_bottom_right = apply_contraction_jitted(
+        "density_matrix_four_sites_bottom_right",
+        [peps_tensors[5]],
+        [peps_tensor_objs[5]],
+        [],
+    )
+
+    full_density_matrix = apply_contraction_jitted(
+        "density_matrix_two_sites_horizontal_rectangle",
+        [peps_tensors[1], peps_tensors[4]],
+        [peps_tensor_objs[1], peps_tensor_objs[4]],
+        [
+            density_matrix_top_left,
+            traced_density_matrix_top_right,
+            traced_density_matrix_bottom_left,
+            density_matrix_bottom_right,
+        ],
+    )
+
+    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
+
+    return _two_site_full_density_workhorse(
+        full_density_matrix, tuple(gates), real_result
+    )
+
+
+def calc_two_sites_diagonal_vertical_rectangle_multiple_gates(
+    peps_tensors: Sequence[jnp.ndarray],
+    peps_tensor_objs: Sequence[PEPS_Tensor],
+    gates: Sequence[jnp.ndarray],
+) -> List[jnp.ndarray]:
+    """
+    Calculate the two site expectation values for two from top left to the
+    bottom right site of in a 3x2 vertical rectangle ordered PEPS tensors and
+    their environment.
+
+    The order of the PEPS sequence have to be
+    [top-left, top-right, middle-left, middle-right, bottom-left, bottom-right].
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The PEPS tensor arrays. Have to be the same objects as the tensor
+        attribute of the `peps_tensor_obj` argument.
+      peps_tensor_objs (:term:`sequence` of :obj:`~varipeps.peps.PEPS_Tensor`):
+        PEPS tensor objects.
+      gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates which should be applied to the PEPS tensors.
+        Gates are expected to be a matrix with first axis corresponding to
+        the Hilbert space and the second axis corresponding to the dual room.
+    Returns:
+      :obj:`list` of :obj:`jax.numpy.ndarray`:
+        List with the calculated expectation values of each gate.
+    """
+
+    density_matrix_top_left = apply_contraction_jitted(
+        "density_matrix_four_sites_top_left",
+        [peps_tensors[0]],
+        [peps_tensor_objs[0]],
+        [],
+    )
+
+    traced_density_matrix_top_right = apply_contraction_jitted(
+        "ctmrg_top_right", [peps_tensors[1]], [peps_tensor_objs[1]], []
+    )
+
+    traced_density_matrix_bottom_left = apply_contraction_jitted(
+        "ctmrg_bottom_left", [peps_tensors[4]], [peps_tensor_objs[4]], []
+    )
+
+    density_matrix_bottom_right = apply_contraction_jitted(
+        "density_matrix_four_sites_bottom_right",
+        [peps_tensors[5]],
+        [peps_tensor_objs[5]],
+        [],
+    )
+
+    full_density_matrix = apply_contraction_jitted(
+        "density_matrix_two_sites_vertical_rectangle",
+        [peps_tensors[2], peps_tensors[3]],
+        [peps_tensor_objs[2], peps_tensor_objs[3]],
+        [
+            density_matrix_top_left,
+            traced_density_matrix_top_right,
+            traced_density_matrix_bottom_left,
+            density_matrix_bottom_right,
+        ],
+    )
+
+    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
+
+    return _two_site_full_density_workhorse(
+        full_density_matrix, tuple(gates), real_result
+    )
 
 
 @dataclass
