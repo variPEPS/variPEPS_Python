@@ -37,10 +37,7 @@ def _scalar_descent_grad(descent_dir, gradient):
 
 @jit
 def _line_search_new_tensors(peps_tensors, descent_dir, alpha):
-    result = tuple(
-        peps_tensors[i] + alpha * descent_dir[i] for i in range(len(peps_tensors))
-    )
-    return tuple(t / jnp.linalg.norm(t) for t in result)
+    return [peps_tensors[i] + alpha * descent_dir[i] for i in range(len(peps_tensors))]
 
 
 @jit
