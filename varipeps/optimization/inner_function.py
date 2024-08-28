@@ -234,6 +234,24 @@ def calc_ctmrg_expectation_custom(
         peps_tensors, unitcell, spiral_vectors = _map_tensors(
             input_tensors, unitcell, convert_to_unitcell_func, True
         )
+
+        if any(i.size == 1 for i in spiral_vectors):
+            spiral_vectors_x = additional_input.get("spiral_vectors_x")
+            spiral_vectors_y = additional_input.get("spiral_vectors_y")
+            if spiral_vectors_x is not None:
+                if isinstance(spiral_vectors_x, jnp.ndarray):
+                    spiral_vectors_x = (spiral_vectors_x,)
+                spiral_vectors = tuple(
+                    jnp.array((sx, sy))
+                    for sx, sy in safe_zip(spiral_vectors_x, spiral_vectors)
+                )
+            elif spiral_vectors_y is not None:
+                if isinstance(spiral_vectors_y, jnp.ndarray):
+                    spiral_vectors_y = (spiral_vectors_y,)
+                spiral_vectors = tuple(
+                    jnp.array((sx, sy))
+                    for sx, sy in safe_zip(spiral_vectors, spiral_vectors_y)
+                )
     else:
         peps_tensors, unitcell = _map_tensors(
             input_tensors, unitcell, convert_to_unitcell_func, False
