@@ -1,3 +1,4 @@
+import collections.abc
 from dataclasses import dataclass
 from functools import partial
 from os import PathLike
@@ -655,8 +656,14 @@ class Triangular_Next_Nearest_Expectation_Value(Expectation_Model):
             single_gates_result = [dict()] * len(self.nearest_neighbor_gates)
 
         if self.is_spiral_peps:
+            if (
+                isinstance(spiral_vectors, collections.abc.Sequence)
+                and len(spiral_vectors) == 1
+            ):
+                spiral_vectors = spiral_vectors[0]
+
             if not isinstance(spiral_vectors, jnp.ndarray):
-                raise ValueError("Expect spiral vector as jax.numpy array.")
+                raise ValueError("Expect spiral vector as single jax.numpy array.")
 
             working_q_gates = tuple(
                 apply_unitary(
