@@ -400,15 +400,70 @@ def optimize_peps_network(
             except (CTMRGNotConvergedError, CTMRGGradientNotConvergedError) as e:
                 varipeps_global_state.ctmrg_projector_method = None
 
-                return OptimizeResult(
-                    success=False,
-                    message=str(type(e)),
-                    x=working_tensors,
-                    fun=working_value,
-                    unitcell=working_unitcell,
-                    nit=count,
-                    max_trunc_error_list=max_trunc_error_list,
-                )
+                if random_noise_retries == 0:
+                    return OptimizeResult(
+                        success=False,
+                        message=str(type(e)),
+                        x=working_tensors,
+                        fun=working_value,
+                        unitcell=working_unitcell,
+                        nit=count,
+                        max_trunc_error_list=max_trunc_error_list,
+                        step_energies=step_energies,
+                        step_chi=step_chi,
+                        step_conv=step_conv,
+                        best_run=0,
+                    )
+                elif (
+                    random_noise_retries
+                    >= varipeps_config.optimizer_random_noise_max_retries
+                ):
+                    working_value = jnp.inf
+                    break
+                else:
+                    if isinstance(input_tensors, PEPS_Unit_Cell) or (
+                        isinstance(input_tensors, collections.abc.Sequence)
+                        and isinstance(input_tensors[0], PEPS_Unit_Cell)
+                    ):
+                        working_tensors = (
+                            cast(
+                                List[jnp.ndarray],
+                                [i.tensor for i in best_unitcell.get_unique_tensors()],
+                            )
+                            + best_tensors[best_unitcell.get_len_unique_tensors() :]
+                        )
+
+                        working_tensors = [random_noise(i) for i in working_tensors]
+
+                        working_tensors_obj = [
+                            e.replace_tensor(working_tensors[i])
+                            for i, e in enumerate(best_unitcell.get_unique_tensors())
+                        ]
+
+                        working_unitcell = best_unitcell.replace_unique_tensors(
+                            working_tensors_obj
+                        )
+                    else:
+                        working_tensors = [random_noise(i) for i in best_tensors]
+                        working_unitcell = None
+
+                    descent_dir = None
+                    working_gradient = None
+                    signal_reset_descent_dir = True
+                    count = 0
+                    random_noise_retries += 1
+                    old_descent_dir = descent_dir
+                    old_gradient = working_gradient
+
+                    step_energies[random_noise_retries] = []
+                    step_chi[random_noise_retries] = []
+                    step_conv[random_noise_retries] = []
+                    max_trunc_error_list[random_noise_retries] = []
+
+                    pbar.reset()
+                    pbar.refresh()
+
+                    continue
 
             working_gradient = [elem.conj() for elem in working_gradient_seq]
 
@@ -567,9 +622,10 @@ def optimize_peps_network(
                         descent_dir = None
                         working_gradient = None
                         signal_reset_descent_dir = True
-                        count = -1
+                        count = 0
                         random_noise_retries += 1
-                        conv = jnp.inf
+                        old_descent_dir = descent_dir
+                        old_gradient = working_gradient
 
                         step_energies[random_noise_retries] = []
                         step_chi[random_noise_retries] = []
@@ -578,6 +634,8 @@ def optimize_peps_network(
 
                         pbar.reset()
                         pbar.refresh()
+
+                        continue
                     else:
                         conv = 0
             else:
