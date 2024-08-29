@@ -569,6 +569,7 @@ def optimize_peps_network(
                         signal_reset_descent_dir = True
                         count = -1
                         random_noise_retries += 1
+                        conv = jnp.inf
 
                         step_energies[random_noise_retries] = []
                         step_chi[random_noise_retries] = []
