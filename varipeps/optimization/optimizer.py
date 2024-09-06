@@ -11,6 +11,7 @@ from jax import jit
 import jax.numpy as jnp
 from jax.lax import scan
 from jax.flatten_util import ravel_pytree
+from jax.util import safe_zip
 
 from varipeps import varipeps_config, varipeps_global_state
 from varipeps.config import Optimizing_Methods
@@ -213,7 +214,7 @@ def _autosave_wrapper(
     additional_input,
 ):
     auxiliary_data = {
-        "best_run": best_run if best_run is not None else 0,
+        "best_run": jnp.array(best_run if best_run is not None else 0),
         "current_energy": working_value,
     }
 
@@ -223,16 +224,43 @@ def _autosave_wrapper(
         auxiliary_data[f"step_chi_{k:d}"] = step_chi[k]
         auxiliary_data[f"step_conv_{k:d}"] = step_conv[k]
 
+    spiral_vectors = None
     if spiral_indices is not None:
-        for spiral_i in spiral_indices:
-            auxiliary_data[f"spiral_vector_{spiral_i:d}"] = working_tensors[spiral_i]
+        spiral_vectors = [working_tensors[spiral_i] for spiral_i in spiral_indices]
+
+        if any(i.size == 1 for i in spiral_vectors):
+            spiral_vectors_x = additional_input.get("spiral_vectors_x")
+            spiral_vectors_y = additional_input.get("spiral_vectors_y")
+            if spiral_vectors_x is not None:
+                if isinstance(spiral_vectors_x, jnp.ndarray):
+                    spiral_vectors_x = (spiral_vectors_x,)
+                spiral_vectors = tuple(
+                    jnp.array((sx, sy))
+                    for sx, sy in safe_zip(spiral_vectors_x, spiral_vectors)
+                )
+            elif spiral_vectors_y is not None:
+                if isinstance(spiral_vectors_y, jnp.ndarray):
+                    spiral_vectors_y = (spiral_vectors_y,)
+                spiral_vectors = tuple(
+                    jnp.array((sx, sy))
+                    for sx, sy in safe_zip(spiral_vectors, spiral_vectors_y)
+                )
     elif additional_input.get("spiral_vectors") is not None:
-        add_input_spiral = additional_input.get("spiral_vectors")
-        if isinstance(add_input_spiral, jnp.ndarray):
-            add_input_spiral = (add_input_spiral,)
-        for spiral_i, elem in enumerate(add_input_spiral):
-            spiral_i += 1
-            auxiliary_data[f"spiral_vector_{spiral_i:d}"] = elem
+        spiral_vectors = additional_input.get("spiral_vectors")
+        if isinstance(spiral_vectors, jnp.ndarray):
+            spiral_vectors = (spiral_vectors,)
+
+    if spiral_vectors is not None:
+        spiral_vectors = [
+            e if e.size == 2 else jnp.array((e, e)).reshape(2) for e in spiral_vectors
+        ]
+
+        if len(spiral_vectors) == 1:
+            auxiliary_data["spiral_vector"] = spiral_vectors[0]
+        else:
+            for spiral_i, vec in enumerate(spiral_vectors):
+                spiral_i += 1
+                auxiliary_data[f"spiral_vector_{spiral_i:d}"] = vec
 
     autosave_func(
         autosave_filename,
