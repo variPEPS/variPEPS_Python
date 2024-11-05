@@ -713,14 +713,16 @@ def do_left_absorption_split_transfer(
                 left_proj,
                 smallest_S_ket,
                 smallest_S_bra,
-                smallest_S_phys,
+                smallest_S_phys_ket,
+                smallest_S_phys_bra,
             ) = calc_left_projectors_split_transfer(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"), config, state
             )
             left_projectors[(x, y)] = left_proj
             smallest_S_list.append(smallest_S_ket)
             smallest_S_list.append(smallest_S_bra)
-            smallest_S_list.append(smallest_S_phys)
+            smallest_S_list.append(smallest_S_phys_ket)
+            smallest_S_list.append(smallest_S_phys_bra)
 
         new_C1_list = []
         new_T4_ket_list = []
@@ -744,16 +746,24 @@ def do_left_absorption_split_transfer(
 
             T4_ket_projector_top = left_projectors.get_projector(x, y, -1, 0).top_ket
             T4_bra_projector_top = left_projectors.get_projector(x, y, -1, 0).top_bra
-            T4_phys_projector_top = left_projectors.get_projector(x, y, 0, 0).top_phys
+            T4_phys_ket_projector_top = left_projectors.get_projector(
+                x, y, 0, 0
+            ).top_phys_ket
+            T4_phys_bra_projector_top = left_projectors.get_projector(
+                x, y, 0, 0
+            ).top_phys_bra
             T4_ket_projector_bottom = left_projectors.get_projector(
                 x, y, 0, 0
             ).bottom_ket
             T4_bra_projector_bottom = left_projectors.get_projector(
                 x, y, 0, 0
             ).bottom_bra
-            T4_phys_projector_bottom = left_projectors.get_projector(
+            T4_phys_ket_projector_bottom = left_projectors.get_projector(
                 x, y, 0, 0
-            ).bottom_phys
+            ).bottom_phys_ket
+            T4_phys_bra_projector_bottom = left_projectors.get_projector(
+                x, y, 0, 0
+            ).bottom_phys_bra
 
             # T4_ket_projector_top = jnp.eye(3).reshape(1, 3, 3)
             # T4_bra_projector_top = jnp.eye(9).reshape(3, 3, 9)
@@ -804,7 +814,8 @@ def do_left_absorption_split_transfer(
                 [
                     T4_ket_projector_top,
                     T4_bra_projector_top,
-                    T4_phys_projector_bottom,
+                    T4_phys_ket_projector_bottom,
+                    T4_phys_bra_projector_bottom,
                 ],
             )
 
@@ -813,7 +824,8 @@ def do_left_absorption_split_transfer(
                 [working_tensor],
                 [working_tensor_obj],
                 [
-                    T4_phys_projector_top,
+                    T4_phys_ket_projector_top,
+                    T4_phys_bra_projector_top,
                     T4_ket_projector_bottom,
                     T4_bra_projector_bottom,
                 ],
@@ -878,7 +890,8 @@ def do_right_absorption_split_transfer(
                 right_proj,
                 smallest_S_ket,
                 smallest_S_bra,
-                smallest_S_phys,
+                smallest_S_phys_ket,
+                smallest_S_phys_bra,
             ) = calc_right_projectors_split_transfer(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "top-right"),
                 config,
@@ -887,7 +900,8 @@ def do_right_absorption_split_transfer(
             right_projectors[(x, y)] = right_proj
             smallest_S_list.append(smallest_S_ket)
             smallest_S_list.append(smallest_S_bra)
-            smallest_S_list.append(smallest_S_phys)
+            smallest_S_list.append(smallest_S_phys_ket)
+            smallest_S_list.append(smallest_S_phys_bra)
 
         new_C2_list = []
         new_T2_ket_list = []
@@ -910,16 +924,24 @@ def do_right_absorption_split_transfer(
 
             T2_ket_projector_top = right_projectors.get_projector(x, y, -1, 0).top_ket
             T2_bra_projector_top = right_projectors.get_projector(x, y, -1, 0).top_bra
-            T2_phys_projector_top = right_projectors.get_projector(x, y, 0, 0).top_phys
+            T2_phys_ket_projector_top = right_projectors.get_projector(
+                x, y, 0, 0
+            ).top_phys_ket
+            T2_phys_bra_projector_top = right_projectors.get_projector(
+                x, y, 0, 0
+            ).top_phys_bra
             T2_ket_projector_bottom = right_projectors.get_projector(
                 x, y, 0, 0
             ).bottom_ket
             T2_bra_projector_bottom = right_projectors.get_projector(
                 x, y, 0, 0
             ).bottom_bra
-            T2_phys_projector_bottom = right_projectors.get_projector(
+            T2_phys_ket_projector_bottom = right_projectors.get_projector(
                 x, y, 0, 0
-            ).bottom_phys
+            ).bottom_phys_ket
+            T2_phys_bra_projector_bottom = right_projectors.get_projector(
+                x, y, 0, 0
+            ).bottom_phys_bra
 
             # new_T2_tmp = apply_contraction_jitted(
             #     "ctmrg_split_transfer_absorption_right_T2",
@@ -963,7 +985,8 @@ def do_right_absorption_split_transfer(
                 [
                     T2_ket_projector_top,
                     T2_bra_projector_top,
-                    T2_phys_projector_bottom,
+                    T2_phys_ket_projector_bottom,
+                    T2_phys_bra_projector_bottom,
                 ],
             )
 
@@ -972,7 +995,8 @@ def do_right_absorption_split_transfer(
                 [working_tensor],
                 [working_tensor_obj],
                 [
-                    T2_phys_projector_top,
+                    T2_phys_ket_projector_top,
+                    T2_phys_bra_projector_top,
                     T2_ket_projector_bottom,
                     T2_bra_projector_bottom,
                 ],
@@ -1035,14 +1059,16 @@ def do_top_absorption_split_transfer(
                 top_proj,
                 smallest_S_ket,
                 smallest_S_bra,
-                smallest_S_phys,
+                smallest_S_phys_ket,
+                smallest_S_phys_bra,
             ) = calc_top_projectors_split_transfer(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"), config, state
             )
             top_projectors[(x, y)] = top_proj
             smallest_S_list.append(smallest_S_ket)
             smallest_S_list.append(smallest_S_bra)
-            smallest_S_list.append(smallest_S_phys)
+            smallest_S_list.append(smallest_S_phys_ket)
+            smallest_S_list.append(smallest_S_phys_bra)
 
         new_C1_list = []
         new_T1_ket_list = []
@@ -1065,12 +1091,20 @@ def do_top_absorption_split_transfer(
 
             T1_ket_projector_left = top_projectors.get_projector(x, y, 0, -1).left_ket
             T1_bra_projector_left = top_projectors.get_projector(x, y, 0, -1).left_bra
-            T1_phys_projector_left = top_projectors.get_projector(x, y, 0, 0).left_phys
+            T1_phys_ket_projector_left = top_projectors.get_projector(
+                x, y, 0, 0
+            ).left_phys_ket
+            T1_phys_bra_projector_left = top_projectors.get_projector(
+                x, y, 0, 0
+            ).left_phys_bra
             T1_ket_projector_right = top_projectors.get_projector(x, y, 0, 0).right_ket
             T1_bra_projector_right = top_projectors.get_projector(x, y, 0, 0).right_bra
-            T1_phys_projector_right = top_projectors.get_projector(
+            T1_phys_ket_projector_right = top_projectors.get_projector(
                 x, y, 0, 0
-            ).right_phys
+            ).right_phys_ket
+            T1_phys_bra_projector_right = top_projectors.get_projector(
+                x, y, 0, 0
+            ).right_phys_bra
 
             # new_T1_tmp = apply_contraction_jitted(
             #     "ctmrg_split_transfer_absorption_top_T1",
@@ -1114,7 +1148,8 @@ def do_top_absorption_split_transfer(
                 [
                     T1_ket_projector_left,
                     T1_bra_projector_left,
-                    T1_phys_projector_right,
+                    T1_phys_ket_projector_right,
+                    T1_phys_bra_projector_right,
                 ],
             )
 
@@ -1123,7 +1158,8 @@ def do_top_absorption_split_transfer(
                 [working_tensor],
                 [working_tensor_obj],
                 [
-                    T1_phys_projector_left,
+                    T1_phys_ket_projector_left,
+                    T1_phys_bra_projector_left,
                     T1_ket_projector_right,
                     T1_bra_projector_right,
                 ],
@@ -1186,7 +1222,8 @@ def do_bottom_absorption_split_transfer(
                 bottom_proj,
                 smallest_S_ket,
                 smallest_S_bra,
-                smallest_S_phys,
+                smallest_S_phys_ket,
+                smallest_S_phys_bra,
             ) = calc_bottom_projectors_split_transfer(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "bottom-left"),
                 config,
@@ -1195,7 +1232,8 @@ def do_bottom_absorption_split_transfer(
             bottom_projectors[(x, y)] = bottom_proj
             smallest_S_list.append(smallest_S_ket)
             smallest_S_list.append(smallest_S_bra)
-            smallest_S_list.append(smallest_S_phys)
+            smallest_S_list.append(smallest_S_phys_ket)
+            smallest_S_list.append(smallest_S_phys_bra)
 
         new_C4_list = []
         new_T3_ket_list = []
@@ -1222,18 +1260,24 @@ def do_bottom_absorption_split_transfer(
             T3_bra_projector_left = bottom_projectors.get_projector(
                 x, y, 0, -1
             ).left_bra
-            T3_phys_projector_left = bottom_projectors.get_projector(
+            T3_phys_ket_projector_left = bottom_projectors.get_projector(
                 x, y, 0, 0
-            ).left_phys
+            ).left_phys_ket
+            T3_phys_bra_projector_left = bottom_projectors.get_projector(
+                x, y, 0, 0
+            ).left_phys_bra
             T3_ket_projector_right = bottom_projectors.get_projector(
                 x, y, 0, 0
             ).right_ket
             T3_bra_projector_right = bottom_projectors.get_projector(
                 x, y, 0, 0
             ).right_bra
-            T3_phys_projector_right = bottom_projectors.get_projector(
+            T3_phys_ket_projector_right = bottom_projectors.get_projector(
                 x, y, 0, 0
-            ).right_phys
+            ).right_phys_ket
+            T3_phys_bra_projector_right = bottom_projectors.get_projector(
+                x, y, 0, 0
+            ).right_phys_bra
 
             # new_T3_tmp = apply_contraction_jitted(
             #     "ctmrg_split_transfer_absorption_bottom_T3",
@@ -1277,7 +1321,8 @@ def do_bottom_absorption_split_transfer(
                 [
                     T3_ket_projector_left,
                     T3_bra_projector_left,
-                    T3_phys_projector_right,
+                    T3_phys_ket_projector_right,
+                    T3_phys_bra_projector_right,
                 ],
             )
 
@@ -1286,7 +1331,8 @@ def do_bottom_absorption_split_transfer(
                 [working_tensor],
                 [working_tensor_obj],
                 [
-                    T3_phys_projector_left,
+                    T3_phys_ket_projector_left,
+                    T3_phys_bra_projector_left,
                     T3_ket_projector_right,
                     T3_bra_projector_right,
                 ],

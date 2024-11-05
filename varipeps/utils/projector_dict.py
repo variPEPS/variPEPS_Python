@@ -11,19 +11,55 @@ Bottom_Projectors = namedtuple("Bottom_Projectors", ("left", "right"))
 
 Left_Projectors_Split_Transfer = namedtuple(
     "Left_Projectors_Split_Transfer",
-    ("top_ket", "top_bra", "top_phys", "bottom_ket", "bottom_bra", "bottom_phys"),
+    (
+        "top_ket",
+        "top_bra",
+        "top_phys_ket",
+        "top_phys_bra",
+        "bottom_ket",
+        "bottom_bra",
+        "bottom_phys_ket",
+        "bottom_phys_bra",
+    ),
 )
 Right_Projectors_Split_Transfer = namedtuple(
     "Right_Projectors_Split_Transfer",
-    ("top_ket", "top_bra", "top_phys", "bottom_ket", "bottom_bra", "bottom_phys"),
+    (
+        "top_ket",
+        "top_bra",
+        "top_phys_ket",
+        "top_phys_bra",
+        "bottom_ket",
+        "bottom_bra",
+        "bottom_phys_ket",
+        "bottom_phys_bra",
+    ),
 )
 Top_Projectors_Split_Transfer = namedtuple(
     "Top_Projectors_Split_Transfer",
-    ("left_ket", "left_bra", "left_phys", "right_ket", "right_bra", "right_phys"),
+    (
+        "left_ket",
+        "left_bra",
+        "left_phys_ket",
+        "left_phys_bra",
+        "right_ket",
+        "right_bra",
+        "right_phys_ket",
+        "right_phys_bra",
+    ),
 )
 Bottom_Projectors_Split_Transfer = namedtuple(
     "Bottom_Projectors_Split_Transfer",
-    ("left_ket", "left_bra", "left_phys", "right_ket", "right_bra", "right_phys"),
+    (
+        "left_ket",
+        "left_bra",
+        "left_phys_ket",
+        "left_phys_bra",
+        "right_ket",
+        "right_bra",
+        "right_phys_ket",
+        "right_phys_bra",
+    ),
 )
 
 Unit_Cell_Bond_Dim_Projectors = namedtuple(

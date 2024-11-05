@@ -874,20 +874,23 @@ def _split_transfer_workhorse(
             second_ketbra.shape[0] * second_ketbra.shape[1],
             second_ketbra.shape[2],
         )
-    elif first_ketbra.ndim == 6:
+    elif first_ketbra.ndim == 5:
         first_ketbra_matrix = first_ketbra.reshape(
-            first_ketbra.shape[0] * first_ketbra.shape[1],
-            first_ketbra.shape[2]
-            * first_ketbra.shape[3]
-            * first_ketbra.shape[4]
-            * first_ketbra.shape[5],
+            first_ketbra.shape[0] * first_ketbra.shape[1] * first_ketbra.shape[2],
+            first_ketbra.shape[3] * first_ketbra.shape[4],
         )
         second_ketbra_matrix = second_ketbra.reshape(
-            second_ketbra.shape[0]
-            * second_ketbra.shape[1]
-            * second_ketbra.shape[2]
-            * second_ketbra.shape[3],
-            second_ketbra.shape[4] * second_ketbra.shape[5],
+            second_ketbra.shape[0] * second_ketbra.shape[1],
+            second_ketbra.shape[2] * second_ketbra.shape[3] * second_ketbra.shape[4],
+        )
+    elif first_ketbra.ndim == 6:
+        first_ketbra_matrix = first_ketbra.reshape(
+            first_ketbra.shape[0] * first_ketbra.shape[1] * first_ketbra.shape[2],
+            first_ketbra.shape[3] * first_ketbra.shape[4] * first_ketbra.shape[5],
+        )
+        second_ketbra_matrix = second_ketbra.reshape(
+            second_ketbra.shape[0] * second_ketbra.shape[1] * second_ketbra.shape[2],
+            second_ketbra.shape[3] * second_ketbra.shape[4] * second_ketbra.shape[5],
         )
     else:
         raise ValueError("Invalid dimension of the input tensor")
@@ -911,7 +914,6 @@ def _split_transfer_workhorse(
     if first_ketbra.ndim == 6:
         projector_first_ketbra = projector_first_ketbra.reshape(
             projector_first_ketbra.shape[0],
-            first_ketbra.shape[2],
             first_ketbra.shape[3],
             first_ketbra.shape[4],
             first_ketbra.shape[5],
@@ -920,7 +922,6 @@ def _split_transfer_workhorse(
             second_ketbra.shape[0],
             second_ketbra.shape[1],
             second_ketbra.shape[2],
-            second_ketbra.shape[3],
             projector_second_ketbra.shape[1],
         )
     else:
@@ -929,6 +930,12 @@ def _split_transfer_workhorse(
                 projector_first_ketbra.shape[0],
                 first_ketbra.shape[2],
                 first_ketbra.shape[3],
+            )
+        elif first_ketbra.ndim == 5:
+            projector_first_ketbra = projector_first_ketbra.reshape(
+                projector_first_ketbra.shape[0],
+                first_ketbra.shape[3],
+                first_ketbra.shape[4],
             )
         else:
             projector_first_ketbra = projector_first_ketbra.reshape(
@@ -1179,26 +1186,82 @@ def calc_left_projectors_split_transfer(
     #     peps_tensors[1][0].shape[4],
     # )
 
-    top_tensor_phys_split_left = apply_contraction_jitted(
-        "ctmrg_split_transfer_phys_left_top",
+    top_tensor_phys_ket_left = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_top",
         [peps_tensors[0][0]],
         [peps_tensor_objs[0][0]],
         [],
     )
-    bottom_tensor_phys_split_left = apply_contraction_jitted(
-        "ctmrg_split_transfer_phys_left_bottom",
+    bottom_tensor_phys_ket_left = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_bottom",
         [peps_tensors[0][0]],
         [peps_tensor_objs[0][0]],
         [],
+    )
+    top_tensor_phys_ket_left /= jnp.linalg.norm(top_tensor_phys_ket_left)
+    bottom_tensor_phys_ket_left /= jnp.linalg.norm(bottom_tensor_phys_ket_left)
+
+    top_tensor_phys_bra_right = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_top",
+        [peps_tensors[0][1]],
+        [peps_tensor_objs[0][1]],
+        [],
+    )
+    bottom_tensor_phys_bra_right = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_bottom",
+        [peps_tensors[0][1]],
+        [peps_tensor_objs[0][1]],
+        [],
+    )
+    top_tensor_phys_bra_right /= jnp.linalg.norm(top_tensor_phys_bra_right)
+    bottom_tensor_phys_bra_right /= jnp.linalg.norm(bottom_tensor_phys_bra_right)
+    top_tensor_phys_bra_right = top_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
+    bottom_tensor_phys_bra_right = bottom_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
+
+    (
+        projector_left_bottom_phys_ket,
+        projector_left_top_phys_ket,
+        smallest_S_phys_ket,
+    ) = _split_transfer_workhorse(
+        bottom_tensor_phys_ket_left,
+        top_tensor_phys_ket_left,
+        peps_tensor_objs[0][0].interlayer_chi,
+        truncation_eps,
     )
 
     (
-        projector_left_bottom_phys,
-        projector_left_top_phys,
-        smallest_S_phys,
+        projector_right_top_phys_bra,
+        projector_right_bottom_phys_bra,
+        _,
     ) = _split_transfer_workhorse(
-        bottom_tensor_phys_split_left,
-        top_tensor_phys_split_left,
+        top_tensor_phys_bra_right,
+        bottom_tensor_phys_bra_right,
+        peps_tensor_objs[0][1].interlayer_chi,
+        truncation_eps,
+    )
+
+    top_tensor_phys_bra_left = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_top_full",
+        [peps_tensors[0][0], peps_tensors[0][1]],
+        [peps_tensor_objs[0][0], peps_tensor_objs[0][1]],
+        [projector_left_bottom_phys_ket, projector_right_bottom_phys_bra],
+    )
+    bottom_tensor_phys_bra_left = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_bottom_full",
+        [peps_tensors[0][0], peps_tensors[0][1]],
+        [peps_tensor_objs[0][0], peps_tensor_objs[0][1]],
+        [projector_left_top_phys_ket, projector_right_top_phys_bra],
+    )
+    top_tensor_phys_bra_left /= jnp.linalg.norm(top_tensor_phys_bra_left)
+    bottom_tensor_phys_bra_left /= jnp.linalg.norm(bottom_tensor_phys_bra_left)
+
+    (
+        projector_left_bottom_phys_bra,
+        projector_left_top_phys_bra,
+        smallest_S_phys_bra,
+    ) = _split_transfer_workhorse(
+        bottom_tensor_phys_bra_left,
+        top_tensor_phys_bra_left,
         peps_tensor_objs[0][0].interlayer_chi,
         truncation_eps,
     )
@@ -1209,12 +1272,15 @@ def calc_left_projectors_split_transfer(
             bottom_ket=projector_left_bottom_ket,
             top_bra=projector_left_top_bra,
             bottom_bra=projector_left_bottom_bra,
-            top_phys=projector_left_top_phys,
-            bottom_phys=projector_left_bottom_phys,
+            top_phys_ket=projector_left_top_phys_ket,
+            bottom_phys_ket=projector_left_bottom_phys_ket,
+            top_phys_bra=projector_left_top_phys_bra,
+            bottom_phys_bra=projector_left_bottom_phys_bra,
         ),
         smallest_S_ket,
         smallest_S_bra,
-        smallest_S_phys,
+        smallest_S_phys_ket,
+        smallest_S_phys_bra,
     )
 
 
@@ -1381,26 +1447,82 @@ def calc_right_projectors_split_transfer(
         truncation_eps,
     )
 
-    top_tensor_phys_split_right = apply_contraction_jitted(
-        "ctmrg_split_transfer_phys_right_top",
+    top_tensor_phys_ket_left = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_top",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+    bottom_tensor_phys_ket_left = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_bottom",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+    top_tensor_phys_ket_left /= jnp.linalg.norm(top_tensor_phys_ket_left)
+    bottom_tensor_phys_ket_left /= jnp.linalg.norm(bottom_tensor_phys_ket_left)
+
+    top_tensor_phys_bra_right = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_top",
         [peps_tensors[0][1]],
         [peps_tensor_objs[0][1]],
         [],
     )
-    bottom_tensor_phys_split_right = apply_contraction_jitted(
-        "ctmrg_split_transfer_phys_right_bottom",
+    bottom_tensor_phys_bra_right = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_bottom",
         [peps_tensors[0][1]],
         [peps_tensor_objs[0][1]],
         [],
+    )
+    top_tensor_phys_bra_right /= jnp.linalg.norm(top_tensor_phys_bra_right)
+    bottom_tensor_phys_bra_right /= jnp.linalg.norm(bottom_tensor_phys_bra_right)
+    top_tensor_phys_bra_right = top_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
+    bottom_tensor_phys_bra_right = bottom_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
+
+    (
+        projector_left_bottom_phys_ket,
+        projector_left_top_phys_ket,
+        _,
+    ) = _split_transfer_workhorse(
+        bottom_tensor_phys_ket_left,
+        top_tensor_phys_ket_left,
+        peps_tensor_objs[0][0].interlayer_chi,
+        truncation_eps,
     )
 
     (
-        projector_right_top_phys,
-        projector_right_bottom_phys,
-        smallest_S_phys,
+        projector_right_top_phys_bra,
+        projector_right_bottom_phys_bra,
+        smallest_S_phys_bra,
     ) = _split_transfer_workhorse(
-        top_tensor_phys_split_right,
-        bottom_tensor_phys_split_right,
+        top_tensor_phys_bra_right,
+        bottom_tensor_phys_bra_right,
+        peps_tensor_objs[0][1].interlayer_chi,
+        truncation_eps,
+    )
+
+    top_tensor_phys_ket_right = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_top_full",
+        [peps_tensors[0][0], peps_tensors[0][1]],
+        [peps_tensor_objs[0][0], peps_tensor_objs[0][1]],
+        [projector_left_bottom_phys_ket, projector_right_bottom_phys_bra],
+    )
+    bottom_tensor_phys_ket_right = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_bottom_full",
+        [peps_tensors[0][0], peps_tensors[0][1]],
+        [peps_tensor_objs[0][0], peps_tensor_objs[0][1]],
+        [projector_left_top_phys_ket, projector_right_top_phys_bra],
+    )
+    top_tensor_phys_ket_right /= jnp.linalg.norm(top_tensor_phys_ket_right)
+    bottom_tensor_phys_ket_right /= jnp.linalg.norm(bottom_tensor_phys_ket_right)
+
+    (
+        projector_right_top_phys_ket,
+        projector_right_bottom_phys_ket,
+        smallest_S_phys_ket,
+    ) = _split_transfer_workhorse(
+        top_tensor_phys_ket_right,
+        bottom_tensor_phys_ket_right,
         peps_tensor_objs[0][1].interlayer_chi,
         truncation_eps,
     )
@@ -1411,12 +1533,15 @@ def calc_right_projectors_split_transfer(
             bottom_ket=projector_right_bottom_ket,
             top_bra=projector_right_top_bra,
             bottom_bra=projector_right_bottom_bra,
-            top_phys=projector_right_top_phys,
-            bottom_phys=projector_right_bottom_phys,
+            top_phys_ket=projector_right_top_phys_ket,
+            bottom_phys_ket=projector_right_bottom_phys_ket,
+            top_phys_bra=projector_right_top_phys_bra,
+            bottom_phys_bra=projector_right_bottom_phys_bra,
         ),
         smallest_S_ket,
         smallest_S_bra,
-        smallest_S_phys,
+        smallest_S_phys_ket,
+        smallest_S_phys_bra,
     )
 
 
@@ -1581,26 +1706,82 @@ def calc_top_projectors_split_transfer(
         truncation_eps,
     )
 
-    left_tensor_phys_split_top = apply_contraction_jitted(
-        "ctmrg_split_transfer_phys_top_left",
+    left_tensor_phys_ket_top = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_left",
         [peps_tensors[0][0]],
         [peps_tensor_objs[0][0]],
         [],
     )
-    right_tensor_phys_split_top = apply_contraction_jitted(
-        "ctmrg_split_transfer_phys_top_right",
+    right_tensor_phys_ket_top = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_right",
         [peps_tensors[0][0]],
         [peps_tensor_objs[0][0]],
         [],
+    )
+    left_tensor_phys_ket_top /= jnp.linalg.norm(left_tensor_phys_ket_top)
+    right_tensor_phys_ket_top /= jnp.linalg.norm(right_tensor_phys_ket_top)
+
+    left_tensor_phys_bra_bottom = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_left",
+        [peps_tensors[1][0]],
+        [peps_tensor_objs[1][0]],
+        [],
+    )
+    right_tensor_phys_bra_bottom = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_right",
+        [peps_tensors[1][0]],
+        [peps_tensor_objs[1][0]],
+        [],
+    )
+    left_tensor_phys_bra_bottom /= jnp.linalg.norm(left_tensor_phys_bra_bottom)
+    right_tensor_phys_bra_bottom /= jnp.linalg.norm(right_tensor_phys_bra_bottom)
+    left_tensor_phys_bra_bottom = left_tensor_phys_bra_bottom.transpose(0, 1, 4, 2, 3)
+    right_tensor_phys_bra_bottom = right_tensor_phys_bra_bottom.transpose(0, 1, 4, 2, 3)
+
+    (
+        projector_top_left_phys_ket,
+        projector_top_right_phys_ket,
+        smallest_S_phys_ket,
+    ) = _split_transfer_workhorse(
+        left_tensor_phys_ket_top,
+        right_tensor_phys_ket_top,
+        peps_tensor_objs[0][0].interlayer_chi,
+        truncation_eps,
     )
 
     (
-        projector_top_left_phys,
-        projector_top_right_phys,
-        smallest_S_phys,
+        projector_bottom_right_phys_bra,
+        projector_bottom_left_phys_bra,
+        _,
     ) = _split_transfer_workhorse(
-        left_tensor_phys_split_top,
-        right_tensor_phys_split_top,
+        right_tensor_phys_bra_bottom,
+        left_tensor_phys_bra_bottom,
+        peps_tensor_objs[1][0].interlayer_chi,
+        truncation_eps,
+    )
+
+    left_tensor_phys_bra_top = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_left_full",
+        [peps_tensors[0][0], peps_tensors[1][0]],
+        [peps_tensor_objs[0][0], peps_tensor_objs[1][0]],
+        [projector_top_right_phys_ket, projector_bottom_right_phys_bra],
+    )
+    right_tensor_phys_bra_top = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_right_full",
+        [peps_tensors[0][0], peps_tensors[1][0]],
+        [peps_tensor_objs[0][0], peps_tensor_objs[1][0]],
+        [projector_top_left_phys_ket, projector_bottom_left_phys_bra],
+    )
+    left_tensor_phys_bra_top /= jnp.linalg.norm(left_tensor_phys_bra_top)
+    right_tensor_phys_bra_top /= jnp.linalg.norm(right_tensor_phys_bra_top)
+
+    (
+        projector_top_left_phys_bra,
+        projector_top_right_phys_bra,
+        smallest_S_phys_bra,
+    ) = _split_transfer_workhorse(
+        left_tensor_phys_bra_top,
+        right_tensor_phys_bra_top,
         peps_tensor_objs[0][0].interlayer_chi,
         truncation_eps,
     )
@@ -1611,12 +1792,15 @@ def calc_top_projectors_split_transfer(
             right_ket=projector_top_right_ket,
             left_bra=projector_top_left_bra,
             right_bra=projector_top_right_bra,
-            left_phys=projector_top_left_phys,
-            right_phys=projector_top_right_phys,
+            left_phys_ket=projector_top_left_phys_ket,
+            right_phys_ket=projector_top_right_phys_ket,
+            left_phys_bra=projector_top_left_phys_bra,
+            right_phys_bra=projector_top_right_phys_bra,
         ),
         smallest_S_ket,
         smallest_S_bra,
-        smallest_S_phys,
+        smallest_S_phys_ket,
+        smallest_S_phys_bra,
     )
 
 
@@ -1778,26 +1962,82 @@ def calc_bottom_projectors_split_transfer(
         truncation_eps,
     )
 
-    left_tensor_phys_split_bottom = apply_contraction_jitted(
-        "ctmrg_split_transfer_phys_bottom_left",
+    left_tensor_phys_ket_top = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_left",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+    right_tensor_phys_ket_top = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_right",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+    left_tensor_phys_ket_top /= jnp.linalg.norm(left_tensor_phys_ket_top)
+    right_tensor_phys_ket_top /= jnp.linalg.norm(right_tensor_phys_ket_top)
+
+    left_tensor_phys_bra_bottom = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_left",
         [peps_tensors[1][0]],
         [peps_tensor_objs[1][0]],
         [],
     )
-    right_tensor_phys_split_bottom = apply_contraction_jitted(
-        "ctmrg_split_transfer_phys_bottom_right",
+    right_tensor_phys_bra_bottom = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_right",
         [peps_tensors[1][0]],
         [peps_tensor_objs[1][0]],
         [],
+    )
+    left_tensor_phys_bra_bottom /= jnp.linalg.norm(left_tensor_phys_bra_bottom)
+    right_tensor_phys_bra_bottom /= jnp.linalg.norm(right_tensor_phys_bra_bottom)
+    left_tensor_phys_bra_bottom = left_tensor_phys_bra_bottom.transpose(0, 1, 4, 2, 3)
+    right_tensor_phys_bra_bottom = right_tensor_phys_bra_bottom.transpose(0, 1, 4, 2, 3)
+
+    (
+        projector_top_left_phys_ket,
+        projector_top_right_phys_ket,
+        _,
+    ) = _split_transfer_workhorse(
+        left_tensor_phys_ket_top,
+        right_tensor_phys_ket_top,
+        peps_tensor_objs[0][0].interlayer_chi,
+        truncation_eps,
     )
 
     (
-        projector_bottom_right_phys,
-        projector_bottom_left_phys,
-        smallest_S_phys,
+        projector_bottom_right_phys_bra,
+        projector_bottom_left_phys_bra,
+        smallest_S_phys_bra,
     ) = _split_transfer_workhorse(
-        right_tensor_phys_split_bottom,
-        left_tensor_phys_split_bottom,
+        right_tensor_phys_bra_bottom,
+        left_tensor_phys_bra_bottom,
+        peps_tensor_objs[1][0].interlayer_chi,
+        truncation_eps,
+    )
+
+    left_tensor_phys_bra_top = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_left_full",
+        [peps_tensors[0][0], peps_tensors[1][0]],
+        [peps_tensor_objs[0][0], peps_tensor_objs[1][0]],
+        [projector_top_right_phys_ket, projector_bottom_right_phys_bra],
+    )
+    right_tensor_phys_bra_top = apply_contraction_jitted(
+        "ctmrg_split_transfer_phys_right_full",
+        [peps_tensors[0][0], peps_tensors[1][0]],
+        [peps_tensor_objs[0][0], peps_tensor_objs[1][0]],
+        [projector_top_left_phys_ket, projector_bottom_left_phys_bra],
+    )
+    left_tensor_phys_bra_top /= jnp.linalg.norm(left_tensor_phys_bra_top)
+    right_tensor_phys_bra_top /= jnp.linalg.norm(right_tensor_phys_bra_top)
+
+    (
+        projector_bottom_right_phys_ket,
+        projector_bottom_left_phys_ket,
+        smallest_S_phys_ket,
+    ) = _split_transfer_workhorse(
+        right_tensor_phys_bra_top,
+        left_tensor_phys_bra_top,
         peps_tensor_objs[1][0].interlayer_chi,
         truncation_eps,
     )
@@ -1808,10 +2048,13 @@ def calc_bottom_projectors_split_transfer(
             right_ket=projector_bottom_right_ket,
             left_bra=projector_bottom_left_bra,
             right_bra=projector_bottom_right_bra,
-            left_phys=projector_bottom_left_phys,
-            right_phys=projector_bottom_right_phys,
+            left_phys_ket=projector_bottom_left_phys_ket,
+            right_phys_ket=projector_bottom_right_phys_ket,
+            left_phys_bra=projector_bottom_left_phys_bra,
+            right_phys_bra=projector_bottom_right_phys_bra,
         ),
         smallest_S_ket,
         smallest_S_bra,
-        smallest_S_phys,
+        smallest_S_phys_ket,
+        smallest_S_phys_bra,
     )
