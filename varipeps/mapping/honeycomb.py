@@ -8,12 +8,14 @@ import jax.numpy as jnp
 from jax import jit
 import jax.util
 
+from varipeps import varipeps_config
 import varipeps.config
 from varipeps.peps import PEPS_Tensor, PEPS_Unit_Cell
 from varipeps.contractions import apply_contraction, Definitions
 from varipeps.expectation.model import Expectation_Model
 from varipeps.expectation.one_site import calc_one_site_multi_gates
 from varipeps.expectation.two_sites import _two_site_workhorse
+from varipeps.expectation.spiral_helpers import apply_unitary
 from varipeps.typing import Tensor
 from varipeps.mapping import Map_To_PEPS_Model
 from varipeps.utils.random import PEPS_Random_Number_Generator
@@ -111,8 +113,18 @@ class Honeycomb_Expectation_Value(Expectation_Model):
         self._y_tuple = tuple(self.y_gates)
         self._z_tuple = tuple(self.z_gates)
 
+        self._result_type = (
+            jnp.float64
+            if all(jnp.allclose(g, g.T.conj()) for g in self.x_gates)
+            and all(jnp.allclose(g, g.T.conj()) for g in self.y_gates)
+            and all(jnp.allclose(g, g.T.conj()) for g in self.z_gates)
+            else jnp.complex128
+        )
+
         if self.is_spiral_peps:
-            raise NotImplementedError
+            self._spiral_D, self._spiral_sigma = jnp.linalg.eigh(
+                self.spiral_unitary_operator
+            )
 
     def __call__(
         self,
@@ -124,15 +136,8 @@ class Honeycomb_Expectation_Value(Expectation_Model):
         only_unique: bool = True,
         return_single_gate_results: bool = False,
     ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
-        result_type = (
-            jnp.float64
-            if all(jnp.allclose(g, jnp.real(g)) for g in self.x_gates)
-            and all(jnp.allclose(g, jnp.real(g)) for g in self.y_gates)
-            and all(jnp.allclose(g, jnp.real(g)) for g in self.z_gates)
-            else jnp.complex128
-        )
         result = [
-            jnp.array(0, dtype=result_type)
+            jnp.array(0, dtype=self._result_type)
             for _ in range(
                 max(
                     len(self.x_gates),
@@ -141,6 +146,44 @@ class Honeycomb_Expectation_Value(Expectation_Model):
                 )
             )
         ]
+
+        if self.is_spiral_peps:
+            if isinstance(spiral_vectors, jnp.ndarray):
+                spiral_vectors = (spiral_vectors,)
+            if len(spiral_vectors) != 1:
+                raise ValueError("Length mismatch for spiral vectors!")
+
+            working_h_gates = tuple(
+                apply_unitary(
+                    h,
+                    jnp.array((0, 1)),
+                    spiral_vectors,
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    2,
+                    (1,),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for h in self._y_tuple
+            )
+            working_v_gates = tuple(
+                apply_unitary(
+                    v,
+                    jnp.array((1, 0)),
+                    spiral_vectors,
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    2,
+                    (1,),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for v in self._z_tuple
+            )
+        else:
+            working_h_gates = self._y_tuple
+            working_v_gates = self._z_tuple
 
         for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
             for y, view in iter_rows:
@@ -196,8 +239,8 @@ class Honeycomb_Expectation_Value(Expectation_Model):
                     step_result_y = _two_site_workhorse(
                         density_matrix_left,
                         density_matrix_right,
-                        self._y_tuple,
-                        result_type is jnp.float64,
+                        working_h_gates,
+                        self._result_type is jnp.float64,
                     )
 
                     for sr_i, sr in enumerate(step_result_y):
@@ -241,8 +284,8 @@ class Honeycomb_Expectation_Value(Expectation_Model):
                     step_result_z = _two_site_workhorse(
                         density_matrix_top,
                         density_matrix_bottom,
-                        self._z_tuple,
-                        result_type is jnp.float64,
+                        working_v_gates,
+                        self._result_type is jnp.float64,
                     )
 
                     for sr_i, sr in enumerate(step_result_z):
