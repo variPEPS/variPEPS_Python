@@ -2,6 +2,7 @@ import collections
 from collections import deque
 from functools import partial
 from os import PathLike
+import time
 
 from scipy.optimize import OptimizeResult
 
@@ -210,6 +211,7 @@ def _autosave_wrapper(
     step_energies,
     step_chi,
     step_conv,
+    step_runtime,
     spiral_indices,
     additional_input,
 ):
@@ -223,6 +225,7 @@ def _autosave_wrapper(
         auxiliary_data[f"step_energies_{k:d}"] = step_energies[k]
         auxiliary_data[f"step_chi_{k:d}"] = step_chi[k]
         auxiliary_data[f"step_conv_{k:d}"] = step_conv[k]
+        auxiliary_data[f"step_runtime_{k:d}"] = step_runtime[k]
 
     spiral_vectors = None
     if spiral_indices is not None:
@@ -390,6 +393,7 @@ def optimize_peps_network(
     step_energies = {random_noise_retries: []}
     step_chi = {random_noise_retries: []}
     step_conv = {random_noise_retries: []}
+    step_runtime = {random_noise_retries: []}
 
     if (
         varipeps_config.optimizer_preconverge_with_half_projectors
@@ -401,6 +405,8 @@ def optimize_peps_network(
 
     with tqdm(desc="Optimizing PEPS state") as pbar:
         while count < varipeps_config.optimizer_max_steps:
+            runtime_start = time.perf_counter()
+
             try:
                 if varipeps_config.ad_use_custom_vjp:
                     (
@@ -579,6 +585,9 @@ def optimize_peps_network(
                     conv > varipeps_config.optimizer_reuse_env_eps,
                 )
             except NoSuitableStepSizeError:
+                runtime = time.perf_counter() - runtime_start
+                step_runtime[random_noise_retries].append(runtime)
+
                 if varipeps_config.optimizer_fail_if_no_step_size_found:
                     raise
                 else:
@@ -612,6 +621,7 @@ def optimize_peps_network(
                                 step_energies,
                                 step_chi,
                                 step_conv,
+                                step_runtime,
                                 spiral_indices,
                                 additional_input,
                             )
@@ -659,6 +669,7 @@ def optimize_peps_network(
                         step_chi[random_noise_retries] = []
                         step_conv[random_noise_retries] = []
                         max_trunc_error_list[random_noise_retries] = []
+                        step_runtime[random_noise_retries] = []
 
                         pbar.reset()
                         pbar.refresh()
@@ -667,6 +678,8 @@ def optimize_peps_network(
                     else:
                         conv = 0
             else:
+                runtime = time.perf_counter() - runtime_start
+                step_runtime[random_noise_retries].append(runtime)
                 max_trunc_error_list[random_noise_retries].append(max_trunc_error)
                 step_energies[random_noise_retries].append(working_value)
                 step_chi[random_noise_retries].append(
@@ -751,6 +764,7 @@ def optimize_peps_network(
                     step_energies,
                     step_chi,
                     step_conv,
+                    step_runtime,
                     spiral_indices,
                     additional_input,
                 )
@@ -797,6 +811,7 @@ def optimize_peps_network(
             step_energies,
             step_chi,
             step_conv,
+            step_runtime,
             spiral_indices,
             additional_input,
         )
@@ -813,5 +828,6 @@ def optimize_peps_network(
         step_energies=step_energies,
         step_chi=step_chi,
         step_conv=step_conv,
+        step_runtime=step_runtime,
         best_run=best_run,
     )
