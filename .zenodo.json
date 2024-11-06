@@ -50,9 +50,9 @@
 
     "related_identifiers": [
         {
-            "identifier": "arXiv:2308.12358",
+            "identifier": "https://doi.org/10.21468/SciPostPhysLectNotes.86",
             "relation": "isDocumentedBy",
-            "resource_type": "publication-preprint"
+            "resource_type": "publication-article"
         },
         {
             "identifier": "https://varipeps.readthedocs.io/en/stable/",

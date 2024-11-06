@@ -26,8 +26,8 @@ authors:
     family-names: Finn
 identifiers:
   - type: doi
-    value: 10.48550/arXiv.2308.12358
-    description: arXiv preprint of the description of the method
+    value: 10.21468/SciPostPhysLectNotes.86
+    description: Journal article with the description of the method
   - type: doi
     value: 10.5281/zenodo.10852390
     description: Zenodo DOI for current version of the code
