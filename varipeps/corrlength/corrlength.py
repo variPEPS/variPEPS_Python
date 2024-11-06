@@ -64,7 +64,10 @@ def calculate_correlation_length(unitcell: PEPS_Unit_Cell):
         initial_vector_bottom = initial_vector_bottom.reshape(-1)
 
         eig_right, eigvec_right = eigs(
-            full_transfer_right, k=5, v0=initial_vector_right, which="LM"
+            np.asarray(full_transfer_right),
+            k=5,
+            v0=np.asarray(initial_vector_right),
+            which="LM",
         )
 
         eig_right = np.abs(eig_right)
@@ -73,7 +76,10 @@ def calculate_correlation_length(unitcell: PEPS_Unit_Cell):
         corr_len_right = -1 / np.log(eig_right[1])
 
         eig_bottom, eigvec_bottom = eigs(
-            full_transfer_bottom, k=5, v0=initial_vector_bottom, which="LM"
+            np.asarray(full_transfer_bottom),
+            k=5,
+            v0=np.asarray(initial_vector_bottom),
+            which="LM",
         )
 
         eig_bottom = np.abs(eig_bottom)
