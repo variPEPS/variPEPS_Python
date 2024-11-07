@@ -755,6 +755,30 @@ def optimize_peps_network(
                     additional_input,
                 )
 
+                if working_value < best_value:
+                    _autosave_wrapper(
+                        autosave_func,
+                        autosave_filename,
+                        working_tensors,
+                        working_unitcell,
+                        working_value,
+                        "best",
+                        random_noise_retries,
+                        max_trunc_error_list,
+                        step_energies,
+                        step_chi,
+                        step_conv,
+                        step_runtime,
+                        spiral_indices,
+                        additional_input,
+                    )
+
+            if working_value < best_value:
+                best_value = working_value
+                best_tensors = working_tensors
+                best_unitcell = working_unitcell
+                best_run = random_noise_retries
+
     if working_value < best_value:
         best_value = working_value
         best_tensors = working_tensors
