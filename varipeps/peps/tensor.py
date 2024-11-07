@@ -1105,7 +1105,16 @@ class PEPS_Tensor:
             max_chi=max_chi,
         )
 
-    def convert_to_split_transfer(self: T_PEPS_Tensor) -> T_PEPS_Tensor_Split_Transfer:
+    @property
+    def is_split_transfer(self: T_PEPS_Tensor) -> bool:
+        return False
+
+    def convert_to_split_transfer(
+        self: T_PEPS_Tensor, interlayer_chi: Optional[int] = None
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        if interlayer_chi is None:
+            interlayer_chi = self.chi
+
         return PEPS_Tensor_Split_Transfer(
             tensor=self.tensor,
             C1=self.C1,
@@ -1120,8 +1129,11 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
-            interlayer_chi=self.chi,
+            interlayer_chi=interlayer_chi,
         )
+
+    def convert_to_full_transfer(self: T_PEPS_Tensor) -> T_PEPS_Tensor:
+        return self
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
         data = (
@@ -2467,7 +2479,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
                 "Both PEPS tensors must have the same tensor, d, D and chi values."
             )
 
-        return PEPS_Tensor(
+        return type(self)(
             tensor=self.tensor,
             C1=self.C1 + other.C1,
             C2=self.C2 + other.C2,
@@ -2620,6 +2632,10 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             max_chi=max_chi,
             interlayer_chi=interlayer_chi,
         )
+
+    @property
+    def is_split_transfer(self: T_PEPS_Tensor_Split_Transfer) -> bool:
+        return True
 
     def convert_to_split_transfer(
         self: T_PEPS_Tensor_Split_Transfer,

@@ -450,6 +450,66 @@ class PEPS_Unit_Cell:
             sanity_checks=False,
         )
 
+    def is_split_transfer(self: T_PEPS_Unit_Cell) -> bool:
+        return all(t.is_split_transfer for t in self.data.peps_tensors)
+
+    def convert_to_split_transfer(
+        self: T_PEPS_Unit_Cell, interlayer_chi: Optional[int] = None
+    ) -> T_PEPS_Unit_Cell:
+        """
+        Convert the list of unique tensors to the split transfer ansatz.
+
+        Args:
+          interlayer_chi (:obj:`int`, optional):
+            Bond dimension for the interlayer index in the split transfer
+            ansatz. If set to None, the same value as for the enviroment
+            bond dimension is used.
+        Returns:
+          PEPS_Unit_Cell:
+            New instance of PEPS unit cell with the new unique tensor list.
+        """
+        if self.is_split_transfer():
+            return self
+
+        new_unique_tensors = type(self.data.peps_tensors)(
+            t.convert_to_split_transfer(interlayer_chi) for t in self.data.peps_tensors
+        )
+
+        new_data = self.data.replace_peps_tensors(new_unique_tensors)
+
+        return type(self)(
+            data=new_data,
+            real_ix=self.real_ix,
+            real_iy=self.real_iy,
+            sanity_checks=False,
+        )
+
+    def convert_to_full_transfer(
+        self: T_PEPS_Unit_Cell, interlayer_chi: Optional[int] = None
+    ) -> T_PEPS_Unit_Cell:
+        """
+        Convert the list of unique tensors to the full transfer ansatz.
+
+        Returns:
+          PEPS_Unit_Cell:
+            New instance of PEPS unit cell with the new unique tensor list.
+        """
+        if not self.is_split_transfer():
+            return self
+
+        new_unique_tensors = type(self.data.peps_tensors)(
+            t.convert_to_full_transfer() for t in self.data.peps_tensors
+        )
+
+        new_data = self.data.replace_peps_tensors(new_unique_tensors)
+
+        return type(self)(
+            data=new_data,
+            real_ix=self.real_ix,
+            real_iy=self.real_iy,
+            sanity_checks=False,
+        )
+
     def change_chi(
         self: T_PEPS_Unit_Cell,
         new_chi: int,

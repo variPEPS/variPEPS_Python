@@ -94,6 +94,8 @@ def calc_ctmrg_expectation(
       :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~varipeps.peps.PEPS_Unit_Cell`):
         Tuple consisting of the calculated expectation value and the new unitcell.
     """
+    state_split_transfer = unitcell.is_split_transfer()
+
     spiral_vectors = additional_input.get("spiral_vectors")
     if expectation_func.is_spiral_peps and spiral_vectors is None:
         peps_tensors, unitcell, spiral_vectors = _map_tensors(
@@ -122,20 +124,25 @@ def calc_ctmrg_expectation(
             input_tensors, unitcell, convert_to_unitcell_func, False
         )
 
+    if state_split_transfer != unitcell.is_split_transfer():
+        raise ValueError("Map function is not split transfer aware. Please fix that!")
+
     new_unitcell, max_trunc_error = calc_ctmrg_env(
         peps_tensors,
         unitcell,
         enforce_elementwise_convergence=enforce_elementwise_convergence,
     )
 
+    exp_unitcell = new_unitcell.convert_to_full_transfer()
+
     if expectation_func.is_spiral_peps:
         return cast(
-            jnp.ndarray, expectation_func(peps_tensors, new_unitcell, spiral_vectors)
+            jnp.ndarray, expectation_func(peps_tensors, exp_unitcell, spiral_vectors)
         ), (
             new_unitcell,
             max_trunc_error,
         )
-    return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), (
+    return cast(jnp.ndarray, expectation_func(peps_tensors, exp_unitcell)), (
         new_unitcell,
         max_trunc_error,
     )
@@ -188,6 +195,8 @@ def calc_preconverged_ctmrg_value_and_grad(
         unitcell.
         2. The calculated gradient.
     """
+    state_split_transfer = unitcell.is_split_transfer()
+
     spiral_vectors = additional_input.get("spiral_vectors")
     if expectation_func.is_spiral_peps and spiral_vectors is None:
         peps_tensors, unitcell, spiral_vectors = _map_tensors(
@@ -215,6 +224,9 @@ def calc_preconverged_ctmrg_value_and_grad(
         peps_tensors, unitcell = _map_tensors(
             input_tensors, unitcell, convert_to_unitcell_func, False
         )
+
+    if state_split_transfer != unitcell.is_split_transfer():
+        raise ValueError("Map function is not split transfer aware. Please fix that!")
 
     if calc_preconverged:
         preconverged_unitcell, _ = calc_ctmrg_env(
@@ -265,6 +277,8 @@ def calc_ctmrg_expectation_custom(
       :obj:`tuple`\ (:obj:`jax.numpy.ndarray`, :obj:`~varipeps.peps.PEPS_Unit_Cell`):
         Tuple consisting of the calculated expectation value and the new unitcell.
     """
+    state_split_transfer = unitcell.is_split_transfer()
+
     spiral_vectors = additional_input.get("spiral_vectors")
     if expectation_func.is_spiral_peps and spiral_vectors is None:
         peps_tensors, unitcell, spiral_vectors = _map_tensors(
@@ -293,16 +307,21 @@ def calc_ctmrg_expectation_custom(
             input_tensors, unitcell, convert_to_unitcell_func, False
         )
 
+    if state_split_transfer != unitcell.is_split_transfer():
+        raise ValueError("Map function is not split transfer aware. Please fix that!")
+
     new_unitcell, max_trunc_error = calc_ctmrg_env_custom_rule(peps_tensors, unitcell)
+
+    exp_unitcell = new_unitcell.convert_to_full_transfer()
 
     if expectation_func.is_spiral_peps:
         return cast(
-            jnp.ndarray, expectation_func(peps_tensors, new_unitcell, spiral_vectors)
+            jnp.ndarray, expectation_func(peps_tensors, exp_unitcell, spiral_vectors)
         ), (
             new_unitcell,
             max_trunc_error,
         )
-    return cast(jnp.ndarray, expectation_func(peps_tensors, new_unitcell)), (
+    return cast(jnp.ndarray, expectation_func(peps_tensors, exp_unitcell)), (
         new_unitcell,
         max_trunc_error,
     )

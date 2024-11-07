@@ -69,8 +69,6 @@ def _calc_corner_svds(
             C1_svd, indices_are_sorted=True, unique_indices=True
         )
 
-        # debug_print("C1: {}", C1_svd)
-
         C2_svd = jnp.linalg.svd(t.C2, full_matrices=False, compute_uv=False)
         step_corner_svd = step_corner_svd.at[ti, 1, : C2_svd.shape[0]].set(
             C2_svd, indices_are_sorted=True, unique_indices=True
@@ -382,7 +380,7 @@ def _ctmrg_body_func(carry):
         config,
     ) = carry
 
-    if state.ctmrg_split_transfer:
+    if w_unitcell_last_step.is_split_transfer():
         w_unitcell, norm_smallest_S = do_absorption_step_split_transfer(
             w_tensors, w_unitcell_last_step, config, state
         )
@@ -397,7 +395,7 @@ def _ctmrg_body_func(carry):
             new,
             conv_eps,
             verbose=config.ctmrg_verbose_output,
-            split_transfer=state.ctmrg_split_transfer,
+            split_transfer=w_unitcell.is_split_transfer(),
         )
         return converged, measure, verbose_data, old_corner
 
@@ -534,10 +532,6 @@ def calc_ctmrg_env(
 
     norm_smallest_S = jnp.nan
     already_tried_chi = {working_unitcell[0, 0][0][0].chi}
-
-    varipeps_global_state.ctmrg_split_transfer = isinstance(
-        unitcell.get_unique_tensors()[0], PEPS_Tensor_Split_Transfer
-    )
 
     while True:
         tmp_count = 0
@@ -776,6 +770,7 @@ def _ctmrg_rev_while_body(carry):
         bar_fixed_point.get_unique_tensors(),
         config.ad_custom_convergence_eps,
         verbose=config.ad_custom_verbose_output,
+        split_transfer=bar_fixed_point.is_split_transfer(),
     )
 
     count += 1
@@ -796,15 +791,31 @@ def _ctmrg_rev_while_body(carry):
 
 @jit
 def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, state):
-    _, vjp_peps_tensors = vjp(
-        lambda t: do_absorption_step(t, new_unitcell, config, state), peps_tensors
-    )
+    if new_unitcell.is_split_transfer():
+        _, vjp_peps_tensors = vjp(
+            lambda t: do_absorption_step_split_transfer(t, new_unitcell, config, state),
+            peps_tensors,
+        )
 
-    vjp_env = tree_util.Partial(
-        vjp(lambda u: do_absorption_step(peps_tensors, u, config, state), new_unitcell)[
-            1
-        ]
-    )
+        vjp_env = tree_util.Partial(
+            vjp(
+                lambda u: do_absorption_step_split_transfer(
+                    peps_tensors, u, config, state
+                ),
+                new_unitcell,
+            )[1]
+        )
+    else:
+        _, vjp_peps_tensors = vjp(
+            lambda t: do_absorption_step(t, new_unitcell, config, state), peps_tensors
+        )
+
+        vjp_env = tree_util.Partial(
+            vjp(
+                lambda u: do_absorption_step(peps_tensors, u, config, state),
+                new_unitcell,
+            )[1]
+        )
 
     def cond_func(carry):
         _, _, _, converged, count, config, state = carry
