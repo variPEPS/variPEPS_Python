@@ -254,15 +254,36 @@ def _fishman_vertical_cut(
 
 
 def _split_transfer_fishman(first_tensor, second_tensor, truncation_eps):
-    first_tensor_ketbra = first_tensor.reshape(
-        first_tensor.shape[0] * first_tensor.shape[1],
-        first_tensor.shape[2] * first_tensor.shape[3],
-    )
+    if first_tensor.ndim == 5:
+        first_tensor_ketbra = first_tensor.reshape(
+            first_tensor.shape[0] * first_tensor.shape[1],
+            first_tensor.shape[2] * first_tensor.shape[3] * first_tensor.shape[4],
+        )
 
-    second_tensor_ketbra = second_tensor.reshape(
-        second_tensor.shape[0] * second_tensor.shape[1],
-        second_tensor.shape[2] * second_tensor.shape[3],
-    )
+        second_tensor_ketbra = second_tensor.reshape(
+            second_tensor.shape[0] * second_tensor.shape[1] * second_tensor.shape[2],
+            second_tensor.shape[3] * second_tensor.shape[4],
+        )
+    elif first_tensor.ndim == 6:
+        first_tensor_ketbra = first_tensor.reshape(
+            first_tensor.shape[0] * first_tensor.shape[1] * first_tensor.shape[2],
+            first_tensor.shape[3] * first_tensor.shape[4] * first_tensor.shape[5],
+        )
+
+        second_tensor_ketbra = second_tensor.reshape(
+            second_tensor.shape[0] * second_tensor.shape[1] * second_tensor.shape[2],
+            second_tensor.shape[3] * second_tensor.shape[4] * second_tensor.shape[5],
+        )
+    else:
+        first_tensor_ketbra = first_tensor.reshape(
+            first_tensor.shape[0] * first_tensor.shape[1],
+            first_tensor.shape[2] * first_tensor.shape[3],
+        )
+
+        second_tensor_ketbra = second_tensor.reshape(
+            second_tensor.shape[0] * second_tensor.shape[1],
+            second_tensor.shape[2] * second_tensor.shape[3],
+        )
 
     first_ketbra_U, first_ketbra_S, first_ketbra_Vh = gauge_fixed_svd(
         first_tensor_ketbra
@@ -272,12 +293,36 @@ def _split_transfer_fishman(first_tensor, second_tensor, truncation_eps):
     )
     first_ketbra_S = jnp.sqrt(first_ketbra_S)
     first_ketbra_S /= jnp.linalg.norm(first_ketbra_S)
-    first_ketbra_U = first_ketbra_U.reshape(
-        first_tensor.shape[0], first_tensor.shape[1], first_ketbra_U.shape[-1]
-    )
-    first_ketbra_Vh = first_ketbra_Vh.reshape(
-        first_ketbra_Vh.shape[0], first_tensor.shape[2], first_tensor.shape[3]
-    )
+    if first_tensor.ndim == 5:
+        first_ketbra_U = first_ketbra_U.reshape(
+            first_tensor.shape[0], first_tensor.shape[1], first_ketbra_U.shape[-1]
+        )
+        first_ketbra_Vh = first_ketbra_Vh.reshape(
+            first_ketbra_Vh.shape[0],
+            first_tensor.shape[2],
+            first_tensor.shape[3],
+            first_tensor.shape[4],
+        )
+    elif first_tensor.ndim == 6:
+        first_ketbra_U = first_ketbra_U.reshape(
+            first_tensor.shape[0],
+            first_tensor.shape[1],
+            first_tensor.shape[2],
+            first_ketbra_U.shape[-1],
+        )
+        first_ketbra_Vh = first_ketbra_Vh.reshape(
+            first_ketbra_Vh.shape[0],
+            first_tensor.shape[3],
+            first_tensor.shape[4],
+            first_tensor.shape[5],
+        )
+    else:
+        first_ketbra_U = first_ketbra_U.reshape(
+            first_tensor.shape[0], first_tensor.shape[1], first_ketbra_U.shape[-1]
+        )
+        first_ketbra_Vh = first_ketbra_Vh.reshape(
+            first_ketbra_Vh.shape[0], first_tensor.shape[2], first_tensor.shape[3]
+        )
 
     second_ketbra_U, second_ketbra_S, second_ketbra_Vh = gauge_fixed_svd(
         second_tensor_ketbra
@@ -287,12 +332,36 @@ def _split_transfer_fishman(first_tensor, second_tensor, truncation_eps):
     )
     second_ketbra_S = jnp.sqrt(second_ketbra_S)
     second_ketbra_S /= jnp.linalg.norm(second_ketbra_S)
-    second_ketbra_U = second_ketbra_U.reshape(
-        second_tensor.shape[0], second_tensor.shape[1], second_ketbra_U.shape[-1]
-    )
-    second_ketbra_Vh = second_ketbra_Vh.reshape(
-        second_ketbra_Vh.shape[0], second_tensor.shape[2], second_tensor.shape[3]
-    )
+    if second_tensor.ndim == 5:
+        second_ketbra_U = second_ketbra_U.reshape(
+            second_tensor.shape[0],
+            second_tensor.shape[1],
+            second_tensor.shape[2],
+            second_ketbra_U.shape[-1],
+        )
+        second_ketbra_Vh = second_ketbra_Vh.reshape(
+            second_ketbra_Vh.shape[0], second_tensor.shape[3], second_tensor.shape[4]
+        )
+    elif first_tensor.ndim == 6:
+        second_ketbra_U = second_ketbra_U.reshape(
+            second_tensor.shape[0],
+            second_tensor.shape[1],
+            second_tensor.shape[2],
+            second_ketbra_U.shape[-1],
+        )
+        second_ketbra_Vh = second_ketbra_Vh.reshape(
+            second_ketbra_Vh.shape[0],
+            second_tensor.shape[3],
+            second_tensor.shape[4],
+            second_tensor.shape[5],
+        )
+    else:
+        second_ketbra_U = second_ketbra_U.reshape(
+            second_tensor.shape[0], second_tensor.shape[1], second_ketbra_U.shape[-1]
+        )
+        second_ketbra_Vh = second_ketbra_Vh.reshape(
+            second_ketbra_Vh.shape[0], second_tensor.shape[2], second_tensor.shape[3]
+        )
 
     return (
         first_ketbra_U,
@@ -853,8 +922,19 @@ def _split_transfer_workhorse(
     second_ketbra: jnp.ndarray,
     chi: int,
     truncation_eps: float,
+    fishman_input: bool = False,
 ):
-    if first_ketbra.ndim == 4:
+    if fishman_input and first_ketbra.ndim == 4:
+        first_ketbra_matrix = first_ketbra.reshape(
+            first_ketbra.shape[0],
+            first_ketbra.shape[1] * first_ketbra.shape[2] * first_ketbra.shape[3],
+        )
+
+        second_ketbra_matrix = second_ketbra.reshape(
+            second_ketbra.shape[0] * second_ketbra.shape[1] * second_ketbra.shape[2],
+            second_ketbra.shape[3],
+        )
+    elif first_ketbra.ndim == 4:
         first_ketbra_matrix = first_ketbra.reshape(
             first_ketbra.shape[0] * first_ketbra.shape[1],
             first_ketbra.shape[2] * first_ketbra.shape[3],
@@ -925,7 +1005,14 @@ def _split_transfer_workhorse(
             projector_second_ketbra.shape[1],
         )
     else:
-        if first_ketbra.ndim == 4:
+        if fishman_input and first_ketbra.ndim == 4:
+            projector_first_ketbra = projector_first_ketbra.reshape(
+                projector_first_ketbra.shape[0],
+                first_ketbra.shape[1],
+                first_ketbra.shape[2],
+                first_ketbra.shape[3],
+            )
+        elif first_ketbra.ndim == 4:
             projector_first_ketbra = projector_first_ketbra.reshape(
                 projector_first_ketbra.shape[0],
                 first_ketbra.shape[2],
@@ -944,11 +1031,19 @@ def _split_transfer_workhorse(
                 first_ketbra.shape[2],
             )
 
-        projector_second_ketbra = projector_second_ketbra.reshape(
-            second_ketbra.shape[0],
-            second_ketbra.shape[1],
-            projector_second_ketbra.shape[1],
-        )
+        if fishman_input and first_ketbra.ndim == 4:
+            projector_second_ketbra = projector_second_ketbra.reshape(
+                second_ketbra.shape[0],
+                second_ketbra.shape[1],
+                second_ketbra.shape[2],
+                projector_second_ketbra.shape[1],
+            )
+        else:
+            projector_second_ketbra = projector_second_ketbra.reshape(
+                second_ketbra.shape[0],
+                second_ketbra.shape[1],
+                projector_second_ketbra.shape[1],
+            )
 
     # first_bra = jnp.tensordot(first_ketbra, projector_first_ketbra, ((2, 3), (1, 2)))
     # first_bra = first_bra.transpose(0, 2, 1)
@@ -1198,8 +1293,6 @@ def calc_left_projectors_split_transfer(
         [peps_tensor_objs[0][0]],
         [],
     )
-    top_tensor_phys_ket_left /= jnp.linalg.norm(top_tensor_phys_ket_left)
-    bottom_tensor_phys_ket_left /= jnp.linalg.norm(bottom_tensor_phys_ket_left)
 
     top_tensor_phys_bra_right = apply_contraction_jitted(
         "ctmrg_split_transfer_phys_top",
@@ -1213,10 +1306,49 @@ def calc_left_projectors_split_transfer(
         [peps_tensor_objs[0][1]],
         [],
     )
-    top_tensor_phys_bra_right /= jnp.linalg.norm(top_tensor_phys_bra_right)
-    bottom_tensor_phys_bra_right /= jnp.linalg.norm(bottom_tensor_phys_bra_right)
     top_tensor_phys_bra_right = top_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
     bottom_tensor_phys_bra_right = bottom_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
+
+    if projector_method is Projector_Method.FISHMAN:
+        (
+            top_phys_ket_U,
+            top_phys_ket_S,
+            _,
+            _,
+            bottom_phys_ket_S,
+            bottom_phys_ket_Vh,
+        ) = _split_transfer_fishman(
+            top_tensor_phys_ket_left, bottom_tensor_phys_ket_left, truncation_eps
+        )
+
+        top_tensor_phys_ket_left = (
+            top_phys_ket_U * top_phys_ket_S[jnp.newaxis, jnp.newaxis, :]
+        )
+        bottom_tensor_phys_ket_left = (
+            bottom_phys_ket_S[:, jnp.newaxis, jnp.newaxis] * bottom_phys_ket_Vh
+        )
+
+        (
+            bottom_phys_bra_U,
+            bottom_phys_bra_S,
+            _,
+            _,
+            top_phys_bra_S,
+            top_phys_bra_Vh,
+        ) = _split_transfer_fishman(
+            bottom_tensor_phys_bra_right, top_tensor_phys_bra_right, truncation_eps
+        )
+        top_tensor_phys_bra_right = (
+            top_phys_bra_S[:, jnp.newaxis, jnp.newaxis] * top_phys_bra_Vh
+        )
+        bottom_tensor_phys_bra_right = (
+            bottom_phys_bra_U * bottom_phys_bra_S[jnp.newaxis, jnp.newaxis, :]
+        )
+    else:
+        top_tensor_phys_ket_left /= jnp.linalg.norm(top_tensor_phys_ket_left)
+        bottom_tensor_phys_ket_left /= jnp.linalg.norm(bottom_tensor_phys_ket_left)
+        top_tensor_phys_bra_right /= jnp.linalg.norm(top_tensor_phys_bra_right)
+        bottom_tensor_phys_bra_right /= jnp.linalg.norm(bottom_tensor_phys_bra_right)
 
     (
         projector_left_bottom_phys_ket,
@@ -1252,8 +1384,29 @@ def calc_left_projectors_split_transfer(
         [peps_tensor_objs[0][0], peps_tensor_objs[0][1]],
         [projector_left_top_phys_ket, projector_right_top_phys_bra],
     )
-    top_tensor_phys_bra_left /= jnp.linalg.norm(top_tensor_phys_bra_left)
-    bottom_tensor_phys_bra_left /= jnp.linalg.norm(bottom_tensor_phys_bra_left)
+
+    if projector_method is Projector_Method.FISHMAN:
+        (
+            top_phys_bra_U,
+            top_phys_bra_S,
+            _,
+            _,
+            bottom_phys_bra_S,
+            bottom_phys_bra_Vh,
+        ) = _split_transfer_fishman(
+            top_tensor_phys_bra_left, bottom_tensor_phys_bra_left, truncation_eps
+        )
+
+        top_tensor_phys_bra_left = (
+            top_phys_bra_U * top_phys_bra_S[jnp.newaxis, jnp.newaxis, jnp.newaxis, :]
+        )
+        bottom_tensor_phys_bra_left = (
+            bottom_phys_bra_S[:, jnp.newaxis, jnp.newaxis, jnp.newaxis]
+            * bottom_phys_bra_Vh
+        )
+    else:
+        top_tensor_phys_bra_left /= jnp.linalg.norm(top_tensor_phys_bra_left)
+        bottom_tensor_phys_bra_left /= jnp.linalg.norm(bottom_tensor_phys_bra_left)
 
     (
         projector_left_bottom_phys_bra,
@@ -1264,6 +1417,7 @@ def calc_left_projectors_split_transfer(
         top_tensor_phys_bra_left,
         peps_tensor_objs[0][0].interlayer_chi,
         truncation_eps,
+        fishman_input=projector_method is Projector_Method.FISHMAN,
     )
 
     return (
@@ -1459,8 +1613,6 @@ def calc_right_projectors_split_transfer(
         [peps_tensor_objs[0][0]],
         [],
     )
-    top_tensor_phys_ket_left /= jnp.linalg.norm(top_tensor_phys_ket_left)
-    bottom_tensor_phys_ket_left /= jnp.linalg.norm(bottom_tensor_phys_ket_left)
 
     top_tensor_phys_bra_right = apply_contraction_jitted(
         "ctmrg_split_transfer_phys_top",
@@ -1474,10 +1626,55 @@ def calc_right_projectors_split_transfer(
         [peps_tensor_objs[0][1]],
         [],
     )
-    top_tensor_phys_bra_right /= jnp.linalg.norm(top_tensor_phys_bra_right)
-    bottom_tensor_phys_bra_right /= jnp.linalg.norm(bottom_tensor_phys_bra_right)
-    top_tensor_phys_bra_right = top_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
-    bottom_tensor_phys_bra_right = bottom_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
+
+    if projector_method is Projector_Method.FISHMAN:
+        (
+            top_phys_ket_U,
+            top_phys_ket_S,
+            _,
+            _,
+            bottom_phys_ket_S,
+            bottom_phys_ket_Vh,
+        ) = _split_transfer_fishman(
+            top_tensor_phys_ket_left, bottom_tensor_phys_ket_left, truncation_eps
+        )
+
+        top_tensor_phys_ket_left = (
+            top_phys_ket_U * top_phys_ket_S[jnp.newaxis, jnp.newaxis, :]
+        )
+        bottom_tensor_phys_ket_left = (
+            bottom_phys_ket_S[:, jnp.newaxis, jnp.newaxis] * bottom_phys_ket_Vh
+        )
+
+        top_tensor_phys_bra_right = top_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
+        bottom_tensor_phys_bra_right = bottom_tensor_phys_bra_right.transpose(
+            0, 1, 4, 2, 3
+        )
+        (
+            bottom_phys_bra_U,
+            bottom_phys_bra_S,
+            _,
+            _,
+            top_phys_bra_S,
+            top_phys_bra_Vh,
+        ) = _split_transfer_fishman(
+            bottom_tensor_phys_bra_right, top_tensor_phys_bra_right, truncation_eps
+        )
+        top_tensor_phys_bra_right = (
+            top_phys_bra_S[:, jnp.newaxis, jnp.newaxis] * top_phys_bra_Vh
+        )
+        bottom_tensor_phys_bra_right = (
+            bottom_phys_bra_U * bottom_phys_bra_S[jnp.newaxis, jnp.newaxis, :]
+        )
+    else:
+        top_tensor_phys_ket_left /= jnp.linalg.norm(top_tensor_phys_ket_left)
+        bottom_tensor_phys_ket_left /= jnp.linalg.norm(bottom_tensor_phys_ket_left)
+        top_tensor_phys_bra_right /= jnp.linalg.norm(top_tensor_phys_bra_right)
+        bottom_tensor_phys_bra_right /= jnp.linalg.norm(bottom_tensor_phys_bra_right)
+        top_tensor_phys_bra_right = top_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
+        bottom_tensor_phys_bra_right = bottom_tensor_phys_bra_right.transpose(
+            0, 1, 4, 2, 3
+        )
 
     (
         projector_left_bottom_phys_ket,
@@ -1513,8 +1710,28 @@ def calc_right_projectors_split_transfer(
         [peps_tensor_objs[0][0], peps_tensor_objs[0][1]],
         [projector_left_top_phys_ket, projector_right_top_phys_bra],
     )
-    top_tensor_phys_ket_right /= jnp.linalg.norm(top_tensor_phys_ket_right)
-    bottom_tensor_phys_ket_right /= jnp.linalg.norm(bottom_tensor_phys_ket_right)
+    if projector_method is Projector_Method.FISHMAN:
+        (
+            _,
+            top_phys_ket_S,
+            top_phys_ket_Vh,
+            bottom_phys_ket_U,
+            bottom_phys_ket_S,
+            _,
+        ) = _split_transfer_fishman(
+            top_tensor_phys_ket_right, bottom_tensor_phys_bra_left, truncation_eps
+        )
+
+        top_tensor_phys_ket_right = (
+            top_phys_ket_S[:, jnp.newaxis, jnp.newaxis, jnp.newaxis] * top_phys_ket_Vh
+        )
+        bottom_tensor_phys_ket_right = (
+            bottom_phys_ket_U
+            * bottom_phys_ket_S[jnp.newaxis, jnp.newaxis, jnp.newaxis, :]
+        )
+    else:
+        top_tensor_phys_ket_right /= jnp.linalg.norm(top_tensor_phys_ket_right)
+        bottom_tensor_phys_ket_right /= jnp.linalg.norm(bottom_tensor_phys_ket_right)
 
     (
         projector_right_top_phys_ket,
@@ -1525,6 +1742,7 @@ def calc_right_projectors_split_transfer(
         bottom_tensor_phys_ket_right,
         peps_tensor_objs[0][1].interlayer_chi,
         truncation_eps,
+        fishman_input=projector_method is Projector_Method.FISHMAN,
     )
 
     return (
@@ -1718,8 +1936,6 @@ def calc_top_projectors_split_transfer(
         [peps_tensor_objs[0][0]],
         [],
     )
-    left_tensor_phys_ket_top /= jnp.linalg.norm(left_tensor_phys_ket_top)
-    right_tensor_phys_ket_top /= jnp.linalg.norm(right_tensor_phys_ket_top)
 
     left_tensor_phys_bra_bottom = apply_contraction_jitted(
         "ctmrg_split_transfer_phys_left",
@@ -1733,10 +1949,49 @@ def calc_top_projectors_split_transfer(
         [peps_tensor_objs[1][0]],
         [],
     )
-    left_tensor_phys_bra_bottom /= jnp.linalg.norm(left_tensor_phys_bra_bottom)
-    right_tensor_phys_bra_bottom /= jnp.linalg.norm(right_tensor_phys_bra_bottom)
     left_tensor_phys_bra_bottom = left_tensor_phys_bra_bottom.transpose(0, 1, 4, 2, 3)
     right_tensor_phys_bra_bottom = right_tensor_phys_bra_bottom.transpose(0, 1, 4, 2, 3)
+
+    if projector_method is Projector_Method.FISHMAN:
+        (
+            right_phys_ket_U,
+            right_phys_ket_S,
+            _,
+            _,
+            left_phys_ket_S,
+            left_phys_ket_Vh,
+        ) = _split_transfer_fishman(
+            right_tensor_phys_ket_top, left_tensor_phys_ket_top, truncation_eps
+        )
+
+        right_tensor_phys_ket_top = (
+            right_phys_ket_U * right_phys_ket_S[jnp.newaxis, jnp.newaxis, :]
+        )
+        left_tensor_phys_ket_top = (
+            left_phys_ket_S[:, jnp.newaxis, jnp.newaxis] * left_phys_ket_Vh
+        )
+
+        (
+            left_phys_bra_U,
+            left_phys_bra_S,
+            _,
+            _,
+            right_phys_bra_S,
+            right_phys_bra_Vh,
+        ) = _split_transfer_fishman(
+            left_tensor_phys_bra_bottom, right_tensor_phys_bra_bottom, truncation_eps
+        )
+        left_tensor_phys_bra_bottom = (
+            left_phys_bra_S[:, jnp.newaxis, jnp.newaxis] * left_phys_bra_Vh
+        )
+        right_tensor_phys_bra_bottom = (
+            right_phys_bra_U * right_phys_bra_S[jnp.newaxis, jnp.newaxis, :]
+        )
+    else:
+        left_tensor_phys_ket_top /= jnp.linalg.norm(left_tensor_phys_ket_top)
+        right_tensor_phys_ket_top /= jnp.linalg.norm(right_tensor_phys_ket_top)
+        left_tensor_phys_bra_bottom /= jnp.linalg.norm(left_tensor_phys_bra_bottom)
+        right_tensor_phys_bra_bottom /= jnp.linalg.norm(right_tensor_phys_bra_bottom)
 
     (
         projector_top_left_phys_ket,
@@ -1772,8 +2027,29 @@ def calc_top_projectors_split_transfer(
         [peps_tensor_objs[0][0], peps_tensor_objs[1][0]],
         [projector_top_left_phys_ket, projector_bottom_left_phys_bra],
     )
-    left_tensor_phys_bra_top /= jnp.linalg.norm(left_tensor_phys_bra_top)
-    right_tensor_phys_bra_top /= jnp.linalg.norm(right_tensor_phys_bra_top)
+
+    if projector_method is Projector_Method.FISHMAN:
+        (
+            right_phys_bra_U,
+            right_phys_bra_S,
+            _,
+            _,
+            left_phys_bra_S,
+            left_phys_bra_Vh,
+        ) = _split_transfer_fishman(
+            right_tensor_phys_bra_top, left_tensor_phys_bra_top, truncation_eps
+        )
+
+        right_tensor_phys_bra_top = (
+            right_phys_bra_U
+            * right_phys_bra_S[jnp.newaxis, jnp.newaxis, jnp.newaxis, :]
+        )
+        left_tensor_phys_bra_top = (
+            left_phys_bra_S[:, jnp.newaxis, jnp.newaxis, jnp.newaxis] * left_phys_bra_Vh
+        )
+    else:
+        left_tensor_phys_bra_top /= jnp.linalg.norm(left_tensor_phys_bra_top)
+        right_tensor_phys_bra_top /= jnp.linalg.norm(right_tensor_phys_bra_top)
 
     (
         projector_top_left_phys_bra,
@@ -1784,6 +2060,7 @@ def calc_top_projectors_split_transfer(
         right_tensor_phys_bra_top,
         peps_tensor_objs[0][0].interlayer_chi,
         truncation_eps,
+        fishman_input=projector_method is Projector_Method.FISHMAN,
     )
 
     return (
@@ -1974,8 +2251,6 @@ def calc_bottom_projectors_split_transfer(
         [peps_tensor_objs[0][0]],
         [],
     )
-    left_tensor_phys_ket_top /= jnp.linalg.norm(left_tensor_phys_ket_top)
-    right_tensor_phys_ket_top /= jnp.linalg.norm(right_tensor_phys_ket_top)
 
     left_tensor_phys_bra_bottom = apply_contraction_jitted(
         "ctmrg_split_transfer_phys_left",
@@ -1989,10 +2264,49 @@ def calc_bottom_projectors_split_transfer(
         [peps_tensor_objs[1][0]],
         [],
     )
-    left_tensor_phys_bra_bottom /= jnp.linalg.norm(left_tensor_phys_bra_bottom)
-    right_tensor_phys_bra_bottom /= jnp.linalg.norm(right_tensor_phys_bra_bottom)
     left_tensor_phys_bra_bottom = left_tensor_phys_bra_bottom.transpose(0, 1, 4, 2, 3)
     right_tensor_phys_bra_bottom = right_tensor_phys_bra_bottom.transpose(0, 1, 4, 2, 3)
+
+    if projector_method is Projector_Method.FISHMAN:
+        (
+            right_phys_ket_U,
+            right_phys_ket_S,
+            _,
+            _,
+            left_phys_ket_S,
+            left_phys_ket_Vh,
+        ) = _split_transfer_fishman(
+            right_tensor_phys_ket_top, left_tensor_phys_ket_top, truncation_eps
+        )
+
+        right_tensor_phys_ket_top = (
+            right_phys_ket_U * right_phys_ket_S[jnp.newaxis, jnp.newaxis, :]
+        )
+        left_tensor_phys_ket_top = (
+            left_phys_ket_S[:, jnp.newaxis, jnp.newaxis] * left_phys_ket_Vh
+        )
+
+        (
+            left_phys_bra_U,
+            left_phys_bra_S,
+            _,
+            _,
+            right_phys_bra_S,
+            right_phys_bra_Vh,
+        ) = _split_transfer_fishman(
+            left_tensor_phys_bra_bottom, right_tensor_phys_bra_bottom, truncation_eps
+        )
+        left_tensor_phys_bra_bottom = (
+            left_phys_bra_S[:, jnp.newaxis, jnp.newaxis] * left_phys_bra_Vh
+        )
+        right_tensor_phys_bra_bottom = (
+            right_phys_bra_U * right_phys_bra_S[jnp.newaxis, jnp.newaxis, :]
+        )
+    else:
+        left_tensor_phys_ket_top /= jnp.linalg.norm(left_tensor_phys_ket_top)
+        right_tensor_phys_ket_top /= jnp.linalg.norm(right_tensor_phys_ket_top)
+        left_tensor_phys_bra_bottom /= jnp.linalg.norm(left_tensor_phys_bra_bottom)
+        right_tensor_phys_bra_bottom /= jnp.linalg.norm(right_tensor_phys_bra_bottom)
 
     (
         projector_top_left_phys_ket,
@@ -2016,30 +2330,51 @@ def calc_bottom_projectors_split_transfer(
         truncation_eps,
     )
 
-    left_tensor_phys_bra_top = apply_contraction_jitted(
+    left_tensor_phys_ket_bottom = apply_contraction_jitted(
         "ctmrg_split_transfer_phys_left_full",
         [peps_tensors[0][0], peps_tensors[1][0]],
         [peps_tensor_objs[0][0], peps_tensor_objs[1][0]],
         [projector_top_right_phys_ket, projector_bottom_right_phys_bra],
     )
-    right_tensor_phys_bra_top = apply_contraction_jitted(
+    right_tensor_phys_ket_bottom = apply_contraction_jitted(
         "ctmrg_split_transfer_phys_right_full",
         [peps_tensors[0][0], peps_tensors[1][0]],
         [peps_tensor_objs[0][0], peps_tensor_objs[1][0]],
         [projector_top_left_phys_ket, projector_bottom_left_phys_bra],
     )
-    left_tensor_phys_bra_top /= jnp.linalg.norm(left_tensor_phys_bra_top)
-    right_tensor_phys_bra_top /= jnp.linalg.norm(right_tensor_phys_bra_top)
+    if projector_method is Projector_Method.FISHMAN:
+        (
+            left_phys_bra_U,
+            left_phys_bra_S,
+            _,
+            _,
+            right_phys_bra_S,
+            right_phys_bra_Vh,
+        ) = _split_transfer_fishman(
+            left_tensor_phys_ket_bottom, right_tensor_phys_ket_bottom, truncation_eps
+        )
+
+        left_tensor_phys_ket_bottom = (
+            left_phys_bra_U * left_phys_bra_S[jnp.newaxis, jnp.newaxis, jnp.newaxis, :]
+        )
+        right_tensor_phys_ket_bottom = (
+            right_phys_bra_S[:, jnp.newaxis, jnp.newaxis, jnp.newaxis]
+            * right_phys_bra_Vh
+        )
+    else:
+        left_tensor_phys_ket_bottom /= jnp.linalg.norm(left_tensor_phys_ket_bottom)
+        right_tensor_phys_ket_bottom /= jnp.linalg.norm(right_tensor_phys_ket_bottom)
 
     (
         projector_bottom_right_phys_ket,
         projector_bottom_left_phys_ket,
         smallest_S_phys_ket,
     ) = _split_transfer_workhorse(
-        right_tensor_phys_bra_top,
-        left_tensor_phys_bra_top,
+        right_tensor_phys_ket_bottom,
+        left_tensor_phys_ket_bottom,
         peps_tensor_objs[1][0].interlayer_chi,
         truncation_eps,
+        fishman_input=projector_method is Projector_Method.FISHMAN,
     )
 
     return (
