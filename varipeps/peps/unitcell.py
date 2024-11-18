@@ -16,7 +16,7 @@ import numpy as np
 import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
 
-from .tensor import PEPS_Tensor
+from .tensor import PEPS_Tensor, PEPS_Tensor_Split_Transfer
 import varipeps
 from varipeps.utils.random import PEPS_Random_Number_Generator
 from varipeps.utils.periodic_indices import calculate_periodic_indices
@@ -150,10 +150,21 @@ class PEPS_Unit_Cell:
                 HDF5 group object to load the data from.
             """
             structure = tuple(tuple(int(j) for j in i) for i in grp["structure"])
-            peps_tensors = [
-                PEPS_Tensor.load_from_group(grp["peps_tensors"][f"t_{ti:d}"])
-                for ti in range(grp["peps_tensors"].attrs["len"])
-            ]
+            try:
+                peps_tensors = [
+                    PEPS_Tensor.load_from_group(grp["peps_tensors"][f"t_{ti:d}"])
+                    for ti in range(grp["peps_tensors"].attrs["len"])
+                ]
+            except KeyError as e:
+                try:
+                    peps_tensors = [
+                        PEPS_Tensor_Split_Transfer.load_from_group(
+                            grp["peps_tensors"][f"t_{ti:d}"]
+                        )
+                        for ti in range(grp["peps_tensors"].attrs["len"])
+                    ]
+                except KeyError:
+                    raise e
 
             return cls(structure=structure, peps_tensors=peps_tensors)
 
