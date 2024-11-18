@@ -399,6 +399,7 @@ class PEPS_Tensor:
         new_chi: int,
         *,
         reinitialize_env_as_identities: bool = True,
+        reset_max_chi: bool = False,
     ) -> T_PEPS_Tensor:
         """
         Change the environment bond dimension and returns new object of the class.
@@ -409,6 +410,8 @@ class PEPS_Tensor:
         Keyword args:
           reinitialize_env_as_identities (:obj:`bool`):
             Reinitialize the CTM tensors as identities if decreasing the dimension.
+          reset_max_chi (:obj:`bool`):
+            Set maximal bond dimension to the same new value.
         Returns:
           :obj:`~varipeps.peps.PEPS_Tensor`:
             New instance of the class with the increased value.
@@ -417,6 +420,8 @@ class PEPS_Tensor:
             raise ValueError(
                 "Increase above the max value for environment bond dimension."
             )
+
+        new_max_chi = new_chi if reset_max_chi else self.max_chi
 
         if new_chi < self.chi and reinitialize_env_as_identities:
             return type(self)(
@@ -440,7 +445,7 @@ class PEPS_Tensor:
                 d=self.d,
                 D=self.D,
                 chi=new_chi,
-                max_chi=self.max_chi,
+                max_chi=new_max_chi,
             )
         else:
             return type(self)(
@@ -456,7 +461,7 @@ class PEPS_Tensor:
                 d=self.d,
                 D=self.D,
                 chi=new_chi,
-                max_chi=self.max_chi,
+                max_chi=new_max_chi,
             )
 
     def increase_max_chi(

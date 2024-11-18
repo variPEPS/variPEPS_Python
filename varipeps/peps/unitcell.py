@@ -450,19 +450,26 @@ class PEPS_Unit_Cell:
             sanity_checks=False,
         )
 
-    def change_chi(self: T_PEPS_Unit_Cell, new_chi: int) -> T_PEPS_Unit_Cell:
+    def change_chi(
+        self: T_PEPS_Unit_Cell,
+        new_chi: int,
+        reset_max_chi: bool = False,
+    ) -> T_PEPS_Unit_Cell:
         """
         Change environment bond dimension of all tensors in the unit cell.
 
         Args:
           new_chi (:obj:`int`):
             New value for the environment bond dimension.
+          reset_max_chi (:obj:`bool`):
+            Set maximal bond dimension to the same new value.
         Returns:
           PEPS_Unit_Cell:
             New instance of PEPS unit cell with the new tensor list.
         """
         new_unique_tensors = type(self.data.peps_tensors)(
-            t.change_chi(new_chi) for t in self.data.peps_tensors
+            t.change_chi(new_chi, reset_max_chi=reset_max_chi)
+            for t in self.data.peps_tensors
         )
 
         new_data = self.data.replace_peps_tensors(new_unique_tensors)
