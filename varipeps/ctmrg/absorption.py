@@ -25,7 +25,6 @@ from varipeps.expectation.one_site import calc_one_site_single_gate_obj
 from varipeps.config import VariPEPS_Config
 from varipeps.global_state import VariPEPS_Global_State
 
-
 from typing import Sequence, Tuple, List, Dict, Literal
 
 CTMRG_Orientation = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
@@ -1392,11 +1391,11 @@ def do_absorption_step_split_transfer(
     result, bottom_smallest_S = do_bottom_absorption_split_transfer(
         peps_tensors, result, config, state
     )
-    # result = gauge_fix_ctmrg_tensors(peps_tensors, result)
     norm_smallest_S = jnp.linalg.norm(
         jnp.asarray(
             left_smallest_S + top_smallest_S + right_smallest_S + bottom_smallest_S
         ),
         ord=jnp.inf,
     )
+
     return result, norm_smallest_S

@@ -25,6 +25,7 @@ from varipeps.global_state import VariPEPS_Global_State
 from typing import Sequence, Tuple, TypeVar, Optional
 
 from varipeps.utils.debug_print import debug_print
+import jax.debug
 
 
 class _Projectors_Func_Cache:
@@ -291,8 +292,8 @@ def _split_transfer_fishman(first_tensor, second_tensor, truncation_eps):
     first_ketbra_S = jnp.where(
         (first_ketbra_S / first_ketbra_S[0]) >= truncation_eps, first_ketbra_S, 0
     )
+    first_ketbra_S /= jnp.sum(first_ketbra_S)
     first_ketbra_S = jnp.sqrt(first_ketbra_S)
-    first_ketbra_S /= jnp.linalg.norm(first_ketbra_S)
     if first_tensor.ndim == 5:
         first_ketbra_U = first_ketbra_U.reshape(
             first_tensor.shape[0], first_tensor.shape[1], first_ketbra_U.shape[-1]
@@ -330,8 +331,8 @@ def _split_transfer_fishman(first_tensor, second_tensor, truncation_eps):
     second_ketbra_S = jnp.where(
         (second_ketbra_S / second_ketbra_S[0]) >= truncation_eps, second_ketbra_S, 0
     )
+    second_ketbra_S /= jnp.sum(second_ketbra_S)
     second_ketbra_S = jnp.sqrt(second_ketbra_S)
-    second_ketbra_S /= jnp.linalg.norm(second_ketbra_S)
     if second_tensor.ndim == 5:
         second_ketbra_U = second_ketbra_U.reshape(
             second_tensor.shape[0],
@@ -394,15 +395,15 @@ def _horizontal_cut_split_transfer(
         [],
     )
 
+    top_tensor /= jnp.linalg.norm(top_tensor)
+    bottom_tensor /= jnp.linalg.norm(bottom_tensor)
+
     if fishman:
         return _split_transfer_fishman(top_tensor, bottom_tensor, truncation_eps)
 
-    top_norm = jnp.linalg.norm(top_tensor)
-    bottom_norm = jnp.linalg.norm(bottom_tensor)
-
     return (
-        top_tensor / top_norm,
-        bottom_tensor / bottom_norm,
+        top_tensor,
+        bottom_tensor,
     )
 
 
@@ -427,15 +428,15 @@ def _vertical_cut_split_transfer(
         [],
     )
 
+    left_tensor /= jnp.linalg.norm(left_tensor)
+    right_tensor /= jnp.linalg.norm(right_tensor)
+
     if fishman:
         return _split_transfer_fishman(left_tensor, right_tensor, truncation_eps)
 
-    left_norm = jnp.linalg.norm(left_tensor)
-    right_norm = jnp.linalg.norm(right_tensor)
-
     return (
-        left_tensor / left_norm,
-        right_tensor / right_norm,
+        left_tensor,
+        right_tensor,
     )
 
 
@@ -481,9 +482,6 @@ def _left_projectors_workhorse(
     projector_left_bottom = jnp.dot(
         U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], bottom_matrix
     )
-
-    # debug_print("TB: {}", jnp.diag(projector_left_top @ projector_left_bottom))
-    # debug_print("BT: {}", jnp.diag(projector_left_bottom @ projector_left_top))
 
     projector_left_top = projector_left_top.reshape(
         top_left.shape[0],
@@ -602,9 +600,6 @@ def _right_projectors_workhorse(
         U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], top_matrix
     )
     projector_right_bottom = jnp.dot(bottom_matrix, Vh.transpose().conj() * S_inv_sqrt)
-
-    # debug_print("TB: {}", jnp.diag(projector_right_top @ projector_right_bottom))
-    # debug_print("BT: {}", jnp.diag(projector_right_bottom @ projector_right_top))
 
     projector_right_top = projector_right_top.reshape(
         projector_right_top.shape[0],
@@ -988,9 +983,6 @@ def _split_transfer_workhorse(
         second_ketbra_matrix, Vh_ketbra.transpose().conj() * S_inv_sqrt_ketbra
     )
 
-    # debug_print("FS: {}", jnp.diag(projector_first_ketbra @ projector_second_ketbra))
-    # debug_print("SF: {}", jnp.diag(projector_second_ketbra @ projector_first_ketbra))
-
     if first_ketbra.ndim == 6:
         projector_first_ketbra = projector_first_ketbra.reshape(
             projector_first_ketbra.shape[0],
@@ -1223,6 +1215,9 @@ def calc_left_projectors_split_transfer(
             [peps_tensor_objs[1][0], peps_tensor_objs[1][1]],
             [projector_left_top_ket, projector_right_top_bra],
         )
+
+        top_tensor_bra_left /= jnp.linalg.norm(top_tensor_bra_left)
+        bottom_tensor_bra_left /= jnp.linalg.norm(bottom_tensor_bra_left)
     else:
         raise NotImplementedError
 
@@ -1242,9 +1237,6 @@ def calc_left_projectors_split_transfer(
         bottom_tensor_bra_left = (
             bottom_bra_S[:, jnp.newaxis, jnp.newaxis] * bottom_bra_Vh
         )
-    else:
-        top_tensor_bra_left /= jnp.linalg.norm(top_tensor_bra_left)
-        bottom_tensor_bra_left /= jnp.linalg.norm(bottom_tensor_bra_left)
 
     (
         projector_left_bottom_bra,
@@ -1309,6 +1301,11 @@ def calc_left_projectors_split_transfer(
     top_tensor_phys_bra_right = top_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
     bottom_tensor_phys_bra_right = bottom_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
 
+    top_tensor_phys_ket_left /= jnp.linalg.norm(top_tensor_phys_ket_left)
+    bottom_tensor_phys_ket_left /= jnp.linalg.norm(bottom_tensor_phys_ket_left)
+    top_tensor_phys_bra_right /= jnp.linalg.norm(top_tensor_phys_bra_right)
+    bottom_tensor_phys_bra_right /= jnp.linalg.norm(bottom_tensor_phys_bra_right)
+
     if projector_method is Projector_Method.FISHMAN:
         (
             top_phys_ket_U,
@@ -1344,11 +1341,6 @@ def calc_left_projectors_split_transfer(
         bottom_tensor_phys_bra_right = (
             bottom_phys_bra_U * bottom_phys_bra_S[jnp.newaxis, jnp.newaxis, :]
         )
-    else:
-        top_tensor_phys_ket_left /= jnp.linalg.norm(top_tensor_phys_ket_left)
-        bottom_tensor_phys_ket_left /= jnp.linalg.norm(bottom_tensor_phys_ket_left)
-        top_tensor_phys_bra_right /= jnp.linalg.norm(top_tensor_phys_bra_right)
-        bottom_tensor_phys_bra_right /= jnp.linalg.norm(bottom_tensor_phys_bra_right)
 
     (
         projector_left_bottom_phys_ket,
@@ -1384,6 +1376,8 @@ def calc_left_projectors_split_transfer(
         [peps_tensor_objs[0][0], peps_tensor_objs[0][1]],
         [projector_left_top_phys_ket, projector_right_top_phys_bra],
     )
+    top_tensor_phys_bra_left /= jnp.linalg.norm(top_tensor_phys_bra_left)
+    bottom_tensor_phys_bra_left /= jnp.linalg.norm(bottom_tensor_phys_bra_left)
 
     if projector_method is Projector_Method.FISHMAN:
         (
@@ -1404,9 +1398,6 @@ def calc_left_projectors_split_transfer(
             bottom_phys_bra_S[:, jnp.newaxis, jnp.newaxis, jnp.newaxis]
             * bottom_phys_bra_Vh
         )
-    else:
-        top_tensor_phys_bra_left /= jnp.linalg.norm(top_tensor_phys_bra_left)
-        bottom_tensor_phys_bra_left /= jnp.linalg.norm(bottom_tensor_phys_bra_left)
 
     (
         projector_left_bottom_phys_bra,
@@ -1567,6 +1558,9 @@ def calc_right_projectors_split_transfer(
             [peps_tensor_objs[1][0], peps_tensor_objs[1][1]],
             [projector_left_top_ket, projector_right_top_bra],
         )
+
+        top_tensor_ket_right /= jnp.linalg.norm(top_tensor_ket_right)
+        bottom_tensor_ket_right /= jnp.linalg.norm(bottom_tensor_ket_right)
     else:
         raise NotImplementedError
 
@@ -1586,9 +1580,6 @@ def calc_right_projectors_split_transfer(
         bottom_tensor_ket_right = (
             bottom_ket_U * bottom_ket_S[jnp.newaxis, jnp.newaxis, :]
         )
-    else:
-        top_tensor_ket_right /= jnp.linalg.norm(top_tensor_ket_right)
-        bottom_tensor_ket_right /= jnp.linalg.norm(bottom_tensor_ket_right)
 
     (
         projector_right_top_ket,
@@ -1626,6 +1617,13 @@ def calc_right_projectors_split_transfer(
         [peps_tensor_objs[0][1]],
         [],
     )
+    top_tensor_phys_bra_right = top_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
+    bottom_tensor_phys_bra_right = bottom_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
+
+    top_tensor_phys_ket_left /= jnp.linalg.norm(top_tensor_phys_ket_left)
+    bottom_tensor_phys_ket_left /= jnp.linalg.norm(bottom_tensor_phys_ket_left)
+    top_tensor_phys_bra_right /= jnp.linalg.norm(top_tensor_phys_bra_right)
+    bottom_tensor_phys_bra_right /= jnp.linalg.norm(bottom_tensor_phys_bra_right)
 
     if projector_method is Projector_Method.FISHMAN:
         (
@@ -1646,10 +1644,6 @@ def calc_right_projectors_split_transfer(
             bottom_phys_ket_S[:, jnp.newaxis, jnp.newaxis] * bottom_phys_ket_Vh
         )
 
-        top_tensor_phys_bra_right = top_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
-        bottom_tensor_phys_bra_right = bottom_tensor_phys_bra_right.transpose(
-            0, 1, 4, 2, 3
-        )
         (
             bottom_phys_bra_U,
             bottom_phys_bra_S,
@@ -1665,15 +1659,6 @@ def calc_right_projectors_split_transfer(
         )
         bottom_tensor_phys_bra_right = (
             bottom_phys_bra_U * bottom_phys_bra_S[jnp.newaxis, jnp.newaxis, :]
-        )
-    else:
-        top_tensor_phys_ket_left /= jnp.linalg.norm(top_tensor_phys_ket_left)
-        bottom_tensor_phys_ket_left /= jnp.linalg.norm(bottom_tensor_phys_ket_left)
-        top_tensor_phys_bra_right /= jnp.linalg.norm(top_tensor_phys_bra_right)
-        bottom_tensor_phys_bra_right /= jnp.linalg.norm(bottom_tensor_phys_bra_right)
-        top_tensor_phys_bra_right = top_tensor_phys_bra_right.transpose(0, 1, 4, 2, 3)
-        bottom_tensor_phys_bra_right = bottom_tensor_phys_bra_right.transpose(
-            0, 1, 4, 2, 3
         )
 
     (
@@ -1710,16 +1695,19 @@ def calc_right_projectors_split_transfer(
         [peps_tensor_objs[0][0], peps_tensor_objs[0][1]],
         [projector_left_top_phys_ket, projector_right_top_phys_bra],
     )
+    top_tensor_phys_ket_right /= jnp.linalg.norm(top_tensor_phys_ket_right)
+    bottom_tensor_phys_ket_right /= jnp.linalg.norm(bottom_tensor_phys_ket_right)
+
     if projector_method is Projector_Method.FISHMAN:
         (
-            _,
-            top_phys_ket_S,
-            top_phys_ket_Vh,
             bottom_phys_ket_U,
             bottom_phys_ket_S,
             _,
+            _,
+            top_phys_ket_S,
+            top_phys_ket_Vh,
         ) = _split_transfer_fishman(
-            top_tensor_phys_ket_right, bottom_tensor_phys_bra_left, truncation_eps
+            bottom_tensor_phys_ket_right, top_tensor_phys_ket_right, truncation_eps
         )
 
         top_tensor_phys_ket_right = (
@@ -1729,9 +1717,6 @@ def calc_right_projectors_split_transfer(
             bottom_phys_ket_U
             * bottom_phys_ket_S[jnp.newaxis, jnp.newaxis, jnp.newaxis, :]
         )
-    else:
-        top_tensor_phys_ket_right /= jnp.linalg.norm(top_tensor_phys_ket_right)
-        bottom_tensor_phys_ket_right /= jnp.linalg.norm(bottom_tensor_phys_ket_right)
 
     (
         projector_right_top_phys_ket,
@@ -1892,6 +1877,9 @@ def calc_top_projectors_split_transfer(
             [peps_tensor_objs[0][1], peps_tensor_objs[1][1]],
             [projector_top_left_ket, projector_bottom_left_bra],
         )
+
+        left_tensor_bra_top /= jnp.linalg.norm(left_tensor_bra_top)
+        right_tensor_bra_top /= jnp.linalg.norm(right_tensor_bra_top)
     else:
         raise NotImplementedError
 
@@ -1909,9 +1897,6 @@ def calc_top_projectors_split_transfer(
 
         left_tensor_bra_top = left_bra_S[:, jnp.newaxis, jnp.newaxis] * left_bra_Vh
         right_tensor_bra_top = right_bra_U * right_bra_S[jnp.newaxis, jnp.newaxis, :]
-    else:
-        left_tensor_bra_top /= jnp.linalg.norm(left_tensor_bra_top)
-        right_tensor_bra_top /= jnp.linalg.norm(right_tensor_bra_top)
 
     (
         projector_top_left_bra,
@@ -1952,6 +1937,11 @@ def calc_top_projectors_split_transfer(
     left_tensor_phys_bra_bottom = left_tensor_phys_bra_bottom.transpose(0, 1, 4, 2, 3)
     right_tensor_phys_bra_bottom = right_tensor_phys_bra_bottom.transpose(0, 1, 4, 2, 3)
 
+    left_tensor_phys_ket_top /= jnp.linalg.norm(left_tensor_phys_ket_top)
+    right_tensor_phys_ket_top /= jnp.linalg.norm(right_tensor_phys_ket_top)
+    left_tensor_phys_bra_bottom /= jnp.linalg.norm(left_tensor_phys_bra_bottom)
+    right_tensor_phys_bra_bottom /= jnp.linalg.norm(right_tensor_phys_bra_bottom)
+
     if projector_method is Projector_Method.FISHMAN:
         (
             right_phys_ket_U,
@@ -1982,16 +1972,11 @@ def calc_top_projectors_split_transfer(
             left_tensor_phys_bra_bottom, right_tensor_phys_bra_bottom, truncation_eps
         )
         left_tensor_phys_bra_bottom = (
-            left_phys_bra_S[:, jnp.newaxis, jnp.newaxis] * left_phys_bra_Vh
+            left_phys_bra_U * left_phys_bra_S[jnp.newaxis, jnp.newaxis, :]
         )
         right_tensor_phys_bra_bottom = (
-            right_phys_bra_U * right_phys_bra_S[jnp.newaxis, jnp.newaxis, :]
+            right_phys_bra_S[:, jnp.newaxis, jnp.newaxis] * right_phys_bra_Vh
         )
-    else:
-        left_tensor_phys_ket_top /= jnp.linalg.norm(left_tensor_phys_ket_top)
-        right_tensor_phys_ket_top /= jnp.linalg.norm(right_tensor_phys_ket_top)
-        left_tensor_phys_bra_bottom /= jnp.linalg.norm(left_tensor_phys_bra_bottom)
-        right_tensor_phys_bra_bottom /= jnp.linalg.norm(right_tensor_phys_bra_bottom)
 
     (
         projector_top_left_phys_ket,
@@ -2027,6 +2012,8 @@ def calc_top_projectors_split_transfer(
         [peps_tensor_objs[0][0], peps_tensor_objs[1][0]],
         [projector_top_left_phys_ket, projector_bottom_left_phys_bra],
     )
+    left_tensor_phys_bra_top /= jnp.linalg.norm(left_tensor_phys_bra_top)
+    right_tensor_phys_bra_top /= jnp.linalg.norm(right_tensor_phys_bra_top)
 
     if projector_method is Projector_Method.FISHMAN:
         (
@@ -2047,9 +2034,6 @@ def calc_top_projectors_split_transfer(
         left_tensor_phys_bra_top = (
             left_phys_bra_S[:, jnp.newaxis, jnp.newaxis, jnp.newaxis] * left_phys_bra_Vh
         )
-    else:
-        left_tensor_phys_bra_top /= jnp.linalg.norm(left_tensor_phys_bra_top)
-        right_tensor_phys_bra_top /= jnp.linalg.norm(right_tensor_phys_bra_top)
 
     (
         projector_top_left_phys_bra,
@@ -2205,6 +2189,9 @@ def calc_bottom_projectors_split_transfer(
             [peps_tensor_objs[0][1], peps_tensor_objs[1][1]],
             [projector_top_left_ket, projector_bottom_left_bra],
         )
+
+        left_tensor_ket_bottom /= jnp.linalg.norm(left_tensor_ket_bottom)
+        right_tensor_ket_bottom /= jnp.linalg.norm(right_tensor_ket_bottom)
     else:
         raise NotImplementedError
 
@@ -2224,9 +2211,6 @@ def calc_bottom_projectors_split_transfer(
         right_tensor_ket_bottom = (
             right_ket_S[:, jnp.newaxis, jnp.newaxis] * right_ket_Vh
         )
-    else:
-        left_tensor_ket_bottom /= jnp.linalg.norm(left_tensor_ket_bottom)
-        right_tensor_ket_bottom /= jnp.linalg.norm(right_tensor_ket_bottom)
 
     (
         projector_bottom_right_ket,
@@ -2267,6 +2251,11 @@ def calc_bottom_projectors_split_transfer(
     left_tensor_phys_bra_bottom = left_tensor_phys_bra_bottom.transpose(0, 1, 4, 2, 3)
     right_tensor_phys_bra_bottom = right_tensor_phys_bra_bottom.transpose(0, 1, 4, 2, 3)
 
+    left_tensor_phys_ket_top /= jnp.linalg.norm(left_tensor_phys_ket_top)
+    right_tensor_phys_ket_top /= jnp.linalg.norm(right_tensor_phys_ket_top)
+    left_tensor_phys_bra_bottom /= jnp.linalg.norm(left_tensor_phys_bra_bottom)
+    right_tensor_phys_bra_bottom /= jnp.linalg.norm(right_tensor_phys_bra_bottom)
+
     if projector_method is Projector_Method.FISHMAN:
         (
             right_phys_ket_U,
@@ -2297,16 +2286,11 @@ def calc_bottom_projectors_split_transfer(
             left_tensor_phys_bra_bottom, right_tensor_phys_bra_bottom, truncation_eps
         )
         left_tensor_phys_bra_bottom = (
-            left_phys_bra_S[:, jnp.newaxis, jnp.newaxis] * left_phys_bra_Vh
+            left_phys_bra_U * left_phys_bra_S[jnp.newaxis, jnp.newaxis, :]
         )
         right_tensor_phys_bra_bottom = (
-            right_phys_bra_U * right_phys_bra_S[jnp.newaxis, jnp.newaxis, :]
+            right_phys_bra_S[:, jnp.newaxis, jnp.newaxis] * right_phys_bra_Vh
         )
-    else:
-        left_tensor_phys_ket_top /= jnp.linalg.norm(left_tensor_phys_ket_top)
-        right_tensor_phys_ket_top /= jnp.linalg.norm(right_tensor_phys_ket_top)
-        left_tensor_phys_bra_bottom /= jnp.linalg.norm(left_tensor_phys_bra_bottom)
-        right_tensor_phys_bra_bottom /= jnp.linalg.norm(right_tensor_phys_bra_bottom)
 
     (
         projector_top_left_phys_ket,
@@ -2342,6 +2326,9 @@ def calc_bottom_projectors_split_transfer(
         [peps_tensor_objs[0][0], peps_tensor_objs[1][0]],
         [projector_top_left_phys_ket, projector_bottom_left_phys_bra],
     )
+    left_tensor_phys_ket_bottom /= jnp.linalg.norm(left_tensor_phys_ket_bottom)
+    right_tensor_phys_ket_bottom /= jnp.linalg.norm(right_tensor_phys_ket_bottom)
+
     if projector_method is Projector_Method.FISHMAN:
         (
             left_phys_bra_U,
@@ -2361,9 +2348,6 @@ def calc_bottom_projectors_split_transfer(
             right_phys_bra_S[:, jnp.newaxis, jnp.newaxis, jnp.newaxis]
             * right_phys_bra_Vh
         )
-    else:
-        left_tensor_phys_ket_bottom /= jnp.linalg.norm(left_tensor_phys_ket_bottom)
-        right_tensor_phys_ket_bottom /= jnp.linalg.norm(right_tensor_phys_ket_bottom)
 
     (
         projector_bottom_right_phys_ket,
