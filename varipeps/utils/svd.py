@@ -24,14 +24,30 @@ def _H(x):
 def svd_wrapper(a):
     check_arraylike("jnp.linalg.svd", a)
     (a,) = promote_dtypes_inexact(jnp.asarray(a))
-    return lax_svd(a, full_matrices=False, compute_uv=True)
+
+    result = lax_svd(a, full_matrices=False, compute_uv=True)
+
+    result = lax.cond(
+        jnp.isnan(jnp.sum(result[1])),
+        lambda matrix, _: lax_svd(
+            matrix,
+            full_matrices=False,
+            compute_uv=True,
+            algorithm=lax.linalg.SvdAlgorithm.QR,
+        ),
+        lambda _, res: res,
+        a,
+        result,
+    )
+
+    return result
 
 
 @svd_wrapper.defjvp
 def _svd_jvp_rule(primals, tangents):
     (A,) = primals
     (dA,) = tangents
-    U, s, Vt = lax_svd(A, full_matrices=False, compute_uv=True)
+    U, s, Vt = svd_wrapper(A)
 
     Ut, V = _H(U), _H(Vt)
     s_dim = s[..., None, :]
