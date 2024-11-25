@@ -12,7 +12,7 @@ def _format_print_callback(fmt: str, *args, **kwargs):
     tqdm.write(fmt.format(*args, **kwargs))
 
 
-def debug_print(fmt: str, *args, ordered: bool = False, **kwargs) -> None:
+def debug_print(fmt: str, *args, ordered: bool = True, **kwargs) -> None:
     """
     Prints values and works in staged out JAX functions.
 
