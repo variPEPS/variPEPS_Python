@@ -538,12 +538,15 @@ def calc_ctmrg_env(
         corner_singular_vals = None
 
         while any(
-            i.C1.shape[0] != i.chi for i in working_unitcell.get_unique_tensors()
+            getattr(i, j).shape[0] != i.chi or getattr(i, j).shape[1] != i.chi
+            for i in working_unitcell.get_unique_tensors()
+            for j in ("C1", "C2", "C3", "C4")
         ) or (
             hasattr(working_unitcell.get_unique_tensors()[0], "T4_ket")
             and any(
-                i.T4_ket.shape[0] != i.interlayer_chi
+                getattr(i, j).shape[0] != i.interlayer_chi
                 for i in working_unitcell.get_unique_tensors()
+                for j in ("T1_bra", "T2_ket", "T3_bra", "T4_ket")
             )
         ):
             (
