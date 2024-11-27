@@ -1390,6 +1390,7 @@ class PEPS_Tensor_Structure_Factor(PEPS_Tensor):
         new_chi: int,
         *,
         reinitialize_env_as_identities: bool = True,
+        reset_max_chi: bool = False,
     ) -> T_PEPS_Tensor:
         """
         Change the environment bond dimension and returns new object of the class.
@@ -1400,6 +1401,8 @@ class PEPS_Tensor_Structure_Factor(PEPS_Tensor):
         Keyword args:
           reinitialize_env_as_identities (:obj:`bool`):
             Reinitialize the CTM tensors as identities if decreasing the dimension.
+          reset_max_chi (:obj:`bool`):
+            Set maximal bond dimension to the same new value.
         Returns:
           :obj:`~varipeps.peps.PEPS_Tensor`:
             New instance of the class with the increased value.
@@ -1408,6 +1411,8 @@ class PEPS_Tensor_Structure_Factor(PEPS_Tensor):
             raise ValueError(
                 "Increase above the max value for environment bond dimension."
             )
+
+        new_max_chi = new_chi if reset_max_chi else self.max_chi
 
         if new_chi < self.chi and reinitialize_env_as_identities:
             return type(self)(
@@ -1447,7 +1452,7 @@ class PEPS_Tensor_Structure_Factor(PEPS_Tensor):
                 d=self.d,
                 D=self.D,
                 chi=new_chi,
-                max_chi=self.max_chi,
+                max_chi=new_max_chi,
             )
         else:
             return type(self)(
@@ -1471,7 +1476,7 @@ class PEPS_Tensor_Structure_Factor(PEPS_Tensor):
                 d=self.d,
                 D=self.D,
                 chi=new_chi,
-                max_chi=self.max_chi,
+                max_chi=new_max_chi,
             )
 
     def increase_max_chi(
@@ -2167,6 +2172,8 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
         new_chi: int,
         *,
         reinitialize_env_as_identities: bool = True,
+        reset_max_chi: bool = False,
+        reset_interlayer_chi: bool = True,
     ) -> T_PEPS_Tensor_Split_Transfer:
         """
         Change the environment bond dimension and returns new object of the class.
@@ -2177,6 +2184,10 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
         Keyword args:
           reinitialize_env_as_identities (:obj:`bool`):
             Reinitialize the CTM tensors as identities if decreasing the dimension.
+          reset_max_chi (:obj:`bool`):
+            Set maximal bond dimension to the same new value.
+          reset_interlayer_chi (:obj:`bool`):
+            Set interlayer bond dimension to the same new value.
         Returns:
           :obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`:
             New instance of the class with the increased value.
@@ -2185,6 +2196,10 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             raise ValueError(
                 "Increase above the max value for environment bond dimension."
             )
+
+        new_max_chi = new_chi if reset_max_chi else self.max_chi
+
+        new_interlayer_chi = new_chi if reset_interlayer_chi else self.interlayer_chi
 
         if new_chi < self.chi and reinitialize_env_as_identities:
             return type(self)(
@@ -2208,8 +2223,8 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
                 d=self.d,
                 D=self.D,
                 chi=new_chi,
-                max_chi=self.max_chi,
-                interlayer_chi=self.interlayer_chi,
+                max_chi=new_max_chi,
+                interlayer_chi=new_interlayer_chi,
             )
         else:
             return type(self)(
@@ -2229,8 +2244,8 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
                 d=self.d,
                 D=self.D,
                 chi=new_chi,
-                max_chi=self.max_chi,
-                interlayer_chi=self.interlayer_chi,
+                max_chi=new_max_chi,
+                interlayer_chi=new_interlayer_chi,
             )
 
     def increase_max_chi(

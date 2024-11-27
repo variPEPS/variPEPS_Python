@@ -496,7 +496,7 @@ class PEPS_Unit_Cell:
         )
 
     def convert_to_full_transfer(
-        self: T_PEPS_Unit_Cell, interlayer_chi: Optional[int] = None
+        self: T_PEPS_Unit_Cell
     ) -> T_PEPS_Unit_Cell:
         """
         Convert the list of unique tensors to the full transfer ansatz.
