@@ -385,9 +385,7 @@ def optimize_peps_network(
         l_bfgs_grad_cache = deque(maxlen=varipeps_config.optimizer_l_bfgs_maxlen + 1)
 
     count = 0
-    linesearch_step: Union[float, jnp.ndarray] = (
-        varipeps_config.line_search_initial_step_size
-    )
+    linesearch_step: Optional[Union[float, jnp.ndarray]] = None
     working_value: Union[float, jnp.ndarray]
     max_trunc_error_list = {random_noise_retries: []}
     step_energies = {random_noise_retries: []}

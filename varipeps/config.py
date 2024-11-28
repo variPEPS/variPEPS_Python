@@ -21,6 +21,7 @@ class Line_Search_Methods(IntEnum):
     SIMPLE = auto()  #: Simple line search method
     ARMIJO = auto()  #: Armijo line search method
     WOLFE = auto()  #: Wolfe line search method
+    HAGERZHANG = auto()  #: Hager-Zhang line search method
 
 
 @unique
@@ -155,6 +156,28 @@ class VariPEPS_Config:
       line_search_use_last_step_size (:obj:`bool`):
         Flag if the line search should start from the step size of the
         previous optimizer step.
+      line_search_hager_zhang_quad_step (:obj:`bool`):
+        Use QuadStep method in Hager-Zhang line search to find initial
+        step size.
+      line_search_hager_zhang_delta (:obj:`float`):
+        Constant used in Hager-Zhang line search method.
+      line_search_hager_zhang_sigma (:obj:`float`):
+        Constant used in Hager-Zhang line search method.
+      line_search_hager_zhang_psi_0 (:obj:`float`):
+        Constant used in Hager-Zhang line search method.
+      line_search_hager_zhang_psi_1 (:obj:`float`):
+        Constant used in Hager-Zhang line search method.
+      line_search_hager_zhang_psi_2 (:obj:`float`):
+        Constant used in Hager-Zhang line search method.
+      line_search_hager_zhang_eps (:obj:`float`):
+        Constant used in Hager-Zhang line search method.
+      line_search_hager_zhang_theta (:obj:`float`):
+        Constant used in Hager-Zhang line search method.
+      line_search_hager_zhang_gamma (:obj:`float`):
+        Constant used in Hager-Zhang line search method.
+      line_search_hager_zhang_rho (:obj:`float`):
+        Constant used in Hager-Zhang line search method.
+
       basinhopping_niter (:obj:`int`):
         Value for parameter `niter` of :obj:`scipy.optimize.basinhopping`.
         See this function for details.
@@ -214,13 +237,24 @@ class VariPEPS_Config:
     optimizer_reuse_env_eps: float = 1e-3
 
     # Line search
-    line_search_method: Line_Search_Methods = Line_Search_Methods.WOLFE
+    line_search_method: Line_Search_Methods = Line_Search_Methods.HAGERZHANG
     line_search_initial_step_size: float = 1.0
     line_search_reduction_factor: float = 0.5
     line_search_max_steps: int = 20
     line_search_armijo_const: float = 1e-4
     line_search_wolfe_const: float = 0.9
     line_search_use_last_step_size: bool = False
+
+    line_search_hager_zhang_quad_step: bool = True
+    line_search_hager_zhang_delta: float = 0.1
+    line_search_hager_zhang_sigma: float = 0.9
+    line_search_hager_zhang_psi_0: float = 0.01
+    line_search_hager_zhang_psi_1: float = 0.1
+    line_search_hager_zhang_psi_2: float = 2.0
+    line_search_hager_zhang_eps: float = 1e-8
+    line_search_hager_zhang_theta: float = 0.5
+    line_search_hager_zhang_gamma: float = 0.66
+    line_search_hager_zhang_rho: float = 5
 
     # Basinhopping
     basinhopping_niter: int = 20
