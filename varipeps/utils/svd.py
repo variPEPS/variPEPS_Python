@@ -55,6 +55,7 @@ def _svd_jvp_rule(primals, tangents):
     ds = jnp.real(jnp.diagonal(dS, 0, -2, -1))
 
     s_diffs = (s_dim + _T(s_dim)) * (s_dim - _T(s_dim))
+    # s_diffs = jnp.where(s_diffs / (s[0] ** 2) >= 1e-12, s_diffs, 0)
     s_diffs_zeros = jnp.ones((), dtype=A.dtype) * (
         s_diffs == 0.0
     )  # is 1. where s_diffs is 0. and is 0. everywhere else

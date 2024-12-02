@@ -293,7 +293,11 @@ def _split_transfer_fishman(first_tensor, second_tensor, truncation_eps):
         (first_ketbra_S / first_ketbra_S[0]) >= truncation_eps, first_ketbra_S, 0
     )
     first_ketbra_S /= jnp.sum(first_ketbra_S)
-    first_ketbra_S = jnp.sqrt(first_ketbra_S)
+    first_ketbra_S = jnp.where(
+        first_ketbra_S == 0,
+        0,
+        jnp.sqrt(jnp.where(first_ketbra_S == 0, 1, first_ketbra_S)),
+    )
     if first_tensor.ndim == 5:
         first_ketbra_U = first_ketbra_U.reshape(
             first_tensor.shape[0], first_tensor.shape[1], first_ketbra_U.shape[-1]
@@ -332,7 +336,11 @@ def _split_transfer_fishman(first_tensor, second_tensor, truncation_eps):
         (second_ketbra_S / second_ketbra_S[0]) >= truncation_eps, second_ketbra_S, 0
     )
     second_ketbra_S /= jnp.sum(second_ketbra_S)
-    second_ketbra_S = jnp.sqrt(second_ketbra_S)
+    second_ketbra_S = jnp.where(
+        second_ketbra_S == 0,
+        0,
+        jnp.sqrt(jnp.where(second_ketbra_S == 0, 1, second_ketbra_S)),
+    )
     if second_tensor.ndim == 5:
         second_ketbra_U = second_ketbra_U.reshape(
             second_tensor.shape[0],
