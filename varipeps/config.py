@@ -251,7 +251,7 @@ class VariPEPS_Config:
     line_search_hager_zhang_psi_0: float = 0.01
     line_search_hager_zhang_psi_1: float = 0.1
     line_search_hager_zhang_psi_2: float = 2.0
-    line_search_hager_zhang_eps: float = 1e-8
+    line_search_hager_zhang_eps: float = 1e-6
     line_search_hager_zhang_theta: float = 0.5
     line_search_hager_zhang_gamma: float = 0.66
     line_search_hager_zhang_rho: float = 5
