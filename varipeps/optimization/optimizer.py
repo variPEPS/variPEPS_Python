@@ -444,6 +444,7 @@ def optimize_peps_network(
                         step_energies=step_energies,
                         step_chi=step_chi,
                         step_conv=step_conv,
+                        step_runtime=step_runtime,
                         best_run=0,
                     )
                 elif (
