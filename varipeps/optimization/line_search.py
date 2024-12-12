@@ -654,6 +654,8 @@ def line_search(
                             None,
                         )
                         signal_reset_descent_dir = False
+
+                    count += 1
                     continue
                 else:
                     hager_zhang_upper_bound = alpha
@@ -681,6 +683,7 @@ def line_search(
                             None,
                         )
                         signal_reset_descent_dir = False
+                    count += 1
                     continue
             elif descent_new_grad >= 0:
                 hager_zhang_upper_bound = alpha
@@ -710,6 +713,7 @@ def line_search(
                         None,
                     )
                     signal_reset_descent_dir = False
+                count += 1
                 continue
             else:
                 if new_value <= (
@@ -736,6 +740,7 @@ def line_search(
                         None,
                     )
                     signal_reset_descent_dir = False
+                count += 1
                 continue
 
         if varipeps_config.line_search_method is Line_Search_Methods.SIMPLE:
@@ -915,6 +920,7 @@ def line_search(
                             None,
                         )
                         signal_reset_descent_dir = False
+                    count += 1
                     continue
             elif hager_zhang_state is _Hager_Zhang_State.UPDATE_INNER:
                 if descent_new_grad >= 0:
@@ -951,6 +957,7 @@ def line_search(
                             None,
                         )
                         signal_reset_descent_dir = False
+                    count += 1
                     continue
                 else:
                     hager_zhang_upper_bound = alpha
@@ -980,6 +987,7 @@ def line_search(
                             None,
                         )
                         signal_reset_descent_dir = False
+                    count += 1
                     continue
             else:
                 alpha = hager_zhang_lower_bound * hager_zhang_upper_bound_des_grad
@@ -1017,6 +1025,7 @@ def line_search(
                             None,
                         )
                         signal_reset_descent_dir = False
+                    count += 1
                     continue
 
             if hz_secant_alpha is not None and (
@@ -1051,6 +1060,7 @@ def line_search(
                             None,
                         )
                         signal_reset_descent_dir = False
+                    count += 1
                     continue
             hz_secant_alpha = None
 
@@ -1077,6 +1087,7 @@ def line_search(
                         None,
                     )
                     signal_reset_descent_dir = False
+                count += 1
                 continue
             hz_secant_lower = None
 

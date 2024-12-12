@@ -240,7 +240,7 @@ class VariPEPS_Config:
     line_search_method: Line_Search_Methods = Line_Search_Methods.HAGERZHANG
     line_search_initial_step_size: float = 1.0
     line_search_reduction_factor: float = 0.5
-    line_search_max_steps: int = 20
+    line_search_max_steps: int = 40
     line_search_armijo_const: float = 1e-4
     line_search_wolfe_const: float = 0.9
     line_search_use_last_step_size: bool = False
