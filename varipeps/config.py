@@ -3,7 +3,7 @@ from enum import Enum, IntEnum, auto, unique
 
 from jax.tree_util import register_pytree_node_class
 
-from typing import TypeVar, Tuple, Any, Type
+from typing import TypeVar, Tuple, Any, Type, NoReturn
 
 T_VariPEPS_Config = TypeVar("T_VariPEPS_Config", bound="VariPEPS_Config")
 
@@ -177,7 +177,6 @@ class VariPEPS_Config:
         Constant used in Hager-Zhang line search method.
       line_search_hager_zhang_rho (:obj:`float`):
         Constant used in Hager-Zhang line search method.
-
       basinhopping_niter (:obj:`int`):
         Value for parameter `niter` of :obj:`scipy.optimize.basinhopping`.
         See this function for details.
@@ -264,6 +263,25 @@ class VariPEPS_Config:
     # Spiral PEPS
     spiral_wavevector_type: Wavevector_Type = Wavevector_Type.TWO_PI_POSITIVE_ONLY
 
+    def update(self, name: str, value: Any) -> NoReturn:
+        self.__setattr__(name, value)
+
+    def __setattr__(self, name: str, value: Any) -> NoReturn:
+        try:
+            field = self.__dataclass_fields__[name]
+        except KeyError as e:
+            raise KeyError(f"Unknown config option '{name}'.") from e
+
+        if not type(value) is field.type:
+            if field.type is float and type(value) is int:
+                pass
+            else:
+                raise TypeError(
+                    f"Type mismatch for option '{name}', got '{type(value)}', expected '{field.type}'."
+                )
+
+        super().__setattr__(name, value)
+
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
         aux_data = (
             {name: getattr(self, name) for name in self.__dataclass_fields__.keys()},
@@ -283,3 +301,35 @@ class VariPEPS_Config:
 
 
 config = VariPEPS_Config()
+
+
+class ConfigModuleWrapper:
+    __slots__ = {
+        "Optimizing_Methods",
+        "Line_Search_Methods",
+        "Projector_Method",
+        "Wavevector_Type",
+        "VariPEPS_Config",
+        "config",
+    }
+
+    def __init__(self):
+        for e in self.__slots__:
+            setattr(self, e, globals()[e])
+
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("__") or name in self.__slots__:
+            return super().__getattr__(name)
+        else:
+            return getattr(self.config, name)
+
+    def __setattr__(self, name: str, value: Any) -> NoReturn:
+        if not name.startswith("__") and name not in self.__slots__:
+            setattr(self.config, name, value)
+        elif not hasattr(self, name):
+            super().__setattr__(name, value)
+        else:
+            raise AttributeError(f"Attribute '{name}' is write-protected.")
+
+
+wrapper = ConfigModuleWrapper()

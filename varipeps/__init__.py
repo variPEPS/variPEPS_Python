@@ -1,5 +1,5 @@
 # First import config so it is usable in other parts of the module
-from . import config
+from .config import wrapper as config
 from .config import config as varipeps_config
 from .global_state import global_state as varipeps_global_state
 
@@ -26,3 +26,4 @@ tqdm_logging.set_log_rate(datetime.timedelta(seconds=60))
 
 del datetime
 del tqdm_logging
+del jax_config
