@@ -452,12 +452,12 @@ class PEPS_Tensor:
           :obj:`~varipeps.peps.PEPS_Tensor`:
             New instance of the class with the increased value.
         """
-        if new_chi > self.max_chi:
+        new_max_chi = new_chi if reset_max_chi else self.max_chi
+
+        if new_chi > new_max_chi:
             raise ValueError(
                 "Increase above the max value for environment bond dimension."
             )
-
-        new_max_chi = new_chi if reset_max_chi else self.max_chi
 
         if new_chi < self.chi and reinitialize_env_as_identities:
             return type(self)(
@@ -1407,12 +1407,12 @@ class PEPS_Tensor_Structure_Factor(PEPS_Tensor):
           :obj:`~varipeps.peps.PEPS_Tensor`:
             New instance of the class with the increased value.
         """
-        if new_chi > self.max_chi:
+        new_max_chi = new_chi if reset_max_chi else self.max_chi
+
+        if new_chi > new_max_chi:
             raise ValueError(
                 "Increase above the max value for environment bond dimension."
             )
-
-        new_max_chi = new_chi if reset_max_chi else self.max_chi
 
         if new_chi < self.chi and reinitialize_env_as_identities:
             return type(self)(
@@ -2330,12 +2330,12 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
           :obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`:
             New instance of the class with the increased value.
         """
-        if new_chi > self.max_chi:
+        new_max_chi = new_chi if reset_max_chi else self.max_chi
+
+        if new_chi > new_max_chi:
             raise ValueError(
                 "Increase above the max value for environment bond dimension."
             )
-
-        new_max_chi = new_chi if reset_max_chi else self.max_chi
 
         new_interlayer_chi = new_chi if reset_interlayer_chi else self.interlayer_chi
 
