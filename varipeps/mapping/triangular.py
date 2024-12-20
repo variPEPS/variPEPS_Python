@@ -82,6 +82,7 @@ class Triangular_Expectation_Value(Expectation_Model):
     """
 
     nearest_neighbor_gates: Sequence[jnp.ndarray]
+    real_d: int
     normalization_factor: int = 1
 
     is_spiral_peps: bool = False
@@ -90,6 +91,22 @@ class Triangular_Expectation_Value(Expectation_Model):
     def __post_init__(self) -> None:
         if isinstance(self.nearest_neighbor_gates, jnp.ndarray):
             self.nearest_neighbor_gates = (self.nearest_neighbor_gates,)
+        else:
+            self.nearest_neighbor_gates = tuple(self.nearest_neighbor_gates)
+
+        self._result_type = (
+            jnp.float64
+            if all(
+                jnp.allclose(g, g.T.conj())
+                for g in self.nearest_neighbor_gates
+            )
+            else jnp.complex128
+        )
+
+        if self.is_spiral_peps:
+            self._spiral_D, self._spiral_sigma = jnp.linalg.eigh(
+                self.spiral_unitary_operator
+            )
 
     def __call__(
         self,
@@ -101,15 +118,67 @@ class Triangular_Expectation_Value(Expectation_Model):
         only_unique: bool = True,
         return_single_gate_results: bool = False,
     ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
-        result_type = (
-            jnp.float64
-            if all(jnp.allclose(g, jnp.real(g)) for g in self.nearest_neighbor_gates)
-            else jnp.complex128
-        )
         result = [
-            jnp.array(0, dtype=result_type)
+            jnp.array(0, dtype=self._result_type)
             for _ in range(len(self.nearest_neighbor_gates))
         ]
+
+        if self.is_spiral_peps:
+            if (
+                isinstance(spiral_vectors, collections.abc.Sequence)
+                and len(spiral_vectors) == 1
+            ):
+                spiral_vectors = spiral_vectors[0]
+
+            if not isinstance(spiral_vectors, jnp.ndarray):
+                raise ValueError("Expect spiral vector as single jax.numpy array.")
+
+            working_h_gates = tuple(
+                apply_unitary(
+                    h,
+                    jnp.array((0, 1)),
+                    (spiral_vectors,),
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    2,
+                    (1,),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for h in self.nearest_neighbor_gates
+            )
+            working_v_gates = tuple(
+                apply_unitary(
+                    v,
+                    jnp.array((1, 0)),
+                    (spiral_vectors,),
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    2,
+                    (1,),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for v in self.nearest_neighbor_gates
+            )
+            working_d_gates = tuple(
+                apply_unitary(
+                    d,
+                    jnp.array((1, 1)),
+                    (spiral_vectors,),
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    2,
+                    (1,),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for d in self.nearest_neighbor_gates
+            )
+        else:
+            working_h_gates = self.nearest_neighbor_gates
+            working_v_gates = self.nearest_neighbor_gates
+            working_d_gates = self.nearest_neighbor_gates
 
         for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
             for y, view in iter_rows:
@@ -118,7 +187,7 @@ class Triangular_Expectation_Value(Expectation_Model):
                 x_tensor_objs = [t for tl in view[:2, 0] for t in tl]
 
                 step_result_x = calc_two_sites_vertical_multiple_gates(
-                    x_tensors, x_tensor_objs, self.nearest_neighbor_gates
+                    x_tensors, x_tensor_objs, working_v_gates
                 )
 
                 y_tensors_i = view.get_indices((0, slice(0, 2, None)))
@@ -126,7 +195,7 @@ class Triangular_Expectation_Value(Expectation_Model):
                 y_tensor_objs = [t for tl in view[0, :2] for t in tl]
 
                 step_result_y = calc_two_sites_horizontal_multiple_gates(
-                    y_tensors, y_tensor_objs, self.nearest_neighbor_gates
+                    y_tensors, y_tensor_objs, working_h_gates
                 )
 
                 diagonal_tensors_i = view.get_indices(
@@ -141,7 +210,7 @@ class Triangular_Expectation_Value(Expectation_Model):
                     calc_two_sites_diagonal_top_left_bottom_right_multiple_gates(
                         diagonal_tensors,
                         diagonal_tensor_objs,
-                        self.nearest_neighbor_gates,
+                        working_d_gates,
                     )
                 )
 
