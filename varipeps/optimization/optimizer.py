@@ -597,6 +597,12 @@ def optimize_peps_network(
                         )
                         and random_noise_retries
                         < varipeps_config.optimizer_random_noise_max_retries
+                        and not (
+                            varipeps_config.optimizer_preconverge_with_half_projectors
+                            and not varipeps_global_state.basinhopping_disable_half_projector
+                            and varipeps_global_state.ctmrg_projector_method
+                            is Projector_Method.HALF
+                        )
                     ):
                         tqdm.write(
                             "Convergence is not sufficient. Retry with some random noise on best result."
@@ -685,6 +691,33 @@ def optimize_peps_network(
                     working_unitcell.get_unique_tensors()[0].chi
                 )
 
+            if (
+                varipeps_config.optimizer_preconverge_with_half_projectors
+                and not varipeps_global_state.basinhopping_disable_half_projector
+                and varipeps_global_state.ctmrg_projector_method
+                is Projector_Method.HALF
+                and conv
+                < varipeps_config.optimizer_preconverge_with_half_projectors_eps
+            ):
+                varipeps_global_state.ctmrg_projector_method = (
+                    varipeps_config.ctmrg_full_projector_method
+                )
+
+                working_value, (working_unitcell, max_trunc_error) = (
+                    calc_ctmrg_expectation(
+                        working_tensors,
+                        working_unitcell,
+                        expectation_func,
+                        convert_to_unitcell_func,
+                        additional_input,
+                        enforce_elementwise_convergence=varipeps_config.ad_use_custom_vjp,
+                    )
+                )
+                descent_dir = None
+                working_gradient = None
+                signal_reset_descent_dir = True
+                conv = jnp.inf
+
             if conv < varipeps_config.optimizer_convergence_eps:
                 working_value, (
                     working_unitcell,
@@ -697,7 +730,6 @@ def optimize_peps_network(
                     additional_input,
                     enforce_elementwise_convergence=varipeps_config.ad_use_custom_vjp,
                 )
-                varipeps_global_state.ctmrg_projector_method = None
 
                 try:
                     max_trunc_error_list[random_noise_retries][-1] = max_trunc_error
@@ -710,28 +742,6 @@ def optimize_peps_network(
                     step_energies[random_noise_retries].append(working_value)
 
                 break
-
-            if (
-                varipeps_config.optimizer_preconverge_with_half_projectors
-                and not varipeps_global_state.basinhopping_disable_half_projector
-                and conv
-                < varipeps_config.optimizer_preconverge_with_half_projectors_eps
-            ):
-                varipeps_global_state.ctmrg_projector_method = (
-                    varipeps_config.ctmrg_full_projector_method
-                )
-
-                working_value, working_unitcell, _ = calc_ctmrg_expectation(
-                    working_tensors,
-                    working_unitcell,
-                    expectation_func,
-                    convert_to_unitcell_func,
-                    additional_input,
-                    enforce_elementwise_convergence=varipeps_config.ad_use_custom_vjp,
-                )
-                descent_dir = None
-                working_gradient = None
-                signal_reset_descent_dir = True
 
             old_descent_dir = descent_dir
             old_gradient = working_gradient
@@ -768,7 +778,12 @@ def optimize_peps_network(
                     additional_input,
                 )
 
-                if working_value < best_value:
+                if working_value < best_value and not (
+                    varipeps_config.optimizer_preconverge_with_half_projectors
+                    and not varipeps_global_state.basinhopping_disable_half_projector
+                    and varipeps_global_state.ctmrg_projector_method
+                    is Projector_Method.HALF
+                ):
                     _autosave_wrapper(
                         autosave_func,
                         autosave_filename,
@@ -786,7 +801,12 @@ def optimize_peps_network(
                         additional_input,
                     )
 
-            if working_value < best_value:
+            if working_value < best_value and not (
+                varipeps_config.optimizer_preconverge_with_half_projectors
+                and not varipeps_global_state.basinhopping_disable_half_projector
+                and varipeps_global_state.ctmrg_projector_method
+                is Projector_Method.HALF
+            ):
                 best_value = working_value
                 best_tensors = working_tensors
                 best_unitcell = working_unitcell
@@ -798,22 +818,29 @@ def optimize_peps_network(
         best_unitcell = working_unitcell
         best_run = random_noise_retries
 
-        _autosave_wrapper(
-            autosave_func,
-            autosave_filename,
-            working_tensors,
-            working_unitcell,
-            working_value,
-            "best",
-            best_run,
-            max_trunc_error_list,
-            step_energies,
-            step_chi,
-            step_conv,
-            step_runtime,
-            spiral_indices,
-            additional_input,
-        )
+        if not (
+            varipeps_config.optimizer_preconverge_with_half_projectors
+            and not varipeps_global_state.basinhopping_disable_half_projector
+            and varipeps_global_state.ctmrg_projector_method is Projector_Method.HALF
+        ):
+            _autosave_wrapper(
+                autosave_func,
+                autosave_filename,
+                working_tensors,
+                working_unitcell,
+                working_value,
+                "best",
+                best_run,
+                max_trunc_error_list,
+                step_energies,
+                step_chi,
+                step_conv,
+                step_runtime,
+                spiral_indices,
+                additional_input,
+            )
+
+    varipeps_global_state.ctmrg_projector_method = None
 
     print(f"Best energy result found: {best_value}")
 
