@@ -717,6 +717,7 @@ def optimize_peps_network(
                 working_gradient = None
                 signal_reset_descent_dir = True
                 conv = jnp.inf
+                linesearch_step = None
 
             if conv < varipeps_config.optimizer_convergence_eps:
                 working_value, (
@@ -754,7 +755,7 @@ def optimize_peps_network(
                     "Energy": f"{working_value:0.10f}",
                     "Retries": random_noise_retries,
                     "Convergence": f"{conv:0.8f}",
-                    "Line search step": f"{linesearch_step:0.8f}",
+                    "Line search step": f"{linesearch_step:0.8f}" if linesearch_step is not None else "0",
                     "Max. trunc. err.": f"{max_trunc_error:0.8g}",
                 }
             )
