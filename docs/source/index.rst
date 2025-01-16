@@ -7,6 +7,7 @@ Variational PEPS
 
    general
    design/features
+   examples
 
 .. toctree::
    :maxdepth: 2

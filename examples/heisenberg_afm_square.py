@@ -13,18 +13,18 @@ varipeps.config.ctmrg_convergence_eps = 1e-7
 varipeps.config.ad_custom_convergence_eps = 5e-8
 ## Enable/Disable printing of the convergence of the single CTMRG/gradient fix point steps.
 ## Useful to enable this during debugging, should be disabled for batch runs
-varipeps.config.config.ctmrg_print_steps = True
-varipeps.config.config.ad_custom_print_steps = False
+varipeps.config.ctmrg_print_steps = True
+varipeps.config.ad_custom_print_steps = False
 ## Select the method used to calculate the descent direction during optimization
-varipeps.config.config.optimizer_method = varipeps.config.Optimizing_Methods.CG
+varipeps.config.optimizer_method = varipeps.config.Optimizing_Methods.CG
 ## Select the method used to calculate the (full) projectors in the CTMRG routine
-varipeps.config.config.ctmrg_full_projector_method = (
+varipeps.config.ctmrg_full_projector_method = (
     varipeps.config.Projector_Method.FISHMAN
 )
 ## Set maximal steps for the optimization routine
-varipeps.config.config.optimizer_max_steps = 2000
+varipeps.config.optimizer_max_steps = 2000
 ## Increase enviroment bond dimension if truncation error is below this value
-varipeps.config.config.ctmrg_heuristic_increase_chi_threshold = 1e-4
+varipeps.config.ctmrg_heuristic_increase_chi_threshold = 1e-4
 
 # Set constants for the simulation
 modelName = "HeisenbergModel"
@@ -38,9 +38,6 @@ p = 2
 maxChi = 36
 # Start value for enviroment bond dimension
 startChi = chiB**2 if chiB**2 < maxChi else maxChi
-
-# Unit cell structure
-structure = [[0, 1], [1, 0]]
 
 # define spin-1/2 matrices
 Id = jnp.eye(2)
@@ -56,6 +53,9 @@ exp_func = varipeps.expectation.Two_Sites_Expectation_Value(
     horizontal_gates=(hamiltonianGates,),
     vertical_gates=(hamiltonianGates,),
 )
+
+# Unit cell structure
+structure = [[0, 1], [1, 0]]
 
 # Create random initialization for the iPEPS unit cell
 unitcell = varipeps.peps.PEPS_Unit_Cell.random(

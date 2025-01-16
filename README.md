@@ -3,6 +3,7 @@
 
 [![DOI](https://zenodo.org/badge/773767511.svg)](https://zenodo.org/doi/10.5281/zenodo.10852390)
 [![Documentation Status](https://readthedocs.org/projects/varipeps/badge/?version=latest)](https://varipeps.readthedocs.io/en/stable/?badge=latest)
+[![PyPI - Version](https://img.shields.io/pypi/v/varipeps)](https://pypi.org/project/variPEPS/)
 
 variPEPS is the Python variant of the tensor network library developed for
 variational ground state simulations in two spatial dimensions applying gradient
