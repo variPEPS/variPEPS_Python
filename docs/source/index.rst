@@ -3,8 +3,9 @@ Variational PEPS
 
 .. toctree::
    :maxdepth: 2
-   :caption: Design
+   :caption: VariPEPS
 
+   general
    design/features
 
 .. toctree::
