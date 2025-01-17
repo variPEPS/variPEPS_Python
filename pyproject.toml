@@ -1,6 +1,6 @@
 [project]
 name = "variPEPS"
-version = "0.7.2"
+version = "0.8.0"
 description = "Versatile tensor network library for variational ground state simulations in two spatial dimensions"
 authors = [
     {name = "Jan Naumann", email = "j.naumann@fu-berlin.de"},
@@ -30,6 +30,8 @@ keywords = [
     "quantum-many-body-physics"
 ]
 classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Physics",
 ]
