@@ -1,36 +1,54 @@
-[tool.poetry]
+[project]
 name = "variPEPS"
 version = "0.7.2"
 description = "Versatile tensor network library for variational ground state simulations in two spatial dimensions"
-authors = ["Jan Naumann <j.naumann@fu-berlin.de>", "Philipp Schmoll <philipp.schmoll@fu-berlin.de>", "Frederik Wilde", "Finn Krein"]
+authors = [
+    {name = "Jan Naumann", email = "j.naumann@fu-berlin.de"},
+    {name = "Philipp Schmoll", email = "philipp.schmoll@fu-berlin.de"},
+    {name = "Frederik Wilde"},
+    {name = "Finn Krein"}
+]
 license = "GPL-3.0-or-later"
 readme = "README.md"
-repository = "https://github.com/variPEPS/variPEPS_Python"
-documentation = "https://varipeps.readthedocs.io/en/stable/"
-packages = [{include = "varipeps"}]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy >= 1.21.2",
+    "scipy >= 1.7.1",
+    "jax[cpu] >= 0.4.35",
+    "tensornetwork >= 0.4.5",
+    "h5py >= 3.6.0",
+    "tqdm[notebook] >= 4.64.1",
+    "tqdm-loggable >= 0.1.3"
+]
+keywords = [
+    "physics",
+    "automatic-differentiation",
+    "peps",
+    "tensor-networks",
+    "variational-optimization",
+    "quantum-many-body",
+    "quantum-many-body-physics"
+]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<4.0"
-numpy = ">=1.21.2"
-scipy = ">=1.7.1"
-jax = {extras = ["cpu"], version = ">=0.4.35"}
-tensornetwork = ">=0.4.5"
-poethepoet = ">=0.10.0"
-h5py = ">=3.6.0"
-tqdm = {extras = ["notebook"], version = ">=4.64.1"}
-tqdm-loggable = "^0.1.3"
+[project.urls]
+Documentation = "https://varipeps.readthedocs.io/en/stable/"
+Repository = "https://github.com/variPEPS/variPEPS_Python"
+Issues = "https://github.com/variPEPS/variPEPS_Python/issues"
 
-[tool.poetry.dev-dependencies]
-black = ">=21.8-beta.0"
-ipython = ">=7.27.0"
-pylint = ">=2.10.2"
-flake8 = ">=3.9.2"
-mypy = ">=0.910"
-jupyter = ">=1.0.0"
+[dependency-groups]
+dev = [
+    "black>=24.10.0",
+    "flake8>=7.1.1",
+    "ipython>=8.31.0",
+    "mypy>=1.14.1",
+    "pylint>=3.3.3",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poe.tasks]
-use-cuda = "pip install --upgrade 'jax[cuda]' -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"

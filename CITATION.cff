@@ -37,7 +37,11 @@ abstract: >-
   A versatile tensor network library for variational ground
   state simulations in two spatial dimensions
 keywords:
+  - physics
+  - automatic-differentiation
   - peps
   - tensor-networks
   - variational-optimization
+  - quantum-many-body
+  - quantum-many-body-physics
 license: GPL-3.0-or-later

@@ -61,7 +61,15 @@
         }
     ],
 
-    "keywords": ["peps", "tensor-networks", "variational-optimization"],
+    "keywords": [
+        "physics",
+        "automatic-differentiation",
+        "peps",
+        "tensor-networks",
+        "variational-optimization",
+        "quantum-many-body",
+        "quantum-many-body-physics"
+    ],
 
     "communities": [
         {"identifier": "crc183"}

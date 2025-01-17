@@ -18,19 +18,6 @@ The current version of the variPEPS Python package is available on [PyPI](https:
 $ python3 -m pip install variPEPS
 ```
 
-### Installation using poetry
-
-The dependencies in this project are managed by poetry and the tool can also be used to install the package including a fixed set of dependencies with a specific version. For more details how poetry is operating, please see the [upstream documentation](http://python-poetry.org/docs/).
-
-To install dependencies you can just run in the main folder of the variPEPS project:
-```bash
-$ poetry install
-```
-or if you do not need the development packages:
-```bash
-$ poetry install --no-dev
-```
-
 ## Usage
 
 For detailed information how to use the package we want to point out to the [documentation of the project](https://varipeps.readthedocs.io/en/stable).
