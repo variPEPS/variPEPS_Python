@@ -4,14 +4,9 @@
 Examples
 ========
 
-We provide some examples how to use the code to calculate a variational
-optimization for typical 2d many-body problems in the `examples/ folder of the
-variPEPS Git repository
-<https://github.com/variPEPS/variPEPS_Python/tree/main/examples>`_.
+We provide several examples in the `examples/ folder of the variPEPS Git repository <https://github.com/variPEPS/variPEPS_Python/tree/main/examples>`_ that demonstrate how to use the code for variational energy optimization in typical 2D many-body problems.
 
-In this section we want to elaborately walk through the example for the
-Heisenberg AFM on the 2d square lattice to explain a typical usage of the
-library.
+.. In this section we want to elaborately walk through the example for the Heisenberg AFM on the 2d square lattice to explain a typical usage of the library.
 
 Heisenberg antiferromagnet on the square lattice
 ------------------------------------------------
@@ -49,8 +44,8 @@ Loading of relevant Python modules
 First of all we have to load the relevant Python modules for our simulation. The
 :obj:`varipeps` module includes the full library to perform the variational
 optimization. Internally it is based on the :obj:`jax` framework and its
-:obj:`numpy`-like interface to execute the calculations. Since we need to define
-arrays later to define for example the Hamiltonian, we need to load this numpy
+:obj:`numpy`-like interface to execute the calculations. Since we will need 
+arrays to define for example the Hamiltonian, we load this numpy
 interface as well.
 
 variPEPS config settings
@@ -59,33 +54,39 @@ variPEPS config settings
 .. code-block:: python
 
    # Config Setting
+   
    ## Set maximal steps for the CTMRG routine
-   varipeps.config.ad_custom_max_steps = 100
-   ## Set maximal steps for the fix point routine in the gradient calculation
    varipeps.config.ctmrg_max_steps = 100
    ## Set convergence threshold for the CTMRG routine
    varipeps.config.ctmrg_convergence_eps = 1e-7
-   ## Set convergence threshold for the fix point routine in the gradient calculation
-   varipeps.config.ad_custom_convergence_eps = 5e-8
-   ## Enable/Disable printing of the convergence of the single CTMRG/gradient fix point steps.
-   ## Useful to enable this during debugging, should be disabled for batch runs
-   varipeps.config.ctmrg_print_steps = True
-   varipeps.config.ad_custom_print_steps = False
-   ## Select the method used to calculate the descent direction during optimization
-   varipeps.config.optimizer_method = varipeps.config.Optimizing_Methods.CG
    ## Select the method used to calculate the (full) projectors in the CTMRG routine
    varipeps.config.ctmrg_full_projector_method = (
        varipeps.config.Projector_Method.FISHMAN
    )
-   ## Set maximal steps for the optimization routine
-   varipeps.config.optimizer_max_steps = 2000
-   ## Increase enviroment bond dimension if truncation error is below this value
+   ## Enable dynamic increase of CTMRG environment bond dimension
+   varipeps.config.ctmrg_heuristic_increase_chi = True
+   ## Increase CTMRG enviroment bond dimension if truncation error exceeds this value
    varipeps.config.ctmrg_heuristic_increase_chi_threshold = 1e-4
+   
+   ## Set maximal steps for the fix point routine in the gradient calculation
+   varipeps.config.ad_custom_max_steps = 100
+   ## Set convergence threshold for the fix point routine in the gradient calculation
+   varipeps.config.ad_custom_convergence_eps = 5e-8
 
-The :obj:`varipeps` library allows to configure a large amount of numerical
-parameters to fine-tune the simulation. In this example we include some common
-options someone can set for a optimization run. For a long and detailed
-description of the config option we want to point to the API description of the
+   ## Enable/Disable printing of the convergence of the single CTMRG/gradient fix point steps.
+   ## Useful to enable this during debugging, should be disabled for batch runs
+   varipeps.config.ctmrg_print_steps = True
+   varipeps.config.ad_custom_print_steps = False
+
+   ## Select the method used to calculate the descent direction during optimization
+   varipeps.config.optimizer_method = varipeps.config.Optimizing_Methods.CG
+   ## Set maximal number of steps for the optimization routine
+   varipeps.config.optimizer_max_steps = 2000
+
+The :obj:`varipeps` library allows to configure a large number of numerical
+parameters to fine-tune the simulation. In this example we include several 
+options commonly used in an optimization run. For a detailed
+description of the configurable options we refer to the API description of the
 config class: :obj:`varipeps.config.VariPEPS_Config`.
 
 Model parameters
@@ -106,18 +107,7 @@ Model parameters
    # Start value for enviroment bond dimension
    startChi = chiB**2 if chiB**2 < maxChi else maxChi
 
-In this block we define some parameters for the model we want to simulate as the
-interaction strength, the physical dimension of our tensor network and the iPEPS
-bond dimension. In the last two lines the start and the maximal enviroment bond
-dimension is defined. A feature of the variPEPS library is that it not only
-supports simulation at a fixed enviroment bond dimension but also a heurisitic
-increase/decrease of the dimension up to a maximal value if the maximal
-truncation error in the CTMRG project calculation is above/below some
-threshold. See in the config block above the parameter
-``ctmrg_heuristic_increase_chi_threshold`` which sets for example the threshold
-when to increase the refinement parameter. The maximal bond dimension ensures
-that the parameter does no increase to too large values where the memory and
-computational resources are exhausted.
+In this block we define imporant parameters for the model we want to simulate, such as as the interaction strength, the physical dimension of our tensor network and the iPEPS bond dimension. In the last two lines the initial and the maximal enviroment bond dimension is defined. A feature of the variPEPS library is that it not only supports simulation at a fixed enviroment bond dimension, but also a heurisitic increase/decrease of the dimension up to a maximal value. The dynamic change is controlled  by the truncation error in the CTMRG projector calculation (increase if the truncation errror becomes too large, decrease if it becomes insignificant). For example, in the config block above the parameter ``ctmrg_heuristic_increase_chi_threshold`` is set to the threshold at which to increase the refinement parameter. The maximal bond dimension ``maxChi`` ensures that the parameter does now grow unbounded, to the point where the memory and computational resources are exhausted.
 
 Constructing the Hamiltonian
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -140,12 +130,12 @@ Constructing the Hamiltonian
    )
 
 Here the Hamiltonian is constructed for our model. The Heisenberg AFM on the
-square lattice can be described by the sum of the spin-spin interactions over
-the horizontal and vertical bonds. Since we assume in our example a constant
-interaction strength for all bonds, the expectation value can be calculated by
-the same two site interaction tensor applied in all nearest neighbor
+square lattice can be described by the sum of the spin-spin interactions on
+the horizontal and vertical bonds. Since we assume a constant
+interaction strength for all bonds in our example, the expectation value can be calculated by
+the same two-site interaction gate applied in all nearest neighbor
 directions. The expectation function ``exp_func`` is later used in the
-optimization to calculate the energy which is used as cost function to obtain
+optimization to calculate the energy expectation value, which in turn is used as cost function to obtain
 the ground state.
 
 Initial unit cell construction
@@ -158,7 +148,7 @@ Initial unit cell construction
 
 Here we define the unit cell structure which is used to simulate our model. In
 this example we assume a
-:math:`\scriptsize{\begin{matrix}A&B\\B&A\end{matrix}}`-structure.
+:math:`\scriptsize{\begin{matrix}A&B\\B&A\end{matrix}}`-structure, i.e. a two-site antiferromagnetic state.
 
 .. code-block:: python
 
@@ -174,8 +164,8 @@ this example we assume a
 
 Using the unit cell structure and the model parameter defined above, we can
 generate an initial unit cell. Here we initialize the iPEPS tensors with random
-numbers. Of course one could use other ways to initialize the tensors, for
-example results from a simple update calculation.
+numbers. Other ways to initialize the tensors are provided, for example loading results 
+from a simple update calculation.
 
 Run the optimization
 ^^^^^^^^^^^^^^^^^^^^
@@ -189,12 +179,12 @@ Run the optimization
        autosave_filename=f"data/autosave_square_chiB_{chiB:d}.hdf5",
    )
 
-This function call executes the main function of the library, the variational
-optimization run to obtain a good ground state candidate. The function has
-several option to adapt the optimization for different ansätze (for example the
-spiral iPEPS approach). In our example we just need to supply the initial unit
-cell, the function to calculate the energy expectation value and to allow to
-restore an aborted simulation a file name for autosaves of the optimization.
+This function call executes the main function of the library, the variational energy 
+optimization to obtain a good ground state candidate. The function offers several options 
+to customize the optimization for different iPEPS ansätze, such as the spiral iPEPS 
+approach. In our example, we only need to provide the initial unit cell, the function 
+for calculating the energy expectation value, and a file path for autosaving the 
+optimization process, enabling the restoration of interrupted simulations.
 
 Evaluate the results
 ^^^^^^^^^^^^^^^^^^^^
@@ -219,7 +209,7 @@ In this section we show some exemplary evaluation of the result of the optimizat
 
    magnetic_exp_values = calc_magnetic(result.unitcell)
 
-We assume for our example that we are interested in the single-site magnetic
+We assume for our example that we are interested in the single-site spin
 expectation values. These could be used to analyse the :math:`z`-magnetization
 or the staggered magnetization of our model at/near the ground state.
 
@@ -245,8 +235,8 @@ or the staggered magnetization of our model at/near the ground state.
    )
 
 Finally, we want to save the unit cell with the optimized tensors to a file for
-later further evaluation. The library allows to store the data directly into a
-HDF5 file along with user-supplied auxiliary data. Here for example not only
+further analysis. The library allows to store the data directly into a
+HDF5 file along with user-supplied auxiliary data. Here, for example, we not only
 want to store the plain tensors but also the calculated energy, meta information
 from the optimization run (e.g. energy per step or the runtime per step) and the
 calculated magnetic expectation values. At a later examination of the results,
