@@ -1145,7 +1145,20 @@ def calc_left_projectors_split_transfer(
             bottom_tensor_ketbra_right,
         ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
     elif projector_method is Projector_Method.HALF:
-        raise NotImplementedError
+        (
+            top_tensor_ketbra_left,
+            bottom_tensor_ketbra_left,
+        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs)
+
+        (
+            left_tensor_ketbra_top,
+            right_tensor_ketbra_top,
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs)
+
+        (
+            left_tensor_ketbra_bottom,
+            right_tensor_ketbra_bottom,
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
     elif projector_method is Projector_Method.FISHMAN:
         (
             top_ketbra_U,
@@ -1226,8 +1239,45 @@ def calc_left_projectors_split_transfer(
 
         top_tensor_bra_left /= jnp.linalg.norm(top_tensor_bra_left)
         bottom_tensor_bra_left /= jnp.linalg.norm(bottom_tensor_bra_left)
-    else:
-        raise NotImplementedError
+    elif projector_method is Projector_Method.HALF:
+        (
+            _,
+            projector_top_right_ket,
+            _,
+        ) = _split_transfer_workhorse(
+            left_tensor_ketbra_top,
+            right_tensor_ketbra_top,
+            chi,
+            truncation_eps,
+        )
+
+        (
+            projector_bottom_right_bra,
+            _,
+            _,
+        ) = _split_transfer_workhorse(
+            right_tensor_ketbra_bottom,
+            left_tensor_ketbra_bottom,
+            chi,
+            truncation_eps,
+        )
+
+        top_tensor_bra_left = apply_contraction_jitted(
+            "ctmrg_split_transfer_left_top_half",
+            [peps_tensors[0][0]],
+            [peps_tensor_objs[0][0]],
+            [projector_left_bottom_ket, projector_top_right_ket],
+        )
+
+        bottom_tensor_bra_left = apply_contraction_jitted(
+            "ctmrg_split_transfer_left_bottom_half",
+            [peps_tensors[1][0]],
+            [peps_tensor_objs[1][0]],
+            [projector_left_top_ket, projector_bottom_right_bra],
+        )
+
+        top_tensor_bra_left /= jnp.linalg.norm(top_tensor_bra_left)
+        bottom_tensor_bra_left /= jnp.linalg.norm(bottom_tensor_bra_left)
 
     if projector_method is Projector_Method.FISHMAN:
         (
@@ -1314,7 +1364,10 @@ def calc_left_projectors_split_transfer(
     top_tensor_phys_bra_right /= jnp.linalg.norm(top_tensor_phys_bra_right)
     bottom_tensor_phys_bra_right /= jnp.linalg.norm(bottom_tensor_phys_bra_right)
 
-    if projector_method is Projector_Method.FISHMAN:
+    if (
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF
+    ):
         (
             top_phys_ket_U,
             top_phys_ket_S,
@@ -1486,9 +1539,20 @@ def calc_right_projectors_split_transfer(
             bottom_tensor_ketbra_right,
         ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
     elif projector_method is Projector_Method.HALF:
-        raise NotImplementedError(
-            "Half projector method not implemented for split transfer matrices approach."
-        )
+        (
+            top_tensor_ketbra_right,
+            bottom_tensor_ketbra_right,
+        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+
+        (
+            left_tensor_ketbra_top,
+            right_tensor_ketbra_top,
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs)
+
+        (
+            left_tensor_ketbra_bottom,
+            right_tensor_ketbra_bottom,
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
     elif projector_method is Projector_Method.FISHMAN:
         (
             top_ketbra_U,
@@ -1569,8 +1633,45 @@ def calc_right_projectors_split_transfer(
 
         top_tensor_ket_right /= jnp.linalg.norm(top_tensor_ket_right)
         bottom_tensor_ket_right /= jnp.linalg.norm(bottom_tensor_ket_right)
-    else:
-        raise NotImplementedError
+    elif projector_method is Projector_Method.HALF:
+        (
+            projector_top_left_ket,
+            _,
+            _,
+        ) = _split_transfer_workhorse(
+            left_tensor_ketbra_top,
+            right_tensor_ketbra_top,
+            chi,
+            truncation_eps,
+        )
+
+        (
+            _,
+            projector_bottom_left_bra,
+            _,
+        ) = _split_transfer_workhorse(
+            right_tensor_ketbra_bottom,
+            left_tensor_ketbra_bottom,
+            chi,
+            truncation_eps,
+        )
+
+        top_tensor_ket_right = apply_contraction_jitted(
+            "ctmrg_split_transfer_right_top_half",
+            [peps_tensors[0][1]],
+            [peps_tensor_objs[0][1]],
+            [projector_top_left_ket, projector_right_bottom_bra],
+        )
+
+        bottom_tensor_ket_right = apply_contraction_jitted(
+            "ctmrg_split_transfer_right_bottom_half",
+            [peps_tensors[1][1]],
+            [peps_tensor_objs[1][1]],
+            [projector_bottom_left_bra, projector_right_top_bra],
+        )
+
+        top_tensor_ket_right /= jnp.linalg.norm(top_tensor_ket_right)
+        bottom_tensor_ket_right /= jnp.linalg.norm(bottom_tensor_ket_right)
 
     if projector_method is Projector_Method.FISHMAN:
         (
@@ -1633,7 +1734,10 @@ def calc_right_projectors_split_transfer(
     top_tensor_phys_bra_right /= jnp.linalg.norm(top_tensor_phys_bra_right)
     bottom_tensor_phys_bra_right /= jnp.linalg.norm(bottom_tensor_phys_bra_right)
 
-    if projector_method is Projector_Method.FISHMAN:
+    if (
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF
+    ):
         (
             top_phys_ket_U,
             top_phys_ket_S,
@@ -1805,9 +1909,20 @@ def calc_top_projectors_split_transfer(
             right_tensor_ketbra_bottom,
         ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
     elif projector_method is Projector_Method.HALF:
-        raise NotImplementedError(
-            "Half projector method not implemented for split transfer matrices approach."
-        )
+        (
+            left_tensor_ketbra_top,
+            right_tensor_ketbra_top,
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs)
+
+        (
+            top_tensor_ketbra_left,
+            bottom_tensor_ketbra_left,
+        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs)
+
+        (
+            top_tensor_ketbra_right,
+            bottom_tensor_ketbra_right,
+        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
     elif projector_method is Projector_Method.FISHMAN:
         (
             _,
@@ -1888,8 +2003,45 @@ def calc_top_projectors_split_transfer(
 
         left_tensor_bra_top /= jnp.linalg.norm(left_tensor_bra_top)
         right_tensor_bra_top /= jnp.linalg.norm(right_tensor_bra_top)
-    else:
-        raise NotImplementedError
+    elif projector_method is Projector_Method.HALF:
+        (
+            projector_left_bottom_ket,
+            _,
+            _,
+        ) = _split_transfer_workhorse(
+            bottom_tensor_ketbra_left,
+            top_tensor_ketbra_left,
+            chi,
+            truncation_eps,
+        )
+
+        (
+            _,
+            projector_right_bottom_bra,
+            _,
+        ) = _split_transfer_workhorse(
+            top_tensor_ketbra_right,
+            bottom_tensor_ketbra_right,
+            chi,
+            truncation_eps,
+        )
+
+        left_tensor_bra_top = apply_contraction_jitted(
+            "ctmrg_split_transfer_left_top_half",
+            [peps_tensors[0][0]],
+            [peps_tensor_objs[0][0]],
+            [projector_left_bottom_ket, projector_top_right_ket],
+        )
+
+        right_tensor_bra_top = apply_contraction_jitted(
+            "ctmrg_split_transfer_right_top_half",
+            [peps_tensors[0][1]],
+            [peps_tensor_objs[0][1]],
+            [projector_top_left_ket, projector_right_bottom_bra],
+        )
+
+        left_tensor_bra_top /= jnp.linalg.norm(left_tensor_bra_top)
+        right_tensor_bra_top /= jnp.linalg.norm(right_tensor_bra_top)
 
     if projector_method is Projector_Method.FISHMAN:
         (
@@ -1950,7 +2102,10 @@ def calc_top_projectors_split_transfer(
     left_tensor_phys_bra_bottom /= jnp.linalg.norm(left_tensor_phys_bra_bottom)
     right_tensor_phys_bra_bottom /= jnp.linalg.norm(right_tensor_phys_bra_bottom)
 
-    if projector_method is Projector_Method.FISHMAN:
+    if (
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF
+    ):
         (
             right_phys_ket_U,
             right_phys_ket_S,
@@ -2117,9 +2272,20 @@ def calc_bottom_projectors_split_transfer(
             right_tensor_ketbra_bottom,
         ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
     elif projector_method is Projector_Method.HALF:
-        raise NotImplementedError(
-            "Half projector method not implemented for split transfer matrices approach."
-        )
+        (
+            left_tensor_ketbra_bottom,
+            right_tensor_ketbra_bottom,
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+
+        (
+            top_tensor_ketbra_left,
+            bottom_tensor_ketbra_left,
+        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs)
+
+        (
+            top_tensor_ketbra_right,
+            bottom_tensor_ketbra_right,
+        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
     elif projector_method is Projector_Method.FISHMAN:
         (
             _,
@@ -2200,8 +2366,45 @@ def calc_bottom_projectors_split_transfer(
 
         left_tensor_ket_bottom /= jnp.linalg.norm(left_tensor_ket_bottom)
         right_tensor_ket_bottom /= jnp.linalg.norm(right_tensor_ket_bottom)
-    else:
-        raise NotImplementedError
+    elif projector_method is Projector_Method.HALF:
+        (
+            _,
+            projector_left_top_ket,
+            _,
+        ) = _split_transfer_workhorse(
+            bottom_tensor_ketbra_left,
+            top_tensor_ketbra_left,
+            chi,
+            truncation_eps,
+        )
+
+        (
+            projector_right_top_bra,
+            _,
+            _,
+        ) = _split_transfer_workhorse(
+            top_tensor_ketbra_right,
+            bottom_tensor_ketbra_right,
+            chi,
+            truncation_eps,
+        )
+
+        left_tensor_ket_bottom = apply_contraction_jitted(
+            "ctmrg_split_transfer_bottom_full",
+            [peps_tensors[1][0], peps_tensors[1][1]],
+            [peps_tensor_objs[1][0], peps_tensor_objs[1][1]],
+            [projector_left_top_ket, projector_right_top_bra],
+        )
+
+        right_tensor_ket_bottom = apply_contraction_jitted(
+            "ctmrg_split_transfer_right_bottom_half",
+            [peps_tensors[1][1]],
+            [peps_tensor_objs[1][1]],
+            [projector_bottom_left_bra, projector_right_top_bra],
+        )
+
+        left_tensor_ket_bottom /= jnp.linalg.norm(left_tensor_ket_bottom)
+        right_tensor_ket_bottom /= jnp.linalg.norm(right_tensor_ket_bottom)
 
     if projector_method is Projector_Method.FISHMAN:
         (
@@ -2264,7 +2467,10 @@ def calc_bottom_projectors_split_transfer(
     left_tensor_phys_bra_bottom /= jnp.linalg.norm(left_tensor_phys_bra_bottom)
     right_tensor_phys_bra_bottom /= jnp.linalg.norm(right_tensor_phys_bra_bottom)
 
-    if projector_method is Projector_Method.FISHMAN:
+    if (
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF
+    ):
         (
             right_phys_ket_U,
             right_phys_ket_S,
