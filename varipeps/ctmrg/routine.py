@@ -537,16 +537,19 @@ def calc_ctmrg_env(
         tmp_count = 0
         corner_singular_vals = None
 
-        while any(
-            getattr(i, j).shape[0] != i.chi or getattr(i, j).shape[1] != i.chi
-            for i in working_unitcell.get_unique_tensors()
-            for j in ("C1", "C2", "C3", "C4")
-        ) or (
-            hasattr(working_unitcell.get_unique_tensors()[0], "T4_ket")
-            and any(
-                getattr(i, j).shape[0] != i.interlayer_chi
+        while tmp_count < varipeps_config.ctmrg_max_steps and (
+            any(
+                getattr(i, j).shape[0] != i.chi or getattr(i, j).shape[1] != i.chi
                 for i in working_unitcell.get_unique_tensors()
-                for j in ("T1_bra", "T2_ket", "T3_bra", "T4_ket")
+                for j in ("C1", "C2", "C3", "C4")
+            )
+            or (
+                hasattr(working_unitcell.get_unique_tensors()[0], "T4_ket")
+                and any(
+                    getattr(i, j).shape[0] != i.interlayer_chi
+                    for i in working_unitcell.get_unique_tensors()
+                    for j in ("T1_bra", "T2_ket", "T3_bra", "T4_ket")
+                )
             )
         ):
             (
@@ -557,7 +560,7 @@ def calc_ctmrg_env(
                 _,
                 tmp_count,
                 _,
-                _,
+                norm_smallest_S,
                 _,
                 _,
             ) = _ctmrg_body_func(
@@ -575,24 +578,28 @@ def calc_ctmrg_env(
                 )
             )
 
-        working_unitcell, converged, end_count, norm_smallest_S = _ctmrg_while_wrapper(
-            (
-                peps_tensors,
-                working_unitcell,
-                False,
+        if tmp_count < varipeps_config.ctmrg_max_steps:
+            working_unitcell, converged, end_count, norm_smallest_S = _ctmrg_while_wrapper(
                 (
-                    corner_singular_vals
+                    peps_tensors,
+                    working_unitcell,
+                    False,
+                    (
+                        corner_singular_vals
                     if corner_singular_vals is not None
                     else init_corner_singular_vals
-                ),
-                eps,
-                tmp_count,
-                enforce_elementwise_convergence,
-                jnp.inf,
-                varipeps_global_state,
-                varipeps_config,
+                    ),
+                    eps,
+                    tmp_count,
+                    enforce_elementwise_convergence,
+                    jnp.inf,
+                    varipeps_global_state,
+                    varipeps_config,
+                )
             )
-        )
+        else:
+            converged = False
+            end_count = tmp_count
 
         current_truncation_eps = (
             varipeps_config.ctmrg_truncation_eps
