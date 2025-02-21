@@ -1,6 +1,6 @@
 [project]
 name = "variPEPS"
-version = "0.8.0"
+version = "0.8.1"
 description = "Versatile tensor network library for variational ground state simulations in two spatial dimensions"
 authors = [
     {name = "Jan Naumann", email = "j.naumann@fu-berlin.de"},
