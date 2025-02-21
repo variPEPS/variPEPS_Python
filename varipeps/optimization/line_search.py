@@ -600,7 +600,9 @@ def line_search(
             )
 
             if descent_new_grad >= hz_wolfe_2_right:
-                if hz_wolfe_1_left >= hz_wolfe_1_right:
+                if hz_wolfe_1_left >= hz_wolfe_1_right and new_value <= (
+                    current_value + varipeps_config.line_search_hager_zhang_eps
+                ):
                     break
 
                 hz_approx_wolfe_left = (
