@@ -755,7 +755,11 @@ def optimize_peps_network(
                     "Energy": f"{working_value:0.10f}",
                     "Retries": random_noise_retries,
                     "Convergence": f"{conv:0.8f}",
-                    "Line search step": f"{linesearch_step:0.8f}" if linesearch_step is not None else "0",
+                    "Line search step": (
+                        f"{linesearch_step:0.8f}"
+                        if linesearch_step is not None
+                        else "0"
+                    ),
                     "Max. trunc. err.": f"{max_trunc_error:0.8g}",
                 }
             )

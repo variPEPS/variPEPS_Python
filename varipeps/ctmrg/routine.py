@@ -579,22 +579,24 @@ def calc_ctmrg_env(
             )
 
         if tmp_count < varipeps_config.ctmrg_max_steps:
-            working_unitcell, converged, end_count, norm_smallest_S = _ctmrg_while_wrapper(
-                (
-                    peps_tensors,
-                    working_unitcell,
-                    False,
+            working_unitcell, converged, end_count, norm_smallest_S = (
+                _ctmrg_while_wrapper(
                     (
-                        corner_singular_vals
-                    if corner_singular_vals is not None
-                    else init_corner_singular_vals
-                    ),
-                    eps,
-                    tmp_count,
-                    enforce_elementwise_convergence,
-                    jnp.inf,
-                    varipeps_global_state,
-                    varipeps_config,
+                        peps_tensors,
+                        working_unitcell,
+                        False,
+                        (
+                            corner_singular_vals
+                            if corner_singular_vals is not None
+                            else init_corner_singular_vals
+                        ),
+                        eps,
+                        tmp_count,
+                        enforce_elementwise_convergence,
+                        jnp.inf,
+                        varipeps_global_state,
+                        varipeps_config,
+                    )
                 )
             )
         else:

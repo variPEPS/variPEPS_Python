@@ -64,12 +64,15 @@ class Triangular_Expectation_Value(Expectation_Model):
     \\
 
     Args:
-      nearest_neighbor_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence with the gates that should be applied to each nearest
+      horizontal_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to each nearest horizontal
         neighbor.
-      downward_triangle_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence with the gates that should be applied to the downward
-        triangles.
+      vertical_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to each nearest vertical
+        neighbor.
+      diagonal_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to each nearest diagonal
+        neighbor.
       normalization_factor (:obj:`int`):
         Factor which should be used to normalize the calculated values.
         If for example three sites are mapped into one PEPS site this
@@ -81,7 +84,9 @@ class Triangular_Expectation_Value(Expectation_Model):
         if spiral iPEPS ansatz is used.
     """
 
-    nearest_neighbor_gates: Sequence[jnp.ndarray]
+    horizontal_gates: Sequence[jnp.ndarray]
+    vertical_gates: Sequence[jnp.ndarray]
+    diagonal_gates: Sequence[jnp.ndarray]
     real_d: int
     normalization_factor: int = 1
 
@@ -89,16 +94,28 @@ class Triangular_Expectation_Value(Expectation_Model):
     spiral_unitary_operator: Optional[jnp.ndarray] = None
 
     def __post_init__(self) -> None:
-        if isinstance(self.nearest_neighbor_gates, jnp.ndarray):
-            self.nearest_neighbor_gates = (self.nearest_neighbor_gates,)
+        if isinstance(self.horizontal_gates, jnp.ndarray):
+            self.horizontal_gates = (self.horizontal_gates,)
         else:
-            self.nearest_neighbor_gates = tuple(self.nearest_neighbor_gates)
+            self.horizontal_gates = tuple(self.horizontal_gates)
+
+        if isinstance(self.vertical_gates, jnp.ndarray):
+            self.vertical_gates = (self.vertical_gates,)
+        else:
+            self.vertical_gates = tuple(self.vertical_gates)
+
+        if isinstance(self.diagonal_gates, jnp.ndarray):
+            self.diagonal_gates = (self.diagonal_gates,)
+        else:
+            self.diagonal_gates = tuple(self.diagonal_gates)
 
         self._result_type = (
             jnp.float64
             if all(
                 jnp.allclose(g, g.T.conj())
-                for g in self.nearest_neighbor_gates
+                for g in self.horizontal_gates
+                + self.vertical_gates
+                + self.diagonal_gates
             )
             else jnp.complex128
         )
@@ -120,7 +137,7 @@ class Triangular_Expectation_Value(Expectation_Model):
     ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
         result = [
             jnp.array(0, dtype=self._result_type)
-            for _ in range(len(self.nearest_neighbor_gates))
+            for _ in range(len(self.horizontal_gates))
         ]
 
         if self.is_spiral_peps:
@@ -145,7 +162,7 @@ class Triangular_Expectation_Value(Expectation_Model):
                     (1,),
                     varipeps_config.spiral_wavevector_type,
                 )
-                for h in self.nearest_neighbor_gates
+                for h in self.horizontal_gates
             )
             working_v_gates = tuple(
                 apply_unitary(
@@ -159,7 +176,7 @@ class Triangular_Expectation_Value(Expectation_Model):
                     (1,),
                     varipeps_config.spiral_wavevector_type,
                 )
-                for v in self.nearest_neighbor_gates
+                for v in self.vertical_gates
             )
             working_d_gates = tuple(
                 apply_unitary(
@@ -173,12 +190,12 @@ class Triangular_Expectation_Value(Expectation_Model):
                     (1,),
                     varipeps_config.spiral_wavevector_type,
                 )
-                for d in self.nearest_neighbor_gates
+                for d in self.diagonal_gates
             )
         else:
-            working_h_gates = self.nearest_neighbor_gates
-            working_v_gates = self.nearest_neighbor_gates
-            working_d_gates = self.nearest_neighbor_gates
+            working_h_gates = self.horizontal_gates
+            working_v_gates = self.vertical_gates
+            working_d_gates = self.diagonal_gates
 
         for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
             for y, view in iter_rows:

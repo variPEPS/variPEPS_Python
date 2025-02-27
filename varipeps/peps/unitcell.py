@@ -211,7 +211,7 @@ class PEPS_Unit_Cell:
 
     @staticmethod
     def _check_structure(
-        structure: Tuple[Tuple[int, ...], ...]
+        structure: Tuple[Tuple[int, ...], ...],
     ) -> Tuple[Tuple[Tuple[int, ...], ...], jnp.ndarray]:
         structure = np.array(structure)
 

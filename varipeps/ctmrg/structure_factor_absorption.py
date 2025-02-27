@@ -313,7 +313,7 @@ def do_right_absorption_structure_factor(
             right_proj, smallest_S = calc_right_projectors(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "top-right"),
                 config,
-                state
+                state,
             )
             right_projectors[(x, y)] = right_proj
             smallest_S_list.append(smallest_S)
@@ -683,7 +683,7 @@ def do_bottom_absorption_structure_factor(
             bottom_proj, smallest_S = calc_bottom_projectors(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "bottom-left"),
                 config,
-                state
+                state,
             )
             bottom_projectors[(x, y)] = bottom_proj
             smallest_S_list.append(smallest_S)

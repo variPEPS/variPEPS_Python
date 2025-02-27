@@ -274,7 +274,7 @@ def do_right_absorption(
             right_proj, smallest_S = calc_right_projectors(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "top-right"),
                 config,
-                state
+                state,
             )
             right_projectors[(x, y)] = right_proj
             smallest_S_list.append(smallest_S)
@@ -474,7 +474,7 @@ def do_bottom_absorption(
             bottom_proj, smallest_S = calc_bottom_projectors(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "bottom-left"),
                 config,
-                state
+                state,
             )
             bottom_projectors[(x, y)] = bottom_proj
             smallest_S_list.append(smallest_S)
@@ -894,7 +894,7 @@ def do_right_absorption_split_transfer(
             ) = calc_right_projectors_split_transfer(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "top-right"),
                 config,
-                state
+                state,
             )
             right_projectors[(x, y)] = right_proj
             smallest_S_list.append(smallest_S_ket)
@@ -1226,7 +1226,7 @@ def do_bottom_absorption_split_transfer(
             ) = calc_bottom_projectors_split_transfer(
                 *_get_ctmrg_2x2_structure(peps_tensors, view, "bottom-left"),
                 config,
-                state
+                state,
             )
             bottom_projectors[(x, y)] = bottom_proj
             smallest_S_list.append(smallest_S_ket)
