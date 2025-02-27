@@ -1045,50 +1045,6 @@ def _split_transfer_workhorse(
                 projector_second_ketbra.shape[1],
             )
 
-    # first_bra = jnp.tensordot(first_ketbra, projector_first_ketbra, ((2, 3), (1, 2)))
-    # first_bra = first_bra.transpose(0, 2, 1)
-    # first_bra_matrix = first_bra.reshape(first_bra.shape[0], first_bra.shape[1] * first_bra.shape[2])
-    #
-    # second_bra = jnp.tensordot(projector_second_ketbra, second_ketbra, ((0, 1), (0, 1)))
-    # second_bra = second_bra.transpose(0, 2, 1)
-    # second_bra_matrix = second_bra.reshape(second_bra.shape[0] * second_bra.shape[1], second_bra.shape[2])
-    #
-    # product_matrix_bra = jnp.dot(first_bra_matrix, second_bra_matrix)
-    # S_inv_sqrt_bra, U_bra, Vh_bra, smallest_S_bra = _truncated_SVD(
-    #     product_matrix_bra, chi, truncation_eps
-    # )
-    #
-    # projector_first_bra = jnp.dot(
-    #     U_bra.transpose().conj() * S_inv_sqrt_bra[:, jnp.newaxis], first_bra_matrix
-    # )
-    # projector_second_bra = jnp.dot(
-    #     second_bra_matrix, Vh_bra.transpose().conj() * S_inv_sqrt_bra
-    # )
-    #
-    # projector_first_bra = projector_first_bra.reshape(
-    #     projector_first_bra.shape[0],
-    #     first_bra.shape[1],
-    #     first_bra.shape[2]
-    # )
-    #
-    # projector_second_bra = projector_second_bra.reshape(
-    #     second_bra.shape[0],
-    #     second_bra.shape[1],
-    #     projector_second_bra.shape[1]
-    # )
-
-    # product_matrix_braket = jnp.dot(first_braket, second_braket)
-    # S_inv_sqrt_braket, U_braket, Vh_braket, smallest_S_braket = _truncated_SVD(
-    #     product_matrix_braket, chi, truncation_eps
-    # )
-    #
-    # projector_first_braket = jnp.dot(
-    #     U_braket.transpose().conj() * S_inv_sqrt_braket[:, jnp.newaxis], first_braket
-    # )
-    # projector_second_braket = jnp.dot(
-    #     second_braket, Vh_braket.transpose().conj() * S_inv_sqrt_braket
-    # )
-
     return (
         projector_first_ketbra,
         projector_second_ketbra,
@@ -1306,30 +1262,6 @@ def calc_left_projectors_split_transfer(
         chi,
         truncation_eps,
     )
-
-    # projector_left_top_ket = projector_left_top_ket.reshape(
-    #     peps_tensor_objs[0][0].left_lower_transfer_shape,
-    #     peps_tensors[0][0].shape[1],
-    #     projector_left_top_ket.shape[1],
-    # )
-    #
-    # projector_left_bottom_ket = projector_left_bottom_ket.reshape(
-    #     projector_left_bottom_ket.shape[0],
-    #     peps_tensor_objs[1][0].left_upper_transfer_shape,
-    #     peps_tensors[1][0].shape[4],
-    # )
-    #
-    # projector_left_top_bra = projector_left_top_bra.reshape(
-    #     peps_tensor_objs[0][0].left_lower_transfer_shape,
-    #     peps_tensors[0][0].shape[1],
-    #     projector_left_top_bra.shape[1],
-    # )
-    #
-    # projector_left_bottom_bra = projector_left_bottom_bra.reshape(
-    #     projector_left_bottom_bra.shape[0],
-    #     peps_tensor_objs[1][0].left_upper_transfer_shape,
-    #     peps_tensors[1][0].shape[4],
-    # )
 
     top_tensor_phys_ket_left = apply_contraction_jitted(
         "ctmrg_split_transfer_phys_top",

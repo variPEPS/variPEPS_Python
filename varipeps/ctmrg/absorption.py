@@ -192,9 +192,6 @@ def do_left_absorption(
             T4_projector_top = left_projectors.get_projector(x, y, -1, 0).top
             T4_projector_bottom = left_projectors.get_projector(x, y, 0, 0).bottom
 
-            # T4_projector_top = jnp.eye(9).reshape(1, 3, 3, 9)
-            # T4_projector_bottom = jnp.eye(9).reshape(9, 1, 3, 3)
-
             if (
                 working_tensor_obj.d > working_tensor_obj.chi
                 or working_tensor_obj.d > working_tensor_obj.D[0] ** 2
@@ -764,48 +761,6 @@ def do_left_absorption_split_transfer(
                 x, y, 0, 0
             ).bottom_phys_bra
 
-            # T4_ket_projector_top = jnp.eye(3).reshape(1, 3, 3)
-            # T4_bra_projector_top = jnp.eye(9).reshape(3, 3, 9)
-            # T4_ket_projector_bottom = jnp.eye(3).reshape(3, 1, 3)
-            # T4_bra_projector_bottom = jnp.eye(9).reshape(9, 3, 3)
-
-            # new_T4_tmp = apply_contraction_jitted(
-            #     "ctmrg_split_transfer_absorption_left_T4",
-            #     [working_tensor],
-            #     [working_tensor_obj],
-            #     [
-            #         T4_ket_projector_top,
-            #         T4_bra_projector_top,
-            #         T4_ket_projector_bottom,
-            #         T4_bra_projector_bottom,
-            #     ],
-            # )
-            #
-            # # new_T4_tmp += new_T4_tmp.conj().transpose(0, 2, 1, 3)
-            # # new_T4_tmp /= 2
-            #
-            # new_T4_tmp_list.append(_post_process_CTM_tensors(new_T4_tmp, config))
-            #
-            # new_T4_tmp_matrix = new_T4_tmp.reshape(
-            #     new_T4_tmp.shape[0] * new_T4_tmp.shape[1],
-            #     new_T4_tmp.shape[2] * new_T4_tmp.shape[3],
-            # )
-            # new_T4_bra, T4_S, new_T4_ket = gauge_fixed_svd(new_T4_tmp_matrix)
-            #
-            # new_T4_bra = new_T4_bra[:, : working_tensor_obj.interlayer_chi]
-            # T4_S = jnp.sqrt(T4_S[: working_tensor_obj.interlayer_chi])
-            # new_T4_ket = new_T4_ket[: working_tensor_obj.interlayer_chi, :]
-            #
-            # new_T4_bra = new_T4_bra * T4_S[jnp.newaxis, :]
-            # new_T4_ket = T4_S[:, jnp.newaxis] * new_T4_ket
-            #
-            # new_T4_bra = new_T4_bra.reshape(
-            #     new_T4_tmp.shape[0], new_T4_tmp.shape[1], new_T4_bra.shape[1]
-            # )
-            # new_T4_ket = new_T4_ket.reshape(
-            #     new_T4_ket.shape[0], new_T4_tmp.shape[2], new_T4_tmp.shape[3]
-            # )
-
             new_T4_ket = apply_contraction_jitted(
                 "ctmrg_split_transfer_absorption_left_T4_ket",
                 [working_tensor],
@@ -942,41 +897,6 @@ def do_right_absorption_split_transfer(
                 x, y, 0, 0
             ).bottom_phys_bra
 
-            # new_T2_tmp = apply_contraction_jitted(
-            #     "ctmrg_split_transfer_absorption_right_T2",
-            #     [working_tensor],
-            #     [working_tensor_obj],
-            #     [
-            #         T2_ket_projector_top,
-            #         T2_bra_projector_top,
-            #         T2_ket_projector_bottom,
-            #         T2_bra_projector_bottom,
-            #     ],
-            # )
-            #
-            # # new_T2_tmp += new_T2_tmp.conj().transpose(0, 2, 1, 3)
-            # # new_T2_tmp /= 2
-            #
-            # new_T2_tmp_matrix = new_T2_tmp.reshape(
-            #     new_T2_tmp.shape[0] * new_T2_tmp.shape[1],
-            #     new_T2_tmp.shape[2] * new_T2_tmp.shape[3],
-            # )
-            # new_T2_bra, T2_S, new_T2_ket = gauge_fixed_svd(new_T2_tmp_matrix)
-            #
-            # new_T2_bra = new_T2_bra[:, : working_tensor_obj.interlayer_chi]
-            # T2_S = jnp.sqrt(T2_S[: working_tensor_obj.interlayer_chi])
-            # new_T2_ket = new_T2_ket[: working_tensor_obj.interlayer_chi, :]
-            #
-            # new_T2_bra = new_T2_bra * T2_S[jnp.newaxis, :]
-            # new_T2_ket = T2_S[:, jnp.newaxis] * new_T2_ket
-            #
-            # new_T2_bra = new_T2_bra.reshape(
-            #     new_T2_tmp.shape[0], new_T2_tmp.shape[1], new_T2_bra.shape[1]
-            # )
-            # new_T2_ket = new_T2_ket.reshape(
-            #     new_T2_ket.shape[0], new_T2_tmp.shape[2], new_T2_tmp.shape[3]
-            # )
-
             new_T2_ket = apply_contraction_jitted(
                 "ctmrg_split_transfer_absorption_right_T2_ket",
                 [working_tensor],
@@ -1104,41 +1024,6 @@ def do_top_absorption_split_transfer(
             T1_phys_bra_projector_right = top_projectors.get_projector(
                 x, y, 0, 0
             ).right_phys_bra
-
-            # new_T1_tmp = apply_contraction_jitted(
-            #     "ctmrg_split_transfer_absorption_top_T1",
-            #     [working_tensor],
-            #     [working_tensor_obj],
-            #     [
-            #         T1_ket_projector_left,
-            #         T1_bra_projector_left,
-            #         T1_ket_projector_right,
-            #         T1_bra_projector_right,
-            #     ],
-            # )
-            #
-            # # new_T1_tmp += new_T1_tmp.conj().transpose(0, 2, 1, 3)
-            # # new_T1_tmp /= 2
-            #
-            # new_T1_tmp_matrix = new_T1_tmp.reshape(
-            #     new_T1_tmp.shape[0] * new_T1_tmp.shape[1],
-            #     new_T1_tmp.shape[2] * new_T1_tmp.shape[3],
-            # )
-            # new_T1_ket, T1_S, new_T1_bra = gauge_fixed_svd(new_T1_tmp_matrix)
-            #
-            # new_T1_ket = new_T1_ket[:, : working_tensor_obj.interlayer_chi]
-            # T1_S = jnp.sqrt(T1_S[: working_tensor_obj.interlayer_chi])
-            # new_T1_bra = new_T1_bra[: working_tensor_obj.interlayer_chi, :]
-            #
-            # new_T1_ket = new_T1_ket * T1_S[jnp.newaxis, :]
-            # new_T1_bra = T1_S[:, jnp.newaxis] * new_T1_bra
-            #
-            # new_T1_ket = new_T1_ket.reshape(
-            #     new_T1_tmp.shape[0], new_T1_tmp.shape[1], new_T1_ket.shape[1]
-            # )
-            # new_T1_bra = new_T1_bra.reshape(
-            #     new_T1_bra.shape[0], new_T1_tmp.shape[2], new_T1_tmp.shape[3]
-            # )
 
             new_T1_ket = apply_contraction_jitted(
                 "ctmrg_split_transfer_absorption_top_T1_ket",
@@ -1277,41 +1162,6 @@ def do_bottom_absorption_split_transfer(
             T3_phys_bra_projector_right = bottom_projectors.get_projector(
                 x, y, 0, 0
             ).right_phys_bra
-
-            # new_T3_tmp = apply_contraction_jitted(
-            #     "ctmrg_split_transfer_absorption_bottom_T3",
-            #     [working_tensor],
-            #     [working_tensor_obj],
-            #     [
-            #         T3_ket_projector_left,
-            #         T3_bra_projector_left,
-            #         T3_ket_projector_right,
-            #         T3_bra_projector_right,
-            #     ],
-            # )
-            #
-            # # new_T3_tmp += new_T3_tmp.conj().transpose(0, 2, 1, 3)
-            # # new_T3_tmp /= 2
-            #
-            # new_T3_tmp_matrix = new_T3_tmp.reshape(
-            #     new_T3_tmp.shape[0] * new_T3_tmp.shape[1],
-            #     new_T3_tmp.shape[2] * new_T3_tmp.shape[3],
-            # )
-            # new_T3_ket, T3_S, new_T3_bra = gauge_fixed_svd(new_T3_tmp_matrix)
-            #
-            # new_T3_ket = new_T3_ket[:, : working_tensor_obj.interlayer_chi]
-            # T3_S = jnp.sqrt(T3_S[: working_tensor_obj.interlayer_chi])
-            # new_T3_bra = new_T3_bra[: working_tensor_obj.interlayer_chi, :]
-            #
-            # new_T3_ket = new_T3_ket * T3_S[jnp.newaxis, :]
-            # new_T3_bra = T3_S[:, jnp.newaxis] * new_T3_bra
-            #
-            # new_T3_ket = new_T3_ket.reshape(
-            #     new_T3_tmp.shape[0], new_T3_tmp.shape[1], new_T3_ket.shape[1]
-            # )
-            # new_T3_bra = new_T3_bra.reshape(
-            #     new_T3_bra.shape[0], new_T3_tmp.shape[2], new_T3_tmp.shape[3]
-            # )
 
             new_T3_ket = apply_contraction_jitted(
                 "ctmrg_split_transfer_absorption_bottom_T3_ket",
