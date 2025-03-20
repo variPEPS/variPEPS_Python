@@ -163,3 +163,20 @@ class PEPS_Jax_Random(PEPS_Random_Impl):
         if normalize:
             block /= jnp.linalg.norm(block)
         return block
+
+    def positive_block(
+        self, dim: Sequence[int], dtype: Type[np.number], *, normalize: bool = True
+    ) -> jnp.ndarray:
+        if jnp.dtype(dtype) is jnp.dtype(jnp.complex64) or jnp.dtype(
+            dtype
+        ) is jnp.dtype(jnp.complex128):
+            self.key, key1, key2 = jax.random.split(self.key, 3)
+            block = jax.random.uniform(key1, dim, minval=0, maxval=1).astype(
+                dtype
+            ) + 1j * jax.random.uniform(key2, dim, minval=0, maxval=1).astype(dtype)
+        else:
+            self.key, key1 = jax.random.split(self.key, 2)
+            block = jax.random.uniform(key1, dim, dtype=dtype, minval=0, maxval=1)
+        if normalize:
+            block /= jnp.linalg.norm(block)
+        return block
