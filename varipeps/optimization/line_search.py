@@ -346,21 +346,24 @@ def line_search(
         if last_step_size is None:
             alpha = _hager_zhang_initial_zero(input_tensors, gradient, varipeps_config)
         elif varipeps_config.line_search_hager_zhang_quad_step:
-            alpha = _hager_zhang_initial_quad_step(
-                input_tensors,
-                unitcell,
-                gradient,
-                descent_direction,
-                last_step_size,
-                current_value,
-                spiral_indices,
-                convert_to_unitcell_func,
-                generate_unitcell,
-                expectation_func,
-                additional_input,
-                reinitialize_env_as_identities,
-                enforce_elementwise_convergence,
-            )
+            try:
+                alpha = _hager_zhang_initial_quad_step(
+                    input_tensors,
+                    unitcell,
+                    gradient,
+                    descent_direction,
+                    last_step_size,
+                    current_value,
+                    spiral_indices,
+                    convert_to_unitcell_func,
+                    generate_unitcell,
+                    expectation_func,
+                    additional_input,
+                    reinitialize_env_as_identities,
+                    enforce_elementwise_convergence,
+                )
+            except CTMRGNotConvergedError:
+                alpha = varipeps_config.line_search_hager_zhang_psi_2 * last_step_size
         else:
             alpha = varipeps_config.line_search_hager_zhang_psi_2 * last_step_size
     else:
