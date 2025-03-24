@@ -11,6 +11,7 @@ from varipeps import varipeps_config, varipeps_global_state
 from varipeps.peps import PEPS_Tensor, PEPS_Tensor_Split_Transfer, PEPS_Unit_Cell
 from varipeps.utils.debug_print import debug_print
 from .absorption import do_absorption_step, do_absorption_step_split_transfer
+from .triangular_absorption import do_absorption_step_triangular
 
 from typing import Sequence, Tuple, List, Optional
 
@@ -365,6 +366,57 @@ def _is_element_wise_converged(
     return result == 0, jnp.linalg.norm(measure), verbose_data
 
 
+@partial(jit, inline=True)
+def _is_element_wise_converged_triangular(
+    old_peps_tensors: List[PEPS_Tensor],
+    new_peps_tensors: List[PEPS_Tensor],
+    eps: float,
+):
+    result = 0
+
+    measure = jnp.zeros((len(old_peps_tensors), 18), dtype=jnp.float64)
+
+    for ti in range(len(old_peps_tensors)):
+        for ni, name in enumerate(
+            (
+                "C1",
+                "C2",
+                "C3",
+                "C4",
+                "C5",
+                "C6",
+                "T1a",
+                "T1b",
+                "T2a",
+                "T2b",
+                "T3a",
+                "T3b",
+                "T4a",
+                "T4b",
+                "T5a",
+                "T5b",
+                "T6a",
+                "T6b",
+            )
+        ):
+            old_shape = getattr(old_peps_tensors[ti], name).shape
+            new_shape = getattr(new_peps_tensors[ti], name).shape
+            diff = jnp.abs(
+                getattr(new_peps_tensors[ti], name)[
+                    : old_shape[0], : old_shape[1], : old_shape[2], : old_shape[3]
+                ]
+                - getattr(old_peps_tensors[ti], name)[
+                    : new_shape[0], : new_shape[1], : new_shape[2], : new_shape[3]
+                ]
+            )
+            result += jnp.sum(diff > eps)
+            measure = measure.at[ti, ni].set(
+                jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
+            )
+
+    return result == 0, jnp.linalg.norm(measure)
+
+
 @jit
 def _ctmrg_body_func(carry):
     (
@@ -380,7 +432,11 @@ def _ctmrg_body_func(carry):
         config,
     ) = carry
 
-    if w_unitcell_last_step.is_split_transfer():
+    if w_unitcell_last_step.is_triangular_peps():
+        w_unitcell, norm_smallest_S = do_absorption_step_triangular(
+            w_tensors, w_unitcell_last_step, config, state
+        )
+    elif w_unitcell_last_step.is_split_transfer():
         w_unitcell, norm_smallest_S = do_absorption_step_split_transfer(
             w_tensors, w_unitcell_last_step, config, state
         )
@@ -390,6 +446,14 @@ def _ctmrg_body_func(carry):
         )
 
     def elementwise_func(old, new, old_corner, conv_eps, config):
+        if w_unitcell_last_step.is_triangular_peps():
+            converged, measure = _is_element_wise_converged_triangular(
+                old,
+                new,
+                conv_eps,
+            )
+            return converged, measure, None, old_corner
+
         converged, measure, verbose_data = _is_element_wise_converged(
             old,
             new,
@@ -538,17 +602,47 @@ def calc_ctmrg_env(
         corner_singular_vals = None
 
         while tmp_count < varipeps_config.ctmrg_max_steps and (
-            any(
-                getattr(i, j).shape[0] != i.chi or getattr(i, j).shape[1] != i.chi
-                for i in working_unitcell.get_unique_tensors()
-                for j in ("C1", "C2", "C3", "C4")
+            (
+                not working_unitcell.is_triangular_peps()
+                and any(
+                    getattr(i, j).shape[0] != i.chi or getattr(i, j).shape[1] != i.chi
+                    for i in working_unitcell.get_unique_tensors()
+                    for j in ("C1", "C2", "C3", "C4")
+                )
             )
             or (
-                hasattr(working_unitcell.get_unique_tensors()[0], "T4_ket")
+                working_unitcell.is_split_transfer()
                 and any(
                     getattr(i, j).shape[0] != i.interlayer_chi
                     for i in working_unitcell.get_unique_tensors()
                     for j in ("T1_bra", "T2_ket", "T3_bra", "T4_ket")
+                )
+            )
+            or (
+                working_unitcell.is_triangular_peps()
+                and any(
+                    getattr(i, j).shape[0] != i.chi or getattr(i, j).shape[3] != i.chi
+                    for i in working_unitcell.get_unique_tensors()
+                    for j in (
+                        "C1",
+                        "C2",
+                        "C3",
+                        "C4",
+                        "C5",
+                        "C6",
+                        "T1a",
+                        "T1b",
+                        "T2a",
+                        "T2b",
+                        "T3a",
+                        "T3b",
+                        "T4a",
+                        "T4b",
+                        "T5a",
+                        "T5b",
+                        "T6a",
+                        "T6b",
+                    )
                 )
             )
         ):
@@ -779,13 +873,20 @@ def _ctmrg_rev_while_body(carry):
         ]
     )
 
-    converged, measure, verbose_data = _is_element_wise_converged(
-        bar_fixed_point_last_step.get_unique_tensors(),
-        bar_fixed_point.get_unique_tensors(),
-        config.ad_custom_convergence_eps,
-        verbose=config.ad_custom_verbose_output,
-        split_transfer=bar_fixed_point.is_split_transfer(),
-    )
+    if bar_fixed_point_last_step.is_triangular_peps():
+        converged, measure = _is_element_wise_converged_triangular(
+            bar_fixed_point_last_step.get_unique_tensors(),
+            bar_fixed_point.get_unique_tensors(),
+            config.ad_custom_convergence_eps,
+        )
+    else:
+        converged, measure, verbose_data = _is_element_wise_converged(
+            bar_fixed_point_last_step.get_unique_tensors(),
+            bar_fixed_point.get_unique_tensors(),
+            config.ad_custom_convergence_eps,
+            verbose=config.ad_custom_verbose_output,
+            split_transfer=bar_fixed_point.is_split_transfer(),
+        )
 
     count += 1
 
@@ -805,7 +906,19 @@ def _ctmrg_rev_while_body(carry):
 
 @jit
 def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, state):
-    if new_unitcell.is_split_transfer():
+    if new_unitcell.is_triangular_peps():
+        _, vjp_peps_tensors = vjp(
+            lambda t: do_absorption_step_triangular(t, new_unitcell, config, state),
+            peps_tensors,
+        )
+
+        vjp_env = tree_util.Partial(
+            vjp(
+                lambda u: do_absorption_step_triangular(peps_tensors, u, config, state),
+                new_unitcell,
+            )[1]
+        )
+    elif new_unitcell.is_split_transfer():
         _, vjp_peps_tensors = vjp(
             lambda t: do_absorption_step_split_transfer(t, new_unitcell, config, state),
             peps_tensors,

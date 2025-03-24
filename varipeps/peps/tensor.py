@@ -2917,3 +2917,1013 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             sanity_checks=False,
             tensor_conj=tensor_conj,
         )
+
+
+@dataclass
+@register_pytree_node_class
+class PEPS_Tensor_Triangular:
+    """
+    Class to model a single triangular PEPS tensor with the corresponding
+    triangular CTM tensors.
+
+    Args:
+      tensor (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        PEPS tensor
+      C1 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        C1 tensor
+      C2 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        C2 tensor
+      C3 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        C3 tensor
+      C4 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        C4 tensor
+      C5 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        C5 tensor
+      C6 (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        C6 tensor
+      T1a (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T1a tensor
+      T1b (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T1b tensor
+      T2a (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T2a tensor
+      T2b (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T2b tensor
+      T3a (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T3a tensor
+      T3b (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T3b tensor
+      T4a (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T4a tensor
+      T4b (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T4b tensor
+      T5a (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T5a tensor
+      T5b (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T5b tensor
+      T6a (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T6a tensor
+      T6b (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+        T6b tensor
+      d (:obj:`int`):
+        Physical dimension of the PEPS tensor
+      D (:term:`sequence` of :obj:`int`):
+        Sequence of the bond dimensions of the PEPS tensor
+      chi (:obj:`int`):
+        Bond dimension for the CTM tensors
+      max_chi (:obj:`int`):
+        Maximal allowed bond dimension of environment tensors.
+    """
+
+    tensor: Tensor
+
+    C1: Tensor
+    C2: Tensor
+    C3: Tensor
+    C4: Tensor
+    C5: Tensor
+    C6: Tensor
+
+    T1a: Tensor
+    T1b: Tensor
+    T2a: Tensor
+    T2b: Tensor
+    T3a: Tensor
+    T3b: Tensor
+    T4a: Tensor
+    T4b: Tensor
+    T5a: Tensor
+    T5b: Tensor
+    T6a: Tensor
+    T6b: Tensor
+
+    d: int
+    D: Tuple[int, int, int, int]
+    chi: int
+    max_chi: int
+
+    sanity_checks: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.sanity_checks:
+            return
+
+        # Copied from https://stackoverflow.com/questions/50563546/validating-detailed-types-in-python-dataclasses
+        for field_name, field_def in self.__dataclass_fields__.items():  # type: ignore
+            actual_value = getattr(self, field_name)
+            if isinstance(actual_value, jax.core.Tracer):
+                continue
+            evaled_type = eval(field_def.type)
+            if isinstance(evaled_type, typing._SpecialForm):
+                # No check for typing.Any, typing.Union, typing.ClassVar (without parameters)
+                continue
+            try:
+                actual_type = evaled_type.__origin__
+            except AttributeError:
+                actual_type = evaled_type
+            if isinstance(actual_type, typing._SpecialForm):
+                # case of typing.Union[…] or typing.ClassVar[…]
+                actual_type = evaled_type.__args__
+            if not isinstance(actual_value, actual_type):
+                raise ValueError(
+                    f"Invalid type for field '{field_name}'. Expected '{field_def.type}', got '{type(field_name)}.'"
+                )
+
+        if not len(self.D) == 6:
+            raise ValueError(
+                "The bond dimension of the PEPS tensor has to be a tuple of four entries."
+            )
+
+        if (
+            self.tensor.shape[0] != self.D[0]
+            or self.tensor.shape[1] != self.D[1]
+            or self.tensor.shape[2] != self.D[2]
+            or self.tensor.shape[3] != self.D[3]
+            or self.tensor.shape[4] != self.D[4]
+            or self.tensor.shape[5] != self.D[5]
+        ):
+            raise ValueError("Bond dimension sequence mismatches tensor.")
+
+        if not (
+            self.T1a.shape[1] == self.T1a.shape[2] == self.D[0]
+            and self.T1b.shape[1] == self.T1b.shape[2] == self.D[1]
+            and self.T2a.shape[1] == self.T2a.shape[2] == self.D[1]
+            and self.T2b.shape[1] == self.T2b.shape[2] == self.D[2]
+            and self.T3a.shape[1] == self.T3a.shape[2] == self.D[2]
+            and self.T3b.shape[1] == self.T3b.shape[2] == self.D[3]
+            and self.T4a.shape[1] == self.T4a.shape[2] == self.D[3]
+            and self.T4b.shape[1] == self.T4b.shape[2] == self.D[4]
+            and self.T5a.shape[1] == self.T5a.shape[2] == self.D[4]
+            and self.T5b.shape[1] == self.T5b.shape[2] == self.D[5]
+            and self.T6a.shape[1] == self.T6a.shape[2] == self.D[5]
+            and self.T6b.shape[1] == self.T6b.shape[2] == self.D[0]
+        ):
+            raise ValueError(
+                "At least one transfer tensors mismatch bond dimensions of PEPS tensor."
+            )
+
+    @classmethod
+    def from_tensor(
+        cls,
+        tensor: Tensor,
+        d: int,
+        D: Union[int, Sequence[int]],
+        chi: int,
+        max_chi: Optional[int] = None,
+        *,
+        ctm_tensors_are_identities: bool = True,
+        normalize: bool = True,
+        seed: Optional[int] = None,
+        backend: str = "jax",
+    ):
+        """
+        Initialize a triangular PEPS tensor object with a given tensor and new
+        CTM tensors.
+
+        Args:
+          tensor (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            Triangular PEPS tensor to initialize the object with
+          d (:obj:`int`):
+            Physical dimension
+          D (:obj:`int` or :term:`sequence` of :obj:`int`):
+            Bond dimensions for the PEPS tensor
+          chi (:obj:`int`):
+            Bond dimension for the environment tensors
+          max_chi (:obj:`int`):
+            Maximal allowed bond dimension for the environment tensors
+        Keyword args:
+          ctm_tensors_are_identities (:obj:`bool`, optional):
+            Flag if the CTM tensors are initialized as identities. Otherwise,
+            they are initialized randomly. Defaults to True.
+          normalize (:obj:`bool`, optional):
+            Flag if the generated tensors are normalized. Defaults to True.
+          seed (:obj:`int`, optional):
+            Seed for the random number generator.
+          backend (:obj:`str`, optional):
+            Backend for the generated tensors (may be ``jax`` or ``numpy``).
+            Defaults to ``jax``.
+        Returns:
+          :obj:`~varipeps.peps.PEPS_Tensor_Triangular`:
+            Instance of PEPS_Tensor_Triangular with the randomly initialized tensors.
+        """
+        if not is_tensor(tensor):
+            raise ValueError("Invalid argument for tensor.")
+
+        if isinstance(D, int):
+            D = (D,) * 6
+        elif isinstance(D, collections.abc.Sequence) and not isinstance(D, tuple):
+            D = tuple(D)
+
+        if not all(isinstance(i, int) for i in D) or not len(D) == 6:
+            raise ValueError("Invalid argument for D.")
+
+        if (
+            tensor.shape[0] != D[0]
+            or tensor.shape[1] != D[1]
+            or tensor.shape[2] != D[2]
+            or tensor.shape[3] != D[3]
+            or tensor.shape[4] != D[4]
+            or tensor.shape[5] != D[5]
+            or tensor.shape[6] != d
+        ):
+            raise ValueError("Tensor dimensions mismatch the dimension arguments.")
+
+        if max_chi is None:
+            max_chi = chi
+
+        dtype = tensor.dtype
+
+        if ctm_tensors_are_identities:
+            C1 = jnp.eye(D[0], dtype=dtype).reshape(1, D[0], D[0], 1)
+            C2 = jnp.eye(D[1], dtype=dtype).reshape(1, D[1], D[1], 1)
+            C3 = jnp.eye(D[2], dtype=dtype).reshape(1, D[2], D[2], 1)
+            C4 = jnp.eye(D[3], dtype=dtype).reshape(1, D[3], D[3], 1)
+            C5 = jnp.eye(D[4], dtype=dtype).reshape(1, D[4], D[4], 1)
+            C6 = jnp.eye(D[5], dtype=dtype).reshape(1, D[5], D[5], 1)
+
+            T1a = jnp.eye(D[0], dtype=dtype).reshape(1, D[0], D[0], 1)
+            T2a = jnp.eye(D[1], dtype=dtype).reshape(1, D[1], D[1], 1)
+            T3a = jnp.eye(D[2], dtype=dtype).reshape(1, D[2], D[2], 1)
+            T4a = jnp.eye(D[3], dtype=dtype).reshape(1, D[3], D[3], 1)
+            T5a = jnp.eye(D[4], dtype=dtype).reshape(1, D[4], D[4], 1)
+            T6a = jnp.eye(D[5], dtype=dtype).reshape(1, D[5], D[5], 1)
+
+            T1b = jnp.eye(D[1], dtype=dtype).reshape(1, D[1], D[1], 1)
+            T2b = jnp.eye(D[2], dtype=dtype).reshape(1, D[2], D[2], 1)
+            T3b = jnp.eye(D[3], dtype=dtype).reshape(1, D[3], D[3], 1)
+            T4b = jnp.eye(D[4], dtype=dtype).reshape(1, D[4], D[4], 1)
+            T5b = jnp.eye(D[5], dtype=dtype).reshape(1, D[5], D[5], 1)
+            T6b = jnp.eye(D[0], dtype=dtype).reshape(1, D[0], D[0], 1)
+        else:
+            raise NotImplementedError
+
+        return cls(
+            tensor=tensor,
+            C1=C1,
+            C2=C2,
+            C3=C3,
+            C4=C4,
+            C5=C5,
+            C6=C6,
+            T1a=T1a,
+            T1b=T1b,
+            T2a=T2a,
+            T2b=T2b,
+            T3a=T3a,
+            T3b=T3b,
+            T4a=T4a,
+            T4b=T4b,
+            T5a=T5a,
+            T5b=T5b,
+            T6a=T6a,
+            T6b=T6b,
+            d=d,
+            D=D,  # type: ignore
+            chi=chi,
+            max_chi=max_chi,
+        )
+
+    @classmethod
+    def random(
+        cls,
+        d: int,
+        D: Union[int, Sequence[int]],
+        chi: int,
+        dtype: Union[Type[np.number], Type[jnp.number]],
+        max_chi: Optional[int] = None,
+        *,
+        ctm_tensors_are_identities: bool = True,
+        normalize: bool = True,
+        seed: Optional[int] = None,
+        backend: str = "jax",
+        semi_positive: bool = False,
+    ):
+        """
+        Randomly initialize a triangular PEPS tensor with triangular CTM tensors.
+
+        Args:
+          d (:obj:`int`):
+            Physical dimension
+          D (:obj:`int` or :term:`sequence` of :obj:`int`):
+            Bond dimensions for the PEPS tensor
+          chi (:obj:`int`):
+            Bond dimension for the environment tensors
+          dtype (:obj:`numpy.dtype` or :obj:`jax.numpy.dtype`):
+            Dtype of the generated tensors
+          max_chi (:obj:`int`):
+            Maximal allowed bond dimension for the environment tensors
+        Keyword args:
+          ctm_tensors_are_identities (:obj:`bool`, optional):
+            Flag if the CTM tensors are initialized as identities. Otherwise,
+            they are initialized randomly. Defaults to True.
+          normalize (:obj:`bool`, optional):
+            Flag if the generated tensors are normalized. Defaults to True.
+          seed (:obj:`int`, optional):
+            Seed for the random number generator.
+          backend (:obj:`str`, optional):
+            Backend for the generated tensors (may be ``jax`` or ``numpy``).
+            Defaults to ``jax``.
+        Returns:
+          :obj:`~varipeps.peps.PEPS_Tensor_Triangular`:
+            Instance of PEPS_Tensor_Triangular with the randomly initialized tensors.
+        """
+        if isinstance(D, int):
+            D = (D,) * 6
+        elif isinstance(D, collections.abc.Sequence) and not isinstance(D, tuple):
+            D = tuple(D)
+
+        if not all(isinstance(i, int) for i in D) or not len(D) == 6:
+            raise ValueError("Invalid argument for D.")
+
+        if max_chi is None:
+            max_chi = chi
+
+        rng = PEPS_Random_Number_Generator.get_generator(seed, backend=backend)
+
+        if semi_positive:
+            tensor = rng.semi_positive_block(
+                (D[0], D[1], D[2], D[3], D[4], D[5], d), dtype, normalize=normalize
+            )
+        else:
+            tensor = rng.block(
+                (D[0], D[1], D[2], D[3], D[4], D[5], d), dtype, normalize=normalize
+            )
+
+        if ctm_tensors_are_identities:
+            C1 = jnp.eye(D[0], dtype=dtype).reshape(1, D[0], D[0], 1)
+            C2 = jnp.eye(D[1], dtype=dtype).reshape(1, D[1], D[1], 1)
+            C3 = jnp.eye(D[2], dtype=dtype).reshape(1, D[2], D[2], 1)
+            C4 = jnp.eye(D[3], dtype=dtype).reshape(1, D[3], D[3], 1)
+            C5 = jnp.eye(D[4], dtype=dtype).reshape(1, D[4], D[4], 1)
+            C6 = jnp.eye(D[5], dtype=dtype).reshape(1, D[5], D[5], 1)
+
+            T1a = jnp.eye(D[0], dtype=dtype).reshape(1, D[0], D[0], 1)
+            T2a = jnp.eye(D[1], dtype=dtype).reshape(1, D[1], D[1], 1)
+            T3a = jnp.eye(D[2], dtype=dtype).reshape(1, D[2], D[2], 1)
+            T4a = jnp.eye(D[3], dtype=dtype).reshape(1, D[3], D[3], 1)
+            T5a = jnp.eye(D[4], dtype=dtype).reshape(1, D[4], D[4], 1)
+            T6a = jnp.eye(D[5], dtype=dtype).reshape(1, D[5], D[5], 1)
+
+            T1b = jnp.eye(D[1], dtype=dtype).reshape(1, D[1], D[1], 1)
+            T2b = jnp.eye(D[2], dtype=dtype).reshape(1, D[2], D[2], 1)
+            T3b = jnp.eye(D[3], dtype=dtype).reshape(1, D[3], D[3], 1)
+            T4b = jnp.eye(D[4], dtype=dtype).reshape(1, D[4], D[4], 1)
+            T5b = jnp.eye(D[5], dtype=dtype).reshape(1, D[5], D[5], 1)
+            T6b = jnp.eye(D[0], dtype=dtype).reshape(1, D[0], D[0], 1)
+        else:
+            raise NotImplementedError
+
+        return cls(
+            tensor=tensor,
+            C1=C1,
+            C2=C2,
+            C3=C3,
+            C4=C4,
+            C5=C5,
+            C6=C6,
+            T1a=T1a,
+            T1b=T1b,
+            T2a=T2a,
+            T2b=T2b,
+            T3a=T3a,
+            T3b=T3b,
+            T4a=T4a,
+            T4b=T4b,
+            T5a=T5a,
+            T5b=T5b,
+            T6a=T6a,
+            T6b=T6b,
+            d=d,
+            D=D,  # type: ignore
+            chi=chi,
+            max_chi=max_chi,
+        )
+
+    def replace_tensor(
+        self,
+        new_tensor: Tensor,
+        *,
+        reinitialize_env_as_identities: bool = True,
+        new_D: Optional[Tuple[int, int, int, int]] = None,
+    ):
+        """
+        Replace the PEPS tensor and returns new object of the class.
+
+        Args:
+          new_tensor (:obj:`numpy.ndarray` or :obj:`jax.numpy.ndarray`):
+            New PEPS tensor.
+        Keyword args:
+          reinitialize_env_as_identities (:obj:`bool`):
+            Reinitialize the CTM tensors as identities.
+          new_D (:obj:`tuple` of four :obj:`int`, optional):
+            Tuple of new iPEPS bond dimensions if tensor has changed dimensions
+        Returns:
+          :obj:`~varipeps.peps.PEPS_Tensor_Triangular`:
+            New instance of the class with the tensor replaced.
+        """
+        if new_D is None:
+            new_D = self.D
+        elif not isinstance(new_D, tuple) and len(new_D) != 6:
+            raise ValueError("Invalid argument for parameter new_D")
+
+        if reinitialize_env_as_identities:
+            C1 = jnp.eye(self.D[0], dtype=self.C1.dtype).reshape(
+                1, self.D[0], self.D[0], 1
+            )
+            C2 = jnp.eye(self.D[1], dtype=self.C2.dtype).reshape(
+                1, self.D[1], self.D[1], 1
+            )
+            C3 = jnp.eye(self.D[2], dtype=self.C3.dtype).reshape(
+                1, self.D[2], self.D[2], 1
+            )
+            C4 = jnp.eye(self.D[3], dtype=self.C4.dtype).reshape(
+                1, self.D[3], self.D[3], 1
+            )
+            C5 = jnp.eye(self.D[4], dtype=self.C5.dtype).reshape(
+                1, self.D[4], self.D[4], 1
+            )
+            C6 = jnp.eye(self.D[5], dtype=self.C6.dtype).reshape(
+                1, self.D[5], self.D[5], 1
+            )
+
+            T1a = jnp.eye(self.D[0], dtype=self.T1a.dtype).reshape(
+                1, self.D[0], self.D[0], 1
+            )
+            T2a = jnp.eye(self.D[1], dtype=self.T2a.dtype).reshape(
+                1, self.D[1], self.D[1], 1
+            )
+            T3a = jnp.eye(self.D[2], dtype=self.T3a.dtype).reshape(
+                1, self.D[2], self.D[2], 1
+            )
+            T4a = jnp.eye(self.D[3], dtype=self.T4a.dtype).reshape(
+                1, self.D[3], self.D[3], 1
+            )
+            T5a = jnp.eye(self.D[4], dtype=self.T5a.dtype).reshape(
+                1, self.D[4], self.D[4], 1
+            )
+            T6a = jnp.eye(self.D[5], dtype=self.T6a.dtype).reshape(
+                1, self.D[5], self.D[5], 1
+            )
+
+            T1b = jnp.eye(self.D[1], dtype=self.T1b.dtype).reshape(
+                1, self.D[1], self.D[1], 1
+            )
+            T2b = jnp.eye(self.D[2], dtype=self.T2b.dtype).reshape(
+                1, self.D[2], self.D[2], 1
+            )
+            T3b = jnp.eye(self.D[3], dtype=self.T3b.dtype).reshape(
+                1, self.D[3], self.D[3], 1
+            )
+            T4b = jnp.eye(self.D[4], dtype=self.T4b.dtype).reshape(
+                1, self.D[4], self.D[4], 1
+            )
+            T5b = jnp.eye(self.D[5], dtype=self.T5b.dtype).reshape(
+                1, self.D[5], self.D[5], 1
+            )
+            T6b = jnp.eye(self.D[0], dtype=self.T6b.dtype).reshape(
+                1, self.D[0], self.D[0], 1
+            )
+
+            return type(self)(
+                tensor=new_tensor,
+                C1=C1,
+                C2=C2,
+                C3=C3,
+                C4=C4,
+                C5=C5,
+                C6=C6,
+                T1a=T1a,
+                T1b=T1b,
+                T2a=T2a,
+                T2b=T2b,
+                T3a=T3a,
+                T3b=T3b,
+                T4a=T4a,
+                T4b=T4b,
+                T5a=T5a,
+                T5b=T5b,
+                T6a=T6a,
+                T6b=T6b,
+                d=self.d,
+                D=new_D,
+                chi=self.chi,
+                max_chi=self.max_chi,
+            )
+        else:
+            return type(self)(
+                tensor=new_tensor,
+                C1=self.C1,
+                C2=self.C2,
+                C3=self.C3,
+                C4=self.C4,
+                C5=self.C5,
+                C6=self.C6,
+                T1a=self.T1a,
+                T1b=self.T1b,
+                T2a=self.T2a,
+                T2b=self.T2b,
+                T3a=self.T3a,
+                T3b=self.T3b,
+                T4a=self.T4a,
+                T4b=self.T4b,
+                T5a=self.T5a,
+                T5b=self.T5b,
+                T6a=self.T6a,
+                T6b=self.T6b,
+                d=self.d,
+                D=new_D,
+                chi=self.chi,
+                max_chi=self.max_chi,
+            )
+
+    def change_chi(
+        self: T_PEPS_Tensor,
+        new_chi: int,
+        *,
+        reinitialize_env_as_identities: bool = True,
+        reset_max_chi: bool = False,
+    ):
+        """
+        Change the environment bond dimension and returns new object of the class.
+
+        Args:
+          new_chi (:obj:`int`):
+            New value for environment bond dimension.
+        Keyword args:
+          reinitialize_env_as_identities (:obj:`bool`):
+            Reinitialize the CTM tensors as identities if decreasing the dimension.
+          reset_max_chi (:obj:`bool`):
+            Set maximal bond dimension to the same new value.
+        Returns:
+          :obj:`~varipeps.peps.PEPS_Tensor_Triangular`:
+            New instance of the class with the increased value.
+        """
+        new_max_chi = new_chi if reset_max_chi else self.max_chi
+
+        if new_chi > new_max_chi:
+            raise ValueError(
+                "Increase above the max value for environment bond dimension."
+            )
+
+        if new_chi < self.chi and reinitialize_env_as_identities:
+            C1 = jnp.eye(self.D[0], dtype=self.C1.dtype).reshape(
+                1, self.D[0], self.D[0], 1
+            )
+            C2 = jnp.eye(self.D[1], dtype=self.C2.dtype).reshape(
+                1, self.D[1], self.D[1], 1
+            )
+            C3 = jnp.eye(self.D[2], dtype=self.C3.dtype).reshape(
+                1, self.D[2], self.D[2], 1
+            )
+            C4 = jnp.eye(self.D[3], dtype=self.C4.dtype).reshape(
+                1, self.D[3], self.D[3], 1
+            )
+            C5 = jnp.eye(self.D[4], dtype=self.C5.dtype).reshape(
+                1, self.D[4], self.D[4], 1
+            )
+            C6 = jnp.eye(self.D[5], dtype=self.C6.dtype).reshape(
+                1, self.D[5], self.D[5], 1
+            )
+
+            T1a = jnp.eye(self.D[0], dtype=self.T1a.dtype).reshape(
+                1, self.D[0], self.D[0], 1
+            )
+            T2a = jnp.eye(self.D[1], dtype=self.T2a.dtype).reshape(
+                1, self.D[1], self.D[1], 1
+            )
+            T3a = jnp.eye(self.D[2], dtype=self.T3a.dtype).reshape(
+                1, self.D[2], self.D[2], 1
+            )
+            T4a = jnp.eye(self.D[3], dtype=self.T4a.dtype).reshape(
+                1, self.D[3], self.D[3], 1
+            )
+            T5a = jnp.eye(self.D[4], dtype=self.T5a.dtype).reshape(
+                1, self.D[4], self.D[4], 1
+            )
+            T6a = jnp.eye(self.D[5], dtype=self.T6a.dtype).reshape(
+                1, self.D[5], self.D[5], 1
+            )
+
+            T1b = jnp.eye(self.D[1], dtype=self.T1b.dtype).reshape(
+                1, self.D[1], self.D[1], 1
+            )
+            T2b = jnp.eye(self.D[2], dtype=self.T2b.dtype).reshape(
+                1, self.D[2], self.D[2], 1
+            )
+            T3b = jnp.eye(self.D[3], dtype=self.T3b.dtype).reshape(
+                1, self.D[3], self.D[3], 1
+            )
+            T4b = jnp.eye(self.D[4], dtype=self.T4b.dtype).reshape(
+                1, self.D[4], self.D[4], 1
+            )
+            T5b = jnp.eye(self.D[5], dtype=self.T5b.dtype).reshape(
+                1, self.D[5], self.D[5], 1
+            )
+            T6b = jnp.eye(self.D[0], dtype=self.T6b.dtype).reshape(
+                1, self.D[0], self.D[0], 1
+            )
+
+            return type(self)(
+                tensor=self.tensor,
+                C1=C1,
+                C2=C2,
+                C3=C3,
+                C4=C4,
+                C5=C5,
+                C6=C6,
+                T1a=T1a,
+                T1b=T1b,
+                T2a=T2a,
+                T2b=T2b,
+                T3a=T3a,
+                T3b=T3b,
+                T4a=T4a,
+                T4b=T4b,
+                T5a=T5a,
+                T5b=T5b,
+                T6a=T6a,
+                T6b=T6b,
+                d=self.d,
+                D=self.D,
+                chi=new_chi,
+                max_chi=new_max_chi,
+            )
+        else:
+            return type(self)(
+                tensor=self.tensor,
+                C1=self.C1,
+                C2=self.C2,
+                C3=self.C3,
+                C4=self.C4,
+                C5=self.C5,
+                C6=self.C6,
+                T1a=self.T1a,
+                T1b=self.T1b,
+                T2a=self.T2a,
+                T2b=self.T2b,
+                T3a=self.T3a,
+                T3b=self.T3b,
+                T4a=self.T4a,
+                T4b=self.T4b,
+                T5a=self.T5a,
+                T5b=self.T5b,
+                T6a=self.T6a,
+                T6b=self.T6b,
+                d=self.d,
+                D=self.D,
+                chi=new_chi,
+                max_chi=new_max_chi,
+            )
+
+    def increase_max_chi(
+        self: T_PEPS_Tensor,
+        new_max_chi: int,
+    ):
+        """
+        Change the maximal environment bond dimension and returns new object of the class.
+
+        Args:
+          new_max_chi (:obj:`int`):
+            New value for maximal environment bond dimension.
+        Returns:
+          :obj:`~varipeps.peps.PEPS_Tensor_Triangular`:
+            New instance of the class with the increased value.
+        """
+        if new_max_chi < self.max_chi:
+            raise ValueError(
+                "Decrease below the old max value for environment bond dimension."
+            )
+
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            C5=self.C5,
+            C6=self.C6,
+            T1a=self.T1a,
+            T1b=self.T1b,
+            T2a=self.T2a,
+            T2b=self.T2b,
+            T3a=self.T3a,
+            T3b=self.T3b,
+            T4a=self.T4a,
+            T4b=self.T4b,
+            T5a=self.T5a,
+            T5b=self.T5b,
+            T6a=self.T6a,
+            T6b=self.T6b,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=new_max_chi,
+        )
+
+    def __add__(self, other, *, checks: bool = True):
+        """
+        Add the environment tensors of two PEPS tensors.
+
+        Args:
+          other (:obj:`~varipeps.peps.PEPS_Tensor_Triangular`):
+            Other PEPS tensor object which should be added to this one.
+        Keyword args:
+          checks (:obj:`bool`):
+            Enable checks that the addition of the two tensor objects makes
+            sense. Maybe disabled for jax transformations.
+        Returns:
+          :obj:`~varipeps.peps.PEPS_Tensor_Triangular`:
+            New instance with the added env tensors.
+        """
+        if checks and (
+            self.tensor is not other.tensor
+            or self.d != other.d
+            or self.D != other.D
+            or self.chi != other.chi
+        ):
+            raise ValueError(
+                "Both PEPS tensors must have the same tensor, d, D and chi values."
+            )
+
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1 + other.C1,
+            C2=self.C2 + other.C2,
+            C3=self.C3 + other.C3,
+            C4=self.C4 + other.C4,
+            C5=self.C5 + other.C5,
+            C6=self.C6 + other.C6,
+            T1a=self.T1a + other.T1a,
+            T1b=self.T1b + other.T1b,
+            T2a=self.T2a + other.T2a,
+            T2b=self.T2b + other.T2b,
+            T3a=self.T3a + other.T3a,
+            T3b=self.T3b + other.T3b,
+            T4a=self.T4a + other.T4a,
+            T4b=self.T4b + other.T4b,
+            T5a=self.T5a + other.T5a,
+            T5b=self.T5b + other.T5b,
+            T6a=self.T6a + other.T6a,
+            T6b=self.T6b + other.T6b,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+        )
+
+    @classmethod
+    def zeros_like(cls, t):
+        """
+        Create a PEPS tensor with same shape as another one but with zeros
+        everywhere.
+
+        Args:
+          t (:obj:`~varipeps.peps.PEPS_Tensor_Triangular`):
+            Other PEPS tensor object whose shape should be copied.
+        Returns:
+         :obj:`~varipeps.peps.PEPS_Tensor_Triangular`:
+            New instance with the zero initialized tensors.
+        """
+        return cls(
+            tensor=jnp.zeros_like(t.tensor),
+            C1=jnp.zeros_like(t.C1),
+            C2=jnp.zeros_like(t.C2),
+            C3=jnp.zeros_like(t.C3),
+            C4=jnp.zeros_like(t.C4),
+            C5=jnp.zeros_like(t.C5),
+            C6=jnp.zeros_like(t.C6),
+            T1a=jnp.zeros_like(t.T1a),
+            T1b=jnp.zeros_like(t.T1b),
+            T2a=jnp.zeros_like(t.T2a),
+            T2b=jnp.zeros_like(t.T2b),
+            T3a=jnp.zeros_like(t.T3a),
+            T3b=jnp.zeros_like(t.T3b),
+            T4a=jnp.zeros_like(t.T4a),
+            T4b=jnp.zeros_like(t.T4b),
+            T5a=jnp.zeros_like(t.T5a),
+            T5b=jnp.zeros_like(t.T5b),
+            T6a=jnp.zeros_like(t.T6a),
+            T6b=jnp.zeros_like(t.T6b),
+            d=t.d,
+            D=t.D,
+            chi=t.chi,
+            max_chi=t.max_chi,
+        )
+
+    def zeros_like_self(self):
+        """
+        Wrapper around :obj:`~varipeps.peps.PEPS_Tensor_Triangular.zeros_like`
+        with the self object as argument. For details see there.
+        """
+        return type(self).zeros_like(self)
+
+    def copy(self):
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            C5=self.C5,
+            C6=self.C6,
+            T1a=self.T1a,
+            T1b=self.T1b,
+            T2a=self.T2a,
+            T2b=self.T2b,
+            T3a=self.T3a,
+            T3b=self.T3b,
+            T4a=self.T4a,
+            T4b=self.T4b,
+            T5a=self.T5a,
+            T5b=self.T5b,
+            T6a=self.T6a,
+            T6b=self.T6b,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+        )
+
+    def save_to_group(self, grp: h5py.Group) -> None:
+        """
+        Store the PEPS tensor into a HDF5 group.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to save the data into.
+        """
+        grp.attrs["d"] = self.d
+        grp.attrs["D"] = self.D
+        grp.attrs["chi"] = self.chi
+        grp.attrs["max_chi"] = self.max_chi
+        grp.attrs["is_triangular_peps"] = True
+        grp.create_dataset(
+            "tensor", data=self.tensor, compression="gzip", compression_opts=6
+        )
+        grp.create_dataset("C1", data=self.C1, compression="gzip", compression_opts=6)
+        grp.create_dataset("C2", data=self.C2, compression="gzip", compression_opts=6)
+        grp.create_dataset("C3", data=self.C3, compression="gzip", compression_opts=6)
+        grp.create_dataset("C4", data=self.C4, compression="gzip", compression_opts=6)
+        grp.create_dataset("C5", data=self.C5, compression="gzip", compression_opts=6)
+        grp.create_dataset("C6", data=self.C6, compression="gzip", compression_opts=6)
+        grp.create_dataset("T1a", data=self.T1a, compression="gzip", compression_opts=6)
+        grp.create_dataset("T1b", data=self.T1b, compression="gzip", compression_opts=6)
+        grp.create_dataset("T2a", data=self.T2a, compression="gzip", compression_opts=6)
+        grp.create_dataset("T2b", data=self.T2b, compression="gzip", compression_opts=6)
+        grp.create_dataset("T3a", data=self.T3a, compression="gzip", compression_opts=6)
+        grp.create_dataset("T3b", data=self.T3b, compression="gzip", compression_opts=6)
+        grp.create_dataset("T4a", data=self.T4a, compression="gzip", compression_opts=6)
+        grp.create_dataset("T4b", data=self.T4b, compression="gzip", compression_opts=6)
+        grp.create_dataset("T5a", data=self.T5a, compression="gzip", compression_opts=6)
+        grp.create_dataset("T5b", data=self.T5b, compression="gzip", compression_opts=6)
+        grp.create_dataset("T6a", data=self.T6a, compression="gzip", compression_opts=6)
+        grp.create_dataset("T6b", data=self.T6b, compression="gzip", compression_opts=6)
+
+    @classmethod
+    def load_from_group(cls, grp: h5py.Group):
+        """
+        Load the PEPS tensor from a HDF5 group.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to load the data from.
+        """
+        d = int(grp.attrs["d"])
+        D = tuple(int(i) for i in grp.attrs["D"])
+        chi = int(grp.attrs["chi"])
+        try:
+            max_chi = int(grp.attrs["max_chi"])
+        except KeyError:
+            max_chi = chi
+
+        tensor = jnp.asarray(grp["tensor"])
+        C1 = jnp.asarray(grp["C1"])
+        C2 = jnp.asarray(grp["C2"])
+        C3 = jnp.asarray(grp["C3"])
+        C4 = jnp.asarray(grp["C4"])
+        C5 = jnp.asarray(grp["C5"])
+        C6 = jnp.asarray(grp["C6"])
+        T1a = jnp.asarray(grp["T1a"])
+        T1b = jnp.asarray(grp["T1b"])
+        T2a = jnp.asarray(grp["T2a"])
+        T2b = jnp.asarray(grp["T2b"])
+        T3a = jnp.asarray(grp["T3a"])
+        T3b = jnp.asarray(grp["T3b"])
+        T4a = jnp.asarray(grp["T4a"])
+        T4b = jnp.asarray(grp["T4b"])
+        T5a = jnp.asarray(grp["T5a"])
+        T5b = jnp.asarray(grp["T5b"])
+        T6a = jnp.asarray(grp["T6a"])
+        T6b = jnp.asarray(grp["T6b"])
+
+        return cls(
+            tensor=tensor,
+            C1=C1,
+            C2=C2,
+            C3=C3,
+            C4=C4,
+            C5=C5,
+            C6=C6,
+            T1a=T1a,
+            T1b=T1b,
+            T2a=T2a,
+            T2b=T2b,
+            T3a=T3a,
+            T3b=T3b,
+            T4a=T4a,
+            T4b=T4b,
+            T5a=T5a,
+            T5b=T5b,
+            T6a=T6a,
+            T6b=T6b,
+            d=d,
+            D=D,
+            chi=chi,
+            max_chi=max_chi,
+        )
+
+    @property
+    def is_split_transfer(self) -> bool:
+        return False
+
+    @property
+    def is_triangular_peps(self) -> bool:
+        return True
+
+    def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
+        data = (
+            self.tensor,
+            self.C1,
+            self.C2,
+            self.C3,
+            self.C4,
+            self.C5,
+            self.C6,
+            self.T1a,
+            self.T1b,
+            self.T2a,
+            self.T2b,
+            self.T3a,
+            self.T3b,
+            self.T4a,
+            self.T4b,
+            self.T5a,
+            self.T5b,
+            self.T6a,
+            self.T6b,
+        )
+        aux_data = (self.d, self.D, self.chi, self.max_chi)
+
+        return (data, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data: Tuple[Any, ...], children: Tuple[Any, ...]):
+        (
+            tensor,
+            C1,
+            C2,
+            C3,
+            C4,
+            C5,
+            C6,
+            T1a,
+            T1b,
+            T2a,
+            T2b,
+            T3a,
+            T3b,
+            T4a,
+            T4b,
+            T5a,
+            T5b,
+            T6a,
+            T6b,
+        ) = children
+        d, D, chi, max_chi = aux_data
+
+        return cls(
+            tensor=tensor,
+            C1=C1,
+            C2=C2,
+            C3=C3,
+            C4=C4,
+            C5=C5,
+            C6=C6,
+            T1a=T1a,
+            T1b=T1b,
+            T2a=T2a,
+            T2b=T2b,
+            T3a=T3a,
+            T3b=T3b,
+            T4a=T4a,
+            T4b=T4b,
+            T5a=T5a,
+            T5b=T5b,
+            T6a=T6a,
+            T6b=T6b,
+            d=d,
+            D=D,
+            chi=chi,
+            max_chi=max_chi,
+            sanity_checks=False,
+        )

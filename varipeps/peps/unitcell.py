@@ -17,7 +17,7 @@ import numpy as np
 import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
 
-from .tensor import PEPS_Tensor, PEPS_Tensor_Split_Transfer
+from .tensor import PEPS_Tensor, PEPS_Tensor_Split_Transfer, PEPS_Tensor_Triangular
 import varipeps
 from varipeps.utils.random import PEPS_Random_Number_Generator
 from varipeps.utils.periodic_indices import calculate_periodic_indices
@@ -152,20 +152,31 @@ class PEPS_Unit_Cell:
             """
             structure = tuple(tuple(int(j) for j in i) for i in grp["structure"])
             try:
-                peps_tensors = [
-                    PEPS_Tensor.load_from_group(grp["peps_tensors"][f"t_{ti:d}"])
-                    for ti in range(grp["peps_tensors"].attrs["len"])
-                ]
-            except KeyError as e:
-                try:
+                if grp["peps_tensors"]["t_0"].attrs["is_triangular_peps"]:
                     peps_tensors = [
-                        PEPS_Tensor_Split_Transfer.load_from_group(
+                        PEPS_Tensor_Triangular.load_from_group(
                             grp["peps_tensors"][f"t_{ti:d}"]
                         )
                         for ti in range(grp["peps_tensors"].attrs["len"])
                     ]
-                except KeyError:
-                    raise e
+                else:
+                    raise KeyError
+            except KeyError:
+                try:
+                    peps_tensors = [
+                        PEPS_Tensor.load_from_group(grp["peps_tensors"][f"t_{ti:d}"])
+                        for ti in range(grp["peps_tensors"].attrs["len"])
+                    ]
+                except KeyError as e:
+                    try:
+                        peps_tensors = [
+                            PEPS_Tensor_Split_Transfer.load_from_group(
+                                grp["peps_tensors"][f"t_{ti:d}"]
+                            )
+                            for ti in range(grp["peps_tensors"].attrs["len"])
+                        ]
+                    except KeyError:
+                        raise e
 
             return cls(structure=structure, peps_tensors=peps_tensors)
 
@@ -414,7 +425,7 @@ class PEPS_Unit_Cell:
           value (:obj:`~varipeps.peps.PEPS_Tensor`):
             New PEPS tensor object to be set.
         """
-        if not isinstance(value, PEPS_Tensor):
+        if not isinstance(value, (PEPS_Tensor, PEPS_Tensor_Triangular)):
             raise TypeError("Invalid type for value. Expected PEPS_Tensor.")
 
         x, y = key
@@ -464,6 +475,12 @@ class PEPS_Unit_Cell:
 
     def is_split_transfer(self: T_PEPS_Unit_Cell) -> bool:
         return all(t.is_split_transfer for t in self.data.peps_tensors)
+
+    def is_triangular_peps(self: T_PEPS_Unit_Cell) -> bool:
+        try:
+            return all(t.is_triangular_peps for t in self.data.peps_tensors)
+        except AttributeError:
+            return False
 
     def convert_to_split_transfer(
         self: T_PEPS_Unit_Cell, interlayer_chi: Optional[int] = None

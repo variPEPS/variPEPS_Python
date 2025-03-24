@@ -2,7 +2,7 @@ from collections import namedtuple
 import collections.abc
 from dataclasses import dataclass, field
 
-from typing import Sequence, Tuple, List, Dict, TypeVar
+from typing import Sequence, Tuple, List, Dict, TypeVar, Any
 
 Left_Projectors = namedtuple("Left_Projectors", ("top", "bottom"))
 Right_Projectors = namedtuple("Right_Projectors", ("top", "bottom"))
@@ -89,6 +89,7 @@ class Projector_Dict(collections.abc.MutableMapping):
         return self.projector_dict[key]
 
     def __setitem__(self, key: Tuple[int, int], value: T_Projector) -> None:
+        key = (key[0] % self.max_x, key[1] % self.max_y)
         self.projector_dict[key] = value
 
     def __delitem__(self, key: Tuple[int, int]) -> None:
@@ -111,3 +112,41 @@ class Projector_Dict(collections.abc.MutableMapping):
         select_y = (current_y + relative_y) % self.max_y
 
         return self.projector_dict[(select_x, select_y)]
+
+
+@dataclass
+class Projector_Dict_Triangular(collections.abc.MutableMapping):
+    view: Any
+    max_x: int
+    max_y: int
+    projector_dict: Dict[int, Any] = field(default_factory=dict)  # type: ignore
+
+    def __getitem__(self, key: int):
+        return self.projector_dict[key]
+
+    def __setitem__(self, key: Tuple[int, int], value) -> None:
+        key = self.view.get_indices(key)[0][0]
+        self.projector_dict[key] = value
+
+    def __delitem__(self, key: int) -> None:
+        self.projector_dict.__delitem__(key)
+
+    def __iter__(self):
+        return self.projector_dict.__iter__()
+
+    def __len__(self):
+        return self.projector_dict.__len__()
+
+    def get_projector(
+        self,
+        current_x: int,
+        current_y: int,
+        relative_x: int,
+        relative_y: int,
+    ) -> T_Projector:
+        select_x = (current_x + relative_x) % self.max_x
+        select_y = (current_y + relative_y) % self.max_y
+
+        key = self.view.get_indices((select_x, select_y))[0][0]
+
+        return self.projector_dict[key]
