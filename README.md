@@ -41,6 +41,16 @@ The BibTeX code for these references are:
 	url={https://scipost.org/10.21468/SciPostPhysLectNotes.86},
 }
 
+@misc{naumann2025variationallyoptimizinginfiniteprojected,
+      title={Variationally optimizing infinite projected entangled-pair states at large bond dimensions: A split-CTMRG approach},
+      author={Jan Naumann and Erik Lennart Weerda and Jens Eisert and Matteo Rizzi and Philipp Schmoll},
+      year={2025},
+      eprint={2502.10298},
+      archivePrefix={arXiv},
+      primaryClass={cond-mat.str-el},
+      url={https://arxiv.org/abs/2502.10298},
+}
+
 @software{naumann24_varipeps_python,
     author =        {Jan Naumann and Philipp Schmoll and Frederik Wilde and Finn Krein},
     title =         {{variPEPS (Python version)}},

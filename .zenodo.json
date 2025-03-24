@@ -55,6 +55,11 @@
             "resource_type": "publication-article"
         },
         {
+            "identifier": "arXiv:2502.10298",
+            "relation": "isDocumentedBy",
+            "resource_type": "publication-preprint"
+        },
+        {
             "identifier": "https://varipeps.readthedocs.io/en/stable/",
             "relation": "isDocumentedBy",
             "resource_type": "publication-softwaredocumentation"

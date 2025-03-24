@@ -29,6 +29,9 @@ identifiers:
     value: 10.21468/SciPostPhysLectNotes.86
     description: Journal article with the description of the method
   - type: doi
+    value: 10.48550/arXiv.2502.10298
+    description: Prepribt with the description of the split-CTMRG method
+  - type: doi
     value: 10.5281/zenodo.10852390
     description: Zenodo DOI for current version of the code
 repository-code: 'https://github.com/variPEPS/variPEPS_Python'
