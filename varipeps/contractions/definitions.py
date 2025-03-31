@@ -4129,5 +4129,95 @@ class Definitions:
         ],
     }
 
+    triangular_ctmrg_corrlen_vec_60: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T6a", "C1", "C2", "C3", "T3b"]],
+        "network": [
+            [
+                (3, 4, 5, 11, -2, 14, 9),  # tensor
+                (6, 7, 8, 12, -3, 15, 9),  # tensor_conj
+                (-1, 14, 15, 13),  # T6a
+                (13, 3, 6, 1),  # C1
+                (1, 4, 7, 2),  # C2
+                (2, 5, 8, 10),  # C3
+                (10, 11, 12, -4),  # T3b
+            ],
+        ],
+    }
+
+    triangular_ctmrg_corrlen_vec_120: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T5a", "C6", "C1", "C2", "T2b"]],
+        "network": [
+            [
+                (4, 5, 14, -2, 11, 3, 9),  # tensor
+                (7, 8, 15, -3, 12, 6, 9),  # tensor_conj
+                (-4, 11, 12, 10),  # T5a
+                (10, 3, 6, 1),  # C6
+                (1, 4, 7, 2),  # C1
+                (2, 5, 8, 13),  # C2
+                (13, 14, 15, -1),  # T2b
+            ],
+        ],
+    }
+
+    triangular_ctmrg_corrlen_vec_180: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T4a", "C5", "C6", "C1", "T1b"]],
+        "network": [
+            [
+                (5, 14, -2, 11, 3, 4, 9),  # tensor
+                (8, 15, -3, 12, 6, 7, 9),  # tensor_conj
+                (-4, 11, 12, 10),  # T4a
+                (10, 3, 6, 1),  # C5
+                (1, 4, 7, 2),  # C6
+                (2, 5, 8, 13),  # C1
+                (13, 14, 15, -1),  # T1b
+            ],
+        ],
+    }
+
+    triangular_ctmrg_corrlen_absorb_60: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T6a", "T6b", "T3a", "T3b"], "vec"],
+        "network": [
+            [
+                (3, 4, 12, 13, -2, 5, 9),  # tensor
+                (6, 7, 14, 15, -3, 8, 9),  # tensor_conj
+                (-1, 5, 8, 1),  # T6a
+                (1, 3, 6, 2),  # T6b
+                (11, 12, 14, 10),  # T3a
+                (10, 13, 15, -4),  # T3b
+            ],
+            [2, 4, 7, 11],  # vec
+        ],
+    }
+
+    triangular_ctmrg_corrlen_absorb_120: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T2a", "T2b", "T5a", "T5b"], "vec"],
+        "network": [
+            [
+                (3, 4, 5, -2, 12, 13, 9),  # tensor
+                (6, 7, 8, -3, 14, 15, 9),  # tensor_conj
+                (2, 4, 7, 1),  # T2a
+                (1, 5, 8, -1),  # T2b
+                (-4, 12, 14, 10),  # T5a
+                (10, 13, 15, 11),  # T5b
+            ],
+            [2, 3, 6, 11],  # vec
+        ],
+    }
+
+    triangular_ctmrg_corrlen_absorb_180: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T1a", "T1b", "T4a", "T4b"], "vec"],
+        "network": [
+            [
+                (3, 4, -2, 12, 13, 5, 9),  # tensor
+                (6, 7, -3, 14, 15, 8, 9),  # tensor_conj
+                (2, 3, 6, 1),  # T1a
+                (1, 4, 7, -1),  # T1b
+                (-4, 12, 14, 10),  # T4a
+                (10, 13, 15, 11),  # T4b
+            ],
+            [2, 5, 8, 11],  # vec
+        ],
+    }
+
 
 Definitions._prepare_defs()

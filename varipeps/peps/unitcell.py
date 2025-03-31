@@ -922,6 +922,29 @@ class PEPS_Unit_Cell:
                 y, only_unique=only_unique, unique_memory=unique_memory
             )
 
+    def _iter_main_diagonal_impl(self):
+        unit_cell_len_x, unit_cell_len_y = self.get_size()
+
+        max_i = jnp.lcm(unit_cell_len_x, unit_cell_len_y)
+
+        for i in range(max_i):
+            view = self.move(i, i)
+
+            yield i, view
+
+    def iter_main_diagonal(
+        self: T_PEPS_Unit_Cell,
+    ) -> Iterator[Tuple[int, T_PEPS_Unit_Cell]]:
+        """
+        Get a iterator over the main diagonal.
+
+        Returns:
+          :term:`iterator`\ (:obj:`~varipeps.peps.PEPS_Unit_Cell`):
+            Iterator over main diagonal of the unit cell with the current PEPS
+            tensor at moved position (0, 0).
+        """
+        return self._iter_main_diagonal_impl()
+
     def _iter_one_row_impl(
         self,
         fixed_x: int,
