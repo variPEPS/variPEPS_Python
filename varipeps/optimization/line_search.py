@@ -220,6 +220,8 @@ def _hager_zhang_initial_quad_step_inner(
         sum_term < 0, alpha**2 * g_d_term / (2 * sum_term), fallback_alpha
     )
 
+    alpha = jnp.where(alpha > 0, alpha, fallback_alpha)
+
     return alpha
 
 
@@ -343,7 +345,7 @@ def line_search(
     )
 
     if varipeps_config.line_search_method is Line_Search_Methods.HAGERZHANG:
-        if last_step_size is None:
+        if last_step_size is None or last_step_size <= 0:
             alpha = _hager_zhang_initial_zero(input_tensors, gradient, varipeps_config)
         elif varipeps_config.line_search_hager_zhang_quad_step:
             try:
@@ -371,6 +373,7 @@ def line_search(
             last_step_size
             if last_step_size is not None
             and varipeps_config.line_search_use_last_step_size
+            and last_step_size > 0
             else varipeps_config.line_search_initial_step_size
         )
 
@@ -1000,6 +1003,9 @@ def line_search(
                 alpha /= (
                     hager_zhang_upper_bound_des_grad - hager_zhang_lower_bound_des_grad
                 )
+
+                if alpha <= 0:
+                    tqdm.write("Found negative alpha in secant operation!")
 
                 hz_secant_alpha = alpha
 
