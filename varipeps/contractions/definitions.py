@@ -3877,6 +3877,22 @@ class Definitions:
         ],
     }
 
+    triangular_ctmrg_one_site_expectation: Definition = {
+        "tensors": [["tensor", "tensor_conj", "C1", "C2", "C3", "C4", "C5", "C6"]],
+        "network": [
+            [
+                (5, 6, 7, 9, 10, 11, -1),  # tensor
+                (13, 14, 15, 16, 17, 18, -2),  # tensor_conj
+                (12, 5, 13, 1),  # C1
+                (1, 6, 14, 2),  # C2
+                (2, 7, 15, 8),  # C3
+                (8, 9, 16, 3),  # C4
+                (3, 10, 17, 4),  # C5
+                (4, 11, 18, 12),  # C6
+            ],
+        ],
+    }
+
     triangular_ctmrg_two_site_expectation_horizontal_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "T4a", "C5", "C6", "C1", "T1b"]],
         "network": [
