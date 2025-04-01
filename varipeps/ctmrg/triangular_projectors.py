@@ -60,9 +60,10 @@ def _corner_workhorse(
     left_matrix /= jnp.linalg.norm(left_matrix)
     right_matrix /= jnp.linalg.norm(right_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(
-        left_matrix @ right_matrix, chi, truncation_eps
-    )
+    product_matrix = left_matrix @ right_matrix
+    product_matrix /= jnp.linalg.norm(product_matrix)
+
+    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
 
     projector_left = jnp.dot(
         S_inv_sqrt[:, jnp.newaxis] * U.transpose().conj(),
@@ -269,9 +270,10 @@ def _T_workhorse(
     left_matrix /= jnp.linalg.norm(left_matrix)
     right_matrix /= jnp.linalg.norm(right_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(
-        left_matrix @ right_matrix, chi, truncation_eps
-    )
+    product_matrix = left_matrix @ right_matrix
+    product_matrix /= jnp.linalg.norm(product_matrix)
+
+    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
 
     projector_left = jnp.dot(
         S_inv_sqrt[:, jnp.newaxis] * U.transpose().conj(),

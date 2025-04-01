@@ -41,6 +41,12 @@ def do_absorption_step_triangular(
 ) -> PEPS_Unit_Cell:
     max_x, max_y = unitcell.get_size()
 
+    truncation_eps = (
+        config.ctmrg_truncation_eps
+        if state.ctmrg_effective_truncation_eps is None
+        else state.ctmrg_effective_truncation_eps
+    )
+
     corner_30_projectors = Projector_Dict_Triangular(
         view=unitcell, max_x=max_x, max_y=max_y
     )
@@ -200,7 +206,11 @@ def do_absorption_step_triangular(
             )
             new_T1_U, new_T1_S, new_T1_Vh = gauge_fixed_svd(new_T1_matrix)
             new_T1_S = jnp.where(
-                new_T1_S != 0, jnp.sqrt(jnp.where(new_T1_S != 0, new_T1_S, 1)), 0
+                new_T1_S / new_T1_S[0] >= truncation_eps,
+                jnp.sqrt(
+                    jnp.where(new_T1_S / new_T1_S[0] >= truncation_eps, new_T1_S, 1)
+                ),
+                0,
             )
             new_T1a = new_T1_S[:, jnp.newaxis] * new_T1_Vh
             new_T1a = new_T1a.reshape(
@@ -228,7 +238,11 @@ def do_absorption_step_triangular(
             )
             new_T2_U, new_T2_S, new_T2_Vh = gauge_fixed_svd(new_T2_matrix)
             new_T2_S = jnp.where(
-                new_T2_S != 0, jnp.sqrt(jnp.where(new_T2_S != 0, new_T2_S, 1)), 0
+                new_T2_S / new_T2_S[0] >= truncation_eps,
+                jnp.sqrt(
+                    jnp.where(new_T2_S / new_T2_S[0] >= truncation_eps, new_T2_S, 1)
+                ),
+                0,
             )
             new_T2a = new_T2_S[:, jnp.newaxis] * new_T2_Vh
             new_T2a = new_T2a.reshape(
@@ -256,7 +270,11 @@ def do_absorption_step_triangular(
             )
             new_T3_U, new_T3_S, new_T3_Vh = gauge_fixed_svd(new_T3_matrix)
             new_T3_S = jnp.where(
-                new_T3_S != 0, jnp.sqrt(jnp.where(new_T3_S != 0, new_T3_S, 1)), 0
+                new_T3_S / new_T3_S[0] >= truncation_eps,
+                jnp.sqrt(
+                    jnp.where(new_T3_S / new_T3_S[0] >= truncation_eps, new_T3_S, 1)
+                ),
+                0,
             )
             new_T3a = new_T3_S[:, jnp.newaxis] * new_T3_Vh
             new_T3a = new_T3a.reshape(
@@ -284,7 +302,11 @@ def do_absorption_step_triangular(
             )
             new_T4_U, new_T4_S, new_T4_Vh = gauge_fixed_svd(new_T4_matrix)
             new_T4_S = jnp.where(
-                new_T4_S != 0, jnp.sqrt(jnp.where(new_T4_S != 0, new_T4_S, 1)), 0
+                new_T4_S / new_T4_S[0] >= truncation_eps,
+                jnp.sqrt(
+                    jnp.where(new_T4_S / new_T4_S[0] >= truncation_eps, new_T4_S, 1)
+                ),
+                0,
             )
             new_T4a = new_T4_S[:, jnp.newaxis] * new_T4_Vh
             new_T4a = new_T4a.reshape(
@@ -312,7 +334,11 @@ def do_absorption_step_triangular(
             )
             new_T5_U, new_T5_S, new_T5_Vh = gauge_fixed_svd(new_T5_matrix)
             new_T5_S = jnp.where(
-                new_T5_S != 0, jnp.sqrt(jnp.where(new_T5_S != 0, new_T5_S, 1)), 0
+                new_T5_S / new_T5_S[0] >= truncation_eps,
+                jnp.sqrt(
+                    jnp.where(new_T5_S / new_T5_S[0] >= truncation_eps, new_T5_S, 1)
+                ),
+                0,
             )
             new_T5a = new_T5_S[:, jnp.newaxis] * new_T5_Vh
             new_T5a = new_T5a.reshape(
@@ -340,7 +366,11 @@ def do_absorption_step_triangular(
             )
             new_T6_U, new_T6_S, new_T6_Vh = gauge_fixed_svd(new_T6_matrix)
             new_T6_S = jnp.where(
-                new_T6_S != 0, jnp.sqrt(jnp.where(new_T6_S != 0, new_T6_S, 1)), 0
+                new_T6_S / new_T6_S[0] >= truncation_eps,
+                jnp.sqrt(
+                    jnp.where(new_T6_S / new_T6_S[0] >= truncation_eps, new_T6_S, 1)
+                ),
+                0,
             )
             new_T6a = new_T6_S[:, jnp.newaxis] * new_T6_Vh
             new_T6a = new_T6a.reshape(

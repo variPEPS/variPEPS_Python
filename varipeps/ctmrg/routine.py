@@ -34,6 +34,20 @@ class CTM_Enum(enum.IntEnum):
     T3_bra = enum.auto()
     T4_ket = enum.auto()
     T4_bra = enum.auto()
+    C5 = enum.auto()
+    C6 = enum.auto()
+    T1a = enum.auto()
+    T1b = enum.auto()
+    T2a = enum.auto()
+    T2b = enum.auto()
+    T3a = enum.auto()
+    T3b = enum.auto()
+    T4a = enum.auto()
+    T4b = enum.auto()
+    T5a = enum.auto()
+    T5b = enum.auto()
+    T6a = enum.auto()
+    T6b = enum.auto()
 
 
 class CTMRGNotConvergedError(Exception):
@@ -88,12 +102,11 @@ def _calc_corner_svds(
     return step_corner_svd
 
 
-@partial(jit, static_argnums=(3, 4), inline=True)
+@partial(jit, static_argnums=(3,), inline=True)
 def _is_element_wise_converged(
     old_peps_tensors: List[PEPS_Tensor],
     new_peps_tensors: List[PEPS_Tensor],
     eps: float,
-    verbose: bool = False,
     split_transfer: bool = False,
 ) -> Tuple[bool, float, Optional[List[Tuple[int, CTM_Enum, float]]]]:
     result = 0
@@ -103,7 +116,7 @@ def _is_element_wise_converged(
     else:
         measure = jnp.zeros((len(old_peps_tensors), 8), dtype=jnp.float64)
 
-    verbose_data = [] if verbose else None
+    verbose_data = []
 
     for ti in range(len(old_peps_tensors)):
         old_shape = old_peps_tensors[ti].C1.shape
@@ -116,8 +129,7 @@ def _is_element_wise_converged(
         measure = measure.at[ti, 0].set(
             jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
         )
-        if verbose:
-            verbose_data.append((ti, CTM_Enum.C1, jnp.amax(diff)))
+        verbose_data.append((ti, CTM_Enum.C1, jnp.amax(diff)))
 
         old_shape = old_peps_tensors[ti].C2.shape
         new_shape = new_peps_tensors[ti].C2.shape
@@ -129,8 +141,7 @@ def _is_element_wise_converged(
         measure = measure.at[ti, 1].set(
             jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
         )
-        if verbose:
-            verbose_data.append((ti, CTM_Enum.C2, jnp.amax(diff)))
+        verbose_data.append((ti, CTM_Enum.C2, jnp.amax(diff)))
 
         old_shape = old_peps_tensors[ti].C3.shape
         new_shape = new_peps_tensors[ti].C4.shape
@@ -142,8 +153,7 @@ def _is_element_wise_converged(
         measure = measure.at[ti, 2].set(
             jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
         )
-        if verbose:
-            verbose_data.append((ti, CTM_Enum.C3, jnp.amax(diff)))
+        verbose_data.append((ti, CTM_Enum.C3, jnp.amax(diff)))
 
         old_shape = old_peps_tensors[ti].C4.shape
         new_shape = new_peps_tensors[ti].C4.shape
@@ -155,8 +165,7 @@ def _is_element_wise_converged(
         measure = measure.at[ti, 3].set(
             jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
         )
-        if verbose:
-            verbose_data.append((ti, CTM_Enum.C4, jnp.amax(diff)))
+        verbose_data.append((ti, CTM_Enum.C4, jnp.amax(diff)))
 
         if split_transfer:
             old_shape = old_peps_tensors[ti].T1_ket.shape
@@ -173,8 +182,7 @@ def _is_element_wise_converged(
             measure = measure.at[ti, 4].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
-            if verbose:
-                verbose_data.append((ti, CTM_Enum.T1_ket, jnp.amax(diff)))
+            verbose_data.append((ti, CTM_Enum.T1_ket, jnp.amax(diff)))
 
             old_shape = old_peps_tensors[ti].T1_bra.shape
             new_shape = new_peps_tensors[ti].T1_bra.shape
@@ -190,8 +198,7 @@ def _is_element_wise_converged(
             measure = measure.at[ti, 5].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
-            if verbose:
-                verbose_data.append((ti, CTM_Enum.T1_bra, jnp.amax(diff)))
+            verbose_data.append((ti, CTM_Enum.T1_bra, jnp.amax(diff)))
 
             old_shape = old_peps_tensors[ti].T2_ket.shape
             new_shape = new_peps_tensors[ti].T2_ket.shape
@@ -207,8 +214,7 @@ def _is_element_wise_converged(
             measure = measure.at[ti, 6].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
-            if verbose:
-                verbose_data.append((ti, CTM_Enum.T2_ket, jnp.amax(diff)))
+            verbose_data.append((ti, CTM_Enum.T2_ket, jnp.amax(diff)))
 
             old_shape = old_peps_tensors[ti].T2_bra.shape
             new_shape = new_peps_tensors[ti].T2_bra.shape
@@ -224,8 +230,7 @@ def _is_element_wise_converged(
             measure = measure.at[ti, 7].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
-            if verbose:
-                verbose_data.append((ti, CTM_Enum.T2_bra, jnp.amax(diff)))
+            verbose_data.append((ti, CTM_Enum.T2_bra, jnp.amax(diff)))
 
             old_shape = old_peps_tensors[ti].T3_ket.shape
             new_shape = new_peps_tensors[ti].T3_ket.shape
@@ -241,8 +246,7 @@ def _is_element_wise_converged(
             measure = measure.at[ti, 8].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
-            if verbose:
-                verbose_data.append((ti, CTM_Enum.T3_ket, jnp.amax(diff)))
+            verbose_data.append((ti, CTM_Enum.T3_ket, jnp.amax(diff)))
 
             old_shape = old_peps_tensors[ti].T3_bra.shape
             new_shape = new_peps_tensors[ti].T3_bra.shape
@@ -258,8 +262,7 @@ def _is_element_wise_converged(
             measure = measure.at[ti, 9].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
-            if verbose:
-                verbose_data.append((ti, CTM_Enum.T3_bra, jnp.amax(diff)))
+            verbose_data.append((ti, CTM_Enum.T3_bra, jnp.amax(diff)))
 
             old_shape = old_peps_tensors[ti].T4_ket.shape
             new_shape = new_peps_tensors[ti].T4_ket.shape
@@ -275,8 +278,7 @@ def _is_element_wise_converged(
             measure = measure.at[ti, 10].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
-            if verbose:
-                verbose_data.append((ti, CTM_Enum.T4_ket, jnp.amax(diff)))
+            verbose_data.append((ti, CTM_Enum.T4_ket, jnp.amax(diff)))
 
             old_shape = old_peps_tensors[ti].T4_bra.shape
             new_shape = new_peps_tensors[ti].T4_bra.shape
@@ -292,8 +294,7 @@ def _is_element_wise_converged(
             measure = measure.at[ti, 11].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
-            if verbose:
-                verbose_data.append((ti, CTM_Enum.T4_bra, jnp.amax(diff)))
+            verbose_data.append((ti, CTM_Enum.T4_bra, jnp.amax(diff)))
         else:
             old_shape = old_peps_tensors[ti].T1.shape
             new_shape = new_peps_tensors[ti].T1.shape
@@ -309,8 +310,7 @@ def _is_element_wise_converged(
             measure = measure.at[ti, 4].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
-            if verbose:
-                verbose_data.append((ti, CTM_Enum.T1, jnp.amax(diff)))
+            verbose_data.append((ti, CTM_Enum.T1, jnp.amax(diff)))
 
             old_shape = old_peps_tensors[ti].T2.shape
             new_shape = new_peps_tensors[ti].T2.shape
@@ -326,8 +326,7 @@ def _is_element_wise_converged(
             measure = measure.at[ti, 5].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
-            if verbose:
-                verbose_data.append((ti, CTM_Enum.T2, jnp.amax(diff)))
+            verbose_data.append((ti, CTM_Enum.T2, jnp.amax(diff)))
 
             old_shape = old_peps_tensors[ti].T3.shape
             new_shape = new_peps_tensors[ti].T3.shape
@@ -343,8 +342,7 @@ def _is_element_wise_converged(
             measure = measure.at[ti, 6].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
-            if verbose:
-                verbose_data.append((ti, CTM_Enum.T3, jnp.amax(diff)))
+            verbose_data.append((ti, CTM_Enum.T3, jnp.amax(diff)))
 
             old_shape = old_peps_tensors[ti].T4.shape
             new_shape = new_peps_tensors[ti].T4.shape
@@ -360,8 +358,7 @@ def _is_element_wise_converged(
             measure = measure.at[ti, 7].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
-            if verbose:
-                verbose_data.append((ti, CTM_Enum.T4, jnp.amax(diff)))
+            verbose_data.append((ti, CTM_Enum.T4, jnp.amax(diff)))
 
     return result == 0, jnp.linalg.norm(measure), verbose_data
 
@@ -375,6 +372,8 @@ def _is_element_wise_converged_triangular(
     result = 0
 
     measure = jnp.zeros((len(old_peps_tensors), 18), dtype=jnp.float64)
+
+    verbose_data = []
 
     for ti in range(len(old_peps_tensors)):
         for ni, name in enumerate(
@@ -413,8 +412,23 @@ def _is_element_wise_converged_triangular(
             measure = measure.at[ti, ni].set(
                 jnp.linalg.norm(diff), indices_are_sorted=True, unique_indices=True
             )
+            verbose_data.append((ti, getattr(CTM_Enum, name), jnp.amax(diff)))
 
-    return result == 0, jnp.linalg.norm(measure)
+    return result == 0, jnp.linalg.norm(measure), verbose_data
+
+
+def print_verbose(verbose_data, *, ad=False):
+    if ad:
+        message = "Custom VJP: Verbose: ti {}, CTM tensor {}, Diff {}"
+    else:
+        message = "CTMRG: Verbose: ti {}, CTM tensor {}, Diff {}"
+    for ti, ctm_enum_i, diff in verbose_data:
+        debug_print(
+            message,
+            ti,
+            CTM_Enum(ctm_enum_i).name,
+            diff,
+        )
 
 
 @jit
@@ -447,28 +461,39 @@ def _ctmrg_body_func(carry):
 
     def elementwise_func(old, new, old_corner, conv_eps, config):
         if w_unitcell_last_step.is_triangular_peps():
-            converged, measure = _is_element_wise_converged_triangular(
+            converged, measure, verbose_data = _is_element_wise_converged_triangular(
                 old,
                 new,
                 conv_eps,
             )
-            return converged, measure, None, old_corner
+            return converged, measure, verbose_data, old_corner
 
         converged, measure, verbose_data = _is_element_wise_converged(
             old,
             new,
             conv_eps,
-            verbose=config.ctmrg_verbose_output,
             split_transfer=w_unitcell.is_split_transfer(),
         )
         return converged, measure, verbose_data, old_corner
 
     def corner_svd_func(old, new, old_corner, conv_eps, config):
+        if w_unitcell_last_step.is_triangular_peps():
+            verbose_data = (
+                [(jnp.array(0), jnp.array(0), jnp.array(0.0))] * 18 * len(w_tensors)
+            )
+        elif w_unitcell_last_step.is_split_transfer():
+            verbose_data = (
+                [(jnp.array(0), jnp.array(0), jnp.array(0.0))] * 12 * len(w_tensors)
+            )
+        else:
+            verbose_data = (
+                [(jnp.array(0), jnp.array(0), jnp.array(0.0))] * 8 * len(w_tensors)
+            )
         if old_corner is None:
             return (
                 False,
                 jnp.nan,
-                [] if config.ctmrg_verbose_output else None,
+                verbose_data,
                 old_corner,
             )
         corner_svd = _calc_corner_svds(new, old_corner, None)
@@ -477,7 +502,7 @@ def _ctmrg_body_func(carry):
         return (
             converged,
             measure,
-            [] if config.ctmrg_verbose_output else None,
+            verbose_data,
             corner_svd,
         )
 
@@ -495,13 +520,7 @@ def _ctmrg_body_func(carry):
     if config.ctmrg_print_steps:
         debug_print("CTMRG: {}: {}", count, measure)
         if config.ctmrg_verbose_output:
-            for ti, ctm_enum_i, diff in verbose_data:
-                debug_print(
-                    "CTMRG: Verbose: ti {}, CTM tensor {}, Diff {}",
-                    ti,
-                    CTM_Enum(ctm_enum_i).name,
-                    diff,
-                )
+            jax.debug.callback(print_verbose, verbose_data, ordered=True)
 
     count += 1
 
@@ -874,7 +893,7 @@ def _ctmrg_rev_while_body(carry):
     )
 
     if bar_fixed_point_last_step.is_triangular_peps():
-        converged, measure = _is_element_wise_converged_triangular(
+        converged, measure, verbose_data = _is_element_wise_converged_triangular(
             bar_fixed_point_last_step.get_unique_tensors(),
             bar_fixed_point.get_unique_tensors(),
             config.ad_custom_convergence_eps,
@@ -884,7 +903,6 @@ def _ctmrg_rev_while_body(carry):
             bar_fixed_point_last_step.get_unique_tensors(),
             bar_fixed_point.get_unique_tensors(),
             config.ad_custom_convergence_eps,
-            verbose=config.ad_custom_verbose_output,
             split_transfer=bar_fixed_point.is_split_transfer(),
         )
 
@@ -893,13 +911,7 @@ def _ctmrg_rev_while_body(carry):
     if config.ad_custom_print_steps:
         debug_print("Custom VJP: {}: {}", count, measure)
         if config.ad_custom_verbose_output:
-            for ti, ctm_enum_i, diff in verbose_data:
-                debug_print(
-                    "Custom VJP: Verbose: ti {}, CTM tensor {}, Diff {}",
-                    ti,
-                    CTM_Enum(ctm_enum_i).name,
-                    diff,
-                )
+            jax.debug.callback(print_verbose, verbose_data, ordered=True, ad=True)
 
     return vjp_env, initial_bar, bar_fixed_point, converged, count, config, state
 
