@@ -57,6 +57,9 @@ def _corner_workhorse(
         )
         right_matrix = right_U * right_S[jnp.newaxis, :]
 
+    left_matrix /= jnp.linalg.norm(left_matrix)
+    right_matrix /= jnp.linalg.norm(right_matrix)
+
     S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(
         left_matrix @ right_matrix, chi, truncation_eps
     )
@@ -262,6 +265,9 @@ def _T_workhorse(
             jnp.sqrt(jnp.where(right_S / right_S[0] < truncation_eps, 1, right_S)),
         )
         right_matrix = right_U * right_S[jnp.newaxis, :]
+
+    left_matrix /= jnp.linalg.norm(left_matrix)
+    right_matrix /= jnp.linalg.norm(right_matrix)
 
     S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(
         left_matrix @ right_matrix, chi, truncation_eps
