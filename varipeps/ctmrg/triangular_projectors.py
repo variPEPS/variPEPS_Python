@@ -162,57 +162,93 @@ def calc_corner_projectors(
     )
 
     projector_30_left, projector_30_right, smallest_S_30 = _corner_workhorse(
-        corner_210 if projector_method is not Projector_Method.HALF else None,
+        (
+            corner_210
+            if projector_method is not Projector_Method.HALF
+            and projector_method is not Projector_Method.HALF_FISHMAN
+            else None
+        ),
         corner_90,
         corner_330,
         chi,
         truncation_eps,
-        projector_method is Projector_Method.FISHMAN,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     projector_150_left, projector_150_right, smallest_S_150 = _corner_workhorse(
-        corner_330 if projector_method is not Projector_Method.HALF else None,
+        (
+            corner_330
+            if projector_method is not Projector_Method.HALF
+            and projector_method is not Projector_Method.HALF_FISHMAN
+            else None
+        ),
         corner_210,
         corner_90,
         chi,
         truncation_eps,
-        projector_method is Projector_Method.FISHMAN,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     projector_270_left, projector_270_right, smallest_S_270 = _corner_workhorse(
-        corner_90 if projector_method is not Projector_Method.HALF else None,
+        (
+            corner_90
+            if projector_method is not Projector_Method.HALF
+            and projector_method is not Projector_Method.HALF_FISHMAN
+            else None
+        ),
         corner_330,
         corner_210,
         chi,
         truncation_eps,
-        projector_method is Projector_Method.FISHMAN,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     projector_90_left, projector_90_right, smallest_S_90 = _corner_workhorse(
-        corner_270 if projector_method is not Projector_Method.HALF else None,
+        (
+            corner_270
+            if projector_method is not Projector_Method.HALF
+            and projector_method is not Projector_Method.HALF_FISHMAN
+            else None
+        ),
         corner_150,
         corner_30,
         chi,
         truncation_eps,
-        projector_method is Projector_Method.FISHMAN,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     projector_210_left, projector_210_right, smallest_S_210 = _corner_workhorse(
-        corner_30 if projector_method is not Projector_Method.HALF else None,
+        (
+            corner_30
+            if projector_method is not Projector_Method.HALF
+            and projector_method is not Projector_Method.HALF_FISHMAN
+            else None
+        ),
         corner_270,
         corner_150,
         chi,
         truncation_eps,
-        projector_method is Projector_Method.FISHMAN,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     projector_330_left, projector_330_right, smallest_S_330 = _corner_workhorse(
-        corner_150 if projector_method is not Projector_Method.HALF else None,
+        (
+            corner_150
+            if projector_method is not Projector_Method.HALF
+            and projector_method is not Projector_Method.HALF_FISHMAN
+            else None
+        ),
         corner_30,
         corner_270,
         chi,
         truncation_eps,
-        projector_method is Projector_Method.FISHMAN,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     return (
@@ -368,7 +404,8 @@ def calc_T_30_150_270_projectors(
         T_30_right,
         chi,
         truncation_eps,
-        projector_method is Projector_Method.FISHMAN,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     projector_T_150_left, projector_T_150_right, smallest_S_150 = _T_workhorse(
@@ -376,7 +413,8 @@ def calc_T_30_150_270_projectors(
         T_150_right,
         chi,
         truncation_eps,
-        projector_method is Projector_Method.FISHMAN,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     projector_T_270_left, projector_T_270_right, smallest_S_270 = _T_workhorse(
@@ -384,7 +422,8 @@ def calc_T_30_150_270_projectors(
         T_270_right,
         chi,
         truncation_eps,
-        projector_method is Projector_Method.FISHMAN,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     return (
@@ -463,7 +502,8 @@ def calc_T_90_210_330_projectors(
         T_90_right,
         chi,
         truncation_eps,
-        projector_method is Projector_Method.FISHMAN,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     projector_T_210_left, projector_T_210_right, smallest_S_210 = _T_workhorse(
@@ -471,7 +511,8 @@ def calc_T_90_210_330_projectors(
         T_210_right,
         chi,
         truncation_eps,
-        projector_method is Projector_Method.FISHMAN,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     projector_T_330_left, projector_T_330_right, smallest_S_330 = _T_workhorse(
@@ -479,7 +520,8 @@ def calc_T_90_210_330_projectors(
         T_330_right,
         chi,
         truncation_eps,
-        projector_method is Projector_Method.FISHMAN,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     return (

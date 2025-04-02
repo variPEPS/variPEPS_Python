@@ -31,6 +31,7 @@ class Projector_Method(IntEnum):
     HALF = auto()  #: Use only half network for projector calculation
     FULL = auto()  #: Use full network for projector calculation
     FISHMAN = auto()  #: Use the Fishman method for projector calculation
+    HALF_FISHMAN = auto()  #: Use the Fishman method but with half projectors as basis
 
 
 @unique
