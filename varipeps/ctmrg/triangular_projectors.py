@@ -25,6 +25,19 @@ def _corner_workhorse(
             tensor_left_1.shape[3] * tensor_left_1.shape[4] * tensor_left_1.shape[5],
         )
 
+        left_matrix_1 /= jnp.linalg.norm(left_matrix_1)
+
+        third_U, third_S, third_Vh = gauge_fixed_svd(left_matrix_1)
+
+        third_S = jnp.where(
+            third_S / third_S[0] < truncation_eps,
+            0,
+            jnp.sqrt(jnp.where(third_S / third_S[0] < truncation_eps, 1, third_S)),
+        )
+
+        third_left = third_S[:, jnp.newaxis] * third_Vh
+        third_right = third_U * third_S[jnp.newaxis, :]
+
     left_matrix_2 = tensor_left_2.reshape(
         tensor_left_2.shape[0] * tensor_left_2.shape[1] * tensor_left_2.shape[2],
         tensor_left_2.shape[3] * tensor_left_2.shape[4] * tensor_left_2.shape[5],
@@ -36,7 +49,8 @@ def _corner_workhorse(
     )
 
     if tensor_left_1 is not None:
-        left_matrix = left_matrix_1 @ left_matrix_2
+        left_matrix = third_left @ left_matrix_2
+        right_matrix = right_matrix @ third_right
     else:
         left_matrix = left_matrix_2
 
