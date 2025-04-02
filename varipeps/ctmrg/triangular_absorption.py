@@ -199,6 +199,7 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [T1_proj_left, T1_proj_right],
             )
+            new_T1 /= jnp.linalg.norm(new_T1)
 
             new_T1_matrix = new_T1.reshape(
                 new_T1.shape[0] * new_T1.shape[1] * new_T1.shape[2],
@@ -231,6 +232,7 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [T2_proj_left, T2_proj_right],
             )
+            new_T2 /= jnp.linalg.norm(new_T2)
 
             new_T2_matrix = new_T2.reshape(
                 new_T2.shape[0] * new_T2.shape[1] * new_T2.shape[2],
@@ -263,6 +265,7 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [T3_proj_left, T3_proj_right],
             )
+            new_T3 /= jnp.linalg.norm(new_T3)
 
             new_T3_matrix = new_T3.reshape(
                 new_T3.shape[0] * new_T3.shape[1] * new_T3.shape[2],
@@ -295,6 +298,7 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [T4_proj_left, T4_proj_right],
             )
+            new_T4 /= jnp.linalg.norm(new_T4)
 
             new_T4_matrix = new_T4.reshape(
                 new_T4.shape[0] * new_T4.shape[1] * new_T4.shape[2],
@@ -327,6 +331,7 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [T5_proj_left, T5_proj_right],
             )
+            new_T5 /= jnp.linalg.norm(new_T5)
 
             new_T5_matrix = new_T5.reshape(
                 new_T5.shape[0] * new_T5.shape[1] * new_T5.shape[2],
@@ -359,6 +364,7 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [T6_proj_left, T6_proj_right],
             )
+            new_T6 /= jnp.linalg.norm(new_T6)
 
             new_T6_matrix = new_T6.reshape(
                 new_T6.shape[0] * new_T6.shape[1] * new_T6.shape[2],
