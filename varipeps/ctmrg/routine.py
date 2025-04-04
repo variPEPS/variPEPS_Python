@@ -616,6 +616,12 @@ def calc_ctmrg_env(
     norm_smallest_S = jnp.nan
     already_tried_chi = {working_unitcell[0, 0][0][0].chi}
 
+    best_chi = 0
+    best_result = None
+    best_norm_smallest_S = None
+    best_truncation_eps = None
+    have_been_increased = False
+
     while True:
         tmp_count = 0
         corner_singular_vals = None
@@ -716,6 +722,14 @@ def calc_ctmrg_env(
             converged = False
             end_count = tmp_count
 
+        if converged and (
+            working_unitcell[0, 0][0][0].chi > best_chi or best_result is None
+        ):
+            best_chi = working_unitcell[0, 0][0][0].chi
+            best_result = working_unitcell
+            best_norm_smallest_S = norm_smallest_S
+            best_truncation_eps = varipeps_global_state.ctmrg_effective_truncation_eps
+
         current_truncation_eps = (
             varipeps_config.ctmrg_truncation_eps
             if varipeps_global_state.ctmrg_effective_truncation_eps is None
@@ -747,11 +761,20 @@ def calc_ctmrg_env(
 
                 already_tried_chi.add(new_chi)
 
+                have_been_increased = True
+
                 continue
-        elif (
-            varipeps_config.ctmrg_heuristic_decrease_chi
-            and norm_smallest_S < current_truncation_eps
-            and working_unitcell[0, 0][0][0].chi > 2
+        elif varipeps_config.ctmrg_heuristic_decrease_chi and (
+            (
+                norm_smallest_S < current_truncation_eps
+                and working_unitcell[0, 0][0][0].chi > 2
+            )
+            or (
+                not converged
+                and not have_been_increased
+                and norm_smallest_S
+                < varipeps_config.ctmrg_heuristic_increase_chi_threshold
+            )
         ):
             new_chi = (
                 working_unitcell[0, 0][0][0].chi
@@ -765,7 +788,7 @@ def calc_ctmrg_env(
 
                 if varipeps_config.ctmrg_print_steps:
                     debug_print(
-                        "CTMRG: Decreasing chi to {} since smallest SVD Norm was {}.",
+                        "CTMRG: Decreasing chi to {} since smallest SVD Norm was {} or routine did not converge.",
                         new_chi,
                         norm_smallest_S,
                     )
@@ -803,7 +826,14 @@ def calc_ctmrg_env(
 
     if _return_truncation_eps:
         last_truncation_eps = varipeps_global_state.ctmrg_effective_truncation_eps
+
     varipeps_global_state.ctmrg_effective_truncation_eps = None
+
+    if not converged and best_result is not None:
+        working_unitcell = best_result
+        norm_smallest_S = best_norm_smallest_S
+        converged = True
+        last_truncation_eps = best_truncation_eps
 
     if (
         varipeps_config.ctmrg_fail_if_not_converged
