@@ -16,29 +16,14 @@ from varipeps.utils.debug_print import debug_print
 from typing import Sequence, List, Tuple, Union, Optional
 
 
-@partial(jit, static_argnums=(3,))
-def calc_triangular_two_sites_horizontal(
-    peps_tensors,
-    peps_tensor_objs,
+def calc_triangular_two_sites_workhorse(
+    density_matrix_left,
+    density_matrix_right,
     gates,
     real_result=False,
 ):
-    density_matrix_left = apply_contraction_jitted(
-        "triangular_ctmrg_two_site_expectation_horizontal_left",
-        [peps_tensors[0]],
-        [peps_tensor_objs[0]],
-        [],
-    )
-
     density_matrix_left = density_matrix_left.reshape(
         density_matrix_left.shape[0], density_matrix_left.shape[1], -1
-    )
-
-    density_matrix_right = apply_contraction_jitted(
-        "triangular_ctmrg_two_site_expectation_horizontal_right",
-        [peps_tensors[1]],
-        [peps_tensor_objs[1]],
-        [],
     )
 
     density_matrix_right = density_matrix_right.reshape(
@@ -69,6 +54,32 @@ def calc_triangular_two_sites_horizontal(
 
 
 @partial(jit, static_argnums=(3,))
+def calc_triangular_two_sites_horizontal(
+    peps_tensors,
+    peps_tensor_objs,
+    gates,
+    real_result=False,
+):
+    density_matrix_left = apply_contraction_jitted(
+        "triangular_ctmrg_two_site_expectation_horizontal_left",
+        [peps_tensors[0]],
+        [peps_tensor_objs[0]],
+        [],
+    )
+
+    density_matrix_right = apply_contraction_jitted(
+        "triangular_ctmrg_two_site_expectation_horizontal_right",
+        [peps_tensors[1]],
+        [peps_tensor_objs[1]],
+        [],
+    )
+
+    return calc_triangular_two_sites_workhorse(
+        density_matrix_left, density_matrix_right, gates, real_result
+    )
+
+
+@partial(jit, static_argnums=(3,))
 def calc_triangular_two_sites_vertical(
     peps_tensors,
     peps_tensor_objs,
@@ -82,10 +93,6 @@ def calc_triangular_two_sites_vertical(
         [],
     )
 
-    density_matrix_top = density_matrix_top.reshape(
-        density_matrix_top.shape[0], density_matrix_top.shape[1], -1
-    )
-
     density_matrix_bottom = apply_contraction_jitted(
         "triangular_ctmrg_two_site_expectation_vertical_bottom",
         [peps_tensors[1]],
@@ -93,31 +100,9 @@ def calc_triangular_two_sites_vertical(
         [],
     )
 
-    density_matrix_bottom = density_matrix_bottom.reshape(
-        -1, density_matrix_bottom.shape[-2], density_matrix_bottom.shape[-1]
+    return calc_triangular_two_sites_workhorse(
+        density_matrix_top, density_matrix_bottom, gates, real_result
     )
-
-    density_matrix = jnp.tensordot(
-        density_matrix_top, density_matrix_bottom, ((2,), (0,))
-    )
-
-    density_matrix = density_matrix.transpose(0, 2, 1, 3)
-    density_matrix = density_matrix.reshape(
-        density_matrix.shape[0] * density_matrix.shape[1],
-        density_matrix.shape[2] * density_matrix.shape[3],
-    )
-
-    norm = jnp.trace(density_matrix)
-
-    if real_result:
-        return [
-            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
-            for g in gates
-        ]
-    else:
-        return [
-            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
-        ]
 
 
 @partial(jit, static_argnums=(3,))
@@ -134,10 +119,6 @@ def calc_triangular_two_sites_diagonal(
         [],
     )
 
-    density_matrix_top = density_matrix_top.reshape(
-        density_matrix_top.shape[0], density_matrix_top.shape[1], -1
-    )
-
     density_matrix_bottom = apply_contraction_jitted(
         "triangular_ctmrg_two_site_expectation_diagonal_bottom",
         [peps_tensors[1]],
@@ -145,31 +126,9 @@ def calc_triangular_two_sites_diagonal(
         [],
     )
 
-    density_matrix_bottom = density_matrix_bottom.reshape(
-        -1, density_matrix_bottom.shape[-2], density_matrix_bottom.shape[-1]
+    return calc_triangular_two_sites_workhorse(
+        density_matrix_top, density_matrix_bottom, gates, real_result
     )
-
-    density_matrix = jnp.tensordot(
-        density_matrix_top, density_matrix_bottom, ((2,), (0,))
-    )
-
-    density_matrix = density_matrix.transpose(0, 2, 1, 3)
-    density_matrix = density_matrix.reshape(
-        density_matrix.shape[0] * density_matrix.shape[1],
-        density_matrix.shape[2] * density_matrix.shape[3],
-    )
-
-    norm = jnp.trace(density_matrix)
-
-    if real_result:
-        return [
-            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
-            for g in gates
-        ]
-    else:
-        return [
-            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
-        ]
 
 
 @dataclass

@@ -56,6 +56,9 @@ def apply_unitary(
     if isinstance(delta_r, jnp.ndarray):
         delta_r = (delta_r,) * len(apply_to_index)
 
+    if isinstance(q, jnp.ndarray):
+        q = (q,) * len(apply_to_index)
+
     if len(q) != len(apply_to_index) or len(q) != len(delta_r):
         raise ValueError("Length mismatch!")
 
