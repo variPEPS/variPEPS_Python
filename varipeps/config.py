@@ -123,6 +123,9 @@ class VariPEPS_Config:
         the projector calculation of the last absorption step.
       ctmrg_heuristic_decrease_chi_step_size (:obj:`int`):
         Step size for the heuristic environment bond dimension decrease.
+      triangular_ctmrg_use_split (:obj:`bool`):
+        Flag if the split projector method should be used in the
+        triangular CTMRG.
       svd_sign_fix_eps (:obj:`float`):
         Value for numerical stability threshold in sign-fixed SVD.
       optimizer_method (:obj:`Optimizing_Methods`):
@@ -235,6 +238,9 @@ class VariPEPS_Config:
     ctmrg_heuristic_increase_chi_step_size: int = 2
     ctmrg_heuristic_decrease_chi: bool = True
     ctmrg_heuristic_decrease_chi_step_size: int = 1
+
+    # Triangular CTMRG routine
+    triangular_ctmrg_use_split: bool = False
 
     # SVD
     svd_sign_fix_eps: float = 1e-1
