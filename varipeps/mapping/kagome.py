@@ -1,17 +1,29 @@
 from dataclasses import dataclass
+from functools import partial
 from os import PathLike
 
+import jax
 import jax.numpy as jnp
 from jax import jit
 
 import h5py
 
+from varipeps import varipeps_config
 import varipeps.config
 from varipeps.peps import PEPS_Tensor, PEPS_Unit_Cell
-from varipeps.contractions import apply_contraction, apply_contraction_jitted
+from varipeps.contractions import (
+    apply_contraction,
+    apply_contraction_jitted,
+    Definitions,
+)
 from varipeps.expectation.model import Expectation_Model
 from varipeps.expectation.one_site import calc_one_site_multi_gates
 from varipeps.expectation.three_sites import _three_site_triangle_workhorse
+from varipeps.expectation.triangular_one_site import calc_triangular_one_site
+from varipeps.expectation.triangular_two_sites import (
+    calc_triangular_two_sites_workhorse,
+)
+from varipeps.expectation.spiral_helpers import apply_unitary
 from varipeps.typing import Tensor
 from varipeps.utils.random import PEPS_Random_Number_Generator
 from varipeps.mapping import Map_To_PEPS_Model
@@ -1164,3 +1176,916 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site_Upper_Triangle(Map_To_PEPS_Model):
             return peps_tensors, unitcell
 
         return peps_tensors
+
+
+@partial(jit, static_argnums=(1, 2))
+def _calc_kagome_onsite_gate(
+    nearest_gates: Sequence[jnp.ndarray],
+    d: int,
+    result_length: int,
+):
+    result = [None] * result_length
+
+    single_gates = [None] * result_length
+
+    Id_other_sites = jnp.eye(d)
+
+    for i, n_e in enumerate(nearest_gates):
+        nearest_12 = jnp.kron(n_e, Id_other_sites)
+        nearest_23 = jnp.kron(Id_other_sites, n_e)
+
+        nearest_13 = nearest_12.reshape(d, d, d, d, d, d)
+        nearest_13 = nearest_13.transpose(0, 2, 1, 3, 5, 4)
+        nearest_13 = nearest_13.reshape(d**3, d**3)
+
+        result[i] = nearest_12 + nearest_13 + nearest_23
+
+        single_gates[i] = (nearest_12, nearest_13, nearest_23)
+
+    return result, single_gates
+
+
+def kagome_triangular_ctmrg_density_matrix_horizontal(
+    peps_tensors: Sequence[jnp.ndarray],
+    peps_tensor_objs: Sequence[PEPS_Tensor],
+    open_physical_indices: Tuple[Tuple[int], Tuple[int]],
+) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    """
+    Calculate the two parts of the horizontal two sites density matrix of the
+    mapped kagome lattice. Hereby, one can specify which physical indices
+    should be open and which ones be traced before contracting the CTM
+    structure.
+    This function uses the triangular CTMRG tensors.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence of the PEPS tensors used for the density matrix.
+      peps_tensor_objs (:term:`sequence` of :obj:`varipeps.peps.PEPS_Tensor_Triangular`):
+        Sequence of the corresponding PEPS tensor objects.
+      open_physical_indices (:obj:`tuple` of two :obj:`tuple` of :obj:`int`):
+        Tuple with two tuples consisting of the physical indices which should
+        be kept open for the left and right site.
+    Returns:
+      :obj:`tuple` of two:obj:`jax.numpy.ndarray`:
+        Left and right part of the density matrix. Can be used for the
+        two sites expectation value functions.
+    """
+    t_left, t_right = peps_tensors
+    t_obj_left, t_obj_right = peps_tensor_objs
+    left_i, right_i = open_physical_indices
+
+    new_d = round(t_obj_left.d ** (1 / 3))
+
+    t_left = t_left.reshape(
+        t_left.shape[0],
+        t_left.shape[1],
+        t_left.shape[2],
+        t_left.shape[3],
+        t_left.shape[4],
+        t_left.shape[5],
+        new_d,
+        new_d,
+        new_d,
+    )
+    t_right = t_right.reshape(
+        t_right.shape[0],
+        t_right.shape[1],
+        t_right.shape[2],
+        t_right.shape[3],
+        t_right.shape[4],
+        t_right.shape[5],
+        new_d,
+        new_d,
+        new_d,
+    )
+
+    if len(left_i) == 0:
+        raise NotImplementedError
+    else:
+        phys_contraction_i_left = list(range(12, 12 + 3 - len(left_i)))
+        phys_contraction_i_conj_left = list(range(12, 12 + 3 - len(left_i)))
+
+        for pos, i in enumerate(left_i):
+            phys_contraction_i_left.insert(i - 1, -(pos + 1))
+            phys_contraction_i_conj_left.insert(i - 1, -len(left_i) - (pos + 1))
+
+        offset_left = 3 - len(left_i)
+
+        contraction_left = {
+            "tensors": [["tensor", "tensor_conj", "T4a", "C5", "C6", "C1", "T1b"]],
+            "network": [
+                [
+                    [7, 13 + offset_left, -2 - 2 * len(left_i), 3, 4, 5]
+                    + phys_contraction_i_left,  # tensor
+                    [11, 14 + offset_left, -3 - 2 * len(left_i), 8, 9, 10]
+                    + phys_contraction_i_conj_left,  # tensor_conj
+                    (-4 - 2 * len(left_i), 3, 8, 1),  # T4a
+                    (1, 4, 9, 2),  # C5
+                    (2, 5, 10, 6),  # C6
+                    (6, 7, 11, 12 + offset_left),  # C1
+                    (
+                        12 + offset_left,
+                        13 + offset_left,
+                        14 + offset_left,
+                        -1 - 2 * len(left_i),
+                    ),  # T1b
+                ],
+            ],
+        }
+        Definitions._process_def(
+            contraction_left,
+            f"kagome_triangular_ctmrg_horizontal_left_open_{left_i}",
+        )
+
+        density_left = apply_contraction(
+            f"kagome_triangular_ctmrg_horizontal_left_open_{left_i}",
+            [t_left],
+            [t_obj_left],
+            [],
+            disable_identity_check=True,
+            custom_definition=contraction_left,
+        )
+
+        density_left = density_left.reshape(
+            new_d ** len(left_i),
+            new_d ** len(left_i),
+            density_left.shape[-4],
+            density_left.shape[-3],
+            density_left.shape[-2],
+            density_left.shape[-1],
+        )
+
+    if len(right_i) == 0:
+        raise NotImplementedError
+    else:
+        phys_contraction_i_right = list(range(12, 12 + 3 - len(right_i)))
+        phys_contraction_i_conj_right = list(range(12, 12 + 3 - len(right_i)))
+
+        for pos, i in enumerate(right_i):
+            phys_contraction_i_right.insert(i - 1, -4 - (pos + 1))
+            phys_contraction_i_conj_right.insert(i - 1, -4 - len(right_i) - (pos + 1))
+
+        offset_right = 3 - len(right_i)
+
+        contraction_right = {
+            "tensors": [["tensor", "tensor_conj", "T1a", "C2", "C3", "C4", "T4b"]],
+            "network": [
+                [
+                    [3, 4, 5, 7, 13 + offset_right, -2]
+                    + phys_contraction_i_right,  # tensor
+                    [8, 9, 10, 11, 14 + offset_right, -3]
+                    + phys_contraction_i_conj_right,  # tensor_conj
+                    (-1, 3, 8, 1),  # T1a
+                    (1, 4, 9, 2),  # C2
+                    (2, 5, 10, 6),  # C3
+                    (6, 7, 11, 12 + offset_right),  # C4
+                    (
+                        12 + offset_right,
+                        13 + offset_right,
+                        14 + offset_right,
+                        -4,
+                    ),  # T4b
+                ],
+            ],
+        }
+        Definitions._process_def(
+            contraction_right,
+            f"kagome_triangular_ctmrg_horizontal_right_open_{right_i}",
+        )
+
+        density_right = apply_contraction(
+            f"kagome_triangular_ctmrg_horizontal_right_open_{right_i}",
+            [t_right],
+            [t_obj_right],
+            [],
+            disable_identity_check=True,
+            custom_definition=contraction_right,
+        )
+
+        density_right = density_right.reshape(
+            density_right.shape[0],
+            density_right.shape[1],
+            density_right.shape[2],
+            density_right.shape[3],
+            new_d ** len(right_i),
+            new_d ** len(right_i),
+        )
+
+    return density_left, density_right
+
+
+def kagome_triangular_ctmrg_density_matrix_vertical(
+    peps_tensors: Sequence[jnp.ndarray],
+    peps_tensor_objs: Sequence[PEPS_Tensor],
+    open_physical_indices: Tuple[Tuple[int], Tuple[int]],
+) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    """
+    Calculate the two parts of the vertical two sites density matrix of the
+    mapped kagome lattice. Hereby, one can specify which physical indices
+    should be open and which ones be traced before contracting the CTM
+    structure.
+    This function uses the triangular CTMRG tensors.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence of the PEPS tensors used for the density matrix.
+      peps_tensor_objs (:term:`sequence` of :obj:`varipeps.peps.PEPS_Tensor_Triangular`):
+        Sequence of the corresponding PEPS tensor objects.
+      open_physical_indices (:obj:`tuple` of two :obj:`tuple` of :obj:`int`):
+        Tuple with two tuples consisting of the physical indices which should
+        be kept open for the top and bottom site.
+    Returns:
+      :obj:`tuple` of two:obj:`jax.numpy.ndarray`:
+        Top and bottom part of the density matrix. Can be used for the
+        two sites expectation value functions.
+    """
+    t_top, t_bottom = peps_tensors
+    t_obj_top, t_obj_bottom = peps_tensor_objs
+    top_i, bottom_i = open_physical_indices
+
+    new_d = round(peps_tensor_objs[0].d ** (1 / 3))
+
+    t_top = t_top.reshape(
+        t_top.shape[0],
+        t_top.shape[1],
+        t_top.shape[2],
+        t_top.shape[3],
+        t_top.shape[4],
+        t_top.shape[5],
+        new_d,
+        new_d,
+        new_d,
+    )
+    t_bottom = t_bottom.reshape(
+        t_bottom.shape[0],
+        t_bottom.shape[1],
+        t_bottom.shape[2],
+        t_bottom.shape[3],
+        t_bottom.shape[4],
+        t_bottom.shape[5],
+        new_d,
+        new_d,
+        new_d,
+    )
+
+    if len(top_i) == 0:
+        raise NotImplementedError
+    else:
+        phys_contraction_i_top = list(range(12, 12 + 3 - len(top_i)))
+        phys_contraction_i_conj_top = list(range(12, 12 + 3 - len(top_i)))
+
+        for pos, i in enumerate(top_i):
+            phys_contraction_i_top.insert(i - 1, -(pos + 1))
+            phys_contraction_i_conj_top.insert(i - 1, -len(top_i) - (pos + 1))
+
+        offset_top = 3 - len(top_i)
+
+        contraction_top = {
+            "tensors": [["tensor", "tensor_conj", "T6a", "C1", "C2", "C3", "T3b"]],
+            "network": [
+                [
+                    [4, 5, 7, 13 + offset_top, -2 - 2 * len(top_i), 3]
+                    + phys_contraction_i_top,  # tensor
+                    [9, 10, 11, 14 + offset_top, -3 - 2 * len(top_i), 8]
+                    + phys_contraction_i_conj_top,  # tensor_conj
+                    (-1 - 2 * len(top_i), 3, 8, 1),  # T6a
+                    (1, 4, 9, 2),  # C1
+                    (2, 5, 10, 6),  # C2
+                    (6, 7, 11, 12 + offset_top),  # C3
+                    (
+                        12 + offset_top,
+                        13 + offset_top,
+                        14 + offset_top,
+                        -4 - 2 * len(top_i),
+                    ),  # T3b
+                ],
+            ],
+        }
+        Definitions._process_def(
+            contraction_top, f"kagome_triangular_ctmrg_vertical_top_open_{top_i}"
+        )
+
+        density_top = apply_contraction(
+            f"kagome_triangular_ctmrg_vertical_top_open_{top_i}",
+            [t_top],
+            [t_obj_top],
+            [],
+            disable_identity_check=True,
+            custom_definition=contraction_top,
+        )
+
+        density_top = density_top.reshape(
+            new_d ** len(top_i),
+            new_d ** len(top_i),
+            density_top.shape[-4],
+            density_top.shape[-3],
+            density_top.shape[-2],
+            density_top.shape[-1],
+        )
+
+    if len(bottom_i) == 0:
+        raise NotImplementedError
+    else:
+        phys_contraction_i_bottom = list(range(12, 12 + 3 - len(bottom_i)))
+        phys_contraction_i_conj_bottom = list(range(12, 12 + 3 - len(bottom_i)))
+
+        for pos, i in enumerate(bottom_i):
+            phys_contraction_i_bottom.insert(i - 1, -4 - (pos + 1))
+            phys_contraction_i_conj_bottom.insert(i - 1, -4 - len(bottom_i) - (pos + 1))
+
+        offset_bottom = 3 - len(bottom_i)
+
+        contraction_bottom = {
+            "tensors": [["tensor", "tensor_conj", "T3a", "C4", "C5", "C6", "T6b"]],
+            "network": [
+                [
+                    [13 + offset_bottom, -2, 3, 4, 5, 7]
+                    + phys_contraction_i_bottom,  # tensor
+                    [14 + offset_bottom, -3, 8, 9, 10, 11]
+                    + phys_contraction_i_conj_bottom,  # tensor_conj
+                    (-4, 3, 8, 1),  # T3a
+                    (1, 4, 9, 2),  # C4
+                    (2, 5, 10, 6),  # C5
+                    (6, 7, 11, 12 + offset_bottom),  # C6
+                    (
+                        12 + offset_bottom,
+                        13 + offset_bottom,
+                        14 + offset_bottom,
+                        -1,
+                    ),  # T6b
+                ],
+            ],
+        }
+        Definitions._process_def(
+            contraction_bottom,
+            f"kagome_triangular_ctmrg_vertical_bottom_open_{bottom_i}",
+        )
+
+        density_bottom = apply_contraction(
+            f"kagome_triangular_ctmrg_vertical_bottom_open_{bottom_i}",
+            [t_bottom],
+            [t_obj_bottom],
+            [],
+            disable_identity_check=True,
+            custom_definition=contraction_bottom,
+        )
+
+        density_bottom = density_bottom.reshape(
+            density_bottom.shape[0],
+            density_bottom.shape[1],
+            density_bottom.shape[2],
+            density_bottom.shape[3],
+            new_d ** len(bottom_i),
+            new_d ** len(bottom_i),
+        )
+
+    return density_top, density_bottom
+
+
+def kagome_triangular_ctmrg_density_matrix_diagonal(
+    peps_tensors: Sequence[jnp.ndarray],
+    peps_tensor_objs: Sequence[PEPS_Tensor],
+    open_physical_indices: Tuple[Tuple[int], Tuple[int]],
+) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    """
+    Calculate the two parts of the diagonal two sites density matrix of the
+    mapped maple-leaf lattice. Hereby, one can specify which physical indices
+    should be open and which ones be traced before contracting the CTM
+    structure.
+    This function uses the triangular CTMRG tensors.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence of the PEPS tensors used for the density matrix.
+      peps_tensor_objs (:term:`sequence` of :obj:`varipeps.peps.PEPS_Tensor_Triangular`):
+        Sequence of the corresponding PEPS tensor objects.
+      open_physical_indices (:obj:`tuple` of two :obj:`tuple` of :obj:`int`):
+        Tuple with two tuples consisting of the physical indices which should
+        be kept open for the top and bottom site.
+    Returns:
+      :obj:`tuple` of two:obj:`jax.numpy.ndarray`:
+        Top and bottom part of the density matrix. Can be used for the
+        two sites expectation value functions.
+    """
+    t_top, t_bottom = peps_tensors
+    t_obj_top, t_obj_bottom = peps_tensor_objs
+    top_i, bottom_i = open_physical_indices
+
+    new_d = round(peps_tensor_objs[0].d ** (1 / 3))
+
+    t_top = t_top.reshape(
+        t_top.shape[0],
+        t_top.shape[1],
+        t_top.shape[2],
+        t_top.shape[3],
+        t_top.shape[4],
+        t_top.shape[5],
+        new_d,
+        new_d,
+        new_d,
+    )
+    t_bottom = t_bottom.reshape(
+        t_bottom.shape[0],
+        t_bottom.shape[1],
+        t_bottom.shape[2],
+        t_bottom.shape[3],
+        t_bottom.shape[4],
+        t_bottom.shape[5],
+        new_d,
+        new_d,
+        new_d,
+    )
+
+    if len(top_i) == 0:
+        raise NotImplementedError
+    else:
+        phys_contraction_i_top = list(range(12, 12 + 3 - len(top_i)))
+        phys_contraction_i_conj_top = list(range(12, 12 + 3 - len(top_i)))
+
+        for pos, i in enumerate(top_i):
+            phys_contraction_i_top.insert(i - 1, -(pos + 1))
+            phys_contraction_i_conj_top.insert(i - 1, -len(top_i) - (pos + 1))
+
+        offset_top = 3 - len(top_i)
+
+        contraction_top = {
+            "tensors": [["tensor", "tensor_conj", "T5a", "C6", "C1", "C2", "T2b"]],
+            "network": [
+                [
+                    [5, 7, 13 + offset_top, -2 - 2 * len(top_i), 3, 4]
+                    + phys_contraction_i_top,  # tensor
+                    [10, 11, 14 + offset_top, -3 - 2 * len(top_i), 8, 9]
+                    + phys_contraction_i_conj_top,  # tensor_conj
+                    (-1 - 2 * len(top_i), 3, 8, 1),  # T5a
+                    (1, 4, 9, 2),  # C6
+                    (2, 5, 10, 6),  # C1
+                    (6, 7, 11, 12 + offset_top),  # C2
+                    (
+                        12 + offset_top,
+                        13 + offset_top,
+                        14 + offset_top,
+                        -4 - 2 * len(top_i),
+                    ),  # T2b
+                ],
+            ],
+        }
+        Definitions._process_def(
+            contraction_top, f"kagome_triangular_ctmrg_diagonal_top_open_{top_i}"
+        )
+
+        density_top = apply_contraction(
+            f"kagome_triangular_ctmrg_diagonal_top_open_{top_i}",
+            [t_top],
+            [t_obj_top],
+            [],
+            disable_identity_check=True,
+            custom_definition=contraction_top,
+        )
+
+        density_top = density_top.reshape(
+            new_d ** len(top_i),
+            new_d ** len(top_i),
+            density_top.shape[-4],
+            density_top.shape[-3],
+            density_top.shape[-2],
+            density_top.shape[-1],
+        )
+
+    if len(bottom_i) == 0:
+        raise NotImplementedError
+    else:
+        phys_contraction_i_bottom = list(range(12, 12 + 3 - len(bottom_i)))
+        phys_contraction_i_conj_bottom = list(range(12, 12 + 3 - len(bottom_i)))
+
+        for pos, i in enumerate(bottom_i):
+            phys_contraction_i_bottom.insert(i - 1, -4 - (pos + 1))
+            phys_contraction_i_conj_bottom.insert(i - 1, -4 - len(bottom_i) - (pos + 1))
+
+        offset_bottom = 3 - len(bottom_i)
+
+        contraction_bottom = {
+            "tensors": [["tensor", "tensor_conj", "T2a", "C3", "C4", "C5", "T5b"]],
+            "network": [
+                [
+                    [-2, 3, 4, 5, 7, 13 + offset_bottom]
+                    + phys_contraction_i_bottom,  # tensor
+                    [-3, 8, 9, 10, 11, 14 + offset_bottom]
+                    + phys_contraction_i_conj_bottom,  # tensor_conj
+                    (-4, 3, 8, 1),  # T2a
+                    (1, 4, 9, 2),  # C3
+                    (2, 5, 10, 6),  # C4
+                    (6, 7, 11, 12 + offset_bottom),  # C5
+                    (
+                        12 + offset_bottom,
+                        13 + offset_bottom,
+                        14 + offset_bottom,
+                        -1,
+                    ),  # T5b
+                ],
+            ],
+        }
+        Definitions._process_def(
+            contraction_bottom,
+            f"kagome_triangular_ctmrg_diagonal_bottom_open_{bottom_i}",
+        )
+
+        density_bottom = apply_contraction(
+            f"kagome_triangular_ctmrg_diagonal_bottom_open_{bottom_i}",
+            [t_bottom],
+            [t_obj_bottom],
+            [],
+            disable_identity_check=True,
+            custom_definition=contraction_bottom,
+        )
+
+        density_bottom = density_bottom.reshape(
+            density_bottom.shape[0],
+            density_bottom.shape[1],
+            density_bottom.shape[2],
+            density_bottom.shape[3],
+            new_d ** len(bottom_i),
+            new_d ** len(bottom_i),
+        )
+
+    return density_top, density_bottom
+
+
+@dataclass
+class Kagome_Triangular_CTMRG_Expectation_Value(Expectation_Model):
+    """
+    Class to calculate expectation values for a mapped Kagome
+    structure. This version uses the triangular CTMRG as basis.
+
+    Args:
+      up_nearest_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the nearest neighbor
+        bonds on the up triangle.
+      down_nearest_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the nearest neighbor
+        bonds on the up triangle.
+      real_d (:obj:`int`):
+        Physical dimension of a single site before mapping.
+      normalization_factor (:obj:`int`):
+        Factor which should be used to normalize the calculated values.
+        Likely will be 3 for the a single layer structure.
+      is_spiral_peps (:obj:`bool`):
+        Flag if the expectation value is for a spiral iPEPS ansatz.
+      spiral_unitary_operator (:obj:`jax.numpy.ndarray`):
+        Operator used to generate unitary for spiral iPEPS ansatz. Required
+        if spiral iPEPS ansatz is used.
+    """
+
+    up_nearest_gates: Sequence[jnp.ndarray]
+    down_nearest_gates: Sequence[jnp.ndarray]
+    real_d: int
+    normalization_factor: int = 3
+
+    is_spiral_peps: bool = False
+    spiral_unitary_operator: Optional[jnp.ndarray] = None
+
+    def __post_init__(self) -> None:
+        if isinstance(self.up_nearest_gates, jnp.ndarray):
+            self.up_nearest_gates = (self.up_nearest_gates,)
+
+        if isinstance(self.down_nearest_gates, jnp.ndarray):
+            self.down_nearest_gates = (self.down_nearest_gates,)
+
+        if len(self.up_nearest_gates) != len(self.down_nearest_gates):
+            raise ValueError("Lengths of gate lists mismatch.")
+
+        tmp_result = _calc_kagome_onsite_gate(
+            self.up_nearest_gates,
+            self.real_d,
+            len(self.up_nearest_gates),
+        )
+        self._full_onsite_tuple, self._onsite_single_gates = tuple(
+            tmp_result[0]
+        ), tuple(tmp_result[1])
+
+        self._result_type = (
+            jnp.float64
+            if all(jnp.allclose(g, g.T.conj()) for g in self.up_nearest_gates)
+            and all(jnp.allclose(g, g.T.conj()) for g in self.down_nearest_gates)
+            else jnp.complex128
+        )
+
+        if self.is_spiral_peps:
+            self._spiral_D, self._spiral_sigma = jnp.linalg.eigh(
+                self.spiral_unitary_operator
+            )
+
+    def __call__(
+        self,
+        peps_tensors: Sequence[jnp.ndarray],
+        unitcell: PEPS_Unit_Cell,
+        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
+        *,
+        normalize_by_size: bool = True,
+        only_unique: bool = True,
+        return_single_gate_results: bool = False,
+    ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
+        result = [
+            jnp.array(0, dtype=self._result_type)
+            for _ in range(len(self.up_nearest_gates))
+        ]
+
+        if return_single_gate_results:
+            single_gates_result = [dict()] * len(self.up_nearest_gates)
+
+        working_onsite_gates = tuple(o for e in self._onsite_single_gates for o in e)
+
+        if self.is_spiral_peps:
+            if isinstance(spiral_vectors, jnp.ndarray):
+                spiral_vectors = (spiral_vectors,)
+
+            working_h_gates = tuple(
+                apply_unitary(
+                    h,
+                    jnp.array((0, 1)),
+                    spiral_vectors[0],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    2,
+                    (1,),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for h in self.down_nearest_gates
+            )
+            working_v_gates = tuple(
+                apply_unitary(
+                    v,
+                    jnp.array((1, 0)),
+                    spiral_vectors[0],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    2,
+                    (1,),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for v in self.down_nearest_gates
+            )
+            working_d_gates = tuple(
+                apply_unitary(
+                    d,
+                    jnp.array((1, 1)),
+                    spiral_vectors[0],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    2,
+                    (1,),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for d in self.down_nearest_gates
+            )
+
+            if return_single_gate_results:
+                working_h_single_gates = tuple(
+                    apply_unitary(
+                        h,
+                        jnp.array((0, 1)),
+                        spiral_vectors[0],
+                        self._spiral_D,
+                        self._spiral_sigma,
+                        self.real_d,
+                        2,
+                        (1,),
+                        varipeps_config.spiral_wavevector_type,
+                    )
+                    for h in self.down_nearest_gates
+                )
+                working_v_single_gates = tuple(
+                    apply_unitary(
+                        v,
+                        jnp.array((1, 0)),
+                        spiral_vectors[0],
+                        self._spiral_D,
+                        self._spiral_sigma,
+                        self.real_d,
+                        2,
+                        (1,),
+                        varipeps_config.spiral_wavevector_type,
+                    )
+                    for v in self.down_nearest_gates
+                )
+                working_d_single_gates = tuple(
+                    apply_unitary(
+                        d,
+                        jnp.array((1, 1)),
+                        spiral_vectors[0],
+                        self._spiral_D,
+                        self._spiral_sigma,
+                        self.real_d,
+                        2,
+                        (1,),
+                        varipeps_config.spiral_wavevector_type,
+                    )
+                    for d in self.down_nearest_gates
+                )
+        else:
+            working_h_gates = self.down_nearest_gates
+            working_v_gates = self.down_nearest_gates
+            working_d_gates = self.down_nearest_gates
+
+            if return_single_gate_results:
+                working_h_single_gates = tuple(
+                    h for e in self.down_nearest_gates for h in e
+                )
+                working_v_single_gates = tuple(
+                    v for e in self.down_nearest_gates for v in e
+                )
+                working_d_single_gates = tuple(
+                    d for e in self.down_nearest_gates for d in e
+                )
+
+        for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
+            for y, view in iter_rows:
+                # On site term
+                if len(self.up_nearest_gates) > 0:
+                    onsite_tensor = peps_tensors[view.get_indices((0, 0))[0][0]]
+                    onsite_tensor_obj = view[0, 0][0][0]
+
+                    if return_single_gate_results:
+                        step_result_onsite = calc_triangular_one_site(
+                            onsite_tensor,
+                            onsite_tensor_obj,
+                            self._full_onsite_tuple + working_onsite_gates,
+                        )
+                    else:
+                        step_result_onsite = calc_triangular_one_site(
+                            onsite_tensor,
+                            onsite_tensor_obj,
+                            self._full_onsite_tuple,
+                        )
+
+                    horizontal_tensors_i = view.get_indices((0, slice(0, 2, None)))
+                    horizontal_tensors = [
+                        peps_tensors[i] for j in horizontal_tensors_i for i in j
+                    ]
+                    horizontal_tensor_objs = [t for tl in view[0, :2] for t in tl]
+                    (
+                        density_matrix_left,
+                        density_matrix_right,
+                    ) = kagome_triangular_ctmrg_density_matrix_horizontal(
+                        horizontal_tensors, horizontal_tensor_objs, ((3,), (2,))
+                    )
+
+                    if return_single_gate_results:
+                        step_result_horizontal = calc_triangular_two_sites_workhorse(
+                            density_matrix_left,
+                            density_matrix_right,
+                            working_h_gates + working_h_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_horizontal = calc_triangular_two_sites_workhorse(
+                            density_matrix_left,
+                            density_matrix_right,
+                            working_h_gates,
+                            self._result_type is jnp.float64,
+                        )
+
+                    vertical_tensors_i = view.get_indices((slice(0, 2, None), 0))
+                    vertical_tensors = [
+                        peps_tensors[i] for j in vertical_tensors_i for i in j
+                    ]
+                    vertical_tensor_objs = [t for tl in view[:2, 0] for t in tl]
+                    (
+                        density_matrix_top,
+                        density_matrix_bottom,
+                    ) = kagome_triangular_ctmrg_density_matrix_vertical(
+                        vertical_tensors, vertical_tensor_objs, ((2,), (1,))
+                    )
+
+                    if return_single_gate_results:
+                        step_result_vertical = calc_triangular_two_sites_workhorse(
+                            density_matrix_top,
+                            density_matrix_bottom,
+                            working_v_gates + working_v_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_vertical = calc_triangular_two_sites_workhorse(
+                            density_matrix_top,
+                            density_matrix_bottom,
+                            working_v_gates,
+                            self._result_type is jnp.float64,
+                        )
+
+                    diagonal_tensors_i = view.get_indices(
+                        (slice(0, 2, None), slice(0, 2, None))
+                    )
+                    diagonal_tensors = [
+                        peps_tensors[diagonal_tensors_i[0][0]],
+                        peps_tensors[diagonal_tensors_i[1][1]],
+                    ]
+                    diagonal_tensor_objs = [view[0, 0][0][0], view[1, 1][0][0]]
+                    (
+                        density_matrix_top_left,
+                        density_matrix_bottom_right,
+                    ) = kagome_triangular_ctmrg_density_matrix_diagonal(
+                        diagonal_tensors,
+                        diagonal_tensor_objs,
+                        ((3,), (1,)),
+                    )
+
+                    if return_single_gate_results:
+                        step_result_diagonal = calc_triangular_two_sites_workhorse(
+                            density_matrix_top_left,
+                            density_matrix_bottom_right,
+                            working_d_gates + working_d_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_diagonal = calc_triangular_two_sites_workhorse(
+                            density_matrix_top_left,
+                            density_matrix_bottom_right,
+                            working_d_gates,
+                            self._result_type is jnp.float64,
+                        )
+
+                    for sr_i, (sr_o, sr_h, sr_v, sr_d) in enumerate(
+                        jax.util.safe_zip(
+                            step_result_onsite[: len(self.up_nearest_gates)],
+                            step_result_horizontal[: len(self.up_nearest_gates)],
+                            step_result_vertical[: len(self.up_nearest_gates)],
+                            step_result_diagonal[: len(self.up_nearest_gates)],
+                        )
+                    ):
+                        result[sr_i] += sr_o + sr_h + sr_v + sr_d
+
+                    if return_single_gate_results:
+                        for sr_i in range(len(self.up_nearest_gates)):
+                            index_onsite = (
+                                len(self.up_nearest_gates)
+                                + len(self._onsite_single_gates[0]) * sr_i
+                            )
+                            index_horizontal = (
+                                len(self.up_nearest_gates)
+                                + len(self.down_nearest_gates) * sr_i
+                            )
+                            index_vertical = (
+                                len(self.up_nearest_gates)
+                                + len(self.down_nearest_gates) * sr_i
+                            )
+                            index_diagonal = (
+                                len(self.up_nearest_gates)
+                                + len(self.down_nearest_gates) * sr_i
+                            )
+
+                            single_gates_result[sr_i][(x, y)] = dict(
+                                zip(
+                                    (
+                                        "up_nearest_12",
+                                        "up_nearest_13",
+                                        "up_nearest_23",
+                                        "down_nearest_32",
+                                        "down_nearest_21",
+                                        "down_nearest_31",
+                                    ),
+                                    (
+                                        step_result_onsite[
+                                            index_onsite : (
+                                                index_onsite
+                                                + len(self._onsite_single_gates[0])
+                                            )
+                                        ]
+                                        + step_result_horizontal[
+                                            index_horizontal : (
+                                                index_horizontal
+                                                + len(self.down_nearest_gates)
+                                            )
+                                        ]
+                                        + step_result_vertical[
+                                            index_vertical : (
+                                                index_vertical
+                                                + len(self.down_nearest_gates)
+                                            )
+                                        ]
+                                        + step_result_diagonal[
+                                            index_diagonal : (
+                                                index_diagonal
+                                                + len(self.down_nearest_gates)
+                                            )
+                                        ]
+                                    ),
+                                )
+                            )
+
+        if normalize_by_size:
+            if only_unique:
+                size = unitcell.get_len_unique_tensors()
+            else:
+                size = unitcell.get_size()[0] * unitcell.get_size()[1]
+            size = size * self.normalization_factor
+            result = [r / size for r in result]
+
+        if len(result) == 1:
+            result = result[0]
+
+        if return_single_gate_results:
+            return result, single_gates_result
+        else:
+            return result
