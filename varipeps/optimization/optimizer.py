@@ -656,6 +656,7 @@ def optimize_peps_network(
                     step_chi[random_noise_retries] = []
                     step_conv[random_noise_retries] = []
                     max_trunc_error_list[random_noise_retries] = []
+                    step_runtime[random_noise_retries] = []
 
                     pbar.reset()
                     pbar.refresh()
