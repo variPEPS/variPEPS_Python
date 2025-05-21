@@ -35,6 +35,46 @@ def _get_triangular_ctmrg_2x2_structure(
     return view_tensors, view_tensor_objs
 
 
+def decompose_new_T(new_T, chi, truncation_eps, config):
+    new_T /= jnp.linalg.norm(new_T)
+
+    new_T_matrix = new_T.reshape(
+        new_T.shape[0] * new_T.shape[1] * new_T.shape[2],
+        new_T.shape[3] * new_T.shape[4] * new_T.shape[5],
+    )
+    new_T_U, new_T_S, new_T_Vh = gauge_fixed_svd(new_T_matrix)
+    new_T_S = jnp.where(
+        new_T_S / new_T_S[0] >= truncation_eps,
+        jnp.sqrt(jnp.where(new_T_S / new_T_S[0] >= truncation_eps, new_T_S, 1)),
+        0,
+    )
+
+    new_Ta = new_T_S[:, jnp.newaxis] * new_T_Vh
+    new_Ta = new_Ta.reshape(
+        new_Ta.shape[0], new_T.shape[3], new_T.shape[4], new_T.shape[5]
+    )
+    new_Tb = new_T_U * new_T_S[jnp.newaxis, :]
+    new_Tb = new_Tb.reshape(
+        new_T.shape[0], new_T.shape[1], new_T.shape[2], new_Tb.shape[-1]
+    )
+
+    new_Ta_trunc = new_T_S[:chi, jnp.newaxis] * new_T_Vh[:chi, :]
+    new_Ta_trunc = new_Ta_trunc.reshape(
+        new_Ta_trunc.shape[0], new_T.shape[3], new_T.shape[4], new_T.shape[5]
+    )
+    new_Tb_trunc = new_T_U[:, :chi] * new_T_S[jnp.newaxis, :chi]
+    new_Tb_trunc = new_Tb_trunc.reshape(
+        new_T.shape[0], new_T.shape[1], new_T.shape[2], new_Tb_trunc.shape[-1]
+    )
+
+    return (
+        _post_process_CTM_tensors(new_Ta, config),
+        _post_process_CTM_tensors(new_Tb, config),
+        _post_process_CTM_tensors(new_Ta_trunc, config),
+        _post_process_CTM_tensors(new_Tb_trunc, config),
+    )
+
+
 def do_absorption_step_triangular(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
@@ -133,6 +173,18 @@ def do_absorption_step_triangular(
     new_T5b_list = []
     new_T6a_list = []
     new_T6b_list = []
+    new_T1a_trunc_list = []
+    new_T1b_trunc_list = []
+    new_T2a_trunc_list = []
+    new_T2b_trunc_list = []
+    new_T3a_trunc_list = []
+    new_T3b_trunc_list = []
+    new_T4a_trunc_list = []
+    new_T4b_trunc_list = []
+    new_T5a_trunc_list = []
+    new_T5b_trunc_list = []
+    new_T6a_trunc_list = []
+    new_T6b_trunc_list = []
     for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
         for y, view in iter_rows:
             working_tensor = peps_tensors[view.get_indices((0, 0))[0][0]]
@@ -206,30 +258,13 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [T1_proj_left, T1_proj_right],
             )
-            new_T1 /= jnp.linalg.norm(new_T1)
-
-            new_T1_matrix = new_T1.reshape(
-                new_T1.shape[0] * new_T1.shape[1] * new_T1.shape[2],
-                new_T1.shape[3] * new_T1.shape[4] * new_T1.shape[5],
+            new_T1a, new_T1b, new_T1a_trunc, new_T1b_trunc = decompose_new_T(
+                new_T1, working_tensor_obj.chi, truncation_eps, config
             )
-            new_T1_U, new_T1_S, new_T1_Vh = gauge_fixed_svd(new_T1_matrix)
-            new_T1_S = jnp.where(
-                new_T1_S / new_T1_S[0] >= truncation_eps,
-                jnp.sqrt(
-                    jnp.where(new_T1_S / new_T1_S[0] >= truncation_eps, new_T1_S, 1)
-                ),
-                0,
-            )
-            new_T1a = new_T1_S[:, jnp.newaxis] * new_T1_Vh
-            new_T1a = new_T1a.reshape(
-                new_T1a.shape[0], new_T1.shape[3], new_T1.shape[4], new_T1.shape[5]
-            )
-            new_T1b = new_T1_U * new_T1_S[jnp.newaxis, :]
-            new_T1b = new_T1b.reshape(
-                new_T1.shape[0], new_T1.shape[1], new_T1.shape[2], new_T1b.shape[-1]
-            )
-            new_T1a_list.append(_post_process_CTM_tensors(new_T1a, config))
-            new_T1b_list.append(_post_process_CTM_tensors(new_T1b, config))
+            new_T1a_list.append(new_T1a)
+            new_T1b_list.append(new_T1b)
+            new_T1a_trunc_list.append(new_T1a_trunc)
+            new_T1b_trunc_list.append(new_T1b_trunc)
 
             T2_proj_left = corner_30_projectors.get_projector(x, y, -1, -1)[0]
             T2_proj_right = corner_30_projectors.get_projector(x, y, 0, 0)[1]
@@ -239,30 +274,13 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [T2_proj_left, T2_proj_right],
             )
-            new_T2 /= jnp.linalg.norm(new_T2)
-
-            new_T2_matrix = new_T2.reshape(
-                new_T2.shape[0] * new_T2.shape[1] * new_T2.shape[2],
-                new_T2.shape[3] * new_T2.shape[4] * new_T2.shape[5],
+            new_T2a, new_T2b, new_T2a_trunc, new_T2b_trunc = decompose_new_T(
+                new_T2, working_tensor_obj.chi, truncation_eps, config
             )
-            new_T2_U, new_T2_S, new_T2_Vh = gauge_fixed_svd(new_T2_matrix)
-            new_T2_S = jnp.where(
-                new_T2_S / new_T2_S[0] >= truncation_eps,
-                jnp.sqrt(
-                    jnp.where(new_T2_S / new_T2_S[0] >= truncation_eps, new_T2_S, 1)
-                ),
-                0,
-            )
-            new_T2a = new_T2_S[:, jnp.newaxis] * new_T2_Vh
-            new_T2a = new_T2a.reshape(
-                new_T2a.shape[0], new_T2.shape[3], new_T2.shape[4], new_T2.shape[5]
-            )
-            new_T2b = new_T2_U * new_T2_S[jnp.newaxis, :]
-            new_T2b = new_T2b.reshape(
-                new_T2.shape[0], new_T2.shape[1], new_T2.shape[2], new_T2b.shape[-1]
-            )
-            new_T2a_list.append(_post_process_CTM_tensors(new_T2a, config))
-            new_T2b_list.append(_post_process_CTM_tensors(new_T2b, config))
+            new_T2a_list.append(new_T2a)
+            new_T2b_list.append(new_T2b)
+            new_T2a_trunc_list.append(new_T2a_trunc)
+            new_T2b_trunc_list.append(new_T2b_trunc)
 
             T3_proj_left = corner_330_projectors.get_projector(x, y, -1, 0)[0]
             T3_proj_right = corner_330_projectors.get_projector(x, y, 0, 0)[1]
@@ -272,30 +290,13 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [T3_proj_left, T3_proj_right],
             )
-            new_T3 /= jnp.linalg.norm(new_T3)
-
-            new_T3_matrix = new_T3.reshape(
-                new_T3.shape[0] * new_T3.shape[1] * new_T3.shape[2],
-                new_T3.shape[3] * new_T3.shape[4] * new_T3.shape[5],
+            new_T3a, new_T3b, new_T3a_trunc, new_T3b_trunc = decompose_new_T(
+                new_T3, working_tensor_obj.chi, truncation_eps, config
             )
-            new_T3_U, new_T3_S, new_T3_Vh = gauge_fixed_svd(new_T3_matrix)
-            new_T3_S = jnp.where(
-                new_T3_S / new_T3_S[0] >= truncation_eps,
-                jnp.sqrt(
-                    jnp.where(new_T3_S / new_T3_S[0] >= truncation_eps, new_T3_S, 1)
-                ),
-                0,
-            )
-            new_T3a = new_T3_S[:, jnp.newaxis] * new_T3_Vh
-            new_T3a = new_T3a.reshape(
-                new_T3a.shape[0], new_T3.shape[3], new_T3.shape[4], new_T3.shape[5]
-            )
-            new_T3b = new_T3_U * new_T3_S[jnp.newaxis, :]
-            new_T3b = new_T3b.reshape(
-                new_T3.shape[0], new_T3.shape[1], new_T3.shape[2], new_T3b.shape[-1]
-            )
-            new_T3a_list.append(_post_process_CTM_tensors(new_T3a, config))
-            new_T3b_list.append(_post_process_CTM_tensors(new_T3b, config))
+            new_T3a_list.append(new_T3a)
+            new_T3b_list.append(new_T3b)
+            new_T3a_trunc_list.append(new_T3a_trunc)
+            new_T3b_trunc_list.append(new_T3b_trunc)
 
             T4_proj_left = corner_270_projectors.get_projector(x, y, 0, 0)[0]
             T4_proj_right = corner_270_projectors.get_projector(x, y, 0, -1)[1]
@@ -305,30 +306,13 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [T4_proj_left, T4_proj_right],
             )
-            new_T4 /= jnp.linalg.norm(new_T4)
-
-            new_T4_matrix = new_T4.reshape(
-                new_T4.shape[0] * new_T4.shape[1] * new_T4.shape[2],
-                new_T4.shape[3] * new_T4.shape[4] * new_T4.shape[5],
+            new_T4a, new_T4b, new_T4a_trunc, new_T4b_trunc = decompose_new_T(
+                new_T4, working_tensor_obj.chi, truncation_eps, config
             )
-            new_T4_U, new_T4_S, new_T4_Vh = gauge_fixed_svd(new_T4_matrix)
-            new_T4_S = jnp.where(
-                new_T4_S / new_T4_S[0] >= truncation_eps,
-                jnp.sqrt(
-                    jnp.where(new_T4_S / new_T4_S[0] >= truncation_eps, new_T4_S, 1)
-                ),
-                0,
-            )
-            new_T4a = new_T4_S[:, jnp.newaxis] * new_T4_Vh
-            new_T4a = new_T4a.reshape(
-                new_T4a.shape[0], new_T4.shape[3], new_T4.shape[4], new_T4.shape[5]
-            )
-            new_T4b = new_T4_U * new_T4_S[jnp.newaxis, :]
-            new_T4b = new_T4b.reshape(
-                new_T4.shape[0], new_T4.shape[1], new_T4.shape[2], new_T4b.shape[-1]
-            )
-            new_T4a_list.append(_post_process_CTM_tensors(new_T4a, config))
-            new_T4b_list.append(_post_process_CTM_tensors(new_T4b, config))
+            new_T4a_list.append(new_T4a)
+            new_T4b_list.append(new_T4b)
+            new_T4a_trunc_list.append(new_T4a_trunc)
+            new_T4b_trunc_list.append(new_T4b_trunc)
 
             T5_proj_left = corner_210_projectors.get_projector(x, y, 0, 0)[0]
             T5_proj_right = corner_210_projectors.get_projector(x, y, -1, -1)[1]
@@ -338,30 +322,13 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [T5_proj_left, T5_proj_right],
             )
-            new_T5 /= jnp.linalg.norm(new_T5)
-
-            new_T5_matrix = new_T5.reshape(
-                new_T5.shape[0] * new_T5.shape[1] * new_T5.shape[2],
-                new_T5.shape[3] * new_T5.shape[4] * new_T5.shape[5],
+            new_T5a, new_T5b, new_T5a_trunc, new_T5b_trunc = decompose_new_T(
+                new_T5, working_tensor_obj.chi, truncation_eps, config
             )
-            new_T5_U, new_T5_S, new_T5_Vh = gauge_fixed_svd(new_T5_matrix)
-            new_T5_S = jnp.where(
-                new_T5_S / new_T5_S[0] >= truncation_eps,
-                jnp.sqrt(
-                    jnp.where(new_T5_S / new_T5_S[0] >= truncation_eps, new_T5_S, 1)
-                ),
-                0,
-            )
-            new_T5a = new_T5_S[:, jnp.newaxis] * new_T5_Vh
-            new_T5a = new_T5a.reshape(
-                new_T5a.shape[0], new_T5.shape[3], new_T5.shape[4], new_T5.shape[5]
-            )
-            new_T5b = new_T5_U * new_T5_S[jnp.newaxis, :]
-            new_T5b = new_T5b.reshape(
-                new_T5.shape[0], new_T5.shape[1], new_T5.shape[2], new_T5b.shape[-1]
-            )
-            new_T5a_list.append(_post_process_CTM_tensors(new_T5a, config))
-            new_T5b_list.append(_post_process_CTM_tensors(new_T5b, config))
+            new_T5a_list.append(new_T5a)
+            new_T5b_list.append(new_T5b)
+            new_T5a_trunc_list.append(new_T5a_trunc)
+            new_T5b_trunc_list.append(new_T5b_trunc)
 
             T6_proj_left = corner_150_projectors.get_projector(x, y, 0, 0)[0]
             T6_proj_right = corner_150_projectors.get_projector(x, y, -1, 0)[1]
@@ -371,68 +338,63 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [T6_proj_left, T6_proj_right],
             )
-            new_T6 /= jnp.linalg.norm(new_T6)
-
-            new_T6_matrix = new_T6.reshape(
-                new_T6.shape[0] * new_T6.shape[1] * new_T6.shape[2],
-                new_T6.shape[3] * new_T6.shape[4] * new_T6.shape[5],
+            new_T6a, new_T6b, new_T6a_trunc, new_T6b_trunc = decompose_new_T(
+                new_T6, working_tensor_obj.chi, truncation_eps, config
             )
-            new_T6_U, new_T6_S, new_T6_Vh = gauge_fixed_svd(new_T6_matrix)
-            new_T6_S = jnp.where(
-                new_T6_S / new_T6_S[0] >= truncation_eps,
-                jnp.sqrt(
-                    jnp.where(new_T6_S / new_T6_S[0] >= truncation_eps, new_T6_S, 1)
-                ),
-                0,
-            )
-            new_T6a = new_T6_S[:, jnp.newaxis] * new_T6_Vh
-            new_T6a = new_T6a.reshape(
-                new_T6a.shape[0], new_T6.shape[3], new_T6.shape[4], new_T6.shape[5]
-            )
-            new_T6b = new_T6_U * new_T6_S[jnp.newaxis, :]
-            new_T6b = new_T6b.reshape(
-                new_T6.shape[0], new_T6.shape[1], new_T6.shape[2], new_T6b.shape[-1]
-            )
-            new_T6a_list.append(_post_process_CTM_tensors(new_T6a, config))
-            new_T6b_list.append(_post_process_CTM_tensors(new_T6b, config))
+            new_T6a_list.append(new_T6a)
+            new_T6b_list.append(new_T6b)
+            new_T6a_trunc_list.append(new_T6a_trunc)
+            new_T6b_trunc_list.append(new_T6b_trunc)
 
     i = 0
     for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
         for y, view in iter_rows:
-            new_t = view[1, 1][0][0].copy()
+            new_t = view[1, 1][0][0].copy_including_trunc()
             new_t.C1 = new_C1_list[i]
             new_t.T1a = new_T1a_list[i]
             new_t.T6b = new_T6b_list[i]
+            new_t.T1a_trunc = new_T1a_trunc_list[i]
+            new_t.T6b_trunc = new_T6b_trunc_list[i]
             view[1, 1] = new_t
 
-            new_t = view[1, 0][0][0].copy()
+            new_t = view[1, 0][0][0].copy_including_trunc()
             new_t.C2 = new_C2_list[i]
             new_t.T1b = new_T1b_list[i]
             new_t.T2a = new_T2a_list[i]
+            new_t.T1b_trunc = new_T1b_trunc_list[i]
+            new_t.T2a_trunc = new_T2a_trunc_list[i]
             view[1, 0] = new_t
 
-            new_t = view[0, -1][0][0].copy()
+            new_t = view[0, -1][0][0].copy_including_trunc()
             new_t.C3 = new_C3_list[i]
             new_t.T2b = new_T2b_list[i]
             new_t.T3a = new_T3a_list[i]
+            new_t.T2b_trunc = new_T2b_trunc_list[i]
+            new_t.T3a_trunc = new_T3a_trunc_list[i]
             view[0, -1] = new_t
 
-            new_t = view[-1, -1][0][0].copy()
+            new_t = view[-1, -1][0][0].copy_including_trunc()
             new_t.C4 = new_C4_list[i]
             new_t.T3b = new_T3b_list[i]
             new_t.T4a = new_T4a_list[i]
+            new_t.T3b_trunc = new_T3b_trunc_list[i]
+            new_t.T4a_trunc = new_T4a_trunc_list[i]
             view[-1, -1] = new_t
 
-            new_t = view[-1, 0][0][0].copy()
+            new_t = view[-1, 0][0][0].copy_including_trunc()
             new_t.C5 = new_C5_list[i]
             new_t.T4b = new_T4b_list[i]
             new_t.T5a = new_T5a_list[i]
+            new_t.T4b_trunc = new_T4b_trunc_list[i]
+            new_t.T5a_trunc = new_T5a_trunc_list[i]
             view[-1, 0] = new_t
 
-            new_t = view[0, 1][0][0].copy()
+            new_t = view[0, 1][0][0].copy_including_trunc()
             new_t.C6 = new_C6_list[i]
             new_t.T5b = new_T5b_list[i]
             new_t.T6a = new_T6a_list[i]
+            new_t.T5b_trunc = new_T5b_trunc_list[i]
+            new_t.T6a_trunc = new_T6a_trunc_list[i]
             view[0, 1] = new_t
 
             i += 1
@@ -716,6 +678,18 @@ def do_absorption_step_triangular_split(
     new_T5b_list = []
     new_T6a_list = []
     new_T6b_list = []
+    new_T1a_trunc_list = []
+    new_T1b_trunc_list = []
+    new_T2a_trunc_list = []
+    new_T2b_trunc_list = []
+    new_T3a_trunc_list = []
+    new_T3b_trunc_list = []
+    new_T4a_trunc_list = []
+    new_T4b_trunc_list = []
+    new_T5a_trunc_list = []
+    new_T5b_trunc_list = []
+    new_T6a_trunc_list = []
+    new_T6b_trunc_list = []
     for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
         for y, view in iter_rows:
             working_tensor = peps_tensors[view.get_indices((0, 0))[0][0]]
@@ -838,30 +812,13 @@ def do_absorption_step_triangular_split(
                     T1_proj_right_bra,
                 ],
             )
-            new_T1 /= jnp.linalg.norm(new_T1)
-
-            new_T1_matrix = new_T1.reshape(
-                new_T1.shape[0] * new_T1.shape[1] * new_T1.shape[2],
-                new_T1.shape[3] * new_T1.shape[4] * new_T1.shape[5],
+            new_T1a, new_T1b, new_T1a_trunc, new_T1b_trunc = decompose_new_T(
+                new_T1, working_tensor_obj.chi, truncation_eps, config
             )
-            new_T1_U, new_T1_S, new_T1_Vh = gauge_fixed_svd(new_T1_matrix)
-            new_T1_S = jnp.where(
-                new_T1_S / new_T1_S[0] >= truncation_eps,
-                jnp.sqrt(
-                    jnp.where(new_T1_S / new_T1_S[0] >= truncation_eps, new_T1_S, 1)
-                ),
-                0,
-            )
-            new_T1a = new_T1_S[:, jnp.newaxis] * new_T1_Vh
-            new_T1a = new_T1a.reshape(
-                new_T1a.shape[0], new_T1.shape[3], new_T1.shape[4], new_T1.shape[5]
-            )
-            new_T1b = new_T1_U * new_T1_S[jnp.newaxis, :]
-            new_T1b = new_T1b.reshape(
-                new_T1.shape[0], new_T1.shape[1], new_T1.shape[2], new_T1b.shape[-1]
-            )
-            new_T1a_list.append(_post_process_CTM_tensors(new_T1a, config))
-            new_T1b_list.append(_post_process_CTM_tensors(new_T1b, config))
+            new_T1a_list.append(new_T1a)
+            new_T1b_list.append(new_T1b)
+            new_T1a_trunc_list.append(new_T1a_trunc)
+            new_T1b_trunc_list.append(new_T1b_trunc)
 
             T2_proj_left_bra = corner_30_bra_projectors.get_projector(x, y, -1, -1)[0]
             T2_proj_left_ket = corner_30_ket_projectors.get_projector(x, y, -1, -1)[0]
@@ -878,30 +835,13 @@ def do_absorption_step_triangular_split(
                     T2_proj_right_bra,
                 ],
             )
-            new_T2 /= jnp.linalg.norm(new_T2)
-
-            new_T2_matrix = new_T2.reshape(
-                new_T2.shape[0] * new_T2.shape[1] * new_T2.shape[2],
-                new_T2.shape[3] * new_T2.shape[4] * new_T2.shape[5],
+            new_T2a, new_T2b, new_T2a_trunc, new_T2b_trunc = decompose_new_T(
+                new_T2, working_tensor_obj.chi, truncation_eps, config
             )
-            new_T2_U, new_T2_S, new_T2_Vh = gauge_fixed_svd(new_T2_matrix)
-            new_T2_S = jnp.where(
-                new_T2_S / new_T2_S[0] >= truncation_eps,
-                jnp.sqrt(
-                    jnp.where(new_T2_S / new_T2_S[0] >= truncation_eps, new_T2_S, 1)
-                ),
-                0,
-            )
-            new_T2a = new_T2_S[:, jnp.newaxis] * new_T2_Vh
-            new_T2a = new_T2a.reshape(
-                new_T2a.shape[0], new_T2.shape[3], new_T2.shape[4], new_T2.shape[5]
-            )
-            new_T2b = new_T2_U * new_T2_S[jnp.newaxis, :]
-            new_T2b = new_T2b.reshape(
-                new_T2.shape[0], new_T2.shape[1], new_T2.shape[2], new_T2b.shape[-1]
-            )
-            new_T2a_list.append(_post_process_CTM_tensors(new_T2a, config))
-            new_T2b_list.append(_post_process_CTM_tensors(new_T2b, config))
+            new_T2a_list.append(new_T2a)
+            new_T2b_list.append(new_T2b)
+            new_T2a_trunc_list.append(new_T2a_trunc)
+            new_T2b_trunc_list.append(new_T2b_trunc)
 
             T3_proj_left_ket = corner_330_ket_projectors.get_projector(x, y, -1, 0)[0]
             T3_proj_left_bra = corner_330_bra_projectors.get_projector(x, y, -1, 0)[0]
@@ -918,30 +858,13 @@ def do_absorption_step_triangular_split(
                     T3_proj_right_ket,
                 ],
             )
-            new_T3 /= jnp.linalg.norm(new_T3)
-
-            new_T3_matrix = new_T3.reshape(
-                new_T3.shape[0] * new_T3.shape[1] * new_T3.shape[2],
-                new_T3.shape[3] * new_T3.shape[4] * new_T3.shape[5],
+            new_T3a, new_T3b, new_T3a_trunc, new_T3b_trunc = decompose_new_T(
+                new_T3, working_tensor_obj.chi, truncation_eps, config
             )
-            new_T3_U, new_T3_S, new_T3_Vh = gauge_fixed_svd(new_T3_matrix)
-            new_T3_S = jnp.where(
-                new_T3_S / new_T3_S[0] >= truncation_eps,
-                jnp.sqrt(
-                    jnp.where(new_T3_S / new_T3_S[0] >= truncation_eps, new_T3_S, 1)
-                ),
-                0,
-            )
-            new_T3a = new_T3_S[:, jnp.newaxis] * new_T3_Vh
-            new_T3a = new_T3a.reshape(
-                new_T3a.shape[0], new_T3.shape[3], new_T3.shape[4], new_T3.shape[5]
-            )
-            new_T3b = new_T3_U * new_T3_S[jnp.newaxis, :]
-            new_T3b = new_T3b.reshape(
-                new_T3.shape[0], new_T3.shape[1], new_T3.shape[2], new_T3b.shape[-1]
-            )
-            new_T3a_list.append(_post_process_CTM_tensors(new_T3a, config))
-            new_T3b_list.append(_post_process_CTM_tensors(new_T3b, config))
+            new_T3a_list.append(new_T3a)
+            new_T3b_list.append(new_T3b)
+            new_T3a_trunc_list.append(new_T3a_trunc)
+            new_T3b_trunc_list.append(new_T3b_trunc)
 
             T4_proj_left_ket = corner_270_ket_projectors.get_projector(x, y, 0, 0)[0]
             T4_proj_left_bra = corner_270_bra_projectors.get_projector(x, y, 0, 0)[0]
@@ -958,30 +881,13 @@ def do_absorption_step_triangular_split(
                     T4_proj_right_ket,
                 ],
             )
-            new_T4 /= jnp.linalg.norm(new_T4)
-
-            new_T4_matrix = new_T4.reshape(
-                new_T4.shape[0] * new_T4.shape[1] * new_T4.shape[2],
-                new_T4.shape[3] * new_T4.shape[4] * new_T4.shape[5],
+            new_T4a, new_T4b, new_T4a_trunc, new_T4b_trunc = decompose_new_T(
+                new_T4, working_tensor_obj.chi, truncation_eps, config
             )
-            new_T4_U, new_T4_S, new_T4_Vh = gauge_fixed_svd(new_T4_matrix)
-            new_T4_S = jnp.where(
-                new_T4_S / new_T4_S[0] >= truncation_eps,
-                jnp.sqrt(
-                    jnp.where(new_T4_S / new_T4_S[0] >= truncation_eps, new_T4_S, 1)
-                ),
-                0,
-            )
-            new_T4a = new_T4_S[:, jnp.newaxis] * new_T4_Vh
-            new_T4a = new_T4a.reshape(
-                new_T4a.shape[0], new_T4.shape[3], new_T4.shape[4], new_T4.shape[5]
-            )
-            new_T4b = new_T4_U * new_T4_S[jnp.newaxis, :]
-            new_T4b = new_T4b.reshape(
-                new_T4.shape[0], new_T4.shape[1], new_T4.shape[2], new_T4b.shape[-1]
-            )
-            new_T4a_list.append(_post_process_CTM_tensors(new_T4a, config))
-            new_T4b_list.append(_post_process_CTM_tensors(new_T4b, config))
+            new_T4a_list.append(new_T4a)
+            new_T4b_list.append(new_T4b)
+            new_T4a_trunc_list.append(new_T4a_trunc)
+            new_T4b_trunc_list.append(new_T4b_trunc)
 
             T5_proj_left_ket = corner_210_ket_projectors.get_projector(x, y, 0, 0)[0]
             T5_proj_left_bra = corner_210_bra_projectors.get_projector(x, y, 0, 0)[0]
@@ -998,30 +904,13 @@ def do_absorption_step_triangular_split(
                     T5_proj_right_ket,
                 ],
             )
-            new_T5 /= jnp.linalg.norm(new_T5)
-
-            new_T5_matrix = new_T5.reshape(
-                new_T5.shape[0] * new_T5.shape[1] * new_T5.shape[2],
-                new_T5.shape[3] * new_T5.shape[4] * new_T5.shape[5],
+            new_T5a, new_T5b, new_T5a_trunc, new_T5b_trunc = decompose_new_T(
+                new_T5, working_tensor_obj.chi, truncation_eps, config
             )
-            new_T5_U, new_T5_S, new_T5_Vh = gauge_fixed_svd(new_T5_matrix)
-            new_T5_S = jnp.where(
-                new_T5_S / new_T5_S[0] >= truncation_eps,
-                jnp.sqrt(
-                    jnp.where(new_T5_S / new_T5_S[0] >= truncation_eps, new_T5_S, 1)
-                ),
-                0,
-            )
-            new_T5a = new_T5_S[:, jnp.newaxis] * new_T5_Vh
-            new_T5a = new_T5a.reshape(
-                new_T5a.shape[0], new_T5.shape[3], new_T5.shape[4], new_T5.shape[5]
-            )
-            new_T5b = new_T5_U * new_T5_S[jnp.newaxis, :]
-            new_T5b = new_T5b.reshape(
-                new_T5.shape[0], new_T5.shape[1], new_T5.shape[2], new_T5b.shape[-1]
-            )
-            new_T5a_list.append(_post_process_CTM_tensors(new_T5a, config))
-            new_T5b_list.append(_post_process_CTM_tensors(new_T5b, config))
+            new_T5a_list.append(new_T5a)
+            new_T5b_list.append(new_T5b)
+            new_T5a_trunc_list.append(new_T5a_trunc)
+            new_T5b_trunc_list.append(new_T5b_trunc)
 
             T6_proj_left_bra = corner_150_bra_projectors.get_projector(x, y, 0, 0)[0]
             T6_proj_left_ket = corner_150_ket_projectors.get_projector(x, y, 0, 0)[0]
@@ -1038,68 +927,63 @@ def do_absorption_step_triangular_split(
                     T6_proj_right_bra,
                 ],
             )
-            new_T6 /= jnp.linalg.norm(new_T6)
-
-            new_T6_matrix = new_T6.reshape(
-                new_T6.shape[0] * new_T6.shape[1] * new_T6.shape[2],
-                new_T6.shape[3] * new_T6.shape[4] * new_T6.shape[5],
+            new_T6a, new_T6b, new_T6a_trunc, new_T6b_trunc = decompose_new_T(
+                new_T6, working_tensor_obj.chi, truncation_eps, config
             )
-            new_T6_U, new_T6_S, new_T6_Vh = gauge_fixed_svd(new_T6_matrix)
-            new_T6_S = jnp.where(
-                new_T6_S / new_T6_S[0] >= truncation_eps,
-                jnp.sqrt(
-                    jnp.where(new_T6_S / new_T6_S[0] >= truncation_eps, new_T6_S, 1)
-                ),
-                0,
-            )
-            new_T6a = new_T6_S[:, jnp.newaxis] * new_T6_Vh
-            new_T6a = new_T6a.reshape(
-                new_T6a.shape[0], new_T6.shape[3], new_T6.shape[4], new_T6.shape[5]
-            )
-            new_T6b = new_T6_U * new_T6_S[jnp.newaxis, :]
-            new_T6b = new_T6b.reshape(
-                new_T6.shape[0], new_T6.shape[1], new_T6.shape[2], new_T6b.shape[-1]
-            )
-            new_T6a_list.append(_post_process_CTM_tensors(new_T6a, config))
-            new_T6b_list.append(_post_process_CTM_tensors(new_T6b, config))
+            new_T6a_list.append(new_T6a)
+            new_T6b_list.append(new_T6b)
+            new_T6a_trunc_list.append(new_T6a_trunc)
+            new_T6b_trunc_list.append(new_T6b_trunc)
 
     i = 0
     for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
         for y, view in iter_rows:
-            new_t = view[1, 1][0][0].copy()
+            new_t = view[1, 1][0][0].copy_including_trunc()
             new_t.C1 = new_C1_list[i]
             new_t.T1a = new_T1a_list[i]
             new_t.T6b = new_T6b_list[i]
+            new_t.T1a_trunc = new_T1a_trunc_list[i]
+            new_t.T6b_trunc = new_T6b_trunc_list[i]
             view[1, 1] = new_t
 
-            new_t = view[1, 0][0][0].copy()
+            new_t = view[1, 0][0][0].copy_including_trunc()
             new_t.C2 = new_C2_list[i]
             new_t.T1b = new_T1b_list[i]
             new_t.T2a = new_T2a_list[i]
+            new_t.T1b_trunc = new_T1b_trunc_list[i]
+            new_t.T2a_trunc = new_T2a_trunc_list[i]
             view[1, 0] = new_t
 
-            new_t = view[0, -1][0][0].copy()
+            new_t = view[0, -1][0][0].copy_including_trunc()
             new_t.C3 = new_C3_list[i]
             new_t.T2b = new_T2b_list[i]
             new_t.T3a = new_T3a_list[i]
+            new_t.T2b_trunc = new_T2b_trunc_list[i]
+            new_t.T3a_trunc = new_T3a_trunc_list[i]
             view[0, -1] = new_t
 
-            new_t = view[-1, -1][0][0].copy()
+            new_t = view[-1, -1][0][0].copy_including_trunc()
             new_t.C4 = new_C4_list[i]
             new_t.T3b = new_T3b_list[i]
             new_t.T4a = new_T4a_list[i]
+            new_t.T3b_trunc = new_T3b_trunc_list[i]
+            new_t.T4a_trunc = new_T4a_trunc_list[i]
             view[-1, -1] = new_t
 
-            new_t = view[-1, 0][0][0].copy()
+            new_t = view[-1, 0][0][0].copy_including_trunc()
             new_t.C5 = new_C5_list[i]
             new_t.T4b = new_T4b_list[i]
             new_t.T5a = new_T5a_list[i]
+            new_t.T4b_trunc = new_T4b_trunc_list[i]
+            new_t.T5a_trunc = new_T5a_trunc_list[i]
             view[-1, 0] = new_t
 
-            new_t = view[0, 1][0][0].copy()
+            new_t = view[0, 1][0][0].copy_including_trunc()
             new_t.C6 = new_C6_list[i]
             new_t.T5b = new_T5b_list[i]
             new_t.T6a = new_T6a_list[i]
+            new_t.T5b_trunc = new_T5b_trunc_list[i]
+            new_t.T6a_trunc = new_T6a_trunc_list[i]
             view[0, 1] = new_t
 
             i += 1

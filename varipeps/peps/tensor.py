@@ -3744,6 +3744,52 @@ class PEPS_Tensor_Triangular:
             max_chi=self.max_chi,
         )
 
+    def copy_including_trunc(self):
+        new = type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            C5=self.C5,
+            C6=self.C6,
+            T1a=self.T1a,
+            T1b=self.T1b,
+            T2a=self.T2a,
+            T2b=self.T2b,
+            T3a=self.T3a,
+            T3b=self.T3b,
+            T4a=self.T4a,
+            T4b=self.T4b,
+            T5a=self.T5a,
+            T5b=self.T5b,
+            T6a=self.T6a,
+            T6b=self.T6b,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+        )
+
+        for e in (
+            "T1a_trunc",
+            "T1b_trunc",
+            "T2a_trunc",
+            "T2b_trunc",
+            "T3a_trunc",
+            "T3b_trunc",
+            "T4a_trunc",
+            "T4b_trunc",
+            "T5a_trunc",
+            "T5b_trunc",
+            "T6a_trunc",
+            "T6b_trunc",
+        ):
+            if hasattr(self, e):
+                setattr(new, e, getattr(self, e))
+
+        return new
+
     def save_to_group(self, grp: h5py.Group) -> None:
         """
         Store the PEPS tensor into a HDF5 group.
@@ -3874,6 +3920,42 @@ class PEPS_Tensor_Triangular:
         )
         aux_data = (self.d, self.D, self.chi, self.max_chi)
 
+        if any(
+            hasattr(self, e)
+            for e in (
+                "T1a_trunc",
+                "T1b_trunc",
+                "T2a_trunc",
+                "T2b_trunc",
+                "T3a_trunc",
+                "T3b_trunc",
+                "T4a_trunc",
+                "T4b_trunc",
+                "T5a_trunc",
+                "T5b_trunc",
+                "T6a_trunc",
+                "T6b_trunc",
+            )
+        ):
+            trunc_found = []
+            for e in (
+                "T1a_trunc",
+                "T1b_trunc",
+                "T2a_trunc",
+                "T2b_trunc",
+                "T3a_trunc",
+                "T3b_trunc",
+                "T4a_trunc",
+                "T4b_trunc",
+                "T5a_trunc",
+                "T5b_trunc",
+                "T6a_trunc",
+                "T6b_trunc",
+            ):
+                data += (getattr(self, e),)
+                trunc_found.append(e)
+            aux_data += (tuple(trunc_found),)
+
         return (data, aux_data)
 
     @classmethod
@@ -3898,10 +3980,10 @@ class PEPS_Tensor_Triangular:
             T5b,
             T6a,
             T6b,
-        ) = children
-        d, D, chi, max_chi = aux_data
+        ) = children[:19]
+        d, D, chi, max_chi = aux_data[:4]
 
-        return cls(
+        new = cls(
             tensor=tensor,
             C1=C1,
             C2=C2,
@@ -3927,3 +4009,11 @@ class PEPS_Tensor_Triangular:
             max_chi=max_chi,
             sanity_checks=False,
         )
+
+        if len(aux_data) == 5:
+            trunc_found = aux_data[4]
+
+            for i, e in enumerate(trunc_found):
+                setattr(new, e, children[19 + i])
+
+        return new
