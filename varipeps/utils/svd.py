@@ -57,22 +57,33 @@ def _svd_jvp_rule(primals, tangents):
     dS = Ut @ dA @ V
     ds = jnp.real(jnp.diagonal(dS, 0, -2, -1))
 
-    s_diffs = (s_dim + _T(s_dim)) * (s_dim - _T(s_dim))
-    # s_diffs = jnp.where(s_diffs / (s[0] ** 2) >= 1e-12, s_diffs, 0)
+    s_sums = s_dim + _T(s_dim)
+    s_diffs = s_dim - _T(s_dim)
+    s_diffs = jnp.where(jnp.abs(s_diffs / s[0]) >= 1e-12, s_diffs, 0)
     s_diffs_zeros = jnp.ones((), dtype=A.dtype) * (
         s_diffs == 0.0
     )  # is 1. where s_diffs is 0. and is 0. everywhere else
     s_diffs_zeros = lax.expand_dims(s_diffs_zeros, range(s_diffs.ndim - 2))
     F = 1 / (s_diffs + s_diffs_zeros) - s_diffs_zeros
-    dSS = s_dim.astype(A.dtype) * dS  # dS.dot(jnp.diag(s))
-    SdS = _T(s_dim.astype(A.dtype)) * dS  # jnp.diag(s).dot(dS)
+    dSS = dS * (s_dim / s_sums).astype(A.dtype)  # dS.dot(s_j / (s_i + s_j))
+    SdS = (_T(s_dim) / s_sums).astype(A.dtype) * dS  # (s_i / (s_i + s_j)).dot(dS)
+
+    # s_diffs = (s_dim + _T(s_dim)) * (s_dim - _T(s_dim))
+    # # s_diffs = jnp.where(s_diffs / (s[0] ** 2) >= 1e-12, s_diffs, 0)
+    # s_diffs_zeros = jnp.ones((), dtype=A.dtype) * (
+    #     s_diffs == 0.0
+    # )  # is 1. where s_diffs is 0. and is 0. everywhere else
+    # s_diffs_zeros = lax.expand_dims(s_diffs_zeros, range(s_diffs.ndim - 2))
+    # F = 1 / (s_diffs + s_diffs_zeros) - s_diffs_zeros
+    # dSS = s_dim.astype(A.dtype) * dS  # dS.dot(jnp.diag(s))
+    # SdS = _T(s_dim.astype(A.dtype)) * dS  # jnp.diag(s).dot(dS)
 
     s_zeros = (s == 0).astype(s.dtype)
     s_inv = 1 / (s + s_zeros) - s_zeros
     s_inv_mat = jnp.vectorize(jnp.diag, signature="(k)->(k,k)")(s_inv)
     dUdV_diag = 0.5 * (dS - _H(dS)) * s_inv_mat.astype(A.dtype)
-    dU = U @ (F.astype(A.dtype) * (dSS + _H(dSS)) + dUdV_diag)
-    dV = V @ (F.astype(A.dtype) * (SdS + _H(SdS)))
+    dU = U @ (F.astype(A.dtype) * (dSS + _H(dSS)) + 0.5 * dUdV_diag)
+    dV = V @ (F.astype(A.dtype) * (SdS + _H(SdS)) + 0.5 * dUdV_diag)
 
     m, n = A.shape[-2:]
     if m > n:
