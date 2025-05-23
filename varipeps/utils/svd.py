@@ -72,12 +72,16 @@ def _svd_jvp_rule_impl(primals, tangents, only_u_or_vt=None, use_qr=False):
     s_sums = s_dim + _T(s_dim)
     s_sums = jnp.where(s_sums > 0, s_sums, 1)
     s_diffs = s_dim - _T(s_dim)
-    s_diffs = jnp.where(jnp.abs(s_diffs / s[0]) >= 1e-12, s_diffs, 0)
-    s_diffs_zeros = jnp.ones((), dtype=A.dtype) * (
-        s_diffs == 0.0
-    )  # is 1. where s_diffs is 0. and is 0. everywhere else
-    s_diffs_zeros = lax.expand_dims(s_diffs_zeros, range(s_diffs.ndim - 2))
-    F = 1 / (s_diffs + s_diffs_zeros) - s_diffs_zeros
+
+    if varipeps_config.svd_ad_use_lorentz_broadening:
+        F = s_diffs / (s_diffs**2 + varipeps_config.svd_ad_lorentz_broadening_eps)
+    else:
+        s_diffs = jnp.where(jnp.abs(s_diffs / s[0]) >= 1e-12, s_diffs, 0)
+        s_diffs_zeros = jnp.ones((), dtype=A.dtype) * (
+            s_diffs == 0.0
+        )  # is 1. where s_diffs is 0. and is 0. everywhere else
+        s_diffs_zeros = lax.expand_dims(s_diffs_zeros, range(s_diffs.ndim - 2))
+        F = 1 / (s_diffs + s_diffs_zeros) - s_diffs_zeros
 
     if only_u_or_vt is None or only_u_or_vt == "U":
         dSS = dS * (s_dim / s_sums).astype(A.dtype)  # dS.dot(s_j / (s_i + s_j))

@@ -128,6 +128,11 @@ class VariPEPS_Config:
         triangular CTMRG.
       svd_sign_fix_eps (:obj:`float`):
         Value for numerical stability threshold in sign-fixed SVD.
+      svd_ad_use_lorentz_broadening (:obj:`bool`):
+        Enable Lorentz broadening in the AD rule for the SVD.
+      svd_ad_lorentz_broadening_eps (:obj:`float`):
+        Numerical stabilization constant in the Lorentz broadening in the
+        AD rule for the SVD.
       optimizer_method (:obj:`Optimizing_Methods`):
         Method used for variational optimization of the PEPS network.
       optimizer_max_steps (:obj:`int`):
@@ -244,6 +249,8 @@ class VariPEPS_Config:
 
     # SVD
     svd_sign_fix_eps: float = 1e-1
+    svd_ad_use_lorentz_broadening: bool = False
+    svd_ad_lorentz_broadening_eps: float = 1e-13
 
     # Optimizer
     optimizer_method: Optimizing_Methods = Optimizing_Methods.BFGS
