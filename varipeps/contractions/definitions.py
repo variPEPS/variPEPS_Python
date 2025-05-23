@@ -3464,7 +3464,7 @@ class Definitions:
     }
 
     triangular_ctmrg_T_proj_150_left: Definition = {
-        "tensors": [["tensor", "tensor_conj", "T3a_trunc", "C4", "C5", "C6", "T6b"]],
+        "tensors": [["tensor", "tensor_conj", "T3a", "C4", "C5", "C6", "T6b"]],
         # "tensors": [["tensor", "tensor_conj", "C3", "C4", "C5", "C6", "T6b"]],
         "network": [
             [
@@ -3480,7 +3480,7 @@ class Definitions:
     }
 
     triangular_ctmrg_T_proj_150_right: Definition = {
-        "tensors": [["tensor", "tensor_conj", "T6a", "C1", "C2", "C3", "T3b_trunc"]],
+        "tensors": [["tensor", "tensor_conj", "T6a", "C1", "C2", "C3", "T3b"]],
         # "tensors": [["tensor", "tensor_conj", "T6a", "C1", "C2", "C3", "C4"]],
         "network": [
             [
@@ -3560,7 +3560,7 @@ class Definitions:
     }
 
     triangular_ctmrg_T_proj_270_left: Definition = {
-        "tensors": [["tensor", "tensor_conj", "T1a_trunc", "C2", "C3", "C4", "T4b"]],
+        "tensors": [["tensor", "tensor_conj", "T1a", "C2", "C3", "C4", "T4b"]],
         # "tensors": [["tensor", "tensor_conj", "C1", "C2", "C3", "C4", "T4b"]],
         "network": [
             [
@@ -3576,7 +3576,7 @@ class Definitions:
     }
 
     triangular_ctmrg_T_proj_270_right: Definition = {
-        "tensors": [["tensor", "tensor_conj", "T4a", "C5", "C6", "C1", "T1b_trunc"]],
+        "tensors": [["tensor", "tensor_conj", "T4a", "C5", "C6", "C1", "T1b"]],
         # "tensors": [["tensor", "tensor_conj", "T4a", "C5", "C6", "C1", "C2"]],
         "network": [
             [
@@ -3592,7 +3592,7 @@ class Definitions:
     }
 
     triangular_ctmrg_T_proj_30_left: Definition = {
-        "tensors": [["tensor", "tensor_conj", "T5a_trunc", "C6", "C1", "C2", "T2b"]],
+        "tensors": [["tensor", "tensor_conj", "T5a", "C6", "C1", "C2", "T2b"]],
         # "tensors": [["tensor", "tensor_conj", "C5", "C6", "C1", "C2", "T2b"]],
         "network": [
             [
@@ -3608,7 +3608,7 @@ class Definitions:
     }
 
     triangular_ctmrg_T_proj_30_right: Definition = {
-        "tensors": [["tensor", "tensor_conj", "T2a", "C3", "C4", "C5", "T5b_trunc"]],
+        "tensors": [["tensor", "tensor_conj", "T2a", "C3", "C4", "C5", "T5b"]],
         # "tensors": [["tensor", "tensor_conj", "T2a", "C3", "C4", "C5", "C6"]],
         "network": [
             [

@@ -411,16 +411,6 @@ def do_absorption_step_triangular(
 
             smallest_S_list.append(smallest_S_T)
 
-            proj_30, proj_150, proj_270, smallest_S_T = calc_T_30_150_270_projectors(
-                *_get_triangular_ctmrg_2x2_structure(peps_tensors, view), config, state
-            )
-
-            T_30_projectors[(x, y)] = proj_30
-            T_150_projectors[(x, y)] = proj_150
-            T_270_projectors[(x, y)] = proj_270
-
-            smallest_S_list.append(smallest_S_T)
-
     for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
         for y, view in iter_rows:
             new_t = view[0, 0][0][0].copy()
@@ -437,23 +427,6 @@ def do_absorption_step_triangular(
                 jnp.tensordot(
                     new_t.T1b,
                     T_90_projectors.get_projector(x, y, 0, 0)[1],
-                    ((3,), (0,)),
-                ),
-                config,
-            )
-
-            new_t.T2a = _post_process_CTM_tensors(
-                jnp.tensordot(
-                    T_30_projectors.get_projector(x, y, -1, -1)[0],
-                    new_t.T2a,
-                    ((1,), (0,)),
-                ),
-                config,
-            )
-            new_t.T2b = _post_process_CTM_tensors(
-                jnp.tensordot(
-                    new_t.T2b,
-                    T_30_projectors.get_projector(x, y, 0, 0)[1],
                     ((3,), (0,)),
                 ),
                 config,
@@ -476,23 +449,6 @@ def do_absorption_step_triangular(
                 config,
             )
 
-            new_t.T4a = _post_process_CTM_tensors(
-                jnp.tensordot(
-                    T_270_projectors.get_projector(x, y, 0, 0)[0],
-                    new_t.T4a,
-                    ((1,), (0,)),
-                ),
-                config,
-            )
-            new_t.T4b = _post_process_CTM_tensors(
-                jnp.tensordot(
-                    new_t.T4b,
-                    T_270_projectors.get_projector(x, y, 0, -1)[1],
-                    ((3,), (0,)),
-                ),
-                config,
-            )
-
             new_t.T5a = _post_process_CTM_tensors(
                 jnp.tensordot(
                     T_210_projectors.get_projector(x, y, 0, 0)[0],
@@ -505,6 +461,58 @@ def do_absorption_step_triangular(
                 jnp.tensordot(
                     new_t.T5b,
                     T_210_projectors.get_projector(x, y, -1, -1)[1],
+                    ((3,), (0,)),
+                ),
+                config,
+            )
+
+            view[0, 0] = new_t
+
+    for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
+        for y, view in iter_rows:
+            proj_30, proj_150, proj_270, smallest_S_T = calc_T_30_150_270_projectors(
+                *_get_triangular_ctmrg_2x2_structure(peps_tensors, view), config, state
+            )
+
+            T_30_projectors[(x, y)] = proj_30
+            T_150_projectors[(x, y)] = proj_150
+            T_270_projectors[(x, y)] = proj_270
+
+            smallest_S_list.append(smallest_S_T)
+
+    for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
+        for y, view in iter_rows:
+            new_t = view[0, 0][0][0].copy()
+
+            new_t.T2a = _post_process_CTM_tensors(
+                jnp.tensordot(
+                    T_30_projectors.get_projector(x, y, -1, -1)[0],
+                    new_t.T2a,
+                    ((1,), (0,)),
+                ),
+                config,
+            )
+            new_t.T2b = _post_process_CTM_tensors(
+                jnp.tensordot(
+                    new_t.T2b,
+                    T_30_projectors.get_projector(x, y, 0, 0)[1],
+                    ((3,), (0,)),
+                ),
+                config,
+            )
+
+            new_t.T4a = _post_process_CTM_tensors(
+                jnp.tensordot(
+                    T_270_projectors.get_projector(x, y, 0, 0)[0],
+                    new_t.T4a,
+                    ((1,), (0,)),
+                ),
+                config,
+            )
+            new_t.T4b = _post_process_CTM_tensors(
+                jnp.tensordot(
+                    new_t.T4b,
+                    T_270_projectors.get_projector(x, y, 0, -1)[1],
                     ((3,), (0,)),
                 ),
                 config,
