@@ -2,7 +2,6 @@ import numpy as np
 from scipy.sparse.linalg import LinearOperator, eigs
 
 import jax.numpy as jnp
-from jaxlib.xla_extension import XlaRuntimeError
 
 from varipeps.contractions import apply_contraction_jitted
 from varipeps.peps import PEPS_Unit_Cell
