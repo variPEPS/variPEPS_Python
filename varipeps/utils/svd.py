@@ -58,6 +58,7 @@ def _svd_jvp_rule(primals, tangents):
     ds = jnp.real(jnp.diagonal(dS, 0, -2, -1))
 
     s_sums = s_dim + _T(s_dim)
+    s_sums = jnp.where(s_sums > 0, s_sums, 1)
     s_diffs = s_dim - _T(s_dim)
     s_diffs = jnp.where(jnp.abs(s_diffs / s[0]) >= 1e-12, s_diffs, 0)
     s_diffs_zeros = jnp.ones((), dtype=A.dtype) * (
