@@ -5,6 +5,8 @@
 namespace nb = nanobind;
 using namespace ::xla;
 
+nb::module_ cython_lapack = nb::module_::import_("scipy.linalg.cython_lapack");
+
 inline constexpr auto LapackIntDtype = ffi::DataType::S32;
 static_assert(std::is_same_v<::xla::ffi::NativeType<LapackIntDtype>, lapack_int>);
 
