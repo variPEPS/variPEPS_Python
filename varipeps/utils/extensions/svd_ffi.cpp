@@ -1,11 +1,10 @@
-#include "lapack.h"
 #include "nanobind/nanobind.h"
 #include "xla/ffi/api/ffi.h"
 
+using lapack_int = int;
+
 namespace nb = nanobind;
 using namespace ::xla;
-
-nb::module_ cython_lapack = nb::module_::import_("scipy.linalg.cython_lapack");
 
 inline constexpr auto LapackIntDtype = ffi::DataType::S32;
 static_assert(std::is_same_v<::xla::ffi::NativeType<LapackIntDtype>, lapack_int>);
@@ -30,8 +29,8 @@ static ffi::Error SvdOnlyVtImpl(
                                         MachineType* work, lapack_int const* lwork,
                                         RealType* rwork,
                                         lapack_int* iwork,
-                                        lapack_int* info,
-                                        size_t strlen),
+                                        lapack_int* info
+                                        ),
                                    void(char const* jobz,
                                         lapack_int const* m, lapack_int const* n,
                                         MachineType* A, lapack_int const* lda,
@@ -40,22 +39,39 @@ static ffi::Error SvdOnlyVtImpl(
                                         MachineType* VT, lapack_int const* ldvt,
                                         MachineType* work, lapack_int const* lwork,
                                         lapack_int* iwork,
-                                        lapack_int* info,
-                                        size_t strlen)>;
+                                        lapack_int* info
+                                        )>;
 
   FnSig* fn = nullptr;
 
-  if constexpr (dtype == ffi::DataType::F32) {
-    fn = sgesdd_;
-  }
-  if constexpr (dtype == ffi::DataType::F64) {
-    fn = dgesdd_;
-  }
-  if constexpr (dtype == ffi::DataType::C64) {
-    fn = reinterpret_cast<FnSig*>(cgesdd_);
-  }
-  if constexpr (dtype == ffi::DataType::C128) {
-    fn = reinterpret_cast<FnSig*>(zgesdd_);
+  try {
+    PyGILState_STATE state = PyGILState_Ensure();
+
+    nb::module_ cython_lapack = nb::module_::import_("scipy.linalg.cython_lapack");
+
+    nb::dict lapack_capi = cython_lapack.attr("__pyx_capi__");
+
+    auto get_lapack_ptr = [&](const char* name) {
+      return nb::cast<nb::capsule>(lapack_capi[name]).data();
+    };
+
+    if constexpr (dtype == ffi::DataType::F32) {
+      fn = reinterpret_cast<FnSig*>(get_lapack_ptr("sgesdd"));
+    }
+    if constexpr (dtype == ffi::DataType::F64) {
+      fn = reinterpret_cast<FnSig*>(get_lapack_ptr("dgesdd"));
+    }
+    if constexpr (dtype == ffi::DataType::C64) {
+      fn = reinterpret_cast<FnSig*>(get_lapack_ptr("cgesdd"));
+    }
+    if constexpr (dtype == ffi::DataType::C128) {
+      fn = reinterpret_cast<FnSig*>(get_lapack_ptr("zgesdd"));
+    }
+
+    PyGILState_Release(state);
+  } catch (const nb::python_error &e) {
+    std::cerr << e.what() << std::endl;
+    throw;
   }
 
   const auto lapack_int_max = std::numeric_limits<lapack_int>::max();
@@ -96,12 +112,14 @@ static ffi::Error SvdOnlyVtImpl(
     fn(&jobz, &x_rows_lapack, &x_cols_lapack, nullptr,
        &x_rows_lapack, nullptr, nullptr,
        &ldu, nullptr, &x_cols_lapack, &work_size,
-       &lwork, nullptr, nullptr, info_data, 1);
+       &lwork, nullptr, nullptr, info_data
+       );
   } else {
     fn(&jobz, &x_rows_lapack, &x_cols_lapack, nullptr,
        &x_rows_lapack, nullptr, nullptr,
        &ldu, nullptr, &x_cols_lapack,
-       &work_size, &lwork, nullptr, info_data, 1);
+       &work_size, &lwork, nullptr, info_data
+       );
   }
 
   if (*info_data != 0) {
@@ -131,12 +149,14 @@ static ffi::Error SvdOnlyVtImpl(
     fn(&jobz, &x_rows_lapack, &x_cols_lapack, x_out_data,
        &x_rows_lapack, s_data, nullptr,
        &ldu, vt_data, &x_cols_lapack, work.get(),
-       &lwork, rwork.get(), iwork.get(), info_data, 1);
+       &lwork, rwork.get(), iwork.get(), info_data
+       );
   } else {
     fn(&jobz, &x_rows_lapack, &x_cols_lapack, x_out_data,
        &x_rows_lapack, s_data, nullptr,
        &ldu, vt_data, &x_cols_lapack,
-       work.get(), &lwork, iwork.get(), info_data, 1);
+       work.get(), &lwork, iwork.get(), info_data
+       );
   }
 
   if (*info_data != 0) {
@@ -164,8 +184,8 @@ static ffi::Error SvdOnlyVtQRImpl(
                                         MachineType* VT, lapack_int const* ldvt,
                                         MachineType* work, lapack_int const* lwork,
                                         RealType* rwork,
-                                        lapack_int* info,
-                                        size_t strlen1, size_t strlen2),
+                                        lapack_int* info
+                                        ),
                                    void(char const* jobu, char const* jobvt,
                                         lapack_int const* m, lapack_int const* n,
                                         MachineType* A, lapack_int const* lda,
@@ -173,22 +193,39 @@ static ffi::Error SvdOnlyVtQRImpl(
                                         MachineType* U, lapack_int const* ldu,
                                         MachineType* VT, lapack_int const* ldvt,
                                         MachineType* work, lapack_int const* lwork,
-                                        lapack_int* info,
-                                        size_t strlen1, size_t strlen2)>;
+                                        lapack_int* info
+                                        )>;
 
   FnSig* fn = nullptr;
 
-  if constexpr (dtype == ffi::DataType::F32) {
-    fn = sgesvd_;
-  }
-  if constexpr (dtype == ffi::DataType::F64) {
-    fn = dgesvd_;
-  }
-  if constexpr (dtype == ffi::DataType::C64) {
-    fn = reinterpret_cast<FnSig*>(cgesvd_);
-  }
-  if constexpr (dtype == ffi::DataType::C128) {
-    fn = reinterpret_cast<FnSig*>(zgesvd_);
+  try {
+    PyGILState_STATE state = PyGILState_Ensure();
+    
+    nb::module_ cython_lapack = nb::module_::import_("scipy.linalg.cython_lapack");
+
+    nb::dict lapack_capi = cython_lapack.attr("__pyx_capi__");
+
+    auto get_lapack_ptr = [&](const char* name) {
+      return nb::cast<nb::capsule>(lapack_capi[name]).data();
+    };
+
+    if constexpr (dtype == ffi::DataType::F32) {
+      fn = reinterpret_cast<FnSig*>(get_lapack_ptr("sgesvd"));
+    }
+    if constexpr (dtype == ffi::DataType::F64) {
+      fn = reinterpret_cast<FnSig*>(get_lapack_ptr("dgesvd"));
+    }
+    if constexpr (dtype == ffi::DataType::C64) {
+      fn = reinterpret_cast<FnSig*>(get_lapack_ptr("cgesvd"));
+    }
+    if constexpr (dtype == ffi::DataType::C128) {
+      fn = reinterpret_cast<FnSig*>(get_lapack_ptr("zgesvd"));
+    }
+
+    PyGILState_Release(state);
+  } catch (const nb::python_error &e) {
+    std::cerr << e.what() << std::endl;
+    throw;
   }
 
   const auto lapack_int_max = std::numeric_limits<lapack_int>::max();
@@ -230,12 +267,14 @@ static ffi::Error SvdOnlyVtQRImpl(
     fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, nullptr,
        &x_rows_lapack, nullptr, nullptr,
        &ldu, nullptr, &x_cols_lapack, &work_size,
-       &lwork, nullptr, info_data, 1, 1);
+       &lwork, nullptr, info_data
+       );
   } else {
     fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, nullptr,
        &x_rows_lapack, nullptr, nullptr,
        &ldu, nullptr, &x_cols_lapack,
-       &work_size, &lwork, info_data, 1, 1);
+       &work_size, &lwork, info_data
+       );
   }
 
   if (*info_data != 0) {
@@ -262,12 +301,14 @@ static ffi::Error SvdOnlyVtQRImpl(
     fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, x_out_data,
        &x_rows_lapack, s_data, nullptr,
        &ldu, nullptr, &x_cols_lapack, work.get(),
-       &lwork, rwork.get(), info_data, 1, 1);
+       &lwork, rwork.get(), info_data
+       );
   } else {
     fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, x_out_data,
        &x_rows_lapack, s_data, nullptr,
        &ldu, nullptr, &x_cols_lapack,
-       work.get(), &lwork, info_data, 1, 1);
+       work.get(), &lwork, info_data
+       );
   }
 
   if (*info_data != 0) {
@@ -333,12 +374,12 @@ nb::capsule EncapsulateFfiCall(T *fn) {
 }
 
 NB_MODULE(_svd_only_vt, m) {
-  m.def("svd_only_vt_f32", []() { return EncapsulateFfiCall(svd_only_vt_f32); });
-  m.def("svd_only_vt_f64", []() { return EncapsulateFfiCall(svd_only_vt_f64); });
-  m.def("svd_only_vt_c64", []() { return EncapsulateFfiCall(svd_only_vt_c64); });
-  m.def("svd_only_vt_c128", []() { return EncapsulateFfiCall(svd_only_vt_c128); });
-  m.def("svd_only_vt_qr_f32", []() { return EncapsulateFfiCall(svd_only_vt_qr_f32); });
-  m.def("svd_only_vt_qr_f64", []() { return EncapsulateFfiCall(svd_only_vt_qr_f64); });
-  m.def("svd_only_vt_qr_c64", []() { return EncapsulateFfiCall(svd_only_vt_qr_c64); });
-  m.def("svd_only_vt_qr_c128", []() { return EncapsulateFfiCall(svd_only_vt_qr_c128); });
+  m.def("svd_only_vt_f32", []() { return EncapsulateFfiCall(svd_only_vt_f32); }, nb::call_guard<nb::gil_scoped_release>());
+  m.def("svd_only_vt_f64", []() { return EncapsulateFfiCall(svd_only_vt_f64); }, nb::call_guard<nb::gil_scoped_release>());
+  m.def("svd_only_vt_c64", []() { return EncapsulateFfiCall(svd_only_vt_c64); }, nb::call_guard<nb::gil_scoped_release>());
+  m.def("svd_only_vt_c128", []() { return EncapsulateFfiCall(svd_only_vt_c128); }, nb::call_guard<nb::gil_scoped_release>());
+  m.def("svd_only_vt_qr_f32", []() { return EncapsulateFfiCall(svd_only_vt_qr_f32); }, nb::call_guard<nb::gil_scoped_release>());
+  m.def("svd_only_vt_qr_f64", []() { return EncapsulateFfiCall(svd_only_vt_qr_f64); }, nb::call_guard<nb::gil_scoped_release>());
+  m.def("svd_only_vt_qr_c64", []() { return EncapsulateFfiCall(svd_only_vt_qr_c64); }, nb::call_guard<nb::gil_scoped_release>());
+  m.def("svd_only_vt_qr_c128", []() { return EncapsulateFfiCall(svd_only_vt_qr_c128); }, nb::call_guard<nb::gil_scoped_release>());
 }

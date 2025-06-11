@@ -47,7 +47,7 @@ nanobind_add_module(
 
 target_include_directories(_svd_only_vt PRIVATE "${jaxlib_INCLUDE_DIR}")
 
-target_link_libraries(_svd_only_vt PRIVATE lapack)
+# target_link_libraries(_svd_only_vt PRIVATE lapack)
 
 # Install directive for scikit-build-core
 install(TARGETS _svd_only_vt LIBRARY DESTINATION varipeps/utils/extensions)
