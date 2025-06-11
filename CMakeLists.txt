@@ -19,9 +19,16 @@ execute_process(
 find_package(nanobind CONFIG REQUIRED)
 
 # Find jaxlib include dir
-execute_process(
-  COMMAND /usr/bin/env python3 -c "import inspect; import jaxlib; import pathlib; p = pathlib.Path(inspect.getfile(jaxlib)); print(p.parent / 'include')"
-  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE jaxlib_INCLUDE_DIR)
+IF (WIN32)
+  execute_process(
+    COMMAND python -c "import inspect; import jaxlib; import pathlib; p = pathlib.Path(inspect.getfile(jaxlib)); print(p.parent / 'include')"
+    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE jaxlib_INCLUDE_DIR)
+ELSE()
+  execute_process(
+    COMMAND /usr/bin/env python3 -c "import inspect; import jaxlib; import pathlib; p = pathlib.Path(inspect.getfile(jaxlib)); print(p.parent / 'include')"
+    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE jaxlib_INCLUDE_DIR)
+ENDIF()
+
 
 # We are now ready to compile the actual extension module
 nanobind_add_module(
