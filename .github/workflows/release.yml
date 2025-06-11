@@ -51,6 +51,7 @@ jobs:
       env:
         CIBW_PLATFORM: ${{ matrix.platform }}
         CIBW_ARCHS: ${{ matrix.archs }}
+        CIBW_SKIP: pp*
         MACOSX_DEPLOYMENT_TARGET: "11.0"
 
     - uses: actions/upload-artifact@v4
