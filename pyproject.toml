@@ -1,6 +1,6 @@
 [project]
 name = "variPEPS"
-version = "1.0.2"
+version = "1.0.3"
 description = "Versatile tensor network library for variational ground state simulations in two spatial dimensions"
 authors = [
     {name = "Jan Naumann", email = "j.naumann@fu-berlin.de"},
@@ -68,6 +68,5 @@ experimental = true
 [tool.cibuildwheel]
 # Enable free-threaded support
 enable = ["cpython-freethreading"]
-
 # Disable building PyPy, musllinux and thread-freethreading on Mac and Windows wheels
 skip = ["pp*", "*musllinux*", "*t-macosx*", "*t-win*"]

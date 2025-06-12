@@ -894,7 +894,7 @@ wheels = [
 
 [[package]]
 name = "varipeps"
-version = "1.0.2"
+version = "1.0.3"
 source = { editable = "." }
 dependencies = [
     { name = "h5py" },
