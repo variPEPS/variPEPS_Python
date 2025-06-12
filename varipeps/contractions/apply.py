@@ -121,7 +121,10 @@ def apply_contraction(
             if f == "tensor":
                 tensors.append(peps_tensors[ti])
             elif f == "tensor_conj":
-                tensors.append(peps_tensors[ti].conj())
+                if hasattr(peps_tensor_objs[ti], "tensor_conj") and peps_tensor_objs[ti].tensor_conj is not None:
+                    tensors.append(peps_tensor_objs[ti].tensor_conj)
+                else:
+                    tensors.append(peps_tensors[ti].conj())
             else:
                 tensors.append(getattr(peps_tensor_objs[ti], f))
 
