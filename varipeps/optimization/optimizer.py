@@ -8,6 +8,7 @@ from scipy.optimize import OptimizeResult
 
 from tqdm_loggable.auto import tqdm
 
+import jax
 from jax import jit
 import jax.numpy as jnp
 from jax.lax import scan
@@ -405,6 +406,7 @@ def optimize_peps_network(
         while count < varipeps_config.optimizer_max_steps:
             runtime_start = time.perf_counter()
 
+            chi_before_ctmrg = working_unitcell[0, 0][0][0].chi
             try:
                 if varipeps_config.ad_use_custom_vjp:
                     (
@@ -497,6 +499,9 @@ def optimize_peps_network(
                     pbar.refresh()
 
                     continue
+
+            if working_unitcell[0, 0][0][0].chi != chi_before_ctmrg:
+                jax.clear_caches()
 
             working_gradient = [elem.conj() for elem in working_gradient_seq]
 

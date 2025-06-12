@@ -2,6 +2,7 @@ import enum
 
 from tqdm_loggable.auto import tqdm
 
+import jax
 import jax.numpy as jnp
 from jax import jit
 from jax.flatten_util import ravel_pytree
@@ -1118,6 +1119,9 @@ def line_search(
             signal_reset_descent_dir = False
 
         count += 1
+
+    if new_unitcell[0, 0][0][0].chi != unitcell[0, 0][0][0].chi:
+        jax.clear_caches()
 
     if count == varipeps_config.line_search_max_steps:
         raise NoSuitableStepSizeError(f"Count {count}, Last alpha {alpha}")
