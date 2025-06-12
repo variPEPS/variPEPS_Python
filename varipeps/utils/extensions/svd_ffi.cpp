@@ -374,12 +374,12 @@ nb::capsule EncapsulateFfiCall(T *fn) {
 }
 
 NB_MODULE(_svd_only_vt, m) {
-  m.def("svd_only_vt_f32", []() { return EncapsulateFfiCall(svd_only_vt_f32); }, nb::call_guard<nb::gil_scoped_release>());
-  m.def("svd_only_vt_f64", []() { return EncapsulateFfiCall(svd_only_vt_f64); }, nb::call_guard<nb::gil_scoped_release>());
-  m.def("svd_only_vt_c64", []() { return EncapsulateFfiCall(svd_only_vt_c64); }, nb::call_guard<nb::gil_scoped_release>());
-  m.def("svd_only_vt_c128", []() { return EncapsulateFfiCall(svd_only_vt_c128); }, nb::call_guard<nb::gil_scoped_release>());
-  m.def("svd_only_vt_qr_f32", []() { return EncapsulateFfiCall(svd_only_vt_qr_f32); }, nb::call_guard<nb::gil_scoped_release>());
-  m.def("svd_only_vt_qr_f64", []() { return EncapsulateFfiCall(svd_only_vt_qr_f64); }, nb::call_guard<nb::gil_scoped_release>());
-  m.def("svd_only_vt_qr_c64", []() { return EncapsulateFfiCall(svd_only_vt_qr_c64); }, nb::call_guard<nb::gil_scoped_release>());
-  m.def("svd_only_vt_qr_c128", []() { return EncapsulateFfiCall(svd_only_vt_qr_c128); }, nb::call_guard<nb::gil_scoped_release>());
+  m.def("svd_only_vt_f32", []() { return EncapsulateFfiCall(svd_only_vt_f32); });
+  m.def("svd_only_vt_f64", []() { return EncapsulateFfiCall(svd_only_vt_f64); });
+  m.def("svd_only_vt_c64", []() { return EncapsulateFfiCall(svd_only_vt_c64); });
+  m.def("svd_only_vt_c128", []() { return EncapsulateFfiCall(svd_only_vt_c128); });
+  m.def("svd_only_vt_qr_f32", []() { return EncapsulateFfiCall(svd_only_vt_qr_f32); });
+  m.def("svd_only_vt_qr_f64", []() { return EncapsulateFfiCall(svd_only_vt_qr_f64); });
+  m.def("svd_only_vt_qr_c64", []() { return EncapsulateFfiCall(svd_only_vt_qr_c64); });
+  m.def("svd_only_vt_qr_c128", []() { return EncapsulateFfiCall(svd_only_vt_qr_c128); });
 }
