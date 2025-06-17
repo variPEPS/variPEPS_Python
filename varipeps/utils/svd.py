@@ -1,5 +1,6 @@
 from functools import partial
 
+import numpy as np
 import jax
 import jax.numpy as jnp
 from jax.lax import scan
@@ -174,7 +175,7 @@ jax.ffi.register_ffi_target(
 )
 
 
-def svd_only_vt(a, use_qr=False):
+def _svd_only_u_vt_impl(a, u_or_vt, use_qr=True):
     suffix = "_qr" if use_qr else ""
 
     if a.dtype == jnp.float32:
@@ -194,15 +195,19 @@ def svd_only_vt(a, use_qr=False):
 
     m, n = a.shape
 
-    if m < n:
-        raise ValueError("Only arrays with M >= N supported.")
+    if m > n and u_or_vt == 0:
+        raise ValueError("Only arrays (M, N) with M <= N supported.")
+    elif m < n and u_or_vt == 1:
+        raise ValueError("Only arrays (M, N) with M >= N supported.")
+
+    min_dim = min(m, n)
 
     if use_qr:
         call = jax.ffi.ffi_call(
             fn,
             (
                 jax.ShapeDtypeStruct((m, n), a.dtype),
-                jax.ShapeDtypeStruct((n,), real_dtype),
+                jax.ShapeDtypeStruct((min_dim,), real_dtype),
                 jax.ShapeDtypeStruct((1,), jnp.int32),
             ),
             vmap_method="sequential",
@@ -211,16 +216,16 @@ def svd_only_vt(a, use_qr=False):
             input_output_aliases={0: 0},
         )
 
-        aout, S, info = call(a)
+        aout, S, info = call(a, mode=np.int8(u_or_vt))
 
-        Vt = aout[:n, :]
+        result = aout[:min_dim, :min_dim]
     else:
         call = jax.ffi.ffi_call(
             fn,
             (
                 jax.ShapeDtypeStruct((m, n), a.dtype),
-                jax.ShapeDtypeStruct((n,), real_dtype),
-                jax.ShapeDtypeStruct((n, n), a.dtype),
+                jax.ShapeDtypeStruct((min_dim,), real_dtype),
+                jax.ShapeDtypeStruct((min_dim, min_dim), a.dtype),
                 jax.ShapeDtypeStruct((1,), jnp.int32),
             ),
             vmap_method="sequential",
@@ -229,14 +234,29 @@ def svd_only_vt(a, use_qr=False):
             input_output_aliases={0: 0},
         )
 
-        aout, S, Vt, info = call(a)
+        aout, S, result, info = call(a, mode=np.int8(u_or_vt))
 
-    S, Vt = jax.lax.cond(
+        if u_or_vt == 0 and m == n:
+            result = aout
+
+    S, result = jax.lax.cond(
         info[0] != 0,
-        lambda s, vt: (s * jnp.nan, vt * jnp.nan),
-        lambda s, vt: (s, vt),
+        lambda s, r: (s * jnp.nan, r * jnp.nan),
+        lambda s, r: (s, r),
         S,
-        Vt,
+        result,
     )
+
+    return S, result
+
+
+def svd_only_u(a, use_qr=True):
+    S, U = _svd_only_u_vt_impl(a, 0, use_qr)
+
+    return U, S
+
+
+def svd_only_vt(a, use_qr=True):
+    S, Vt = _svd_only_u_vt_impl(a, 1, use_qr)
 
     return S, Vt
