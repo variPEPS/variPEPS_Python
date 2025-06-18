@@ -92,10 +92,10 @@ def _svd_jvp_rule_impl(primals, tangents, only_u_or_vt=None, use_qr=False):
     m, n = A.shape[-2:]
     if m > n and (only_u_or_vt is None or only_u_or_vt == "U"):
         dAV = dA @ V
-        dU = dU + (dAV - U @ (Ut @ dAV)) / s_dim.astype(A.dtype)
+        dU = dU + (dAV - U @ (Ut @ dAV)) * s_inv.astype(A.dtype)
     if n > m and (only_u_or_vt is None or only_u_or_vt == "Vt"):
         dAHU = _H(dA) @ U
-        dV = dV + (dAHU - V @ (Vt @ dAHU)) / s_dim.astype(A.dtype)
+        dV = dV + (dAHU - V @ (Vt @ dAHU)) * s_inv.astype(A.dtype)
 
     if only_u_or_vt is None:
         return (U, s, Vt), (dU, ds, _H(dV))
@@ -293,10 +293,9 @@ def _svd_only_vt_jvp_rule(use_qr, primals, tangents):
     return _svd_jvp_rule_impl(primals, tangents, only_u_or_vt="Vt", use_qr=use_qr)
 
 
-@partial(jit, inline=True)
+@partial(jit, inline=True, static_argnums=(1,))
 def gauge_fixed_svd(
     matrix: jnp.ndarray,
-    *,
     only_u_or_vh=None,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """
