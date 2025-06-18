@@ -105,7 +105,7 @@ static ffi::Error SvdOnlyVtImpl(
 
   MachineType* u_data;
   MachineType* vt_data;
-  if (mode == UVtMode::computeOnlyU && x_rows < x_cols) {
+  if ((mode == UVtMode::computeOnlyU || mode == UVtMode::computePartialUandVt) && x_rows < x_cols) {
     u_data = u_or_vt_data;
     vt_data = nullptr;
   } else {
@@ -122,7 +122,7 @@ static ffi::Error SvdOnlyVtImpl(
   const char jobz = 'O';
   lapack_int ldu;
   lapack_int ldvt;
-  if (mode == UVtMode::computeOnlyU && x_rows < x_cols) {
+  if ((mode == UVtMode::computeOnlyU || mode == UVtMode::computePartialUandVt) && x_rows < x_cols) {
     ldu = x_rows_lapack;
     ldvt = 1;
   } else {
@@ -193,6 +193,7 @@ static ffi::Error SvdOnlyVtQRImpl(
     ffi::Buffer<dtype> x,
     ffi::ResultBuffer<dtype> x_out,
     ffi::ResultBuffer<ffi::ToReal(dtype)> s,
+    ffi::ResultBuffer<dtype> u_or_vt,
     ffi::ResultBuffer<ffi::DataType::S32> info,
     UVtMode mode) {
 
@@ -275,8 +276,11 @@ static ffi::Error SvdOnlyVtQRImpl(
 
   auto* x_out_data = x_out->typed_data();
   auto* s_data = s->typed_data();
-  // auto* vt_data = vt->typed_data();
+  auto* u_or_vt_data = u_or_vt->typed_data();
   auto* info_data = info->typed_data();
+
+  MachineType* u_data;
+  MachineType* vt_data;
 
   if (x.typed_data() != x_out_data) {
     std::copy_n(x.typed_data(), x.element_count(), x_out_data);
@@ -287,18 +291,38 @@ static ffi::Error SvdOnlyVtQRImpl(
 
   char jobu;
   char jobvt;
-  const lapack_int ldu = 1;
-  const lapack_int ldvt = 1;
+  lapack_int ldu;
+  lapack_int ldvt;
   if (mode == UVtMode::computeOnlyU) {
     jobu = 'O';
     jobvt = 'N';
-    // ldu = 1;
-    // ldvt = 1;
-  } else {
+    ldu = 1;
+    ldvt = 1;
+    u_data = nullptr;
+    vt_data = nullptr;
+  } else if (mode == UVtMode::computeOnlyVt) {
     jobu = 'N';
     jobvt = 'O';
-    // ldu = 1;
-    // ldvt = 1;
+    ldu = 1;
+    ldvt = 1;
+    u_data = nullptr;
+    vt_data = nullptr;
+  } else {
+    if (x_rows >= x_cols) {
+      jobu = 'O';
+      jobvt = 'S';
+      ldu = 1;
+      ldvt = x_cols_lapack;
+      u_data = nullptr;
+      vt_data = u_or_vt_data;
+    } else {
+      jobu = 'S';
+      jobvt = 'O';
+      ldu = x_rows_lapack;
+      ldvt = 1;
+      u_data = u_or_vt_data;
+      vt_data = nullptr;
+    }
   }
 
   if constexpr (ffi::IsComplexType<dtype>()) {
@@ -337,14 +361,14 @@ static ffi::Error SvdOnlyVtQRImpl(
 
   if constexpr (ffi::IsComplexType<dtype>()) {
     fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, x_out_data,
-       &x_rows_lapack, s_data, nullptr,
-       &ldu, nullptr, &ldvt, work.get(),
+       &x_rows_lapack, s_data, u_data,
+       &ldu, vt_data, &ldvt, work.get(),
        &lwork, rwork.get(), info_data
        );
   } else {
     fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, x_out_data,
-       &x_rows_lapack, s_data, nullptr,
-       &ldu, nullptr, &ldvt,
+       &x_rows_lapack, s_data, u_data,
+       &ldu, vt_data, &ldvt,
        work.get(), &lwork, info_data
        );
   }
@@ -363,7 +387,7 @@ static ffi::Error SvdOnlyVtQRImpl(
           .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
           .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
           .Ret<ffi::Buffer<dtype>>(/*s*/)                 \
-          .Ret<ffi::Buffer<dtype>>(/*vt*/)                \
+          .Ret<ffi::Buffer<dtype>>(/*u_or_vt*/)           \
           .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
           .Attr<UVtMode>("mode"))
 
@@ -374,7 +398,7 @@ static ffi::Error SvdOnlyVtQRImpl(
           .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
           .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
           .Ret<ffi::Buffer<ffi::ToReal(dtype)>>(/*s*/)    \
-          .Ret<ffi::Buffer<dtype>>(/*vt*/)                \
+          .Ret<ffi::Buffer<dtype>>(/*u_or_vt*/)           \
           .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
           .Attr<UVtMode>("mode"))
 
@@ -390,6 +414,7 @@ DEFINE_COMPLEX_SVD_ONLY_VT(svd_only_vt_c128, ffi::DataType::C128);
           .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
           .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
           .Ret<ffi::Buffer<dtype>>(/*s*/)                 \
+          .Ret<ffi::Buffer<dtype>>(/*u_or_vt*/)           \
           .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
           .Attr<UVtMode>("mode"))
 
@@ -400,6 +425,7 @@ DEFINE_COMPLEX_SVD_ONLY_VT(svd_only_vt_c128, ffi::DataType::C128);
           .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
           .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
           .Ret<ffi::Buffer<ffi::ToReal(dtype)>>(/*s*/)    \
+          .Ret<ffi::Buffer<dtype>>(/*u_or_vt*/)           \
           .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
           .Attr<UVtMode>("mode"))
 

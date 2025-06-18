@@ -47,11 +47,14 @@ def svd_wrapper(a):
     return result
 
 
-@svd_wrapper.defjvp
-def _svd_jvp_rule(primals, tangents):
+def _svd_jvp_rule_impl(primals, tangents, only_u_or_vt=None, use_qr=False):
     (A,) = primals
     (dA,) = tangents
-    U, s, Vt = svd_wrapper(A)
+
+    if use_qr:
+        U, s, Vt = _svd_only_u_vt_impl(A, u_or_vt=2, use_qr=True)
+    else:
+        U, s, Vt = svd_wrapper(A)
 
     Ut, V = _H(U), _H(Vt)
     s_dim = s[..., None, :]
@@ -67,86 +70,44 @@ def _svd_jvp_rule(primals, tangents):
     )  # is 1. where s_diffs is 0. and is 0. everywhere else
     s_diffs_zeros = lax.expand_dims(s_diffs_zeros, range(s_diffs.ndim - 2))
     F = 1 / (s_diffs + s_diffs_zeros) - s_diffs_zeros
-    dSS = dS * (s_dim / s_sums).astype(A.dtype)  # dS.dot(s_j / (s_i + s_j))
-    SdS = (_T(s_dim) / s_sums).astype(A.dtype) * dS  # (s_i / (s_i + s_j)).dot(dS)
 
-    # s_diffs = (s_dim + _T(s_dim)) * (s_dim - _T(s_dim))
-    # # s_diffs = jnp.where(s_diffs / (s[0] ** 2) >= 1e-12, s_diffs, 0)
-    # s_diffs_zeros = jnp.ones((), dtype=A.dtype) * (
-    #     s_diffs == 0.0
-    # )  # is 1. where s_diffs is 0. and is 0. everywhere else
-    # s_diffs_zeros = lax.expand_dims(s_diffs_zeros, range(s_diffs.ndim - 2))
-    # F = 1 / (s_diffs + s_diffs_zeros) - s_diffs_zeros
-    # dSS = s_dim.astype(A.dtype) * dS  # dS.dot(jnp.diag(s))
-    # SdS = _T(s_dim.astype(A.dtype)) * dS  # jnp.diag(s).dot(dS)
+    if only_u_or_vt is None or only_u_or_vt == "U":
+        dSS = dS * (s_dim / s_sums).astype(A.dtype)  # dS.dot(s_j / (s_i + s_j))
+    if only_u_or_vt is None or only_u_or_vt == "Vt":
+        SdS = (_T(s_dim) / s_sums).astype(A.dtype) * dS  # (s_i / (s_i + s_j)).dot(dS)
 
     s_zeros = (s == 0).astype(s.dtype)
     s_inv = 1 / (s + s_zeros) - s_zeros
     s_inv_mat = jnp.vectorize(jnp.diag, signature="(k)->(k,k)")(s_inv)
     dUdV_diag = 0.5 * (dS - _H(dS)) * s_inv_mat.astype(A.dtype)
-    dU = U @ (F.astype(A.dtype) * (dSS + _H(dSS)) + 0.5 * dUdV_diag)
-    dV = V @ (F.astype(A.dtype) * (SdS + _H(SdS)) + 0.5 * dUdV_diag)
+
+    if only_u_or_vt is None:
+        dU = U @ (F.astype(A.dtype) * (dSS + _H(dSS)) + 0.5 * dUdV_diag)
+        dV = V @ (F.astype(A.dtype) * (SdS + _H(SdS)) + 0.5 * dUdV_diag)
+    elif only_u_or_vt == "U":
+        dU = U @ (F.astype(A.dtype) * (dSS + _H(dSS)) + dUdV_diag)
+    elif only_u_or_vt == "Vt":
+        dV = V @ (F.astype(A.dtype) * (SdS + _H(SdS)) + 0.5 * dUdV_diag)
 
     m, n = A.shape[-2:]
-    if m > n:
+    if m > n and (only_u_or_vt is None or only_u_or_vt == "U"):
         dAV = dA @ V
         dU = dU + (dAV - U @ (Ut @ dAV)) / s_dim.astype(A.dtype)
-    if n > m:
+    if n > m and (only_u_or_vt is None or only_u_or_vt == "Vt"):
         dAHU = _H(dA) @ U
         dV = dV + (dAHU - V @ (Vt @ dAHU)) / s_dim.astype(A.dtype)
 
-    return (U, s, Vt), (dU, ds, _H(dV))
+    if only_u_or_vt is None:
+        return (U, s, Vt), (dU, ds, _H(dV))
+    elif only_u_or_vt == "U":
+        return (U, s), (dU, ds)
+    elif only_u_or_vt == "Vt":
+        return (s, Vt), (ds, _H(dV))
 
 
-@partial(jit, inline=True)
-def gauge_fixed_svd(
-    matrix: jnp.ndarray,
-) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    """
-    Calculate the gauge-fixed (also called sign-fixed) SVD. To this end, each
-    singular vector are rotate in the way that the first element bigger than
-    some numerical stability threshold (config parameter eps) is ensured to be
-    along the positive real axis.
-
-    Args:
-      matrix (:obj:`jnp.ndarray`):
-        Matrix to calculate SVD for.
-    Returns:
-      :obj:`tuple`\\ (:obj:`jnp.ndarray`, :obj:`jnp.ndarray`, :obj:`jnp.ndarray`):
-        Tuple with sign-fixed U, S and Vh of the SVD.
-    """
-    U, S, Vh = svd_wrapper(matrix)
-
-    # Fix the gauge of the SVD
-    abs_U = jnp.abs(U)
-    max_per_vector = jnp.max(abs_U, axis=0)
-    normalized_U = abs_U / max_per_vector[jnp.newaxis, :]
-
-    def phase_f(carry, x):
-        U_row, normalized_U_row = x
-
-        already_found, last_step_result = carry
-
-        cond = normalized_U_row >= varipeps_config.svd_sign_fix_eps
-
-        result = jnp.where(
-            already_found, last_step_result, jnp.where(cond, U_row, last_step_result)
-        )
-
-        return (jnp.logical_or(already_found, cond), result), None
-
-    phases, _ = scan(
-        phase_f,
-        (jnp.zeros(U.shape[1], dtype=bool), U[0, :]),
-        (U, normalized_U),
-    )
-    phases = phases[1]
-    phases /= jnp.abs(phases)
-
-    U = U * phases.conj()[jnp.newaxis, :]
-    Vh = Vh * phases[:, jnp.newaxis]
-
-    return U, S, Vh
+@svd_wrapper.defjvp
+def _svd_jvp_rule(primals, tangents):
+    return _svd_jvp_rule_impl(primals, tangents)
 
 
 jax.ffi.register_ffi_target(
@@ -203,22 +164,36 @@ def _svd_only_u_vt_impl(a, u_or_vt, use_qr=True):
     min_dim = min(m, n)
 
     if use_qr:
+        if u_or_vt == 2:
+            u_vt_buffer_shape = jax.ShapeDtypeStruct((min_dim, min_dim), a.dtype)
+        else:
+            u_vt_buffer_shape = jax.ShapeDtypeStruct((0, 0), a.dtype)
+
         call = jax.ffi.ffi_call(
             fn,
             (
                 jax.ShapeDtypeStruct((m, n), a.dtype),
                 jax.ShapeDtypeStruct((min_dim,), real_dtype),
+                u_vt_buffer_shape,
                 jax.ShapeDtypeStruct((1,), jnp.int32),
             ),
             vmap_method="sequential",
             input_layouts=((1, 0),),
-            output_layouts=((1, 0), None, None),
+            output_layouts=((1, 0), None, (1, 0), None),
             input_output_aliases={0: 0},
         )
 
-        aout, S, info = call(a, mode=np.int8(u_or_vt))
+        aout, S, u_vt_buffer, info = call(a, mode=np.int8(u_or_vt))
 
-        result = aout[:min_dim, :min_dim]
+        if u_or_vt == 2:
+            if m >= n:
+                U = aout
+                Vt = u_vt_buffer
+            else:
+                U = u_vt_buffer
+                Vt = aout
+        else:
+            result = aout[:min_dim, :min_dim]
     else:
         call = jax.ffi.ffi_call(
             fn,
@@ -234,10 +209,34 @@ def _svd_only_u_vt_impl(a, u_or_vt, use_qr=True):
             input_output_aliases={0: 0},
         )
 
-        aout, S, result, info = call(a, mode=np.int8(u_or_vt))
+        aout, S, u_vt_buffer, info = call(a, mode=np.int8(u_or_vt))
 
-        if u_or_vt == 0 and m == n:
-            result = aout
+        if u_or_vt == 0:
+            if m == n:
+                result = aout
+            else:
+                result = u_vt_buffer
+        elif u_or_vt == 1:
+            result = u_vt_buffer
+        elif u_or_vt == 2:
+            if m >= n:
+                U = aout
+                Vt = u_vt_buffer
+            else:
+                U = u_vt_buffer
+                Vt = aout
+
+    if u_or_vt == 2:
+        U, S, Vt = jax.lax.cond(
+            info[0] != 0,
+            lambda u, s, r: (u * jnp.nan, s * jnp.nan, r * jnp.nan),
+            lambda u, s, r: (u, s, r),
+            U,
+            S,
+            Vt,
+        )
+
+        return U, S, Vt
 
     S, result = jax.lax.cond(
         info[0] != 0,
@@ -250,13 +249,120 @@ def _svd_only_u_vt_impl(a, u_or_vt, use_qr=True):
     return S, result
 
 
+@partial(custom_jvp, nondiff_argnums=(1,))
 def svd_only_u(a, use_qr=True):
     S, U = _svd_only_u_vt_impl(a, 0, use_qr)
+
+    if not use_qr:
+        S, U = lax.cond(
+            jnp.isnan(jnp.sum(S)),
+            lambda matrix, s, u: _svd_only_u_vt_impl(matrix, 0, True),
+            lambda matrix, s, u: (s, u),
+            a,
+            S,
+            U,
+        )
 
     return U, S
 
 
+@svd_only_u.defjvp
+def _svd_only_u_jvp_rule(use_qr, primals, tangents):
+    return _svd_jvp_rule_impl(primals, tangents, only_u_or_vt="U", use_qr=use_qr)
+
+
+@partial(custom_jvp, nondiff_argnums=(1,))
 def svd_only_vt(a, use_qr=True):
     S, Vt = _svd_only_u_vt_impl(a, 1, use_qr)
 
+    if not use_qr:
+        S, Vt = lax.cond(
+            jnp.isnan(jnp.sum(S)),
+            lambda matrix, s, v: _svd_only_u_vt_impl(matrix, 1, True),
+            lambda matrix, s, v: (s, v),
+            a,
+            S,
+            Vt,
+        )
+
     return S, Vt
+
+
+@svd_only_vt.defjvp
+def _svd_only_vt_jvp_rule(use_qr, primals, tangents):
+    return _svd_jvp_rule_impl(primals, tangents, only_u_or_vt="Vt", use_qr=use_qr)
+
+
+@partial(jit, inline=True)
+def gauge_fixed_svd(
+    matrix: jnp.ndarray,
+    *,
+    only_u_or_vh=None,
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    """
+    Calculate the gauge-fixed (also called sign-fixed) SVD. To this end, each
+    singular vector are rotate in the way that the first element bigger than
+    some numerical stability threshold (config parameter eps) is ensured to be
+    along the positive real axis.
+
+    Args:
+      matrix (:obj:`jnp.ndarray`):
+        Matrix to calculate SVD for.
+    Keyword args:
+      only_u_or_vh (:obj:`str`):
+        Flag if only U or Uh should be calculated. If `None` (default), calculate
+        the full SVD, if `'U'` only calculate U, if `'Vh'` only calculate Vh.
+    Returns:
+      :obj:`tuple`\\ (:obj:`jnp.ndarray`, :obj:`jnp.ndarray`, :obj:`jnp.ndarray`):
+        Tuple with sign-fixed U, S and Vh of the SVD.
+    """
+    if only_u_or_vh is None:
+        U, S, Vh = svd_wrapper(matrix)
+        gauge_unitary = U
+    elif only_u_or_vh == "U":
+        U, S = svd_only_u(matrix)
+        gauge_unitary = U
+    elif only_u_or_vh == "Vh":
+        S, Vh = svd_only_vt(matrix)
+        gauge_unitary = Vh.T.conj()
+    else:
+        raise ValueError("Invalid value for parameter 'only_u_or_vh'.")
+
+    # Fix the gauge of the SVD
+    abs_gauge_unitary = jnp.abs(gauge_unitary)
+    max_per_vector = jnp.max(abs_gauge_unitary, axis=0)
+    normalized_gauge_unitary = abs_gauge_unitary / max_per_vector[jnp.newaxis, :]
+
+    def phase_f(carry, x):
+        x_row, normalized_x_row = x
+
+        already_found, last_step_result = carry
+
+        cond = normalized_x_row >= varipeps_config.svd_sign_fix_eps
+
+        result = jnp.where(
+            already_found, last_step_result, jnp.where(cond, x_row, last_step_result)
+        )
+
+        return (jnp.logical_or(already_found, cond), result), None
+
+    phases, _ = scan(
+        phase_f,
+        (jnp.zeros(gauge_unitary.shape[1], dtype=bool), gauge_unitary[0, :]),
+        (gauge_unitary, normalized_gauge_unitary),
+    )
+    phases = phases[1]
+    phases /= jnp.abs(phases)
+
+    if only_u_or_vh is None or only_u_or_vh == "U":
+        U = U * phases.conj()[jnp.newaxis, :]
+    if only_u_or_vh is None or only_u_or_vh == "Vh":
+        Vh = Vh * phases[:, jnp.newaxis]
+
+    if only_u_or_vh == "U":
+        return U, S
+
+    if only_u_or_vh == "Vh":
+        return S, Vh
+
+    return U, S, Vh

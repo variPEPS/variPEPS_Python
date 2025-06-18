@@ -4,8 +4,9 @@
 #include "xla/ffi/api/ffi.h"
 
 enum class UVtMode : int8_t {
-  computeOnlyU = 0,  // Compute only U
-  computeOnlyVt = 1, // Compute only Vt
+  computeOnlyU = 0,         // Compute only U
+  computeOnlyVt = 1,        // Compute only Vt
+  computePartialUandVt = 2, // Compute only Vt
 };
 
 XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_vt_f32);
