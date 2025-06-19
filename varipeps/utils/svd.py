@@ -24,25 +24,33 @@ def _H(x):
     return jnp.conj(_T(x))
 
 
-@custom_jvp
-def svd_wrapper(a):
+@partial(custom_jvp, nondiff_argnums=(1,))
+def svd_wrapper(a, use_qr=False):
     check_arraylike("jnp.linalg.svd", a)
     (a,) = promote_dtypes_inexact(jnp.asarray(a))
 
-    result = lax_svd(a, full_matrices=False, compute_uv=True)
-
-    result = lax.cond(
-        jnp.isnan(jnp.sum(result[1])),
-        lambda matrix, _: lax_svd(
-            matrix,
+    if use_qr:
+        result = lax_svd(
+            a,
             full_matrices=False,
             compute_uv=True,
             algorithm=lax.linalg.SvdAlgorithm.QR,
-        ),
-        lambda _, res: res,
-        a,
-        result,
-    )
+        )
+    else:
+        result = lax_svd(a, full_matrices=False, compute_uv=True)
+
+        result = lax.cond(
+            jnp.isnan(jnp.sum(result[1])),
+            lambda matrix, _: lax_svd(
+                matrix,
+                full_matrices=False,
+                compute_uv=True,
+                algorithm=lax.linalg.SvdAlgorithm.QR,
+            ),
+            lambda _, res: res,
+            a,
+            result,
+        )
 
     return result
 
@@ -51,10 +59,10 @@ def _svd_jvp_rule_impl(primals, tangents, only_u_or_vt=None, use_qr=False):
     (A,) = primals
     (dA,) = tangents
 
-    if use_qr:
+    if use_qr and only_u_or_vt is not None:
         U, s, Vt = _svd_only_u_vt_impl(A, u_or_vt=2, use_qr=True)
     else:
-        U, s, Vt = svd_wrapper(A)
+        U, s, Vt = svd_wrapper(A, use_qr=use_qr)
 
     Ut, V = _H(U), _H(Vt)
     s_dim = s[..., None, :]
@@ -106,8 +114,8 @@ def _svd_jvp_rule_impl(primals, tangents, only_u_or_vt=None, use_qr=False):
 
 
 @svd_wrapper.defjvp
-def _svd_jvp_rule(primals, tangents):
-    return _svd_jvp_rule_impl(primals, tangents)
+def _svd_jvp_rule(use_qr, primals, tangents):
+    return _svd_jvp_rule_impl(primals, tangents, use_qr=use_qr)
 
 
 jax.ffi.register_ffi_target(
@@ -293,10 +301,11 @@ def _svd_only_vt_jvp_rule(use_qr, primals, tangents):
     return _svd_jvp_rule_impl(primals, tangents, only_u_or_vt="Vt", use_qr=use_qr)
 
 
-@partial(jit, inline=True, static_argnums=(1,))
+@partial(jit, inline=True, static_argnums=(1, 2))
 def gauge_fixed_svd(
     matrix: jnp.ndarray,
     only_u_or_vh=None,
+    use_qr=False,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """
     Calculate the gauge-fixed (also called sign-fixed) SVD. To this end, each
@@ -316,13 +325,13 @@ def gauge_fixed_svd(
         Tuple with sign-fixed U, S and Vh of the SVD.
     """
     if only_u_or_vh is None:
-        U, S, Vh = svd_wrapper(matrix)
+        U, S, Vh = svd_wrapper(matrix, use_qr=use_qr)
         gauge_unitary = U
     elif only_u_or_vh == "U":
-        U, S = svd_only_u(matrix)
+        U, S = svd_only_u(matrix, use_qr=use_qr)
         gauge_unitary = U
     elif only_u_or_vh == "Vh":
-        S, Vh = svd_only_vt(matrix)
+        S, Vh = svd_only_vt(matrix, use_qr=use_qr)
         gauge_unitary = Vh.T.conj()
     else:
         raise ValueError("Invalid value for parameter 'only_u_or_vh'.")
