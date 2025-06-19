@@ -87,7 +87,7 @@ def _svd_jvp_rule_impl(primals, tangents, only_u_or_vt=None, use_qr=False):
     elif only_u_or_vt == "U":
         dU = U @ (F.astype(A.dtype) * (dSS + _H(dSS)) + dUdV_diag)
     elif only_u_or_vt == "Vt":
-        dV = V @ (F.astype(A.dtype) * (SdS + _H(SdS)) + 0.5 * dUdV_diag)
+        dV = V @ (F.astype(A.dtype) * (SdS + _H(SdS)) + dUdV_diag)
 
     m, n = A.shape[-2:]
     if m > n and (only_u_or_vt is None or only_u_or_vt == "U"):
