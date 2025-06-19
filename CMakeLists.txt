@@ -33,7 +33,7 @@ ENDIF()
 # We are now ready to compile the actual extension module
 nanobind_add_module(
   # Name of the extension
-  _svd_only_vt
+  _svd_only_u_vt
 
   # Target the stable ABI for Python 3.12+, which reduces
   # the number of binary wheels that must be built. This
@@ -52,9 +52,9 @@ nanobind_add_module(
   varipeps/utils/extensions/svd_ffi.cpp
 )
 
-target_include_directories(_svd_only_vt PRIVATE "${jaxlib_INCLUDE_DIR}")
+target_include_directories(_svd_only_u_vt PRIVATE "${jaxlib_INCLUDE_DIR}")
 
 # target_link_libraries(_svd_only_vt PRIVATE lapack)
 
 # Install directive for scikit-build-core
-install(TARGETS _svd_only_vt LIBRARY DESTINATION varipeps/utils/extensions)
+install(TARGETS _svd_only_u_vt LIBRARY DESTINATION varipeps/utils/extensions)

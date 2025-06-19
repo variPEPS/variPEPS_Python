@@ -9,14 +9,14 @@ enum class UVtMode : int8_t {
   computePartialUandVt = 2, // Compute only Vt
 };
 
-XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_vt_f32);
-XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_vt_f64);
-XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_vt_c64);
-XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_vt_c128);
+XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_u_vt_f32);
+XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_u_vt_f64);
+XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_u_vt_c64);
+XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_u_vt_c128);
 
-XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_vt_qr_f32);
-XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_vt_qr_f64);
-XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_vt_qr_c64);
-XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_vt_qr_c128);
+XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_u_vt_qr_f32);
+XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_u_vt_qr_f64);
+XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_u_vt_qr_c64);
+XLA_FFI_DECLARE_HANDLER_SYMBOL(svd_only_u_vt_qr_c128);
 
 #endif  // VARIPEPS_SVD_FFI_H

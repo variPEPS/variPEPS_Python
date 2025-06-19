@@ -11,7 +11,7 @@ namespace ffi = xla::ffi;
 XLA_FFI_REGISTER_ENUM_ATTR_DECODING(UVtMode);
 
 template <ffi::DataType dtype>
-static ffi::Error SvdOnlyVtImpl(
+static ffi::Error SvdOnlyUVtImpl(
     ffi::Buffer<dtype> x,
     ffi::ResultBuffer<dtype> x_out,
     ffi::ResultBuffer<ffi::ToReal(dtype)> s,
@@ -189,7 +189,7 @@ static ffi::Error SvdOnlyVtImpl(
 }
 
 template <ffi::DataType dtype>
-static ffi::Error SvdOnlyVtQRImpl(
+static ffi::Error SvdOnlyUVtQRImpl(
     ffi::Buffer<dtype> x,
     ffi::ResultBuffer<dtype> x_out,
     ffi::ResultBuffer<ffi::ToReal(dtype)> s,
@@ -382,7 +382,7 @@ static ffi::Error SvdOnlyVtQRImpl(
 
 #define DEFINE_REAL_SVD_ONLY_VT(fname, dtype)             \
   XLA_FFI_DEFINE_HANDLER_SYMBOL(                          \
-      fname, SvdOnlyVtImpl<dtype>,                        \
+      fname, SvdOnlyUVtImpl<dtype>,                        \
       ffi::Ffi::Bind()                                    \
           .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
           .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
@@ -393,7 +393,7 @@ static ffi::Error SvdOnlyVtQRImpl(
 
 #define DEFINE_COMPLEX_SVD_ONLY_VT(fname, dtype)          \
   XLA_FFI_DEFINE_HANDLER_SYMBOL(                          \
-      fname, SvdOnlyVtImpl<dtype>,                        \
+      fname, SvdOnlyUVtImpl<dtype>,                        \
       ffi::Ffi::Bind()                                    \
           .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
           .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
@@ -402,14 +402,14 @@ static ffi::Error SvdOnlyVtQRImpl(
           .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
           .Attr<UVtMode>("mode"))
 
-DEFINE_REAL_SVD_ONLY_VT(svd_only_vt_f32, ffi::DataType::F32);
-DEFINE_REAL_SVD_ONLY_VT(svd_only_vt_f64, ffi::DataType::F64);
-DEFINE_COMPLEX_SVD_ONLY_VT(svd_only_vt_c64, ffi::DataType::C64);
-DEFINE_COMPLEX_SVD_ONLY_VT(svd_only_vt_c128, ffi::DataType::C128);
+DEFINE_REAL_SVD_ONLY_VT(svd_only_u_vt_f32, ffi::DataType::F32);
+DEFINE_REAL_SVD_ONLY_VT(svd_only_u_vt_f64, ffi::DataType::F64);
+DEFINE_COMPLEX_SVD_ONLY_VT(svd_only_u_vt_c64, ffi::DataType::C64);
+DEFINE_COMPLEX_SVD_ONLY_VT(svd_only_u_vt_c128, ffi::DataType::C128);
 
 #define DEFINE_REAL_SVD_ONLY_VT_QR(fname, dtype)          \
   XLA_FFI_DEFINE_HANDLER_SYMBOL(                          \
-      fname, SvdOnlyVtQRImpl<dtype>,                      \
+      fname, SvdOnlyUVtQRImpl<dtype>,                      \
       ffi::Ffi::Bind()                                    \
           .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
           .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
@@ -420,7 +420,7 @@ DEFINE_COMPLEX_SVD_ONLY_VT(svd_only_vt_c128, ffi::DataType::C128);
 
 #define DEFINE_COMPLEX_SVD_ONLY_VT_QR(fname, dtype)       \
   XLA_FFI_DEFINE_HANDLER_SYMBOL(                          \
-      fname, SvdOnlyVtQRImpl<dtype>,                      \
+      fname, SvdOnlyUVtQRImpl<dtype>,                      \
       ffi::Ffi::Bind()                                    \
           .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
           .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
@@ -429,10 +429,10 @@ DEFINE_COMPLEX_SVD_ONLY_VT(svd_only_vt_c128, ffi::DataType::C128);
           .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
           .Attr<UVtMode>("mode"))
 
-DEFINE_REAL_SVD_ONLY_VT_QR(svd_only_vt_qr_f32, ffi::DataType::F32);
-DEFINE_REAL_SVD_ONLY_VT_QR(svd_only_vt_qr_f64, ffi::DataType::F64);
-DEFINE_COMPLEX_SVD_ONLY_VT_QR(svd_only_vt_qr_c64, ffi::DataType::C64);
-DEFINE_COMPLEX_SVD_ONLY_VT_QR(svd_only_vt_qr_c128, ffi::DataType::C128);
+DEFINE_REAL_SVD_ONLY_VT_QR(svd_only_u_vt_qr_f32, ffi::DataType::F32);
+DEFINE_REAL_SVD_ONLY_VT_QR(svd_only_u_vt_qr_f64, ffi::DataType::F64);
+DEFINE_COMPLEX_SVD_ONLY_VT_QR(svd_only_u_vt_qr_c64, ffi::DataType::C64);
+DEFINE_COMPLEX_SVD_ONLY_VT_QR(svd_only_u_vt_qr_c128, ffi::DataType::C128);
 
 template <typename T>
 static nb::capsule EncapsulateFfiCall(T *fn) {
@@ -441,13 +441,13 @@ static nb::capsule EncapsulateFfiCall(T *fn) {
   return nb::capsule(reinterpret_cast<void *>(fn));
 }
 
-NB_MODULE(_svd_only_vt, m) {
-  m.def("svd_only_vt_f32", []() { return EncapsulateFfiCall(svd_only_vt_f32); });
-  m.def("svd_only_vt_f64", []() { return EncapsulateFfiCall(svd_only_vt_f64); });
-  m.def("svd_only_vt_c64", []() { return EncapsulateFfiCall(svd_only_vt_c64); });
-  m.def("svd_only_vt_c128", []() { return EncapsulateFfiCall(svd_only_vt_c128); });
-  m.def("svd_only_vt_qr_f32", []() { return EncapsulateFfiCall(svd_only_vt_qr_f32); });
-  m.def("svd_only_vt_qr_f64", []() { return EncapsulateFfiCall(svd_only_vt_qr_f64); });
-  m.def("svd_only_vt_qr_c64", []() { return EncapsulateFfiCall(svd_only_vt_qr_c64); });
-  m.def("svd_only_vt_qr_c128", []() { return EncapsulateFfiCall(svd_only_vt_qr_c128); });
+NB_MODULE(_svd_only_u_vt, m) {
+  m.def("svd_only_u_vt_f32", []() { return EncapsulateFfiCall(svd_only_u_vt_f32); });
+  m.def("svd_only_u_vt_f64", []() { return EncapsulateFfiCall(svd_only_u_vt_f64); });
+  m.def("svd_only_u_vt_c64", []() { return EncapsulateFfiCall(svd_only_u_vt_c64); });
+  m.def("svd_only_u_vt_c128", []() { return EncapsulateFfiCall(svd_only_u_vt_c128); });
+  m.def("svd_only_u_vt_qr_f32", []() { return EncapsulateFfiCall(svd_only_u_vt_qr_f32); });
+  m.def("svd_only_u_vt_qr_f64", []() { return EncapsulateFfiCall(svd_only_u_vt_qr_f64); });
+  m.def("svd_only_u_vt_qr_c64", []() { return EncapsulateFfiCall(svd_only_u_vt_qr_c64); });
+  m.def("svd_only_u_vt_qr_c128", []() { return EncapsulateFfiCall(svd_only_u_vt_qr_c128); });
 }

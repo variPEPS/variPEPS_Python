@@ -11,7 +11,7 @@ from jax._src.numpy.util import promote_dtypes_inexact, check_arraylike
 
 from varipeps import varipeps_config
 
-from .extensions import _svd_only_vt as _svd_only_vt_lib
+from .extensions import _svd_only_u_vt as _svd_only_u_vt_lib
 
 from typing import Tuple
 
@@ -111,28 +111,28 @@ def _svd_jvp_rule(primals, tangents):
 
 
 jax.ffi.register_ffi_target(
-    "svd_only_vt_f32", _svd_only_vt_lib.svd_only_vt_f32(), platform="cpu"
+    "svd_only_u_vt_f32", _svd_only_u_vt_lib.svd_only_u_vt_f32(), platform="cpu"
 )
 jax.ffi.register_ffi_target(
-    "svd_only_vt_f64", _svd_only_vt_lib.svd_only_vt_f64(), platform="cpu"
+    "svd_only_u_vt_f64", _svd_only_u_vt_lib.svd_only_u_vt_f64(), platform="cpu"
 )
 jax.ffi.register_ffi_target(
-    "svd_only_vt_c64", _svd_only_vt_lib.svd_only_vt_c64(), platform="cpu"
+    "svd_only_u_vt_c64", _svd_only_u_vt_lib.svd_only_u_vt_c64(), platform="cpu"
 )
 jax.ffi.register_ffi_target(
-    "svd_only_vt_c128", _svd_only_vt_lib.svd_only_vt_c128(), platform="cpu"
+    "svd_only_u_vt_c128", _svd_only_u_vt_lib.svd_only_u_vt_c128(), platform="cpu"
 )
 jax.ffi.register_ffi_target(
-    "svd_only_vt_qr_f32", _svd_only_vt_lib.svd_only_vt_qr_f32(), platform="cpu"
+    "svd_only_u_vt_qr_f32", _svd_only_u_vt_lib.svd_only_u_vt_qr_f32(), platform="cpu"
 )
 jax.ffi.register_ffi_target(
-    "svd_only_vt_qr_f64", _svd_only_vt_lib.svd_only_vt_qr_f64(), platform="cpu"
+    "svd_only_u_vt_qr_f64", _svd_only_u_vt_lib.svd_only_u_vt_qr_f64(), platform="cpu"
 )
 jax.ffi.register_ffi_target(
-    "svd_only_vt_qr_c64", _svd_only_vt_lib.svd_only_vt_qr_c64(), platform="cpu"
+    "svd_only_u_vt_qr_c64", _svd_only_u_vt_lib.svd_only_u_vt_qr_c64(), platform="cpu"
 )
 jax.ffi.register_ffi_target(
-    "svd_only_vt_qr_c128", _svd_only_vt_lib.svd_only_vt_qr_c128(), platform="cpu"
+    "svd_only_u_vt_qr_c128", _svd_only_u_vt_lib.svd_only_u_vt_qr_c128(), platform="cpu"
 )
 
 
@@ -140,16 +140,16 @@ def _svd_only_u_vt_impl(a, u_or_vt, use_qr=True):
     suffix = "_qr" if use_qr else ""
 
     if a.dtype == jnp.float32:
-        fn = f"svd_only_vt{suffix}_f32"
+        fn = f"svd_only_u_vt{suffix}_f32"
         real_dtype = jnp.float32
     elif a.dtype == jnp.float64:
-        fn = f"svd_only_vt{suffix}_f64"
+        fn = f"svd_only_u_vt{suffix}_f64"
         real_dtype = jnp.float64
     elif a.dtype == jnp.complex64:
-        fn = f"svd_only_vt{suffix}_c64"
+        fn = f"svd_only_u_vt{suffix}_c64"
         real_dtype = jnp.float32
     elif a.dtype == jnp.complex128:
-        fn = f"svd_only_vt{suffix}_c128"
+        fn = f"svd_only_u_vt{suffix}_c128"
         real_dtype = jnp.float64
     else:
         raise ValueError("Unsupported dtype")
