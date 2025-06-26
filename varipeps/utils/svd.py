@@ -164,10 +164,13 @@ def _svd_only_u_vt_impl(a, u_or_vt, use_qr=True):
 
     m, n = a.shape
 
+    return_only = None
     if m > n and u_or_vt == 0:
-        raise ValueError("Only arrays (M, N) with M <= N supported.")
+        u_or_vt = 2
+        return_only = "U"
     elif m < n and u_or_vt == 1:
-        raise ValueError("Only arrays (M, N) with M >= N supported.")
+        u_or_vt = 2
+        return_only = "Vt"
 
     min_dim = min(m, n)
 
@@ -243,6 +246,11 @@ def _svd_only_u_vt_impl(a, u_or_vt, use_qr=True):
             S,
             Vt,
         )
+
+        if return_only == "U":
+            return S, U
+        elif return_only == "Vt":
+            return S, Vt
 
         return U, S, Vt
 
