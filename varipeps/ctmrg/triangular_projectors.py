@@ -77,7 +77,7 @@ def _corner_workhorse(
         left_matrix = left_matrix_2
 
     if fishman:
-        _, left_S, left_Vh = gauge_fixed_svd(left_matrix)
+        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh")
         left_S = jnp.where(
             left_S / left_S[0] < truncation_eps,
             0,
@@ -85,7 +85,7 @@ def _corner_workhorse(
         )
         left_matrix = left_S[:, jnp.newaxis] * left_Vh
 
-        right_U, right_S, _ = gauge_fixed_svd(right_matrix)
+        right_U, right_S = gauge_fixed_svd(right_matrix, only_u_or_vh="U")
         right_S = jnp.where(
             right_S / right_S[0] < truncation_eps,
             0,
@@ -337,7 +337,7 @@ def _T_workhorse(
     )
 
     if fishman:
-        _, left_S, left_Vh = gauge_fixed_svd(left_matrix)
+        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh")
         left_S = jnp.where(
             left_S / left_S[0] < truncation_eps,
             0,
@@ -345,7 +345,7 @@ def _T_workhorse(
         )
         left_matrix = left_S[:, jnp.newaxis] * left_Vh
 
-        right_U, right_S, _ = gauge_fixed_svd(right_matrix)
+        right_U, right_S = gauge_fixed_svd(right_matrix, only_u_or_vh="U")
         right_S = jnp.where(
             right_S / right_S[0] < truncation_eps,
             0,
