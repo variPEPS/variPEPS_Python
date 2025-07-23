@@ -2007,11 +2007,12 @@ class Kagome_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                         )
 
                     for sr_i, (sr_o, sr_h, sr_v, sr_d) in enumerate(
-                        jax.util.safe_zip(
+                        zip(
                             step_result_onsite[: len(self.up_nearest_gates)],
                             step_result_horizontal[: len(self.up_nearest_gates)],
                             step_result_vertical[: len(self.up_nearest_gates)],
                             step_result_diagonal[: len(self.up_nearest_gates)],
+                            strict=True,
                         )
                     ):
                         result[sr_i] += sr_o + sr_h + sr_v + sr_d

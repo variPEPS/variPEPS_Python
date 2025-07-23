@@ -281,10 +281,11 @@ class Triangular_Two_Sites_Expectation_Value(Expectation_Model):
                 )
 
                 for sr_i, (sr_h, sr_v, sr_d) in enumerate(
-                    jax.util.safe_zip(
+                    zip(
                         step_result_horizontal,
                         step_result_vertical,
                         step_result_diagonal,
+                        strict=True,
                     )
                 ):
                     result[sr_i] += sr_h + sr_v + sr_d

@@ -544,13 +544,14 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value(Expectation_Model):
                 )
 
                 for sr_i, (sr_h, sr_v, sr_d, sr_np, sr_p2p, sr_2pp) in enumerate(
-                    jax.util.safe_zip(
+                    zip(
                         step_result_horizontal,
                         step_result_vertical,
                         step_result_diagonal,
                         step_result_nn_neg_pos,
                         step_result_nn_pos_2pos,
                         step_result_nn_2pos_pos,
+                        strict=True,
                     )
                 ):
                     result[sr_i] += sr_h + sr_v + sr_d + sr_np + sr_p2p + sr_2pp

@@ -2238,11 +2238,12 @@ class Maple_Leaf_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                         )
 
                     for sr_i, (sr_o, sr_h, sr_v, sr_d) in enumerate(
-                        jax.util.safe_zip(
+                        zip(
                             step_result_onsite[: len(self.green_gates)],
                             step_result_horizontal[: len(self.green_gates)],
                             step_result_vertical[: len(self.green_gates)],
                             step_result_diagonal[: len(self.green_gates)],
+                            strict=True,
                         )
                     ):
                         result[sr_i] += sr_o + sr_h + sr_v + sr_d
