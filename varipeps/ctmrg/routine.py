@@ -771,8 +771,10 @@ def _ctmrg_rev_while_body(carry):
     bar_fixed_point = bar_fixed_point_last_step.replace_unique_tensors(
         [
             t_old.__add__(t_new, checks=False)
-            for t_old, t_new in jax.util.safe_zip(
-                initial_bar.get_unique_tensors(), new_env_bar.get_unique_tensors()
+            for t_old, t_new in zip(
+                initial_bar.get_unique_tensors(),
+                new_env_bar.get_unique_tensors(),
+                strict=True,
             )
         ]
     )

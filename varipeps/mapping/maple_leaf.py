@@ -262,7 +262,7 @@ def _calc_onsite_gate(
     single_gates = [None] * result_length
 
     for i, (g_e, b_e, r_e) in enumerate(
-        jax.util.safe_zip(green_gates, blue_gates, red_gates)
+        zip(green_gates, blue_gates, red_gates, strict=True)
     ):
         (
             green_12,
@@ -327,7 +327,7 @@ def _calc_right_gate(
 
     single_gates = [None] * result_length
 
-    for i, (b_e, r_e) in enumerate(jax.util.safe_zip(blue_gates, red_gates)):
+    for i, (b_e, r_e) in enumerate(zip(blue_gates, red_gates, strict=True)):
         red_61, blue_62 = get_right_gates(b_e, r_e, d)
 
         result[i] = red_61 + blue_62
@@ -361,7 +361,7 @@ def _calc_down_gate(
 
     single_gates = [None] * result_length
 
-    for i, (b_e, r_e) in enumerate(jax.util.safe_zip(blue_gates, red_gates)):
+    for i, (b_e, r_e) in enumerate(zip(blue_gates, red_gates, strict=True)):
         blue_35, red_36 = get_down_gates(b_e, r_e, d)
 
         result[i] = blue_35 + red_36
@@ -395,7 +395,7 @@ def _calc_diagonal_gate(
 
     single_gates = [None] * result_length
 
-    for i, (b_e, r_e) in enumerate(jax.util.safe_zip(blue_gates, red_gates)):
+    for i, (b_e, r_e) in enumerate(zip(blue_gates, red_gates, strict=True)):
         blue_41, red_31 = get_diagonal_gates(b_e, r_e, d)
 
         result[i] = blue_41 + red_31
@@ -802,11 +802,12 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                         )
 
                     for sr_i, (sr_o, sr_h, sr_v, sr_d) in enumerate(
-                        jax.util.safe_zip(
+                        zip(
                             step_result_onsite[: len(self.green_gates)],
                             step_result_horizontal[: len(self.green_gates)],
                             step_result_vertical[: len(self.green_gates)],
                             step_result_diagonal[: len(self.green_gates)],
+                            strict=True,
                         )
                     ):
                         result[sr_i] += sr_o + sr_h + sr_v + sr_d

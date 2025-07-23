@@ -232,9 +232,7 @@ class Triangular_Expectation_Value(Expectation_Model):
                 )
 
                 for sr_i, (sr_x, sr_y, sr_diagonal) in enumerate(
-                    jax.util.safe_zip(
-                        step_result_x, step_result_y, step_result_diagonal
-                    )
+                    zip(step_result_x, step_result_y, step_result_diagonal, strict=True)
                 ):
                     result[sr_i] += sr_x + sr_y + sr_diagonal
 
@@ -633,7 +631,7 @@ def _calc_quadrat_gate_next_nearest(
     Id_other_sites = jnp.eye(d**2)
 
     for i, (n_e, n_n_e) in enumerate(
-        jax.util.safe_zip(nearest_gates, next_nearest_gates)
+        zip(nearest_gates, next_nearest_gates, strict=True)
     ):
         nearest_34 = jnp.kron(Id_other_sites, n_e)
 
@@ -913,10 +911,11 @@ class Triangular_Next_Nearest_Expectation_Value(Expectation_Model):
                 )
 
                 for sr_i, (sr_q, sr_h, sr_v) in enumerate(
-                    jax.util.safe_zip(
+                    zip(
                         step_result_quadrat[: len(self.nearest_neighbor_gates)],
                         step_result_horizontal_rect[: len(self.nearest_neighbor_gates)],
                         step_result_vertical_rect[: len(self.nearest_neighbor_gates)],
+                        strict=True,
                     )
                 ):
                     result[sr_i] += sr_q + sr_h + sr_v

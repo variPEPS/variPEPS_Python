@@ -1,6 +1,5 @@
 import jax.numpy as jnp
 from jax import value_and_grad
-from jax.util import safe_zip
 
 from varipeps import varipeps_config
 from varipeps.peps import PEPS_Unit_Cell
@@ -39,7 +38,7 @@ def _map_tensors(
             old_tensors = unitcell.get_unique_tensors()
             if not all(
                 jnp.allclose(ti, tj_obj.tensor)
-                for ti, tj_obj in safe_zip(peps_tensors, old_tensors)
+                for ti, tj_obj in zip(peps_tensors, old_tensors, strict=True)
             ):
                 raise ValueError(
                     "Input tensors and provided unitcell are not the same state."
@@ -110,14 +109,14 @@ def calc_ctmrg_expectation(
                     spiral_vectors_x = (spiral_vectors_x,)
                 spiral_vectors = tuple(
                     jnp.array((sx, sy))
-                    for sx, sy in safe_zip(spiral_vectors_x, spiral_vectors)
+                    for sx, sy in zip(spiral_vectors_x, spiral_vectors, strict=True)
                 )
             elif spiral_vectors_y is not None:
                 if isinstance(spiral_vectors_y, jnp.ndarray):
                     spiral_vectors_y = (spiral_vectors_y,)
                 spiral_vectors = tuple(
                     jnp.array((sx, sy))
-                    for sx, sy in safe_zip(spiral_vectors, spiral_vectors_y)
+                    for sx, sy in zip(spiral_vectors, spiral_vectors_y, strict=True)
                 )
     else:
         peps_tensors, unitcell = _map_tensors(
@@ -211,14 +210,14 @@ def calc_preconverged_ctmrg_value_and_grad(
                     spiral_vectors_x = (spiral_vectors_x,)
                 spiral_vectors = tuple(
                     jnp.array((sx, sy))
-                    for sx, sy in safe_zip(spiral_vectors_x, spiral_vectors)
+                    for sx, sy in zip(spiral_vectors_x, spiral_vectors, strict=True)
                 )
             elif spiral_vectors_y is not None:
                 if isinstance(spiral_vectors_y, jnp.ndarray):
                     spiral_vectors_y = (spiral_vectors_y,)
                 spiral_vectors = tuple(
                     jnp.array((sx, sy))
-                    for sx, sy in safe_zip(spiral_vectors, spiral_vectors_y)
+                    for sx, sy in zip(spiral_vectors, spiral_vectors_y, strict=True)
                 )
     else:
         peps_tensors, unitcell = _map_tensors(
@@ -293,14 +292,14 @@ def calc_ctmrg_expectation_custom(
                     spiral_vectors_x = (spiral_vectors_x,)
                 spiral_vectors = tuple(
                     jnp.array((sx, sy))
-                    for sx, sy in safe_zip(spiral_vectors_x, spiral_vectors)
+                    for sx, sy in zip(spiral_vectors_x, spiral_vectors, strict=True)
                 )
             elif spiral_vectors_y is not None:
                 if isinstance(spiral_vectors_y, jnp.ndarray):
                     spiral_vectors_y = (spiral_vectors_y,)
                 spiral_vectors = tuple(
                     jnp.array((sx, sy))
-                    for sx, sy in safe_zip(spiral_vectors, spiral_vectors_y)
+                    for sx, sy in zip(spiral_vectors, spiral_vectors_y, strict=True)
                 )
     else:
         peps_tensors, unitcell = _map_tensors(

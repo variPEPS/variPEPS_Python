@@ -13,7 +13,6 @@ from jax import jit
 import jax.numpy as jnp
 from jax.lax import scan
 from jax.flatten_util import ravel_pytree
-from jax.util import safe_zip
 
 from varipeps import varipeps_config, varipeps_global_state
 from varipeps.config import Optimizing_Methods
@@ -240,14 +239,14 @@ def _autosave_wrapper(
                     spiral_vectors_x = (spiral_vectors_x,)
                 spiral_vectors = tuple(
                     jnp.array((sx, sy))
-                    for sx, sy in safe_zip(spiral_vectors_x, spiral_vectors)
+                    for sx, sy in zip(spiral_vectors_x, spiral_vectors, strict=True)
                 )
             elif spiral_vectors_y is not None:
                 if isinstance(spiral_vectors_y, jnp.ndarray):
                     spiral_vectors_y = (spiral_vectors_y,)
                 spiral_vectors = tuple(
                     jnp.array((sx, sy))
-                    for sx, sy in safe_zip(spiral_vectors, spiral_vectors_y)
+                    for sx, sy in zip(spiral_vectors, spiral_vectors_y, strict=True)
                 )
     elif additional_input.get("spiral_vectors") is not None:
         spiral_vectors = additional_input.get("spiral_vectors")

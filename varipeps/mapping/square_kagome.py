@@ -769,7 +769,7 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
                     )
 
                     for sr_i, (sr_h, sr_v) in enumerate(
-                        jax.util.safe_zip(step_result_horizontal, step_result_vertical)
+                        zip(step_result_horizontal, step_result_vertical, strict=True)
                     ):
                         result[sr_i] += sr_h + sr_v
                 elif len(self.cross_gates) > 0:

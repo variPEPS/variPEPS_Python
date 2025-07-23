@@ -579,7 +579,7 @@ def _calc_onsite_gate(
     Id_other_sites = jnp.eye(d**7)
 
     for i, (b_e, g_e, blue_e) in enumerate(
-        jax.util.safe_zip(black_gates, green_gates, blue_gates)
+        zip(black_gates, green_gates, blue_gates, strict=True)
     ):
         black_12 = jnp.kron(b_e, Id_other_sites)
 
@@ -673,7 +673,7 @@ def _calc_right_gate(
 
     Id_other_site = jnp.eye(d)
 
-    for i, (b_e, blue_e) in enumerate(jax.util.safe_zip(black_gates, blue_gates)):
+    for i, (b_e, blue_e) in enumerate(zip(black_gates, blue_gates, strict=True)):
         black_51 = jnp.kron(b_e, Id_other_site)
 
         blue_59 = jnp.kron(blue_e, Id_other_site)
@@ -701,7 +701,7 @@ def _calc_down_gate(
 
     Id_other_site = jnp.eye(d**2)
 
-    for i, (b_e, blue_e) in enumerate(jax.util.safe_zip(black_gates, blue_gates)):
+    for i, (b_e, blue_e) in enumerate(zip(black_gates, blue_gates, strict=True)):
         black_91 = jnp.kron(b_e, Id_other_site)
         black_91 = black_91.reshape(d, d, d, d, d, d, d, d)
         black_91 = black_91.transpose(2, 0, 1, 3, 6, 4, 5, 7)
@@ -1157,11 +1157,12 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                         )
 
                     for sr_i, (sr_o, sr_h, sr_v, sr_d) in enumerate(
-                        jax.util.safe_zip(
+                        zip(
                             step_result_onsite[: len(self.black_gates)],
                             step_result_horizontal[: len(self.black_gates)],
                             step_result_vertical[: len(self.black_gates)],
                             step_result_diagonal[: len(self.black_gates)],
+                            strict=True,
                         )
                     ):
                         result[sr_i] += sr_o + sr_h + sr_v + sr_d
