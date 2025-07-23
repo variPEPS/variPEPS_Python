@@ -747,6 +747,15 @@ def optimize_peps_network(
                 except IndexError:
                     step_energies[random_noise_retries].append(working_value)
 
+                try:
+                    step_chi[random_noise_retries][
+                        -1
+                    ] = working_unitcell.get_unique_tensors()[0].chi
+                except IndexError:
+                    step_chi[random_noise_retries].append(
+                        working_unitcell.get_unique_tensors()[0].chi
+                    )
+
                 break
 
             old_descent_dir = descent_dir
