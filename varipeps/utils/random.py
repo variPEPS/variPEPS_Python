@@ -180,3 +180,33 @@ class PEPS_Jax_Random(PEPS_Random_Impl):
         if normalize:
             block /= jnp.linalg.norm(block)
         return block
+
+    def semi_positive_block(
+        self, dim: Sequence[int], dtype: Type[np.number], *, normalize: bool = True
+    ) -> jnp.ndarray:
+        if jnp.dtype(dtype) is jnp.dtype(jnp.complex64) or jnp.dtype(
+            dtype
+        ) is jnp.dtype(jnp.complex128):
+            self.key, key1, key2 = jax.random.split(self.key, 3)
+            block = jax.random.uniform(key1, dim, minval=-0.3, maxval=1).astype(
+                dtype
+            ) + 1j * jax.random.uniform(key2, dim, minval=-0.3, maxval=1).astype(dtype)
+        else:
+            self.key, key1 = jax.random.split(self.key, 2)
+            block = jax.random.uniform(key1, dim, dtype=dtype, minval=-0.3, maxval=1)
+        if normalize:
+            block /= jnp.linalg.norm(block)
+        return block
+
+
+def apply_random_noise_unitcell(unitcell, relative_amplitude=1e-3):
+    rng = PEPS_Random_Number_Generator.get_generator()
+
+    def random_noise(a):
+        return a + a * rng.block(a.shape, dtype=a.dtype) * relative_amplitude
+
+    new_t = [
+        t.replace_tensor(random_noise(t.tensor)) for t in unitcell.get_unique_tensors()
+    ]
+
+    return unitcell.replace_unique_tensors(new_t)
