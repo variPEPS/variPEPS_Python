@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import collections
 from dataclasses import dataclass
+import datetime
 import pathlib
 from os import PathLike
 import subprocess
@@ -1085,6 +1086,22 @@ class PEPS_Unit_Cell:
 
             if varipeps.git_tag is not None:
                 grp_version.attrs["git_tag"] = varipeps.git_tag
+
+            if (
+                slurm_data := varipeps.utils.slurm.SlurmUtils.get_own_job_data()
+            ) is not None:
+                grp_slurm = grp.create_group("slurm")
+
+                for k, v in slurm_data.items():
+                    if isinstance(v, datetime.datetime):
+                        grp_slurm.attrs[k] = v.isoformat()
+                    elif isinstance(v, datetime.timedelta):
+                        grp_slurm.attrs[k] = v.total_seconds()
+                    elif isinstance(v, dict):
+                        for k2, v2 in v.items():
+                            grp_slurm.attrs[f"{k}_{k2}"] = v2
+                    else:
+                        grp_slurm.attrs[k] = v
 
     @classmethod
     def load_from_file(
