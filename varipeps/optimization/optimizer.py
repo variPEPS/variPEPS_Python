@@ -906,3 +906,89 @@ def optimize_peps_network(
         step_runtime=step_runtime,
         best_run=best_run,
     )
+
+
+def optimize_peps_unitcell(
+    unitcell,
+    expectation_func,
+    autosave_filename="data/autosave.hdf5",
+    slurm_restart_script=None,
+):
+    return optimize_peps_network(
+        unitcell,
+        expectation_func,
+        autosave_filename=autosave_filename,
+        slurm_restart_script=slurm_restart_script,
+    )
+
+
+def optimize_unitcell_fixed_spiral_vector(
+    unitcell,
+    spiral_vector,
+    expectation_func,
+    autosave_filename="data/autosave.hdf5",
+    slurm_restart_script=None,
+):
+    return optimize_peps_network(
+        unitcell,
+        expectation_func,
+        additional_input={"spiral_vectors": spiral_vector},
+        autosave_filename=autosave_filename,
+        slurm_restart_script=slurm_restart_script,
+    )
+
+
+def _map_spiral_func(input_tensors, generate_unitcell):
+    return input_tensors[:1], input_tensors[1:]
+
+
+def optimize_unitcell_full_spiral_vector(
+    unitcell,
+    spiral_vector,
+    expectation_func,
+    autosave_filename="data/autosave.hdf5",
+    slurm_restart_script=None,
+):
+    return optimize_peps_network(
+        (unitcell, spiral_vector),
+        expectation_func,
+        _map_spiral_func,
+        autosave_filename=autosave_filename,
+        slurm_restart_script=slurm_restart_script,
+    )
+
+
+def optimize_unitcell_spiral_vector_x_component(
+    unitcell,
+    spiral_vector_x,
+    spiral_vector_fixed_y,
+    expectation_func,
+    autosave_filename="data/autosave.hdf5",
+    slurm_restart_script=None,
+):
+    return optimize_peps_network(
+        (unitcell, spiral_vector_x),
+        expectation_func,
+        _map_spiral_func,
+        additional_input={"spiral_vectors_y": spiral_vector_fixed_y},
+        autosave_filename=autosave_filename,
+        slurm_restart_script=slurm_restart_script,
+    )
+
+
+def optimize_unitcell_spiral_vector_y_component(
+    unitcell,
+    spiral_vector_fixed_x,
+    spiral_vector_y,
+    expectation_func,
+    autosave_filename="data/autosave.hdf5",
+    slurm_restart_script=None,
+):
+    return optimize_peps_network(
+        (unitcell, spiral_vector_y),
+        expectation_func,
+        _map_spiral_func,
+        additional_input={"spiral_vectors_x": spiral_vector_fixed_x},
+        autosave_filename=autosave_filename,
+        slurm_restart_script=slurm_restart_script,
+    )
