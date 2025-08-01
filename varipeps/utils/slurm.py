@@ -91,3 +91,48 @@ class SlurmUtils:
         if (job_id := os.environ.get("SLURM_JOB_ID")) is not None:
             return cls.get_job_data(job_id)
         return None
+
+    @staticmethod
+    def run_slurm_script(path):
+        p = subprocess.run(
+            ["scontrol", "show", "job", f"{job_id:d}"], capture_output=True, text=True
+        )
+
+        if p.returncode != 0:
+            return None
+
+        job_data = p.stdout.split()
+
+        slice_comb_list = []
+        for i, e in enumerate(job_data):
+            if "=" not in e:
+                slice_comb_list[-1] = slice(slice_comb_list[-1].start, i + 1)
+            else:
+                slice_comb_list.append(slice(i, i + 1))
+
+        job_data = ["".join(job_data[s]) for s in slice_comb_list]
+        job_data = dict(e.split("=", 1) for e in job_data)
+
+        job_data = cls.parse_special_fields(job_data)
+
+        return job_data
+
+    @classmethod
+    def get_own_job_data(cls):
+        if (job_id := os.environ.get("SLURM_JOB_ID")) is not None:
+            return cls.get_job_data(job_id)
+        return None
+
+    @staticmethod
+    def run_slurm_script(path):
+        p = subprocess.run(["sbatch", str(path)], capture_output=True, text=True)
+
+        if p.returncode != 0:
+            return None
+
+        try:
+            job_id = int(p.stdout.split()[-1])
+        except ValueError:
+            job_id = None
+
+        return job_id

@@ -1,5 +1,6 @@
 import collections
 from collections import deque
+import datetime
 from functools import partial
 from os import PathLike
 import time
@@ -7,6 +8,8 @@ import time
 from scipy.optimize import OptimizeResult
 
 from tqdm_loggable.auto import tqdm
+
+import numpy as np
 
 import jax
 from jax import jit
@@ -22,6 +25,7 @@ from varipeps.config import Projector_Method
 from varipeps.mapping import Map_To_PEPS_Model
 from varipeps.ctmrg import CTMRGNotConvergedError, CTMRGGradientNotConvergedError
 from varipeps.utils.random import PEPS_Random_Number_Generator
+from varipeps.utils.slurm import SlurmUtils
 
 from .inner_function import (
     calc_ctmrg_expectation,
@@ -283,6 +287,7 @@ def optimize_peps_network(
         [PathLike, Sequence[jnp.ndarray], PEPS_Unit_Cell], None
     ] = autosave_function,
     additional_input: Dict[str, jnp.ndarray] = {},
+    slurm_restart_script: Optional[PathLike] = None,
 ) -> Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell, Union[float, jnp.ndarray]]:
     """
     Optimize a PEPS unitcell using a variational method.
@@ -829,6 +834,32 @@ def optimize_peps_network(
                 best_tensors = working_tensors
                 best_unitcell = working_unitcell
                 best_run = random_noise_retries
+
+            if (
+                slurm_restart_script is not None
+                and (slurm_data := SlurmUtils.get_own_job_data()) is not None
+            ):
+                flatten_runtime = [j for i in step_runtime for j in i]
+                runtime_mean = np.mean(flatten_runtime)
+                runtime_std = np.std(flatten_runtime)
+
+                if runtime_std > 0:
+                    remaining_slurm_time = (
+                        slurm_data["TimeLimit"] - slurm_data["RunTime"]
+                    )
+                    time_of_one_step = datetime.timedelta(
+                        seconds=runtime_mean + 3 * runtime_std
+                    )
+
+                    if remaining_slurm_time < time_of_one_step:
+                        new_job_id = SlurmUtils.run_slurm_script(slurm_restart_script)
+                        if new_job_id is not None:
+                            tqdm.write(f"Started new Slurm job with ID {new_job_id:d}.")
+                        else:
+                            tqdm.write(
+                                "Failed to start new Slurm job or parse its job id."
+                            )
+                        break
 
     if working_value < best_value:
         best_value = working_value
