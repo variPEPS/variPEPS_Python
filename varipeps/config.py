@@ -282,6 +282,14 @@ class VariPEPS_Config:
 
         super().__setattr__(name, value)
 
+    def update_from_config_dict(self, new_config):
+        for k in self.__dataclass_fields__:
+            setattr(self, k, new_config[k])
+
+    def update_from_config_object(self, new_config):
+        for k in self.__dataclass_fields__:
+            setattr(self, k, getattr(new_config, k))
+
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
         aux_data = (
             {name: getattr(self, name) for name in self.__dataclass_fields__.keys()},
