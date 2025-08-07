@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+import h5py
+
 import jax.numpy as jnp
 
 from varipeps.peps import PEPS_Unit_Cell
@@ -53,4 +55,13 @@ class Expectation_Model(ABC):
             The expectation values for all gates. Single tensor if only one gate
             is applied.
         """
+        pass
+
+    @abstractmethod
+    def save_to_group(self, grp: h5py.Group):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def load_from_group(cls, grp: h5py.Group):
         pass

@@ -1028,31 +1028,43 @@ class PEPS_Unit_Cell:
             if auxiliary_data is not None:
                 grp_aux = f.create_group("auxiliary_data")
 
-                grp_aux.attrs["keys"] = list(auxiliary_data.keys())
+                self.save_auxiliary_data(grp_aux, auxiliary_data)
 
-                for key, val in auxiliary_data.items():
-                    if key == "keys":
-                        raise ValueError(
-                            "Name 'keys' forbidden as name for auxiliary data"
-                        )
+    @staticmethod
+    def save_auxiliary_data(grp: h5py.Group, auxiliary_data: Optional[Dict[str, Any]]):
+        """
+        Save auxiliary data to HDF5 group.
 
-                    if isinstance(
-                        val, (jnp.ndarray, np.ndarray, collections.abc.Sequence)
-                    ):
-                        try:
-                            if val.ndim == 0:
-                                val = val.reshape(1)
-                        except AttributeError:
-                            pass
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to store the data into.
+          auxiliary_data (:obj:`dict` with :obj:`str` to storable objects):
+            Dictionary with string indexed auxiliary HDF5-storable entries which
+            should be stored along the other data in the file.
+        """
+        grp.attrs["keys"] = list(auxiliary_data.keys())
 
-                        grp_aux.create_dataset(
-                            key,
-                            data=jnp.asarray(val),
-                            compression="gzip",
-                            compression_opts=6,
-                        )
-                    else:
-                        grp_aux.attrs[key] = val
+        for key, val in auxiliary_data.items():
+            if key == "keys":
+                raise ValueError("Name 'keys' forbidden as name for auxiliary data")
+
+            if isinstance(
+                val, (jnp.ndarray, np.ndarray, collections.abc.Sequence)
+            ) and not isinstance(val, str):
+                try:
+                    if val.ndim == 0:
+                        val = val.reshape(1)
+                except AttributeError:
+                    pass
+
+                grp.create_dataset(
+                    key,
+                    data=jnp.asarray(val),
+                    compression="gzip",
+                    compression_opts=6,
+                )
+            else:
+                grp.attrs[key] = val
 
     def save_to_group(self, grp: h5py.Group, store_config: bool = True) -> None:
         """
@@ -1134,21 +1146,12 @@ class PEPS_Unit_Cell:
             out = cls.load_from_group(f["unitcell"], return_config)
 
             auxiliary_data = {}
-            auxiliary_data_grp = f.get("auxiliary_data")
-            if auxiliary_data_grp is not None:
-                for k in auxiliary_data_grp.attrs["keys"]:
-                    aux_d = auxiliary_data_grp.get(k)
-                    if aux_d is None:
-                        aux_d = auxiliary_data_grp.attrs[k]
-                    else:
-                        aux_d = jnp.asarray(aux_d)
-                    auxiliary_data[k] = aux_d
-            else:
-                max_trunc_error_list = f.get("max_trunc_error_list")
-                if max_trunc_error_list is not None:
-                    auxiliary_data["max_trunc_error_list"] = jnp.asarray(
-                        max_trunc_error_list
-                    )
+            if (auxiliary_data_grp := f.get("auxiliary_data")) is not None:
+                auxiliary_data = cls.load_auxiliary_data(auxiliary_data_grp)
+            elif (max_trunc_error_list := f.get("max_trunc_error_list")) is not None:
+                auxiliary_data["max_trunc_error_list"] = jnp.asarray(
+                    max_trunc_error_list
+                )
 
         if return_config and return_auxiliary_data:
             return out[0], out[1], auxiliary_data
@@ -1158,6 +1161,25 @@ class PEPS_Unit_Cell:
             return out, auxiliary_data
 
         return out
+
+    @staticmethod
+    def load_auxiliary_data(grp: h5py.Group):
+        """
+        Load auxiliary data from a HDF5 group.
+
+        Args:
+          grp (:obj:`h5py.Group`):
+            HDF5 group object to store the data into.
+        """
+        auxiliary_data = {}
+        for k in grp.attrs["keys"]:
+            aux_d = grp.get(k)
+            if aux_d is None:
+                aux_d = grp.attrs[k]
+            else:
+                aux_d = jnp.asarray(aux_d)
+            auxiliary_data[k] = aux_d
+        return auxiliary_data
 
     @classmethod
     def load_from_group(
@@ -1203,6 +1225,10 @@ class PEPS_Unit_Cell:
             if config_dict.get("line_search_method"):
                 config_dict["line_search_method"] = varipeps.config.Line_Search_Methods(
                     config_dict["line_search_method"]
+                )
+            if config_dict.get("spiral_wavevector_type"):
+                config_dict["spiral_wavevector_type"] = varipeps.config.Wavevector_Type(
+                    config_dict["spiral_wavevector_type"]
                 )
 
             return cls(

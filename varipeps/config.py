@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum, IntEnum, auto, unique
 
+import numpy as np
+
 from jax.tree_util import register_pytree_node_class
 
 from typing import TypeVar, Tuple, Any, Type, NoReturn
@@ -209,13 +211,13 @@ class VariPEPS_Config:
     ctmrg_fail_if_not_converged: bool = True
     ctmrg_full_projector_method: Projector_Method = Projector_Method.FISHMAN
     ctmrg_increase_truncation_eps: bool = True
-    ctmrg_increase_truncation_eps_factor: float = 100
+    ctmrg_increase_truncation_eps_factor: float = 100.0
     ctmrg_increase_truncation_eps_max_value: float = 1e-6
     ctmrg_heuristic_increase_chi: bool = True
     ctmrg_heuristic_increase_chi_threshold: float = 1e-6
-    ctmrg_heuristic_increase_chi_step_size: float = 2
+    ctmrg_heuristic_increase_chi_step_size: int = 2
     ctmrg_heuristic_decrease_chi: bool = True
-    ctmrg_heuristic_decrease_chi_step_size: float = 1
+    ctmrg_heuristic_decrease_chi_step_size: int = 1
 
     # SVD
     svd_sign_fix_eps: float = 1e-1
@@ -274,7 +276,37 @@ class VariPEPS_Config:
 
         if not type(value) is field.type:
             if field.type is float and type(value) is int:
-                pass
+                value = float(value)
+            elif (
+                field.type is float
+                and hasattr(value, "dtype")
+                and (
+                    np.issubdtype(value.dtype, np.floating)
+                    or np.issubdtype(value.dtype, np.integer)
+                )
+                and value.size == 1
+            ):
+                if value.ndim > 0:
+                    value = value.reshape(-1)[0]
+                value = float(value)
+            elif (
+                field.type is int
+                and hasattr(value, "dtype")
+                and np.issubdtype(value.dtype, np.integer)
+                and value.size == 1
+            ):
+                if value.ndim > 0:
+                    value = value.reshape(-1)[0]
+                value = int(value)
+            elif (
+                field.type is bool
+                and hasattr(value, "dtype")
+                and np.isdtype(value.dtype, np.bool)
+                and value.size == 1
+            ):
+                if value.ndim > 0:
+                    value = value.reshape(-1)[0]
+                value = bool(value)
             else:
                 raise TypeError(
                     f"Type mismatch for option '{name}', got '{type(value)}', expected '{field.type}'."

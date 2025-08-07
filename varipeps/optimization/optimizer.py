@@ -2,12 +2,15 @@ import collections
 from collections import deque
 import datetime
 from functools import partial
+import importlib
 from os import PathLike
 import time
 
 from scipy.optimize import OptimizeResult
 
 from tqdm_loggable.auto import tqdm
+
+import h5py
 
 import numpy as np
 
@@ -203,6 +206,108 @@ def autosave_function(
         unitcell.save_to_file(filename, auxiliary_data=auxiliary_data)
 
 
+def autosave_function_restartable(
+    filename,
+    tensors,
+    unitcell,
+    counter,
+    auxiliary_data,
+    expectation_func,
+    convert_to_unitcell_func,
+    old_gradient,
+    old_descent_dir,
+    best_value,
+    best_tensors,
+    best_unitcell,
+    random_noise_retries,
+    descent_method_tuple,
+    count,
+    linesearch_step,
+    projector_method,
+    signal_reset_descent_dir,
+) -> None:
+    with h5py.File(
+        f"{str(filename)}.restartable", "w", libver=("earliest", "v110")
+    ) as f:
+        grp = f.create_group("unitcell")
+        unitcell.save_to_group(grp, True)
+
+        grp_aux = f.create_group("auxiliary_data")
+        unitcell.save_auxiliary_data(grp_aux, auxiliary_data)
+
+        grp_restart_data = f.create_group("restart_data")
+
+        grp_restart_data.attrs["autosave_filename"] = filename
+
+        grp_expectation_func = grp_restart_data.create_group("expectation_func")
+        try:
+            expectation_func.save_to_group(grp_expectation_func)
+        except AttributeError:
+            pass
+
+        if convert_to_unitcell_func is not None:
+            pass
+
+        grp_old_grad = grp_restart_data.create_group("old_gradient", track_order=True)
+        grp_old_grad.attrs["len"] = len(old_gradient)
+        for i, g in enumerate(old_gradient):
+            grp_old_grad.create_dataset(
+                f"old_grad_{i:d}", data=g, compression="gzip", compression_opts=6
+            )
+
+        grp_old_des_dir = grp_restart_data.create_group(
+            "old_descent_dir", track_order=True
+        )
+        grp_old_des_dir.attrs["len"] = len(old_descent_dir)
+        for i, d in enumerate(old_descent_dir):
+            grp_old_des_dir.create_dataset(
+                f"old_descent_dir_{i:d}", data=d, compression="gzip", compression_opts=6
+            )
+
+        if best_unitcell is not None:
+            grp_best_t = grp_restart_data.create_group("best_tensors", track_order=True)
+            grp_best_t.attrs["len"] = len(best_tensors)
+            for i, t in enumerate(best_tensors):
+                grp_best_t.create_dataset(
+                    f"best_tensor_{i:d}",
+                    data=t,
+                    compression="gzip",
+                    compression_opts=6,
+                )
+
+            grp_best_u = grp_restart_data.create_group("best_unitcell")
+            best_unitcell.save_to_group(grp_best_u, False)
+
+            grp_restart_data.attrs["best_value"] = best_value
+
+        grp_restart_data.attrs["random_noise_retries"] = random_noise_retries
+        grp_restart_data.attrs["count"] = count
+        grp_restart_data.attrs["linesearch_step"] = linesearch_step
+        grp_restart_data.attrs["projector_method"] = projector_method
+        grp_restart_data.attrs["signal_reset_descent_dir"] = signal_reset_descent_dir
+
+        if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
+            bfgs_prefactor, bfgs_B_inv = descent_method_tuple
+            grp_restart_data.attrs["bfgs_prefactor"] = bfgs_prefactor
+            grp_restart_data.create_dataset(
+                "bfgs_B_inv", data=bfgs_B_inv, compression="gzip", compression_opts=6
+            )
+        elif varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
+            l_bfgs_x_cache, l_bfgs_grad_cache = descent_method_tuple
+
+            grp_l_bfgs = grp_restart_data.create_group("l_bfgs", track_order=True)
+            grp_l_bfgs.attrs["len"] = len(l_bfgs_x_cache)
+            for i, (x, g) in enumerate(
+                zip(l_bfgs_x_cache, l_bfgs_grad_cache, strict=True)
+            ):
+                grp_l_bfgs.create_dataset(
+                    f"x_{i:d}", data=x, compression="gzip", compression_opts=6
+                )
+                grp_l_bfgs.create_dataset(
+                    f"grad_{i:d}", data=g, compression="gzip", compression_opts=6
+                )
+
+
 def _autosave_wrapper(
     autosave_func,
     autosave_filename,
@@ -233,12 +338,17 @@ def _autosave_wrapper(
 
     spiral_vectors = None
     if spiral_indices is not None:
+        spiral_mode = "BOTH_INDEPENDENT"
+
         spiral_vectors = [working_tensors[spiral_i] for spiral_i in spiral_indices]
 
         if any(i.size == 1 for i in spiral_vectors):
+            spiral_mode = "BOTH_SAME"
+
             spiral_vectors_x = additional_input.get("spiral_vectors_x")
             spiral_vectors_y = additional_input.get("spiral_vectors_y")
             if spiral_vectors_x is not None:
+                spiral_mode = "FIXED_X"
                 if isinstance(spiral_vectors_x, jnp.ndarray):
                     spiral_vectors_x = (spiral_vectors_x,)
                 spiral_vectors = tuple(
@@ -246,6 +356,7 @@ def _autosave_wrapper(
                     for sx, sy in zip(spiral_vectors_x, spiral_vectors, strict=True)
                 )
             elif spiral_vectors_y is not None:
+                spiral_mode = "FIXED_Y"
                 if isinstance(spiral_vectors_y, jnp.ndarray):
                     spiral_vectors_y = (spiral_vectors_y,)
                 spiral_vectors = tuple(
@@ -253,11 +364,15 @@ def _autosave_wrapper(
                     for sx, sy in zip(spiral_vectors, spiral_vectors_y, strict=True)
                 )
     elif additional_input.get("spiral_vectors") is not None:
+        spiral_mode = "FIXED"
+
         spiral_vectors = additional_input.get("spiral_vectors")
         if isinstance(spiral_vectors, jnp.ndarray):
             spiral_vectors = (spiral_vectors,)
 
     if spiral_vectors is not None:
+        auxiliary_data["spiral_mode"] = spiral_mode
+
         spiral_vectors = [
             e if e.size == 2 else jnp.array((e, e)).reshape(2) for e in spiral_vectors
         ]
@@ -287,6 +402,7 @@ def optimize_peps_network(
         [PathLike, Sequence[jnp.ndarray], PEPS_Unit_Cell], None
     ] = autosave_function,
     additional_input: Dict[str, jnp.ndarray] = {},
+    restart_state: Dict[str, Any] = {},
     slurm_restart_script: Optional[PathLike] = None,
 ) -> Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell, Union[float, jnp.ndarray]]:
     """
@@ -353,21 +469,21 @@ def optimize_peps_network(
             working_unitcell = None
             generate_unitcell = False
 
-    old_gradient = None
-    old_descent_dir = None
+    old_gradient = restart_state.get("old_gradient")
+    old_descent_dir = restart_state.get("old_descent_dir")
     descent_dir = None
     working_value = None
 
     max_trunc_error = jnp.nan
 
-    best_value = jnp.inf
-    best_tensors = None
-    best_unitcell = None
-    best_run = None
+    best_value = restart_state.get("best_value", jnp.inf)
+    best_tensors = restart_state.get("best_tensors")
+    best_unitcell = restart_state.get("best_unitcell")
+    best_run = restart_state.get("best_run")
 
-    random_noise_retries = 0
+    random_noise_retries = restart_state.get("random_noise_retries", 0)
 
-    signal_reset_descent_dir = False
+    signal_reset_descent_dir = restart_state.get("signal_reset_descent_dir", False)
 
     spiral_indices = None
     if (
@@ -383,30 +499,50 @@ def optimize_peps_network(
             raise NotImplementedError("Only support spiral PEPS for unitcell input yet")
 
     if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
-        bfgs_prefactor = 2 if any(jnp.iscomplexobj(t) for t in working_tensors) else 1
-        bfgs_B_inv = jnp.eye(bfgs_prefactor * sum([t.size for t in working_tensors]))
+        bfgs_prefactor = restart_state.get(
+            "bfgs_prefactor",
+            2 if any(jnp.iscomplexobj(t) for t in working_tensors) else 1,
+        )
+        bfgs_B_inv = restart_state.get(
+            "bfgs_B_inv",
+            jnp.eye(bfgs_prefactor * sum([t.size for t in working_tensors])),
+        )
     elif varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
-        l_bfgs_x_cache = deque(maxlen=varipeps_config.optimizer_l_bfgs_maxlen + 1)
-        l_bfgs_grad_cache = deque(maxlen=varipeps_config.optimizer_l_bfgs_maxlen + 1)
+        l_bfgs_x_cache = deque(
+            restart_state.get("l_bfgs_x_cache", []),
+            maxlen=varipeps_config.optimizer_l_bfgs_maxlen + 1,
+        )
+        l_bfgs_grad_cache = deque(
+            restart_state.get("l_bfgs_grad_cache", []),
+            maxlen=varipeps_config.optimizer_l_bfgs_maxlen + 1,
+        )
 
-    count = 0
-    linesearch_step: Optional[Union[float, jnp.ndarray]] = None
+    count = restart_state.get("count", 0)
+    linesearch_step: Optional[Union[float, jnp.ndarray]] = restart_state.get(
+        "linesearch_step"
+    )
     working_value: Union[float, jnp.ndarray]
-    max_trunc_error_list = {random_noise_retries: []}
-    step_energies = {random_noise_retries: []}
-    step_chi = {random_noise_retries: []}
-    step_conv = {random_noise_retries: []}
-    step_runtime = {random_noise_retries: []}
+    max_trunc_error_list = restart_state.get(
+        "max_trunc_error_list", {random_noise_retries: []}
+    )
+    step_energies = restart_state.get("step_energies", {random_noise_retries: []})
+    step_chi = restart_state.get("step_chi", {random_noise_retries: []})
+    step_conv = restart_state.get("step_conv", {random_noise_retries: []})
+    step_runtime = restart_state.get("step_runtime", {random_noise_retries: []})
 
     if (
         varipeps_config.optimizer_preconverge_with_half_projectors
         and not varipeps_global_state.basinhopping_disable_half_projector
     ):
-        varipeps_global_state.ctmrg_projector_method = Projector_Method.HALF
+        varipeps_global_state.ctmrg_projector_method = (
+            Projector_Method.HALF
+            if restart_state.get("projector_method", "HALF") == "HALF"
+            else None
+        )
     else:
         varipeps_global_state.ctmrg_projector_method = None
 
-    with tqdm(desc="Optimizing PEPS state") as pbar:
+    with tqdm(desc="Optimizing PEPS state", initial=count) as pbar:
         while count < varipeps_config.optimizer_max_steps:
             runtime_start = time.perf_counter()
 
@@ -685,6 +821,58 @@ def optimize_peps_network(
                         max_trunc_error_list[random_noise_retries] = []
                         step_runtime[random_noise_retries] = []
 
+                        if autosave_func is autosave_function:
+                            descent_method_tuple = None
+                            if (
+                                varipeps_config.optimizer_method
+                                is Optimizing_Methods.BFGS
+                            ):
+                                descent_method_tuple = (bfgs_prefactor, bfgs_B_inv)
+                            elif (
+                                varipeps_config.optimizer_method
+                                is Optimizing_Methods.L_BFGS
+                            ):
+                                descent_method_tuple = (
+                                    l_bfgs_x_cache,
+                                    l_bfgs_grad_cache,
+                                )
+                            _autosave_wrapper(
+                                partial(
+                                    autosave_function_restartable,
+                                    expectation_func=expectation_func,
+                                    convert_to_unitcell_func=convert_to_unitcell_func,
+                                    old_gradient=old_gradient,
+                                    old_descent_dir=old_descent_dir,
+                                    best_value=best_value,
+                                    best_tensors=best_tensors,
+                                    best_unitcell=best_unitcell,
+                                    random_noise_retries=random_noise_retries,
+                                    descent_method_tuple=descent_method_tuple,
+                                    count=count,
+                                    linesearch_step=linesearch_step,
+                                    projector_method=(
+                                        "HALF"
+                                        if varipeps_global_state.ctmrg_projector_method
+                                        is Projector_Method.HALF
+                                        else "FULL"
+                                    ),
+                                    signal_reset_descent_dir=signal_reset_descent_dir,
+                                ),
+                                autosave_filename,
+                                working_tensors,
+                                working_unitcell,
+                                working_value,
+                                None,
+                                best_run,
+                                max_trunc_error_list,
+                                step_energies,
+                                step_chi,
+                                step_conv,
+                                step_runtime,
+                                spiral_indices,
+                                additional_input,
+                            )
+
                         pbar.reset()
                         pbar.refresh()
 
@@ -824,6 +1012,49 @@ def optimize_peps_network(
                         additional_input,
                     )
 
+                if autosave_func is autosave_function:
+                    descent_method_tuple = None
+                    if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
+                        descent_method_tuple = (bfgs_prefactor, bfgs_B_inv)
+                    elif varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
+                        descent_method_tuple = (l_bfgs_x_cache, l_bfgs_grad_cache)
+                    _autosave_wrapper(
+                        partial(
+                            autosave_function_restartable,
+                            expectation_func=expectation_func,
+                            convert_to_unitcell_func=convert_to_unitcell_func,
+                            old_gradient=old_gradient,
+                            old_descent_dir=old_descent_dir,
+                            best_value=best_value,
+                            best_tensors=best_tensors,
+                            best_unitcell=best_unitcell,
+                            random_noise_retries=random_noise_retries,
+                            descent_method_tuple=descent_method_tuple,
+                            count=count,
+                            linesearch_step=linesearch_step,
+                            projector_method=(
+                                "HALF"
+                                if varipeps_global_state.ctmrg_projector_method
+                                is Projector_Method.HALF
+                                else "FULL"
+                            ),
+                            signal_reset_descent_dir=signal_reset_descent_dir,
+                        ),
+                        autosave_filename,
+                        working_tensors,
+                        working_unitcell,
+                        working_value,
+                        None,
+                        best_run,
+                        max_trunc_error_list,
+                        step_energies,
+                        step_chi,
+                        step_conv,
+                        step_runtime,
+                        spiral_indices,
+                        additional_input,
+                    )
+
             if working_value < best_value and not (
                 varipeps_config.optimizer_preconverge_with_half_projectors
                 and not varipeps_global_state.basinhopping_disable_half_projector
@@ -927,14 +1158,14 @@ def optimize_unitcell_fixed_spiral_vector(
     spiral_vector,
     expectation_func,
     autosave_filename="data/autosave.hdf5",
-    slurm_restart_script=None,
+    restart_state={},
 ):
     return optimize_peps_network(
         unitcell,
         expectation_func,
         additional_input={"spiral_vectors": spiral_vector},
         autosave_filename=autosave_filename,
-        slurm_restart_script=slurm_restart_script,
+        restart_state=restart_state,
     )
 
 
@@ -947,14 +1178,14 @@ def optimize_unitcell_full_spiral_vector(
     spiral_vector,
     expectation_func,
     autosave_filename="data/autosave.hdf5",
-    slurm_restart_script=None,
+    restart_state={},
 ):
     return optimize_peps_network(
         (unitcell, spiral_vector),
         expectation_func,
         _map_spiral_func,
         autosave_filename=autosave_filename,
-        slurm_restart_script=slurm_restart_script,
+        restart_state=restart_state,
     )
 
 
@@ -964,7 +1195,7 @@ def optimize_unitcell_spiral_vector_x_component(
     spiral_vector_fixed_y,
     expectation_func,
     autosave_filename="data/autosave.hdf5",
-    slurm_restart_script=None,
+    restart_state={},
 ):
     return optimize_peps_network(
         (unitcell, spiral_vector_x),
@@ -972,7 +1203,7 @@ def optimize_unitcell_spiral_vector_x_component(
         _map_spiral_func,
         additional_input={"spiral_vectors_y": spiral_vector_fixed_y},
         autosave_filename=autosave_filename,
-        slurm_restart_script=slurm_restart_script,
+        restart_state=restart_state,
     )
 
 
@@ -982,7 +1213,7 @@ def optimize_unitcell_spiral_vector_y_component(
     spiral_vector_y,
     expectation_func,
     autosave_filename="data/autosave.hdf5",
-    slurm_restart_script=None,
+    restart_state={},
 ):
     return optimize_peps_network(
         (unitcell, spiral_vector_y),
@@ -990,5 +1221,159 @@ def optimize_unitcell_spiral_vector_y_component(
         _map_spiral_func,
         additional_input={"spiral_vectors_x": spiral_vector_fixed_x},
         autosave_filename=autosave_filename,
-        slurm_restart_script=slurm_restart_script,
+        restart_state=restart_state,
+    )
+
+
+def restart_from_state_file(filename: PathLike):
+    with h5py.File(filename, "r") as f:
+        unitcell, config = PEPS_Unit_Cell.load_from_group(
+            f["unitcell"], return_config=True
+        )
+
+        auxiliary_data = PEPS_Unit_Cell.load_auxiliary_data(f["auxiliary_data"])
+
+        grp_restart_data = f["restart_data"]
+
+        grp_expectation_func = grp_restart_data["expectation_func"]
+        exp_func_class = grp_expectation_func.attrs["class"]
+        if exp_func_class.split(".", maxsplit=1)[0] != "varipeps":
+            raise ValueError(
+                "Do not support restart from expectation function outside of the library."
+            )
+
+        exp_func_module, exp_func_class = exp_func_class.rsplit(".", maxsplit=1)
+        exp_func_module = importlib.import_module(exp_func_module)
+        exp_func_class = getattr(exp_func_module, exp_func_class)
+
+        exp_func = exp_func_class.load_from_group(grp_expectation_func)
+
+        restart_state = {}
+
+        restart_state["old_gradient"] = [
+            jnp.asarray(grp_restart_data["old_gradient"][f"old_grad_{i:d}"])
+            for i in range(grp_restart_data["old_gradient"].attrs["len"])
+        ]
+        restart_state["old_descent_dir"] = [
+            jnp.asarray(grp_restart_data["old_descent_dir"][f"old_descent_dir_{i:d}"])
+            for i in range(grp_restart_data["old_descent_dir"].attrs["len"])
+        ]
+
+        restart_state["best_run"] = auxiliary_data["best_run"]
+
+        if (grp_best_u := grp_restart_data.get("best_unitcell")) is not None:
+            restart_state["best_unitcell"] = PEPS_Unit_Cell.load_from_group(grp_best_u)
+
+            restart_state["best_tensors"] = [
+                jnp.asarray(grp_restart_data["best_tensors"][f"best_tensor_{i:d}"])
+                for i in range(grp_restart_data["best_tensors"].attrs["len"])
+            ]
+
+            restart_state["best_value"] = grp_restart_data.attrs["best_value"]
+
+        random_noise_retries = int(grp_restart_data.attrs["random_noise_retries"])
+        restart_state["random_noise_retries"] = random_noise_retries
+        restart_state["count"] = int(grp_restart_data.attrs["count"])
+        restart_state["linesearch_step"] = grp_restart_data.attrs["linesearch_step"]
+        restart_state["projector_method"] = grp_restart_data.attrs["projector_method"]
+        restart_state["signal_reset_descent_dir"] = grp_restart_data.attrs[
+            "signal_reset_descent_dir"
+        ]
+
+        restart_state["max_trunc_error_list"] = {
+            k: None for k in range(random_noise_retries + 1)
+        }
+        restart_state["step_energies"] = {
+            k: None for k in range(random_noise_retries + 1)
+        }
+        restart_state["step_chi"] = {k: None for k in range(random_noise_retries + 1)}
+        restart_state["step_conv"] = {k: None for k in range(random_noise_retries + 1)}
+        restart_state["step_runtime"] = {
+            k: None for k in range(random_noise_retries + 1)
+        }
+
+        for k in range(random_noise_retries + 1):
+            restart_state["max_trunc_error_list"][k] = list(
+                auxiliary_data[f"max_trunc_error_list_{k:d}"]
+            )
+            restart_state["step_energies"][k] = list(
+                auxiliary_data[f"step_energies_{k:d}"]
+            )
+            restart_state["step_chi"][k] = list(auxiliary_data[f"step_chi_{k:d}"])
+            restart_state["step_conv"][k] = list(auxiliary_data[f"step_conv_{k:d}"])
+            restart_state["step_runtime"][k] = list(
+                auxiliary_data[f"step_runtime_{k:d}"]
+            )
+
+        if config.optimizer_method is Optimizing_Methods.BFGS:
+            restart_state["bfgs_prefactor"] = grp_restart_data.attrs["bfgs_prefactor"]
+            restart_state["bfgs_B_inv"] = jnp.asarray(grp_restart_data["bfgs_B_inv"])
+        elif config.optimizer_method is Optimizing_Methods.L_BFGS:
+            restart_state["l_bfgs_x_cache"] = [
+                jnp.asarray(grp_restart_data["l_bfgs"][f"x_{i:d}"])
+                for i in range(grp_restart_data["l_bfgs"].attrs["len"])
+            ]
+            restart_state["l_bfgs_grad_cache"] = [
+                jnp.asarray(grp_restart_data["l_bfgs"][f"grad_{i:d}"])
+                for i in range(grp_restart_data["l_bfgs"].attrs["len"])
+            ]
+
+        autosave_filename = grp_restart_data.attrs["autosave_filename"]
+
+    varipeps_config.update_from_config_object(config)
+
+    if exp_func.is_spiral_peps:
+        spiral_mode = auxiliary_data["spiral_mode"]
+        spiral_vector = auxiliary_data["spiral_vector"]
+
+        if spiral_mode == "FIXED":
+            return optimize_unitcell_fixed_spiral_vector(
+                unitcell,
+                spiral_vector,
+                exp_func,
+                autosave_filename=autosave_filename,
+                restart_state=restart_state,
+            )
+        elif spiral_mode == "BOTH_SAME":
+            return optimize_unitcell_full_spiral_vector(
+                unitcell,
+                spiral_vector[0],
+                exp_func,
+                autosave_filename=autosave_filename,
+                restart_state=restart_state,
+            )
+        elif spiral_mode == "BOTH_INDEPENDENT":
+            return optimize_unitcell_full_spiral_vector(
+                unitcell,
+                spiral_vector,
+                exp_func,
+                autosave_filename=autosave_filename,
+                restart_state=restart_state,
+            )
+        elif spiral_mode == "FIXED_X":
+            return optimize_unitcell_spiral_vector_y_component(
+                unitcell,
+                spiral_vector[0],
+                spiral_vector[1],
+                exp_func,
+                autosave_filename=autosave_filename,
+                restart_state=restart_state,
+            )
+        elif spiral_mode == "FIXED_Y":
+            return optimize_unitcell_spiral_vector_x_component(
+                unitcell,
+                spiral_vector[0],
+                spiral_vector[1],
+                exp_func,
+                autosave_filename=autosave_filename,
+                restart_state=restart_state,
+            )
+        else:
+            raise ValueError("Unknown mode")
+
+    return optimize_peps_unitcell(
+        unitcell,
+        exp_func,
+        autosave_filename=autosave_filename,
+        restart_state=restart_state,
     )

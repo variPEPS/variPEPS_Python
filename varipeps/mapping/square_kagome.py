@@ -788,6 +788,73 @@ class Square_Kagome_Expectation_Value(Expectation_Model):
         else:
             return result
 
+    def save_to_group(self, grp: h5py.Group):
+        cls = type(self)
+        grp.attrs["class"] = f"{cls.__module__}.{cls.__qualname__}"
+
+        grp_gates = grp.create_group("gates", track_order=True)
+        grp_gates.attrs["len"] = len(self.triangle_gates)
+        for i, (t_g, s_g) in enumerate(
+            zip(
+                self.triangle_gates,
+                self.square_gates,  # , self.plus_gates, self.cross_gates
+                strict=True,
+            )
+        ):
+            grp_gates.create_dataset(
+                f"triangle_gate_{i:d}",
+                data=t_g,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp_gates.create_dataset(
+                f"square_gate_{i:d}", data=s_g, compression="gzip", compression_opts=6
+            )
+
+        grp.attrs["real_d"] = self.real_d
+        grp.attrs["normalization_factor"] = self.normalization_factor
+        grp.attrs["is_spiral_peps"] = self.is_spiral_peps
+
+        if self.is_spiral_peps:
+            grp.create_dataset(
+                "spiral_unitary_operator",
+                data=self.spiral_unitary_operator,
+                compression="gzip",
+                compression_opts=6,
+            )
+
+    @classmethod
+    def load_from_group(cls, grp: h5py.Group):
+        if not grp.attrs["class"] == f"{cls.__module__}.{cls.__qualname__}":
+            raise ValueError(
+                "The HDF5 group suggests that this is not the right class to load data from it."
+            )
+
+        triangle_gates = tuple(
+            jnp.asarray(grp["gates"][f"triangle_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+        square_gates = tuple(
+            jnp.asarray(grp["gates"][f"square_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+
+        is_spiral_peps = grp.attrs["is_spiral_peps"]
+
+        if is_spiral_peps:
+            spiral_unitary_operator = jnp.asarray(grp["spiral_unitary_operator"])
+        else:
+            spiral_unitary_operator = None
+
+        return cls(
+            triangle_gates=triangle_gates,
+            square_gates=square_gates,
+            real_d=grp.attrs["real_d"],
+            normalization_factor=grp.attrs["normalization_factor"],
+            is_spiral_peps=is_spiral_peps,
+            spiral_unitary_operator=spiral_unitary_operator,
+        )
+
 
 @dataclass
 class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):

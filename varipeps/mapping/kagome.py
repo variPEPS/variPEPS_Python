@@ -223,6 +223,70 @@ class Kagome_PESS3_Expectation_Value(Expectation_Model):
         else:
             return result
 
+    def save_to_group(self, grp: h5py.Group):
+        cls = type(self)
+        grp.attrs["class"] = f"{cls.__module__}.{cls.__qualname__}"
+
+        grp_gates = grp.create_group("gates", track_order=True)
+        grp_gates.attrs["len"] = len(self.upward_triangle_gates)
+        for i, (u_g, d_g) in enumerate(
+            zip(self.upward_triangle_gates, self.downward_triangle_gates, strict=True)
+        ):
+            grp_gates.create_dataset(
+                f"upward_triangle_gate_{i:d}",
+                data=u_g,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp_gates.create_dataset(
+                f"downward_triangle_gate_{i:d}",
+                data=d_g,
+                compression="gzip",
+                compression_opts=6,
+            )
+
+        grp.attrs["normalization_factor"] = self.normalization_factor
+        grp.attrs["is_spiral_peps"] = self.is_spiral_peps
+
+        if self.is_spiral_peps:
+            grp.create_dataset(
+                "spiral_unitary_operator",
+                data=self.spiral_unitary_operator,
+                compression="gzip",
+                compression_opts=6,
+            )
+
+    @classmethod
+    def load_from_group(cls, grp: h5py.Group):
+        if not grp.attrs["class"] == f"{cls.__module__}.{cls.__qualname__}":
+            raise ValueError(
+                "The HDF5 group suggests that this is not the right class to load data from it."
+            )
+
+        upward_triangle_gates = tuple(
+            jnp.asarray(grp["gates"][f"upward_triangle_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+        downward_triangle_gates = tuple(
+            jnp.asarray(grp["gates"][f"downward_triangle_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+
+        is_spiral_peps = grp.attrs["is_spiral_peps"]
+
+        if is_spiral_peps:
+            spiral_unitary_operator = jnp.asarray(grp["spiral_unitary_operator"])
+        else:
+            spiral_unitary_operator = None
+
+        return cls(
+            upward_triangle_gates=upward_triangle_gates,
+            downward_triangle_gates=downward_triangle_gates,
+            normalization_factor=grp.attrs["normalization_factor"],
+            is_spiral_peps=is_spiral_peps,
+            spiral_unitary_operator=spiral_unitary_operator,
+        )
+
 
 @jit
 def _kagome_mapping_workhorse(
@@ -957,6 +1021,52 @@ class Kagome_Upper_Right_Expectation_Value(Expectation_Model):
             return result[0]
         else:
             return result
+
+    def save_to_group(self, grp: h5py.Group):
+        cls = type(self)
+        grp.attrs["class"] = f"{cls.__module__}.{cls.__qualname__}"
+
+        grp_gates = grp.create_group("gates", track_order=True)
+        grp_gates.attrs["len"] = len(self.upward_triangle_gates)
+        for i, (u_g, d_g) in enumerate(
+            zip(self.upward_triangle_gates, self.downward_triangle_gates, strict=True)
+        ):
+            grp_gates.create_dataset(
+                f"upward_triangle_gate_{i:d}",
+                data=u_g,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp_gates.create_dataset(
+                f"downward_triangle_gate_{i:d}",
+                data=d_g,
+                compression="gzip",
+                compression_opts=6,
+            )
+
+        grp.attrs["normalization_factor"] = self.normalization_factor
+
+    @classmethod
+    def load_from_group(cls, grp: h5py.Group):
+        if not grp.attrs["class"] == f"{cls.__module__}.{cls.__qualname__}":
+            raise ValueError(
+                "The HDF5 group suggests that this is not the right class to load data from it."
+            )
+
+        upward_triangle_gates = tuple(
+            jnp.asarray(grp["gates"][f"upward_triangle_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+        downward_triangle_gates = tuple(
+            jnp.asarray(grp["gates"][f"downward_triangle_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+
+        return cls(
+            upward_triangle_gates=upward_triangle_gates,
+            downward_triangle_gates=downward_triangle_gates,
+            normalization_factor=grp.attrs["normalization_factor"],
+        )
 
 
 @jit

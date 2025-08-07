@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+import h5py
+
 import jax.numpy as jnp
 from jax import jit
 
@@ -171,3 +173,28 @@ class One_Site_Expectation_Value(Expectation_Model):
             return result[0]
         else:
             return result
+
+    def save_to_group(self, grp: h5py.Group):
+        cls = type(self)
+        grp.attrs["class"] = f"{cls.__module__}.{cls.__qualname__}"
+
+        grp_gates = grp.create_group("gates", track_order=True)
+        grp_gates.attrs["len"] = len(self.gates)
+        for i, g in enumerate(self.gates):
+            grp_gates.create_dataset(
+                f"gate_{i:d}", data=g, compression="gzip", compression_opts=6
+            )
+
+    @classmethod
+    def load_from_group(cls, grp: h5py.Group):
+        if not grp.attrs["class"] == f"{cls.__module__}.{cls.__qualname__}":
+            raise ValueError(
+                "The HDF5 group suggests that this is not the right class to load data from it."
+            )
+
+        gates = tuple(
+            jnp.asarray(grp["gates"][f"gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+
+        return cls(gates=gates)

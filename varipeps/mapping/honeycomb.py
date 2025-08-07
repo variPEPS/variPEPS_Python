@@ -304,6 +304,77 @@ class Honeycomb_Expectation_Value(Expectation_Model):
         else:
             return result
 
+    def save_to_group(self, grp: h5py.Group):
+        cls = type(self)
+        grp.attrs["class"] = f"{cls.__module__}.{cls.__qualname__}"
+
+        grp_gates = grp.create_group("gates", track_order=True)
+        grp_gates.attrs["len"] = len(self.x_gates)
+        for i, (x_g, y_g, z_g) in enumerate(
+            zip(self.x_gates, self.y_gates, self.z_gates, strict=True)
+        ):
+            grp_gates.create_dataset(
+                f"x_gate_{i:d}",
+                data=x_g,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp_gates.create_dataset(
+                f"y_gate_{i:d}", data=y_g, compression="gzip", compression_opts=6
+            )
+            grp_gates.create_dataset(
+                f"z_gate_{i:d}", data=z_g, compression="gzip", compression_opts=6
+            )
+
+        grp.attrs["real_d"] = self.real_d
+        grp.attrs["normalization_factor"] = self.normalization_factor
+        grp.attrs["is_spiral_peps"] = self.is_spiral_peps
+
+        if self.is_spiral_peps:
+            grp.create_dataset(
+                "spiral_unitary_operator",
+                data=self.spiral_unitary_operator,
+                compression="gzip",
+                compression_opts=6,
+            )
+
+    @classmethod
+    def load_from_group(cls, grp: h5py.Group):
+        if not grp.attrs["class"] == f"{cls.__module__}.{cls.__qualname__}":
+            raise ValueError(
+                "The HDF5 group suggests that this is not the right class to load data from it."
+            )
+
+        x_gates = tuple(
+            jnp.asarray(grp["gates"][f"x_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+        y_gates = tuple(
+            jnp.asarray(grp["gates"][f"y_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+        z_gates = tuple(
+            jnp.asarray(grp["gates"][f"z_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+
+        is_spiral_peps = grp.attrs["is_spiral_peps"]
+
+        if is_spiral_peps:
+            spiral_unitary_operator = jnp.asarray(grp["spiral_unitary_operator"])
+        else:
+            spiral_unitary_operator = None
+
+        return cls(
+            x_gates=x_gates,
+            y_gates=y_gates,
+            z_gates=z_gates,
+            real_d=grp.attrs["real_d"],
+            normalization_factor=grp.attrs["normalization_factor"],
+            is_spiral_peps=is_spiral_peps,
+            spiral_unitary_operator=spiral_unitary_operator,
+        )
+
 
 @dataclass
 class Honeycomb_Map_To_Square(Map_To_PEPS_Model):
