@@ -2090,3 +2090,73 @@ class Kagome_Triangular_CTMRG_Expectation_Value(Expectation_Model):
             return result, single_gates_result
         else:
             return result
+
+    def save_to_group(self, grp: h5py.Group):
+        cls = type(self)
+        grp.attrs["class"] = f"{cls.__module__}.{cls.__qualname__}"
+
+        grp_gates = grp.create_group("gates", track_order=True)
+        grp_gates.attrs["len"] = len(self.up_nearest_gates)
+        for i, (u_g, d_g) in enumerate(
+            zip(
+                self.up_nearest_gates,
+                self.down_nearest_gates,
+                strict=True,
+            )
+        ):
+            grp_gates.create_dataset(
+                f"up_nearest_gate_{i:d}",
+                data=u_g,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp_gates.create_dataset(
+                f"down_nearest_gate_{i:d}",
+                data=d_g,
+                compression="gzip",
+                compression_opts=6,
+            )
+
+        grp.attrs["real_d"] = self.real_d
+        grp.attrs["normalization_factor"] = self.normalization_factor
+        grp.attrs["is_spiral_peps"] = self.is_spiral_peps
+
+        if self.is_spiral_peps:
+            grp.create_dataset(
+                "spiral_unitary_operator",
+                data=self.spiral_unitary_operator,
+                compression="gzip",
+                compression_opts=6,
+            )
+
+    @classmethod
+    def load_from_group(cls, grp: h5py.Group):
+        if not grp.attrs["class"] == f"{cls.__module__}.{cls.__qualname__}":
+            raise ValueError(
+                "The HDF5 group suggests that this is not the right class to load data from it."
+            )
+
+        up_nearest_gates = tuple(
+            jnp.asarray(grp["gates"][f"up_nearest_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+        down_nearest_gates = tuple(
+            jnp.asarray(grp["gates"][f"down_nearest_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+
+        is_spiral_peps = grp.attrs["is_spiral_peps"]
+
+        if is_spiral_peps:
+            spiral_unitary_operator = jnp.asarray(grp["spiral_unitary_operator"])
+        else:
+            spiral_unitary_operator = None
+
+        return cls(
+            up_nearest_gates=up_nearest_gates,
+            down_nearest_gates=down_nearest_gates,
+            real_d=grp.attrs["real_d"],
+            normalization_factor=grp.attrs["normalization_factor"],
+            is_spiral_peps=is_spiral_peps,
+            spiral_unitary_operator=spiral_unitary_operator,
+        )
