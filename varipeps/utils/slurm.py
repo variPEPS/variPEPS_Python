@@ -151,7 +151,8 @@ class SlurmUtils:
         #SBATCH --cpus-per-task={ncpus:d}
         #SBATCH --mem={mem}
         #SBATCH --time={time_limit}
-        #SBATCH --mail-type=FAIL,END
+        {mail_type}
+        {mail_user}
 
         "{executable}" "{python_script}" "{state_file}"
         """
@@ -189,6 +190,16 @@ class SlurmUtils:
         else:
             time_limit_str = f"{time_limit_hours:02d}:{time_limit_minutes:02d}:{time_limit_seconds:02d}"
 
+        if (mail_type := slurm_data.get("MailType")) is not None:
+            mail_type = f"#SBATCH --mail-type={mail_type}"
+        else:
+            mail_type = ""
+
+        if (mail_user := slurm_data.get("MailUser")) is not None:
+            mail_user = f"#SBATCH --mail-user={mail_user}"
+        else:
+            mail_user = ""
+
         slurm_file_content = TEMPLATE_SLURM.format(
             partition=slurm_data["Partition"],
             qos=slurm_data["QOS"],
@@ -198,6 +209,8 @@ class SlurmUtils:
             ncpus=slurm_data["CPUs/Task"],
             mem=mem,
             time_limit=time_limit_str,
+            mail_type=mail_type,
+            mail_user=mail_user,
             executable=str(executable),
             python_script=str(python_script_path),
             state_file=restart_state_file,
