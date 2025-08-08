@@ -1230,6 +1230,10 @@ class PEPS_Unit_Cell:
                 config_dict["spiral_wavevector_type"] = varipeps.config.Wavevector_Type(
                     config_dict["spiral_wavevector_type"]
                 )
+            if config_dict.get("slurm_restart_mode"):
+                config_dict["slurm_restart_mode"] = varipeps.config.Slurm_Restart_Mode(
+                    config_dict["slurm_restart_mode"]
+                )
 
             return cls(
                 data=data, real_ix=real_ix, real_iy=real_iy

@@ -39,6 +39,17 @@ class Wavevector_Type(IntEnum):
     TWO_PI_SYMMETRIC = auto()  #: Use interval [-2pi, 2pi) for q vectors
 
 
+@unique
+class Slurm_Restart_Mode(IntEnum):
+    DISABLED = (
+        auto()
+    )  #: Disable automatic restart of slurm job if maximal runtime limit is reached
+    WRITE_RESTART_SCRIPT = (
+        auto()
+    )  #: Write restart script but do not submit new slurm job
+    AUTOMATIC_RESTART = auto()  #: Write restart script and start new slurm job with it
+
+
 @dataclass
 @register_pytree_node_class
 class VariPEPS_Config:
@@ -190,6 +201,8 @@ class VariPEPS_Config:
         :obj:`scipy.optimize.basinhopping`. See this function for details.
       spiral_wavevector_type (:obj:`Wavevector_Type`):
         Type of wavevector to be used (only positive/symmetric interval/...).
+      slurm_restart_mode (:obj:`Slurm_Restart_Mode`):
+        Mode of operation to restart slurm job if maximal runtime is reached.
     """
 
     # AD config
@@ -264,6 +277,9 @@ class VariPEPS_Config:
 
     # Spiral PEPS
     spiral_wavevector_type: Wavevector_Type = Wavevector_Type.TWO_PI_POSITIVE_ONLY
+
+    # Slurm
+    slurm_restart_mode: Slurm_Restart_Mode = Slurm_Restart_Mode.DISABLED
 
     def update(self, name: str, value: Any) -> NoReturn:
         self.__setattr__(name, value)
@@ -349,6 +365,7 @@ class ConfigModuleWrapper:
         "Line_Search_Methods",
         "Projector_Method",
         "Wavevector_Type",
+        "Slurm_Restart_Mode",
         "VariPEPS_Config",
         "config",
     }

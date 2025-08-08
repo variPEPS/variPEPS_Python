@@ -21,7 +21,7 @@ from jax.lax import scan
 from jax.flatten_util import ravel_pytree
 
 from varipeps import varipeps_config, varipeps_global_state
-from varipeps.config import Optimizing_Methods
+from varipeps.config import Optimizing_Methods, Slurm_Restart_Mode
 from varipeps.peps import PEPS_Unit_Cell
 from varipeps.expectation import Expectation_Model
 from varipeps.config import Projector_Method
@@ -403,7 +403,6 @@ def optimize_peps_network(
     ] = autosave_function,
     additional_input: Dict[str, jnp.ndarray] = {},
     restart_state: Dict[str, Any] = {},
-    slurm_restart_script: Optional[PathLike] = None,
 ) -> Tuple[Sequence[jnp.ndarray], PEPS_Unit_Cell, Union[float, jnp.ndarray]]:
     """
     Optimize a PEPS unitcell using a variational method.
@@ -541,6 +540,9 @@ def optimize_peps_network(
         )
     else:
         varipeps_global_state.ctmrg_projector_method = None
+
+    slurm_restart_written = False
+    slurm_new_job_id = None
 
     with tqdm(desc="Optimizing PEPS state", initial=count) as pbar:
         while count < varipeps_config.optimizer_max_steps:
@@ -1067,26 +1069,37 @@ def optimize_peps_network(
                 best_run = random_noise_retries
 
             if (
-                slurm_restart_script is not None
+                varipeps_config.slurm_restart_mode is not Slurm_Restart_Mode.DISABLED
                 and (slurm_data := SlurmUtils.get_own_job_data()) is not None
             ):
-                flatten_runtime = [j for i in step_runtime for j in i]
+                flatten_runtime = [j for i in step_runtime for j in step_runtime[i]]
                 runtime_mean = np.mean(flatten_runtime)
                 runtime_std = np.std(flatten_runtime)
 
-                if runtime_std > 0:
-                    remaining_slurm_time = (
-                        slurm_data["TimeLimit"] - slurm_data["RunTime"]
-                    )
-                    time_of_one_step = datetime.timedelta(
-                        seconds=runtime_mean + 3 * runtime_std
+                remaining_slurm_time = slurm_data["TimeLimit"] - slurm_data["RunTime"]
+                time_of_one_step = datetime.timedelta(
+                    seconds=runtime_mean + 3 * runtime_std
+                )
+
+                if remaining_slurm_time < time_of_one_step:
+                    SlurmUtils.generate_restart_scripts(
+                        f"{str(autosave_filename)}.restart.slurm",
+                        f"{str(autosave_filename)}.restart.py",
+                        f"{str(autosave_filename)}.restartable",
+                        slurm_data,
                     )
 
-                    if remaining_slurm_time < time_of_one_step:
-                        new_job_id = SlurmUtils.run_slurm_script(slurm_restart_script)
-                        if new_job_id is not None:
-                            tqdm.write(f"Started new Slurm job with ID {new_job_id:d}.")
-                        else:
+                    slurm_restart_written = True
+
+                    if (
+                        varipeps_config.slurm_restart_mode
+                        is Slurm_Restart_Mode.AUTOMATIC_RESTART
+                    ):
+                        slurm_new_job_id = SlurmUtils.run_slurm_script(
+                            f"{str(autosave_filename)}.restart.slurm",
+                            slurm_data["WorkDir"],
+                        )
+                        if slurm_new_job_id is None:
                             tqdm.write(
                                 "Failed to start new Slurm job or parse its job id."
                             )
@@ -1124,6 +1137,11 @@ def optimize_peps_network(
 
     print(f"Best energy result found: {best_value}")
 
+    if slurm_restart_written:
+        print("Wrote script to restart optimizer job with Slurm.")
+    if slurm_new_job_id is not None:
+        print(f"Started new Slurm job with ID {slurm_new_job_id:d}.")
+
     return OptimizeResult(
         success=True,
         x=best_tensors,
@@ -1136,6 +1154,8 @@ def optimize_peps_network(
         step_conv=step_conv,
         step_runtime=step_runtime,
         best_run=best_run,
+        slurm_restart_written=slurm_restart_written,
+        slurm_new_job_id=slurm_new_job_id,
     )
 
 
