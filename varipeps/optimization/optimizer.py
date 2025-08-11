@@ -297,15 +297,26 @@ def autosave_function_restartable(
 
             grp_l_bfgs = grp_restart_data.create_group("l_bfgs", track_order=True)
             grp_l_bfgs.attrs["len"] = len(l_bfgs_x_cache)
+            if len(l_bfgs_x_cache) > 0:
+                grp_l_bfgs.attrs["len_elems"] = len(l_bfgs_x_cache[0])
             for i, (x, g) in enumerate(
                 zip(l_bfgs_x_cache, l_bfgs_grad_cache, strict=True)
             ):
-                grp_l_bfgs.create_dataset(
-                    f"x_{i:d}", data=x, compression="gzip", compression_opts=6
-                )
-                grp_l_bfgs.create_dataset(
-                    f"grad_{i:d}", data=g, compression="gzip", compression_opts=6
-                )
+                if len(x) != len(g) != grp_l_bfgs.attrs["len_elems"]:
+                    raise ValueError("L-BFGS list lengths mismatch.")
+                for j in range(grp_l_bfgs.attrs["len_elems"]):
+                    grp_l_bfgs.create_dataset(
+                        f"x_{i:d}_{j:d}",
+                        data=x[j],
+                        compression="gzip",
+                        compression_opts=6,
+                    )
+                    grp_l_bfgs.create_dataset(
+                        f"grad_{i:d}_{j:d}",
+                        data=g[j],
+                        compression="gzip",
+                        compression_opts=6,
+                    )
 
 
 def _autosave_wrapper(
@@ -1330,11 +1341,17 @@ def restart_from_state_file(filename: PathLike):
             restart_state["bfgs_B_inv"] = jnp.asarray(grp_restart_data["bfgs_B_inv"])
         elif config.optimizer_method is Optimizing_Methods.L_BFGS:
             restart_state["l_bfgs_x_cache"] = [
-                jnp.asarray(grp_restart_data["l_bfgs"][f"x_{i:d}"])
+                [
+                    jnp.asarray(grp_restart_data["l_bfgs"][f"x_{i:d}_{j:d}"])
+                    for j in range(grp_restart_data["l_bfgs"].attrs["len_elems"])
+                ]
                 for i in range(grp_restart_data["l_bfgs"].attrs["len"])
             ]
             restart_state["l_bfgs_grad_cache"] = [
-                jnp.asarray(grp_restart_data["l_bfgs"][f"grad_{i:d}"])
+                [
+                    jnp.asarray(grp_restart_data["l_bfgs"][f"grad_{i:d}_{j:d}"])
+                    for j in range(grp_restart_data["l_bfgs"].attrs["len_elems"])
+                ]
                 for i in range(grp_restart_data["l_bfgs"].attrs["len"])
             ]
 
