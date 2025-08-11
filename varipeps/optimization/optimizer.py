@@ -248,21 +248,28 @@ def autosave_function_restartable(
         if convert_to_unitcell_func is not None:
             pass
 
-        grp_old_grad = grp_restart_data.create_group("old_gradient", track_order=True)
-        grp_old_grad.attrs["len"] = len(old_gradient)
-        for i, g in enumerate(old_gradient):
-            grp_old_grad.create_dataset(
-                f"old_grad_{i:d}", data=g, compression="gzip", compression_opts=6
+        if old_gradient is not None:
+            grp_old_grad = grp_restart_data.create_group(
+                "old_gradient", track_order=True
             )
+            grp_old_grad.attrs["len"] = len(old_gradient)
+            for i, g in enumerate(old_gradient):
+                grp_old_grad.create_dataset(
+                    f"old_grad_{i:d}", data=g, compression="gzip", compression_opts=6
+                )
 
-        grp_old_des_dir = grp_restart_data.create_group(
-            "old_descent_dir", track_order=True
-        )
-        grp_old_des_dir.attrs["len"] = len(old_descent_dir)
-        for i, d in enumerate(old_descent_dir):
-            grp_old_des_dir.create_dataset(
-                f"old_descent_dir_{i:d}", data=d, compression="gzip", compression_opts=6
+        if old_descent_dir is not None:
+            grp_old_des_dir = grp_restart_data.create_group(
+                "old_descent_dir", track_order=True
             )
+            grp_old_des_dir.attrs["len"] = len(old_descent_dir)
+            for i, d in enumerate(old_descent_dir):
+                grp_old_des_dir.create_dataset(
+                    f"old_descent_dir_{i:d}",
+                    data=d,
+                    compression="gzip",
+                    compression_opts=6,
+                )
 
         if best_unitcell is not None:
             grp_best_t = grp_restart_data.create_group("best_tensors", track_order=True)
@@ -1281,14 +1288,23 @@ def restart_from_state_file(filename: PathLike):
 
         restart_state = {}
 
-        restart_state["old_gradient"] = [
-            jnp.asarray(grp_restart_data["old_gradient"][f"old_grad_{i:d}"])
-            for i in range(grp_restart_data["old_gradient"].attrs["len"])
-        ]
-        restart_state["old_descent_dir"] = [
-            jnp.asarray(grp_restart_data["old_descent_dir"][f"old_descent_dir_{i:d}"])
-            for i in range(grp_restart_data["old_descent_dir"].attrs["len"])
-        ]
+        if grp_restart_data.get("old_gradient") is not None:
+            restart_state["old_gradient"] = [
+                jnp.asarray(grp_restart_data["old_gradient"][f"old_grad_{i:d}"])
+                for i in range(grp_restart_data["old_gradient"].attrs["len"])
+            ]
+        else:
+            restart_state["old_gradient"] = None
+
+        if grp_restart_data.get("old_descent_dir") is not None:
+            restart_state["old_descent_dir"] = [
+                jnp.asarray(
+                    grp_restart_data["old_descent_dir"][f"old_descent_dir_{i:d}"]
+                )
+                for i in range(grp_restart_data["old_descent_dir"].attrs["len"])
+            ]
+        else:
+            restart_state["old_descent_dir"] = None
 
         restart_state["best_run"] = auxiliary_data["best_run"]
 
