@@ -289,9 +289,11 @@ def autosave_function_restartable(
 
         grp_restart_data.attrs["random_noise_retries"] = random_noise_retries
         grp_restart_data.attrs["count"] = count
-        grp_restart_data.attrs["linesearch_step"] = linesearch_step
         grp_restart_data.attrs["projector_method"] = projector_method
         grp_restart_data.attrs["signal_reset_descent_dir"] = signal_reset_descent_dir
+
+        if linesearch_step is not None:
+            grp_restart_data.attrs["linesearch_step"] = linesearch_step
 
         if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
             bfgs_prefactor, bfgs_B_inv = descent_method_tuple
@@ -1321,11 +1323,12 @@ def restart_from_state_file(filename: PathLike):
         random_noise_retries = int(grp_restart_data.attrs["random_noise_retries"])
         restart_state["random_noise_retries"] = random_noise_retries
         restart_state["count"] = int(grp_restart_data.attrs["count"])
-        restart_state["linesearch_step"] = grp_restart_data.attrs["linesearch_step"]
         restart_state["projector_method"] = grp_restart_data.attrs["projector_method"]
         restart_state["signal_reset_descent_dir"] = grp_restart_data.attrs[
             "signal_reset_descent_dir"
         ]
+
+        restart_state["linesearch_step"] = grp_restart_data.attrs.get("linesearch_step")
 
         restart_state["max_trunc_error_list"] = {
             k: None for k in range(random_noise_retries + 1)
