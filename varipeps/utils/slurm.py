@@ -109,7 +109,11 @@ class SlurmUtils:
         }
 
         p = subprocess.run(
-            ["sbatch", str(path)], capture_output=True, text=True, cwd=cwd, env=prog_env
+            ["sbatch", "--export=NONE", str(path)],
+            capture_output=True,
+            text=True,
+            cwd=cwd,
+            env=prog_env,
         )
 
         if p.returncode != 0:
