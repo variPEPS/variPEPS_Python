@@ -100,10 +100,16 @@ class SlurmUtils:
 
     @staticmethod
     def run_slurm_script(path, cwd=None):
-        cwd = pathlib.Path(cwd).resolve()
+        cwd = pathlib.Path(cwd).absolute()
+
+        prog_env = {
+            k: v
+            for k, v in os.environ.items()
+            if not (k.startswith("SBATCH_") or k.startswith("SLURM_"))
+        }
 
         p = subprocess.run(
-            ["sbatch", str(path)], capture_output=True, text=True, cwd=cwd
+            ["sbatch", str(path)], capture_output=True, text=True, cwd=cwd, env=prog_env
         )
 
         if p.returncode != 0:
