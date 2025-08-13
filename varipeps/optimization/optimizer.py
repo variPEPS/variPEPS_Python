@@ -257,9 +257,15 @@ def autosave_function_restartable(
             )
             grp_old_grad.attrs["len"] = len(old_gradient)
             for i, g in enumerate(old_gradient):
-                grp_old_grad.create_dataset(
-                    f"old_grad_{i:d}", data=g, compression="gzip", compression_opts=6
-                )
+                if g.ndim == 0:
+                    grp_old_grad.create_dataset(f"old_grad_{i:d}", data=g)
+                else:
+                    grp_old_grad.create_dataset(
+                        f"old_grad_{i:d}",
+                        data=g,
+                        compression="gzip",
+                        compression_opts=6,
+                    )
 
         if old_descent_dir is not None:
             grp_old_des_dir = grp_restart_data.create_group(
@@ -267,23 +273,35 @@ def autosave_function_restartable(
             )
             grp_old_des_dir.attrs["len"] = len(old_descent_dir)
             for i, d in enumerate(old_descent_dir):
-                grp_old_des_dir.create_dataset(
-                    f"old_descent_dir_{i:d}",
-                    data=d,
-                    compression="gzip",
-                    compression_opts=6,
-                )
+                if d.ndim == 0:
+                    grp_old_des_dir.create_dataset(
+                        f"old_descent_dir_{i:d}",
+                        data=d,
+                    )
+                else:
+                    grp_old_des_dir.create_dataset(
+                        f"old_descent_dir_{i:d}",
+                        data=d,
+                        compression="gzip",
+                        compression_opts=6,
+                    )
 
         if best_unitcell is not None:
             grp_best_t = grp_restart_data.create_group("best_tensors", track_order=True)
             grp_best_t.attrs["len"] = len(best_tensors)
             for i, t in enumerate(best_tensors):
-                grp_best_t.create_dataset(
-                    f"best_tensor_{i:d}",
-                    data=t,
-                    compression="gzip",
-                    compression_opts=6,
-                )
+                if t.ndim == 0:
+                    grp_best_t.create_dataset(
+                        f"best_tensor_{i:d}",
+                        data=t,
+                    )
+                else:
+                    grp_best_t.create_dataset(
+                        f"best_tensor_{i:d}",
+                        data=t,
+                        compression="gzip",
+                        compression_opts=6,
+                    )
 
             grp_best_u = grp_restart_data.create_group("best_unitcell")
             best_unitcell.save_to_group(grp_best_u, False)
@@ -317,18 +335,30 @@ def autosave_function_restartable(
                 if len(x) != len(g) != grp_l_bfgs.attrs["len_elems"]:
                     raise ValueError("L-BFGS list lengths mismatch.")
                 for j in range(grp_l_bfgs.attrs["len_elems"]):
-                    grp_l_bfgs.create_dataset(
-                        f"x_{i:d}_{j:d}",
-                        data=x[j],
-                        compression="gzip",
-                        compression_opts=6,
-                    )
-                    grp_l_bfgs.create_dataset(
-                        f"grad_{i:d}_{j:d}",
-                        data=g[j],
-                        compression="gzip",
-                        compression_opts=6,
-                    )
+                    if x[j].ndim == 0:
+                        grp_l_bfgs.create_dataset(
+                            f"x_{i:d}_{j:d}",
+                            data=x[j],
+                        )
+                    else:
+                        grp_l_bfgs.create_dataset(
+                            f"x_{i:d}_{j:d}",
+                            data=x[j],
+                            compression="gzip",
+                            compression_opts=6,
+                        )
+                    if g[j].ndim == 0:
+                        grp_l_bfgs.create_dataset(
+                            f"grad_{i:d}_{j:d}",
+                            data=g[j],
+                        )
+                    else:
+                        grp_l_bfgs.create_dataset(
+                            f"grad_{i:d}_{j:d}",
+                            data=g[j],
+                            compression="gzip",
+                            compression_opts=6,
+                        )
 
 
 def _autosave_wrapper(
