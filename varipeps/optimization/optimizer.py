@@ -3,7 +3,9 @@ from collections import deque
 import datetime
 from functools import partial
 import importlib
+import os
 from os import PathLike
+import pathlib
 import time
 
 from scipy.optimize import OptimizeResult
@@ -226,9 +228,10 @@ def autosave_function_restartable(
     projector_method,
     signal_reset_descent_dir,
 ) -> None:
-    with h5py.File(
-        f"{str(filename)}.restartable", "w", libver=("earliest", "v110")
-    ) as f:
+    state_filename = os.environ.get("VARIPEPS_STATE_FILE")
+    if state_filename is None:
+        state_filename = f"{str(filename)}.restartable"
+    with h5py.File(state_filename, "w", libver=("earliest", "v110")) as f:
         grp = f.create_group("unitcell")
         unitcell.save_to_group(grp, True)
 
@@ -1098,19 +1101,46 @@ def optimize_peps_network(
                 runtime_std = np.std(flatten_runtime)
 
                 remaining_slurm_time = slurm_data["TimeLimit"] - slurm_data["RunTime"]
+
+                if (
+                    remaining_time_correction := os.environ.get(
+                        "VARIPEPS_REMAINING_TIME_CORRECTION"
+                    )
+                ) is not None:
+                    try:
+                        remaining_time_correction = int(remaining_time_correction)
+                        remaining_slurm_time -= datetime.timedelta(
+                            seconds=remaining_time_correction
+                        )
+                    except (TypeError, ValueError):
+                        pass
+
                 time_of_one_step = datetime.timedelta(
                     seconds=runtime_mean + 3 * runtime_std
                 )
 
                 if remaining_slurm_time < time_of_one_step:
-                    SlurmUtils.generate_restart_scripts(
-                        f"{str(autosave_filename)}.restart.slurm",
-                        f"{str(autosave_filename)}.restart.py",
-                        f"{str(autosave_filename)}.restartable",
-                        slurm_data,
-                    )
+                    if (
+                        restart_needed_filename := os.environ.get(
+                            "VARIPEPS_NEED_RESTART_FILE"
+                        )
+                    ) is not None:
+                        pathlib.Path(restart_needed_filename).touch()
 
-                    slurm_restart_written = True
+                    if (
+                        varipeps_config.slurm_restart_mode
+                        is Slurm_Restart_Mode.WRITE_RESTART_SCRIPT
+                        or varipeps_config.slurm_restart_mode
+                        is Slurm_Restart_Mode.AUTOMATIC_RESTART
+                    ):
+                        SlurmUtils.generate_restart_scripts(
+                            f"{str(autosave_filename)}.restart.slurm",
+                            f"{str(autosave_filename)}.restart.py",
+                            f"{str(autosave_filename)}.restartable",
+                            slurm_data,
+                        )
+
+                        slurm_restart_written = True
 
                     if (
                         varipeps_config.slurm_restart_mode

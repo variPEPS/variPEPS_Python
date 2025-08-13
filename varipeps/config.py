@@ -44,9 +44,12 @@ class Slurm_Restart_Mode(IntEnum):
     DISABLED = (
         auto()
     )  #: Disable automatic restart of slurm job if maximal runtime limit is reached
+    WRITE_NEED_RESTART_FILE = (
+        auto()
+    )  #: Write file to indicate that restart is needed but no slurm scripts
     WRITE_RESTART_SCRIPT = (
         auto()
-    )  #: Write restart script but do not submit new slurm job
+    )  #: Write slurm restart script but do not submit new slurm job
     AUTOMATIC_RESTART = auto()  #: Write restart script and start new slurm job with it
 
 
