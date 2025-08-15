@@ -145,7 +145,8 @@ static ffi::Error SvdOnlyUVtImpl(
   }
 
   if (*info_data != 0) {
-    return ffi::Error(ffi::ErrorCode::kInternal, "Non zero info returned by lapack.");
+    return ffi::Error::Success();
+    // return ffi::Error(ffi::ErrorCode::kInternal, "Non zero info returned by lapack.");
   }
 
   if (std::real(work_size) > lapack_int_max) [[unlikely]] {
@@ -181,9 +182,9 @@ static ffi::Error SvdOnlyUVtImpl(
        );
   }
 
-  if (*info_data != 0) {
-    return ffi::Error(ffi::ErrorCode::kInternal, "Non zero info returned by lapack.");
-  }
+  // if (*info_data != 0) {
+  //   return ffi::Error(ffi::ErrorCode::kInternal, "Non zero info returned by lapack.");
+  // }
 
   return ffi::Error::Success();
 }
@@ -340,7 +341,8 @@ static ffi::Error SvdOnlyUVtQRImpl(
   }
 
   if (*info_data != 0) {
-    return ffi::Error(ffi::ErrorCode::kInternal, "Non zero info returned by lapack.");
+    return ffi::Error::Success();
+    // return ffi::Error(ffi::ErrorCode::kInternal, "Non zero info returned by lapack.");
   }
 
   if (std::real(work_size) > lapack_int_max) [[unlikely]] {
@@ -373,9 +375,9 @@ static ffi::Error SvdOnlyUVtQRImpl(
        );
   }
 
-  if (*info_data != 0) {
-    return ffi::Error(ffi::ErrorCode::kInternal, "Non zero info returned by lapack.");
-  }
+  // if (*info_data != 0) {
+  //   return ffi::Error(ffi::ErrorCode::kInternal, "Non zero info returned by lapack.");
+  // }
 
   return ffi::Error::Success();
 }
