@@ -244,7 +244,7 @@ class VariPEPS_Config:
     optimizer_convergence_eps: float = 1e-5
     optimizer_ctmrg_preconverged_eps: float = 1e-5
     optimizer_fail_if_no_step_size_found: bool = False
-    optimizer_l_bfgs_maxlen: int = 50
+    optimizer_l_bfgs_maxlen: int = 15
     optimizer_preconverge_with_half_projectors: bool = True
     optimizer_preconverge_with_half_projectors_eps: float = 1e-3
     optimizer_autosave_step_count: int = 2
