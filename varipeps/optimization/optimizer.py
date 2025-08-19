@@ -172,7 +172,7 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple):
         (pho_arr[:, jnp.newaxis] * s_arr, y_arr),
     )
 
-    gamma = jnp.sum(s_arr[0] * y_arr[0]) / jnp.sum(y_arr[0] * y_arr[0])
+    gamma = jnp.sum(s_arr[-1] * y_arr[-1]) / jnp.sum(y_arr[-1] * y_arr[-1])
 
     z_result = gamma * q
 
@@ -185,6 +185,7 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple):
         second_loop,
         z_result,
         (pho_arr[:, jnp.newaxis] * y_arr, s_arr, alpha_arr),
+        reverse=True,
     )
 
     z_result = -z_result
