@@ -202,6 +202,16 @@ class VariPEPS_Config:
         Constant used in Hager-Zhang line search method.
       line_search_hager_zhang_rho (:obj:`float`):
         Constant used in Hager-Zhang line search method.
+      line_search_hager_zhang_eps_use_grad_norm (:obj:`bool`):
+        Use norm of gradient multiplied by
+        :obj:`VariPEPS_Config.line_search_hager_zhang_eps_grad_norm_factor` to
+        calculate eps value in Hager-Zhang line search. If disabled, the fixed
+        value from config parameter
+        :obj:`VariPEPS_Config.line_search_hager_zhang_eps` is used.
+      line_search_hager_zhang_eps_grad_norm_factor (:obj:`float`):
+        Factor used for gradient based eps calculation. See parameter
+        :obj:`VariPEPS_Config.line_search_hager_zhang_eps_use_grad_norm`
+        for details.
       basinhopping_niter (:obj:`int`):
         Value for parameter `niter` of :obj:`scipy.optimize.basinhopping`.
         See this function for details.
@@ -286,6 +296,8 @@ class VariPEPS_Config:
     line_search_hager_zhang_theta: float = 0.5
     line_search_hager_zhang_gamma: float = 0.66
     line_search_hager_zhang_rho: float = 5
+    line_search_hager_zhang_eps_use_grad_norm: bool = True
+    line_search_hager_zhang_eps_grad_norm_factor: float = 1e-2
 
     # Basinhopping
     basinhopping_niter: int = 20

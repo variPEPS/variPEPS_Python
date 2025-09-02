@@ -395,6 +395,12 @@ def line_search(
     hager_zhang_initial_found = _Hager_Zhang_Initial_State.NOT_FOUND
     hager_zhang_descent_grad = wolfe_descent_new_grad
     hager_zhang_state = _Hager_Zhang_State.NONE
+    hager_zhang_eps = (
+        jnp.linalg.norm(ravel_pytree(gradient)[0])
+        * varipeps_config.line_search_hager_zhang_eps_grad_norm_factor
+        if varipeps_config.line_search_hager_zhang_eps_use_grad_norm
+        else varipeps_config.line_search_hager_zhang_eps
+    )
 
     new_value = current_value
 
@@ -608,7 +614,7 @@ def line_search(
 
             if descent_new_grad >= hz_wolfe_2_right:
                 if hz_wolfe_1_left >= hz_wolfe_1_right and new_value <= (
-                    current_value + varipeps_config.line_search_hager_zhang_eps
+                    current_value + hager_zhang_eps
                 ):
                     break
 
@@ -617,7 +623,7 @@ def line_search(
                 ) * hager_zhang_descent_grad
 
                 if hz_approx_wolfe_left >= hager_zhang_descent_grad and new_value <= (
-                    current_value + varipeps_config.line_search_hager_zhang_eps
+                    current_value + hager_zhang_eps
                 ):
                     break
 
@@ -635,9 +641,7 @@ def line_search(
                     hager_zhang_upper_bound_grad = new_gradient
                     hager_zhang_upper_bound_des_grad = descent_new_grad
                     hager_zhang_initial_found = _Hager_Zhang_Initial_State.FOUND
-                elif new_value <= (
-                    current_value + varipeps_config.line_search_hager_zhang_eps
-                ):
+                elif new_value <= (current_value + hager_zhang_eps):
                     hager_zhang_lower_bound = alpha
                     hager_zhang_lower_bound_value = new_value
                     hager_zhang_lower_bound_grad = new_gradient
@@ -700,9 +704,7 @@ def line_search(
                 hager_zhang_upper_bound_grad = new_gradient
                 hager_zhang_upper_bound_des_grad = descent_new_grad
                 hager_zhang_initial_found = _Hager_Zhang_Initial_State.FOUND
-            elif descent_new_grad < 0 and new_value > (
-                current_value + varipeps_config.line_search_hager_zhang_eps
-            ):
+            elif descent_new_grad < 0 and new_value > (current_value + hager_zhang_eps):
                 alpha = varipeps_config.line_search_hager_zhang_theta * alpha
                 hager_zhang_initial_found = (
                     _Hager_Zhang_Initial_State.SCALAR_LOWER_VALUE_GREATER
@@ -725,9 +727,7 @@ def line_search(
                 count += 1
                 continue
             else:
-                if new_value <= (
-                    current_value + varipeps_config.line_search_hager_zhang_eps
-                ):
+                if new_value <= (current_value + hager_zhang_eps):
                     hager_zhang_lower_bound = alpha
                     hager_zhang_lower_bound_value = new_value
                     hager_zhang_lower_bound_grad = new_gradient
@@ -892,9 +892,7 @@ def line_search(
                     hager_zhang_upper_bound_grad = new_gradient
                     hager_zhang_upper_bound_des_grad = descent_new_grad
                     hager_zhang_state = _Hager_Zhang_State.NONE
-                elif new_value <= (
-                    current_value + varipeps_config.line_search_hager_zhang_eps
-                ):
+                elif new_value <= (current_value + hager_zhang_eps):
                     hager_zhang_lower_bound = alpha
                     hager_zhang_lower_bound_value = new_value
                     hager_zhang_lower_bound_grad = new_gradient
@@ -938,9 +936,7 @@ def line_search(
                     hager_zhang_upper_bound_grad = new_gradient
                     hager_zhang_upper_bound_des_grad = descent_new_grad
                     hager_zhang_state = _Hager_Zhang_State.NONE
-                elif new_value <= (
-                    current_value + varipeps_config.line_search_hager_zhang_eps
-                ):
+                elif new_value <= (current_value + hager_zhang_eps):
                     hager_zhang_lower_bound = alpha
                     hager_zhang_lower_bound_value = new_value
                     hager_zhang_lower_bound_grad = new_gradient
