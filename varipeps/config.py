@@ -282,7 +282,7 @@ class VariPEPS_Config:
     spiral_wavevector_type: Wavevector_Type = Wavevector_Type.TWO_PI_POSITIVE_ONLY
 
     # Slurm
-    slurm_restart_mode: Slurm_Restart_Mode = Slurm_Restart_Mode.DISABLED
+    slurm_restart_mode: Slurm_Restart_Mode = Slurm_Restart_Mode.WRITE_NEED_RESTART_FILE
 
     def update(self, name: str, value: Any) -> NoReturn:
         self.__setattr__(name, value)
