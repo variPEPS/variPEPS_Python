@@ -79,6 +79,7 @@ class PEPS_Tensor:
     T4: Tensor
 
     sanity_checks: bool = True
+    tensor_conj: Optional[Tensor] = None
 
     def __post_init__(self) -> None:
         if not self.sanity_checks:
@@ -482,6 +483,7 @@ class PEPS_Tensor:
                 D=self.D,
                 chi=new_chi,
                 max_chi=new_max_chi,
+                tensor_conj=self.tensor_conj,
             )
         else:
             return type(self)(
@@ -498,6 +500,7 @@ class PEPS_Tensor:
                 D=self.D,
                 chi=new_chi,
                 max_chi=new_max_chi,
+                tensor_conj=self.tensor_conj,
             )
 
     def increase_max_chi(
@@ -533,6 +536,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=new_max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_left_env_tensors(
@@ -566,6 +570,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_right_env_tensors(
@@ -599,6 +604,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_top_env_tensors(
@@ -632,6 +638,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_bottom_env_tensors(
@@ -665,6 +672,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_C1(self: T_PEPS_Tensor, new_C1: Tensor) -> T_PEPS_Tensor:
@@ -692,6 +700,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_C2(self: T_PEPS_Tensor, new_C2: Tensor) -> T_PEPS_Tensor:
@@ -719,6 +728,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_C3(self: T_PEPS_Tensor, new_C3: Tensor) -> T_PEPS_Tensor:
@@ -746,6 +756,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_C4(self: T_PEPS_Tensor, new_C4: Tensor) -> T_PEPS_Tensor:
@@ -773,6 +784,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_T1(self: T_PEPS_Tensor, new_T1: Tensor) -> T_PEPS_Tensor:
@@ -800,6 +812,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_T2(self: T_PEPS_Tensor, new_T2: Tensor) -> T_PEPS_Tensor:
@@ -827,6 +840,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_T3(self: T_PEPS_Tensor, new_T3: Tensor) -> T_PEPS_Tensor:
@@ -854,6 +868,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_T4(self: T_PEPS_Tensor, new_T4: Tensor) -> T_PEPS_Tensor:
@@ -881,6 +896,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_C1_C3(
@@ -912,6 +928,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_T1_C2_T2_T3_C4_T4(
@@ -957,6 +974,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def __add__(
@@ -1000,6 +1018,7 @@ class PEPS_Tensor:
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     @classmethod
@@ -1130,6 +1149,7 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             interlayer_chi=interlayer_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def convert_to_full_transfer(self: T_PEPS_Tensor) -> T_PEPS_Tensor:
@@ -1146,6 +1166,7 @@ class PEPS_Tensor:
             self.T2,
             self.T3,
             self.T4,
+            self.tensor_conj,
         )
         aux_data = (self.d, self.D, self.chi, self.max_chi)
 
@@ -1155,7 +1176,7 @@ class PEPS_Tensor:
     def tree_unflatten(
         cls: Type[T_PEPS_Tensor], aux_data: Tuple[Any, ...], children: Tuple[Any, ...]
     ) -> T_PEPS_Tensor:
-        tensor, C1, C2, C3, C4, T1, T2, T3, T4 = children
+        tensor, C1, C2, C3, C4, T1, T2, T3, T4, tensor_conj = children
         d, D, chi, max_chi = aux_data
 
         return cls(
@@ -1173,6 +1194,7 @@ class PEPS_Tensor:
             chi=chi,
             max_chi=max_chi,
             sanity_checks=False,
+            tensor_conj=tensor_conj,
         )
 
 
@@ -2363,6 +2385,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
                 chi=new_chi,
                 max_chi=new_max_chi,
                 interlayer_chi=new_interlayer_chi,
+                tensor_conj=self.tensor_conj,
             )
         else:
             return type(self)(
@@ -2384,6 +2407,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
                 chi=new_chi,
                 max_chi=new_max_chi,
                 interlayer_chi=new_interlayer_chi,
+                tensor_conj=self.tensor_conj,
             )
 
     def increase_max_chi(
@@ -2424,6 +2448,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             chi=self.chi,
             max_chi=new_max_chi,
             interlayer_chi=self.interlayer_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_left_env_tensors(
@@ -2468,6 +2493,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             chi=self.chi,
             max_chi=self.max_chi,
             interlayer_chi=self.interlayer_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_right_env_tensors(
@@ -2512,6 +2538,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             chi=self.chi,
             max_chi=self.max_chi,
             interlayer_chi=self.interlayer_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_top_env_tensors(
@@ -2556,6 +2583,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             chi=self.chi,
             max_chi=self.max_chi,
             interlayer_chi=self.interlayer_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def replace_bottom_env_tensors(
@@ -2600,6 +2628,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             chi=self.chi,
             max_chi=self.max_chi,
             interlayer_chi=self.interlayer_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def __add__(
@@ -2651,6 +2680,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             chi=self.chi,
             max_chi=self.max_chi,
             interlayer_chi=self.interlayer_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     @classmethod
@@ -2817,6 +2847,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             D=self.D,
             chi=self.chi,
             max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
         )
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
@@ -2834,6 +2865,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             self.T3_bra,
             self.T4_ket,
             self.T4_bra,
+            self.tensor_conj,
         )
         aux_data = (self.d, self.D, self.chi, self.max_chi, self.interlayer_chi)
 
@@ -2859,6 +2891,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             T3_bra,
             T4_ket,
             T4_bra,
+            tensor_conj,
         ) = children
         d, D, chi, max_chi, interlayer_chi = aux_data
 
@@ -2882,4 +2915,5 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             max_chi=max_chi,
             interlayer_chi=interlayer_chi,
             sanity_checks=False,
+            tensor_conj=tensor_conj,
         )

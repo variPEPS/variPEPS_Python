@@ -9,6 +9,7 @@ from . import ctmrg
 from . import expectation
 from . import mapping
 from . import optimization
+from . import overlap
 from . import peps
 from . import typing
 from . import utils

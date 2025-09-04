@@ -3277,5 +3277,107 @@ class Definitions:
         ],
     }
 
+    overlap_one_site_only_corners: Definition = {
+        "tensors": [["C1", "C2", "C3", "C4"]],
+        "network": [
+            [
+                (1, 2),  # C1
+                (2, 3),  # C2
+                (4, 3),  # C3
+                (4, 1),  # C4
+            ],
+        ],
+    }
+
+    overlap_one_site_only_transfer_horizontal: Definition = {
+        "tensors": [["C1", "T1", "C2", "C3", "T3", "C4"]],
+        "network": [
+            [
+                (1, 2),  # C1
+                (2, 4, 5, 6),  # T1
+                (6, 7),  # C2
+                (7, 8),  # C3
+                (3, 8, 5, 4),  # T3
+                (3, 1),  # C4
+            ],
+        ],
+    }
+
+    overlap_one_site_only_transfer_vertical: Definition = {
+        "tensors": [["C1", "C2", "T2", "C3", "C4", "T4"]],
+        "network": [
+            [
+                (2, 1),  # C1
+                (1, 3),  # C2
+                (4, 5, 8, 3),  # T2
+                (7, 8),  # C3
+                (7, 6),  # C4
+                (6, 5, 4, 2),  # T4
+            ],
+        ],
+    }
+
+    overlap_four_sites_square_only_corners: Definition = {
+        "tensors": [["C1"], ["C2"], ["C3"], ["C4"]],
+        "network": [
+            [
+                (1, 2),  # C1
+            ],
+            [
+                (2, 3),  # C2
+            ],
+            [
+                (4, 3),  # C3
+            ],
+            [
+                (4, 1),  # C4
+            ],
+        ],
+    }
+
+    overlap_four_sites_square_transfer_horizontal: Definition = {
+        "tensors": [["C1", "T1"], ["T1", "C2"], ["C3", "T3"], ["T3", "C4"]],
+        "network": [
+            [
+                (1, 2),  # C1
+                (2, 4, 5, 11),  # T1
+            ],
+            [
+                (11, 9, 10, 7),  # T1
+                (7, 6),  # C2
+            ],
+            [
+                (8, 6),  # C3
+                (12, 8, 10, 9),  # T3
+            ],
+            [
+                (3, 12, 5, 4),  # T3
+                (3, 1),  # C4
+            ],
+        ],
+    }
+
+    overlap_four_sites_square_transfer_vertical: Definition = {
+        "tensors": [["T4", "C1"], ["C2", "T2"], ["T2", "C3"], ["C4", "T4"]],
+        "network": [
+            [
+                (11, 5, 4, 2),  # T4
+                (2, 1),  # C1
+            ],
+            [
+                (1, 3),  # C2
+                (4, 5, 12, 3),  # T2
+            ],
+            [
+                (9, 10, 7, 12),  # T2
+                (6, 7),  # C3
+            ],
+            [
+                (6, 8),  # C4
+                (8, 10, 9, 11),  # T4
+            ],
+        ],
+    }
+
 
 Definitions._prepare_defs()
