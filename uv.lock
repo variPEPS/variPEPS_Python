@@ -766,7 +766,7 @@ wheels = [
 
 [[package]]
 name = "varipeps"
-version = "1.2.3"
+version = "1.2.4"
 source = { editable = "." }
 dependencies = [
     { name = "h5py" },
@@ -790,7 +790,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "h5py", specifier = ">=3.6.0" },
-    { name = "jax", extras = ["cpu"], specifier = ">=0.5.3" },
+    { name = "jax", extras = ["cpu"], specifier = ">=0.7.2" },
     { name = "numpy", specifier = ">=1.21.2" },
     { name = "scipy", specifier = ">=1.7.1" },
     { name = "tensornetwork", specifier = ">=0.4.5" },
