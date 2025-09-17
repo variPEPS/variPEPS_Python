@@ -70,6 +70,3 @@ experimental = true
 enable = ["cpython-freethreading"]
 # Disable building PyPy, musllinux and thread-freethreading on Mac and Windows wheels
 skip = ["pp*", "*musllinux*", "*t-win*"]
-
-manylinux-x86_64-image = "manylinux_2_28"
-manylinux-aarch64-image = "manylinux_2_28"
