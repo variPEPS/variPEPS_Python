@@ -8,7 +8,7 @@ message(STATUS "CMAKE_BUILD_TYPE set to '${CMAKE_BUILD_TYPE}'")
 project(varipeps_extensions LANGUAGES CXX)
 
 # Try to import all Python components potentially needed by nanobind
-find_package(Python 3.10
+find_package(Python 3.11
   REQUIRED COMPONENTS Interpreter Development.Module
   OPTIONAL_COMPONENTS Development.SABIModule)
 
