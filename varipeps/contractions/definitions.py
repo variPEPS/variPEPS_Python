@@ -4476,6 +4476,19 @@ class Definitions:
         ],
     }
 
+    triangular_ctmrg_next_nearest_neg_x_pos_y_expectation_top_left_open: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T6a", "C1", "T1b"]],
+        "network": [
+            [
+                (4, 5, -7, -4, -2, 3, -9),  # tensor
+                (7, 8, -8, -5, -3, 6, -10),  # tensor_conj
+                (-1, 3, 6, 1),  # T6a
+                (1, 4, 7, 2),  # C1
+                (2, 5, 8, -6),  # T1b
+            ],
+        ],
+    }
+
     triangular_ctmrg_next_nearest_neg_x_pos_y_expectation_top_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T1a", "C2", "C3", "T3b"]],
         "network": [
@@ -4517,6 +4530,21 @@ class Definitions:
         ],
     }
 
+    triangular_ctmrg_next_nearest_neg_x_pos_y_expectation_bottom_right_open: (
+        Definition
+    ) = {
+        "tensors": [["tensor", "tensor_conj", "T3a", "C4", "T4b"]],
+        "network": [
+            [
+                (-4, -7, 3, 4, 5, -2, -9),  # tensor
+                (-5, -8, 6, 7, 8, -3, -10),  # tensor_conj
+                (-6, 3, 6, 1),  # T3a
+                (1, 4, 7, 2),  # C4
+                (2, 5, 8, -1),  # T4b
+            ],
+        ],
+    }
+
     triangular_ctmrg_next_nearest_pos_x_2_pos_y_expectation_top_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "T5a", "C6", "C1", "T1b"]],
         "network": [
@@ -4544,12 +4572,42 @@ class Definitions:
         ],
     }
 
+    triangular_ctmrg_next_nearest_pos_x_2_pos_y_expectation_top_right_open: (
+        Definition
+    ) = {
+        "tensors": [["tensor", "tensor_conj", "T1a", "C2", "T2b"]],
+        "network": [
+            [
+                (3, 4, 5, -7, -4, -2, -9),  # tensor
+                (6, 7, 8, -8, -5, -3, -10),  # tensor_conj
+                (-1, 3, 6, 1),  # T1a
+                (1, 4, 7, 2),  # C2
+                (2, 5, 8, -6),  # T2b
+            ],
+        ],
+    }
+
     triangular_ctmrg_next_nearest_pos_x_2_pos_y_expectation_bottom_left: Definition = {
         "tensors": [["tensor", "tensor_conj", "T4a", "C5", "T5b"]],
         "network": [
             [
                 (-2, -4, -7, 3, 4, 5, 9),  # tensor
                 (-3, -5, -8, 6, 7, 8, 9),  # tensor_conj
+                (-6, 3, 6, 1),  # T4a
+                (1, 4, 7, 2),  # C5
+                (2, 5, 8, -1),  # T5b
+            ],
+        ],
+    }
+
+    triangular_ctmrg_next_nearest_pos_x_2_pos_y_expectation_bottom_left_open: (
+        Definition
+    ) = {
+        "tensors": [["tensor", "tensor_conj", "T4a", "C5", "T5b"]],
+        "network": [
+            [
+                (-2, -4, -7, 3, 4, 5, -9),  # tensor
+                (-3, -5, -8, 6, 7, 8, -10),  # tensor_conj
                 (-6, 3, 6, 1),  # T4a
                 (1, 4, 7, 2),  # C5
                 (2, 5, 8, -1),  # T5b
@@ -4598,12 +4656,42 @@ class Definitions:
         ],
     }
 
+    triangular_ctmrg_next_nearest_2_pos_x_pos_y_expectation_middle_left_open: (
+        Definition
+    ) = {
+        "tensors": [["tensor", "tensor_conj", "T5a", "C6", "T6b"]],
+        "network": [
+            [
+                (5, -2, -4, -7, 3, 4, -9),  # tensor
+                (8, -3, -5, -8, 6, 7, -10),  # tensor_conj
+                (-6, 3, 6, 1),  # T5a
+                (1, 4, 7, 2),  # C6
+                (2, 5, 8, -1),  # T6b
+            ],
+        ],
+    }
+
     triangular_ctmrg_next_nearest_2_pos_x_pos_y_expectation_middle_right: Definition = {
         "tensors": [["tensor", "tensor_conj", "T2a", "C3", "T3b"]],
         "network": [
             [
                 (-2, 3, 4, 5, -7, -4, 9),  # tensor
                 (-3, 6, 7, 8, -8, -5, 9),  # tensor_conj
+                (-1, 3, 6, 1),  # T2a
+                (1, 4, 7, 2),  # C3
+                (2, 5, 8, -6),  # T3b
+            ],
+        ],
+    }
+
+    triangular_ctmrg_next_nearest_2_pos_x_pos_y_expectation_middle_right_open: (
+        Definition
+    ) = {
+        "tensors": [["tensor", "tensor_conj", "T2a", "C3", "T3b"]],
+        "network": [
+            [
+                (-2, 3, 4, 5, -7, -4, -9),  # tensor
+                (-3, 6, 7, 8, -8, -5, -10),  # tensor_conj
                 (-1, 3, 6, 1),  # T2a
                 (1, 4, 7, 2),  # C3
                 (2, 5, 8, -6),  # T3b
@@ -4712,6 +4800,50 @@ class Definitions:
                 (10, 13, 15, 11),  # T4b
             ],
             [2, 5, 8, 11],  # vec
+        ],
+    }
+
+    # nearest-neighbour expectation value for a single triangle configuration
+
+    triangular_ctmrg_corner_90_expectation: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T6a", "C1", "C2", "T2b"]],
+        "network": [
+            [
+                (3, 4, 10, -7, -4, 5, -1),  # tensor
+                (6, 7, 11, -8, -5, 8, -2),  # tensor_conj
+                (-3, 5, 8, 1),  # T6a
+                (1, 3, 6, 2),  # C1
+                (2, 4, 7, 9),  # C2
+                (9, 10, 11, -6),  # T2b
+            ],
+        ],
+    }
+
+    triangular_ctmrg_corner_210_expectation: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T4a", "C5", "C6", "T6b"]],
+        "network": [
+            [
+                (10, -7, -4, 4, 5, 3, -1),  # tensor
+                (11, -8, -5, 7, 8, 6, -2),  # tensor_conj
+                (-3, 4, 7, 1),  # T4a
+                (1, 5, 8, 2),  # C5
+                (2, 3, 6, 9),  # C6
+                (9, 10, 11, -6),  # T6b
+            ],
+        ],
+    }
+
+    triangular_ctmrg_corner_330_expectation: Definition = {
+        "tensors": [["tensor", "tensor_conj", "T2a", "C3", "C4", "T4b"]],
+        "network": [
+            [
+                (-4, 3, 4, 5, 10, -7, -1),  # tensor
+                (-5, 6, 7, 8, 11, -8, -2),  # tensor_conj
+                (-3, 3, 6, 1),  # T2a
+                (1, 4, 7, 2),  # C3
+                (2, 5, 8, 9),  # C4
+                (9, 10, 11, -6),  # T4b
+            ],
         ],
     }
 
