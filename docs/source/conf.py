@@ -22,8 +22,8 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Project information -----------------------------------------------------
 
 project = "varipeps"
-copyright = "2021-2024, Jan Naumann, Philipp Schmoll, Frederik Wilde, Finn Krein"
-author = "Jan Naumann, Philipp Schmoll, Frederik Wilde, Finn Krein"
+copyright = "2021-2025, Jan Naumann, Philipp Schmoll, Roberto Losada, Frederik Wilde, Finn Krein"
+author = "Jan Naumann, Philipp Schmoll, Roberto Losada, Frederik Wilde, Finn Krein"
 
 # The full version, including alpha/beta/rc tags
 release = importlib.metadata.version("varipeps")

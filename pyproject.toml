@@ -5,6 +5,7 @@ description = "Versatile tensor network library for variational ground state sim
 authors = [
     {name = "Jan Naumann", email = "j.naumann@fu-berlin.de"},
     {name = "Philipp Schmoll", email = "philipp.schmoll@fu-berlin.de"},
+    {name = "Roberto Losada", email = "roberto.losada@fu-berlin.de"},
     {name = "Frederik Wilde"},
     {name = "Finn Krein"}
 ]

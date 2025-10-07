@@ -18,6 +18,11 @@ authors:
     affiliation: Freie Universität Berlin
     orcid: 'https://orcid.org/0000-0001-5534-6103'
     email: philipp.schmoll@fu-berlin.de
+  - given-names: Losada
+    family-names: Roberto
+    affiliation: Freie Universität Berlin
+    orcid: 'https://orcid.org/0009-0003-7734-1209'
+    email:  roberto.losada@fu-berlin.de
   - given-names: Wilde
     orcid: 'https://orcid.org/0000-0002-6224-1964'
     family-names: Frederik
@@ -29,8 +34,11 @@ identifiers:
     value: 10.21468/SciPostPhysLectNotes.86
     description: Journal article with the description of the method
   - type: doi
-    value: 10.48550/arXiv.2502.10298
-    description: Prepribt with the description of the split-CTMRG method
+    value: 10.1103/PhysRevB.111.235116
+    description: Journal article with description of the split-CTMRG method
+  - type: doi
+    value: 10.48550/arXiv.2510.04907
+    description: Preprint with description of the triangular CTMRG method
   - type: doi
     value: 10.5281/zenodo.10852390
     description: Zenodo DOI for current version of the code

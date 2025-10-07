@@ -14,7 +14,9 @@ end of this readme.
 
 ## Installation
 ### Installation using pip
-The current version of the variPEPS Python package is available on [PyPI](https://pypi.org/project/variPEPS/). It can be easily installed by using the Python package manager pip:
+The current version of the variPEPS Python package is available on
+[PyPI](https://pypi.org/project/variPEPS/).
+It can be easily installed by using the Python package manager pip:
 ```bash
 $ python3 -m pip install variPEPS
 ```
@@ -42,7 +44,7 @@ with the method description and the Zenodo reference for this Git repository):
 * J. Naumann, J. Eisert, P. Schmoll, Variational optimization of projected
   entangled-pair states on the triangular lattice,
   [arXiv:2510.04907](https://arxiv.org/abs/2510.04907)
-* J. Naumann, P. Schmoll, F. Wilde, and F. Krein, [variPEPS (Python
+* J. Naumann, P. Schmoll, R. Losada, F. Wilde, and F. Krein, [variPEPS (Python
   version)](https://zenodo.org/doi/10.5281/zenodo.10852390), Zenodo.
 
 The BibTeX code for these references are:
@@ -84,7 +86,7 @@ The BibTeX code for these references are:
 }
 
 @software{naumann_varipeps_python,
-    author =        {Jan Naumann and Philipp Schmoll and Frederik Wilde and Finn Krein},
+    author =        {Jan Naumann and Philipp Schmoll and Roberto Losada and Frederik Wilde and Finn Krein},
     title =         {{variPEPS (Python version)}},
     howpublished =  {Zenodo},
     url =           {https://doi.org/10.5281/ZENODO.10852390},

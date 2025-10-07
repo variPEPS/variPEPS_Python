@@ -11,6 +11,11 @@
             "name": "Schmoll, Philipp"
         },
         {
+            "orcid": "0009-0003-7734-1209",
+            "affiliation": "Freie Universität Berlin",
+            "name": "Losada, Roberto"
+        },
+        {
             "orcid": "0000-0002-6224-1964",
             "affiliation": "Freie Universität Berlin",
             "name": "Wilde, Frederik"
@@ -55,7 +60,12 @@
             "resource_type": "publication-article"
         },
         {
-            "identifier": "arXiv:2502.10298",
+            "identifier": "https://doi.org/10.1103/PhysRevB.111.235116",
+            "relation": "isDocumentedBy",
+            "resource_type": "publication-article"
+        },
+        {
+            "identifier": "arXiv:2510.04907",
             "relation": "isDocumentedBy",
             "resource_type": "publication-preprint"
         },
