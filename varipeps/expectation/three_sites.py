@@ -399,7 +399,7 @@ def calc_three_sites_triangle_without_bottom_right_multiple_gates(
     The order of the PEPS sequence have to be
     [top-left, top-right, bottom-left, bottom-left].
 
-    The gate is applied in the order [top-left, top-right, bottom-right].
+    The gate is applied in the order [top-left, top-right, bottom-left].
 
     Args:
       peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
@@ -430,7 +430,7 @@ def calc_three_sites_triangle_without_bottom_right_multiple_gates(
     )
 
     density_matrix_bottom_left = apply_contraction(
-        "density_matrix_four_sites_left",
+        "density_matrix_four_sites_bottom_left",
         [peps_tensors[2]],
         [peps_tensor_objs[2]],
         [],
