@@ -463,6 +463,9 @@ def optimize_peps_network(
 
     As convergence criterion the norm of the gradient is used.
 
+    If the first CTMRG calculation does not converge. OptimizeResult is returned with Success=False. 
+    This should be handled by the script calling this function.
+
     Args:
       input_tensors (:obj:`~varipeps.peps.PEPS_Unit_Cell` or :term:`sequence` of :obj:`jax.numpy.ndarray`):
         The PEPS unitcell to work on or the tensors which should be mapped by
