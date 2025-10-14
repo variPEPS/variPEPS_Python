@@ -336,17 +336,28 @@ def gauge_fixed_svd(
       :obj:`tuple`\\ (:obj:`jnp.ndarray`, :obj:`jnp.ndarray`, :obj:`jnp.ndarray`):
         Tuple with sign-fixed U, S and Vh of the SVD.
     """
-    if only_u_or_vh is None:
+    if any(d.platform == "gpu" for d in jax.devices()):
         U, S, Vh = svd_wrapper(matrix, use_qr=use_qr)
-        gauge_unitary = U
-    elif only_u_or_vh == "U":
-        U, S = svd_only_u(matrix, use_qr=use_qr)
-        gauge_unitary = U
-    elif only_u_or_vh == "Vh":
-        S, Vh = svd_only_vt(matrix, use_qr=use_qr)
-        gauge_unitary = Vh.T.conj()
+        if only_u_or_vh is None:
+            gauge_unitary = U
+        elif only_u_or_vh == "U":
+            gauge_unitary = U
+        elif only_u_or_vh == "Vh":
+            gauge_unitary = Vh.T.conj()
+        else:
+            raise ValueError("Invalid value for parameter 'only_u_or_vh'.")
     else:
-        raise ValueError("Invalid value for parameter 'only_u_or_vh'.")
+        if only_u_or_vh is None:
+            U, S, Vh = svd_wrapper(matrix, use_qr=use_qr)
+            gauge_unitary = U
+        elif only_u_or_vh == "U":
+            U, S = svd_only_u(matrix, use_qr=use_qr)
+            gauge_unitary = U
+        elif only_u_or_vh == "Vh":
+            S, Vh = svd_only_vt(matrix, use_qr=use_qr)
+            gauge_unitary = Vh.T.conj()
+        else:
+            raise ValueError("Invalid value for parameter 'only_u_or_vh'.")
 
     # Fix the gauge of the SVD
     abs_gauge_unitary = jnp.abs(gauge_unitary)
