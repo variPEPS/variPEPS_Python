@@ -5,6 +5,10 @@ import jax.numpy as jnp
 from jax import jit, custom_vjp, vjp, tree_util
 from jax.lax import cond, while_loop
 import jax.debug as jdebug
+import logging
+import time
+
+logger = logging.getLogger("varipeps.ctmrg")
 
 from varipeps import varipeps_config, varipeps_global_state
 from varipeps.peps import PEPS_Tensor, PEPS_Tensor_Split_Transfer, PEPS_Unit_Cell
@@ -515,9 +519,8 @@ def _ctmrg_body_func(carry):
         eps,
         config,
     )
-
-    if config.ctmrg_print_steps:
-        debug_print("CTMRG: {}: {}", count, measure)
+    if logger.isEnabledFor(logging.DEBUG):
+        jax.debug.callback(lambda cnt, msr: logger.debug(f"CTMRG: Step {cnt}: {msr}"), count, measure, ordered=True)
         if config.ctmrg_verbose_output:
             jax.debug.callback(print_verbose, verbose_data, ordered=True)
 
@@ -620,7 +623,7 @@ def calc_ctmrg_env(
     best_norm_smallest_S = None
     best_truncation_eps = None
     have_been_increased = False
-
+    t0 = time.perf_counter()
     while True:
         tmp_count = 0
         corner_singular_vals = None
@@ -720,6 +723,11 @@ def calc_ctmrg_env(
         else:
             converged = False
             end_count = tmp_count
+        if logger.isEnabledFor(logging.INFO):
+            if logger.isEnabledFor(logging.WARNING) and not converged:
+                logger.warning("CTMRG: ❌ did not converge, took %.2f seconds. (Steps: %d, Smallest SVD Norm: %.3e)", time.perf_counter() - t0, end_count, norm_smallest_S)
+            else:
+                logger.info("CTMRG: ✅ converged, took %.2f seconds. (Steps: %d, Smallest SVD Norm: %.3e)", time.perf_counter() - t0, end_count, norm_smallest_S)
 
         if converged and (
             working_unitcell[0, 0][0][0].chi > best_chi or best_result is None
@@ -751,9 +759,9 @@ def calc_ctmrg_env(
                 working_unitcell = working_unitcell.change_chi(new_chi)
                 initial_unitcell = initial_unitcell.change_chi(new_chi)
 
-                if varipeps_config.ctmrg_print_steps:
-                    debug_print(
-                        "CTMRG: Increasing chi to {} since smallest SVD Norm was {}.",
+                if logger.isEnabledFor(logging.INFO):
+                    logger.info(
+                        "Increasing chi to {} since smallest SVD Norm was {}.",
                         new_chi,
                         norm_smallest_S,
                     )
@@ -785,9 +793,9 @@ def calc_ctmrg_env(
             if not new_chi in already_tried_chi:
                 working_unitcell = working_unitcell.change_chi(new_chi)
 
-                if varipeps_config.ctmrg_print_steps:
-                    debug_print(
-                        "CTMRG: Decreasing chi to {} since smallest SVD Norm was {} or routine did not converge.",
+                if logger.isEnabledFor(logging.INFO):
+                    logger.info(
+                        "Decreasing chi to {} since smallest SVD Norm was {} or routine did not converge.",
                         new_chi,
                         norm_smallest_S,
                     )
@@ -809,9 +817,9 @@ def calc_ctmrg_env(
                 new_truncation_eps
                 <= varipeps_config.ctmrg_increase_truncation_eps_max_value
             ):
-                if varipeps_config.ctmrg_print_steps:
-                    debug_print(
-                        "CTMRG: Increasing SVD truncation eps to {}.",
+                if logger.isEnabledFor(logging.INFO):
+                    logger.info(
+                        "Increasing SVD truncation eps to {}.",
                         new_truncation_eps,
                     )
                 varipeps_global_state.ctmrg_effective_truncation_eps = (
@@ -937,8 +945,8 @@ def _ctmrg_rev_while_body(carry):
 
     count += 1
 
-    if config.ad_custom_print_steps:
-        debug_print("Custom VJP: {}: {}", count, measure)
+    if logger.isEnabledFor(logging.DEBUG):
+        jax.debug.callback(lambda cnt, msr: logger.debug(f"Custom VJP: Step {cnt}, Measure {msr}"), count, measure, ordered=True)
         if config.ad_custom_verbose_output:
             jax.debug.callback(print_verbose, verbose_data, ordered=True, ad=True)
 
@@ -1014,12 +1022,14 @@ def calc_ctmrg_env_rev(
 
     varipeps_global_state.ctmrg_effective_truncation_eps = last_truncation_eps
 
+    if logger.isEnabledFor(logging.INFO):
+        t0 = time.perf_counter()
     t_bar, converged, end_count = _ctmrg_rev_workhorse(
         peps_tensors, new_unitcell, unitcell_bar, varipeps_config, varipeps_global_state
     )
 
     varipeps_global_state.ctmrg_effective_truncation_eps = None
-
+    debug_print("Custom VJP: Converged: {}, Steps: {}", converged, end_count)
     if end_count == varipeps_config.ad_custom_max_steps and not converged:
         raise CTMRGGradientNotConvergedError
 
