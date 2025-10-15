@@ -20,11 +20,4 @@ from jax import config as jax_config
 
 jax_config.update("jax_enable_x64", True)
 
-from tqdm_loggable.tqdm_logging import tqdm_logging
-import datetime
-
-tqdm_logging.set_log_rate(datetime.timedelta(seconds=60))
-
-del datetime
-del tqdm_logging
 del jax_config

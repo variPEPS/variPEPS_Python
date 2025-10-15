@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from enum import Enum, IntEnum, auto, unique
+from typing import TypeVar, Tuple, Any, Type, NoReturn
+import logging
 
 import numpy as np
 
 from jax.tree_util import register_pytree_node_class
 
-from typing import TypeVar, Tuple, Any, Type, NoReturn
 
 T_VariPEPS_Config = TypeVar("T_VariPEPS_Config", bound="VariPEPS_Config")
 
@@ -52,6 +53,15 @@ class Slurm_Restart_Mode(IntEnum):
         auto()
     )  #: Write slurm restart script but do not submit new slurm job
     AUTOMATIC_RESTART = auto()  #: Write restart script and start new slurm job with it
+
+
+@unique
+class LogLevel(IntEnum):
+    OFF = 0
+    ERROR = logging.ERROR
+    WARNING = logging.WARNING
+    INFO = logging.INFO
+    DEBUG = logging.DEBUG
 
 
 @dataclass
@@ -322,6 +332,16 @@ class VariPEPS_Config:
     # Slurm
     slurm_restart_mode: Slurm_Restart_Mode = Slurm_Restart_Mode.WRITE_NEED_RESTART_FILE
 
+    # Logging configuration
+    log_level_global: LogLevel = LogLevel.INFO
+    log_level_optimizer: LogLevel = LogLevel.INFO
+    log_level_ctmrg: LogLevel = LogLevel.INFO
+    log_level_line_search: LogLevel = LogLevel.INFO
+    log_to_console: bool = True
+    log_to_file: bool = False
+    log_file: str = "varipeps.log"
+    log_step_summary_every_n: int = 1
+
     def update(self, name: str, value: Any) -> NoReturn:
         self.__setattr__(name, value)
 
@@ -407,6 +427,7 @@ class ConfigModuleWrapper:
         "Projector_Method",
         "Wavevector_Type",
         "Slurm_Restart_Mode",
+        "LogLevel",
         "VariPEPS_Config",
         "config",
     }

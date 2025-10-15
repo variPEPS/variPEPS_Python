@@ -1,22 +1,23 @@
 import functools
+import logging
 
-from tqdm_loggable.auto import tqdm
 
 import jax.debug as jdebug
 from jax._src.debugging import formatter
 
-# Adapting function from jax.debug to work with tqdm
+logger = logging.getLogger("varipeps.ctmrg")
 
 
 def _format_print_callback(fmt: str, *args, **kwargs):
-    tqdm.write(fmt.format(*args, **kwargs))
+    # Send to logger (respects per-module levels/handlers)
+    logger.debug(fmt.format(*args, **kwargs))
 
 
 def debug_print(fmt: str, *args, ordered: bool = True, **kwargs) -> None:
     """
     Prints values and works in staged out JAX functions.
 
-    Function adapted from :obj:`jax.debug.print` to work with tqdm. See there
+    Function adapted from :obj:`jax.debug.print` to work with logger. See there
     for original authors and function.
 
     Args:
