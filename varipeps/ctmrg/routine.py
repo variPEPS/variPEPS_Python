@@ -985,16 +985,47 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
             )[1]
         )
 
-    def cond_func(carry):
-        _, _, _, converged, count, config, state = carry
+    old_method = False
 
-        return jnp.logical_not(converged) & (count < config.ad_custom_max_steps)
+    if old_method:
+        def cond_func(carry):
+            _, _, _, converged, count, config, state = carry
 
-    _, _, env_fixed_point, converged, end_count, _, _ = while_loop(
-        cond_func,
-        _ctmrg_rev_while_body,
-        (vjp_env, new_unitcell_bar, new_unitcell_bar, False, 0, config, state),
-    )
+            return jnp.logical_not(converged) & (count < config.ad_custom_max_steps)
+
+        _, _, env_fixed_point, converged, end_count, _, _ = while_loop(
+            cond_func,
+            _ctmrg_rev_while_body,
+            (vjp_env, new_unitcell_bar, new_unitcell_bar, False, 0, config, state),
+        )
+    else:
+        def f(w):
+            new_w = vjp_env((w, jnp.array(0, dtype=jnp.float64)))[0]
+
+            new_w = new_w.replace_unique_tensors(
+                [
+                    t_old.__sub__(t_new, checks=False)
+                    for t_old, t_new in zip(
+                        w.get_unique_tensors(),
+                        new_w.get_unique_tensors(),
+                        strict=True,
+                    )
+                ]
+            )
+
+            return new_w
+
+        is_gpu = jax.default_backend() == "gpu"
+
+        env_fixed_point, end_count = jax.scipy.sparse.linalg.gmres(
+            f,
+            new_unitcell_bar,
+            new_unitcell_bar,
+            solve_method="batched" if is_gpu else "incremental",
+            atol=config.ad_custom_convergence_eps,
+        )
+
+        converged = True
 
     (t_bar,) = vjp_peps_tensors((env_fixed_point, jnp.array(0, dtype=jnp.float64)))
 

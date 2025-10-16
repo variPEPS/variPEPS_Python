@@ -1021,6 +1021,50 @@ class PEPS_Tensor:
             tensor_conj=self.tensor_conj,
         )
 
+    def __sub__(
+        self: T_PEPS_Tensor, other: T_PEPS_Tensor, *, checks: bool = True
+    ) -> T_PEPS_Tensor:
+        """
+        Subtract the environment tensors of two PEPS tensors.
+
+        Args:
+          other (:obj:`~varipeps.peps.PEPS_Tensor`):
+            Other PEPS tensor object which should be subtracted to this one.
+        Keyword args:
+          checks (:obj:`bool`):
+            Enable checks that the addition of the two tensor objects makes
+            sense. Maybe disabled for jax transformations.
+        Returns:
+          :obj:`~varipeps.peps.PEPS_Tensor`:
+            New instance with the subtracted env tensors.
+        """
+        if checks and (
+            self.tensor is not other.tensor
+            or self.d != other.d
+            or self.D != other.D
+            or self.chi != other.chi
+        ):
+            raise ValueError(
+                "Both PEPS tensors must have the same tensor, d, D and chi values."
+            )
+
+        return PEPS_Tensor(
+            tensor=self.tensor,
+            C1=self.C1 - other.C1,
+            C2=self.C2 - other.C2,
+            C3=self.C3 - other.C3,
+            C4=self.C4 - other.C4,
+            T1=self.T1 - other.T1,
+            T2=self.T2 - other.T2,
+            T3=self.T3 - other.T3,
+            T4=self.T4 - other.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
+        )
+
     @classmethod
     def zeros_like(cls: Type[T_PEPS_Tensor], t: T_PEPS_Tensor) -> T_PEPS_Tensor:
         """
@@ -2683,6 +2727,58 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             tensor_conj=self.tensor_conj,
         )
 
+    def __sub__(
+        self: T_PEPS_Tensor_Split_Transfer,
+        other: T_PEPS_Tensor_Split_Transfer,
+        *,
+        checks: bool = True,
+    ) -> T_PEPS_Tensor_Split_Transfer:
+        """
+        Subtract the environment tensors of two PEPS tensors.
+
+        Args:
+          other (:obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`):
+            Other PEPS tensor object which should be subtracted to this one.
+        Keyword args:
+          checks (:obj:`bool`):
+            Enable checks that the addition of the two tensor objects makes
+            sense. Maybe disabled for jax transformations.
+        Returns:
+          :obj:`~peps_ad.peps.PEPS_Tensor_Split_Transfer`:
+            New instance with the subtracted env tensors.
+        """
+        if checks and (
+            self.tensor is not other.tensor
+            or self.d != other.d
+            or self.D != other.D
+            or self.chi != other.chi
+        ):
+            raise ValueError(
+                "Both PEPS tensors must have the same tensor, d, D and chi values."
+            )
+
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1 - other.C1,
+            C2=self.C2 - other.C2,
+            C3=self.C3 - other.C3,
+            C4=self.C4 - other.C4,
+            T1_ket=self.T1_ket - other.T1_ket,
+            T1_bra=self.T1_bra - other.T1_bra,
+            T2_ket=self.T2_ket - other.T2_ket,
+            T2_bra=self.T2_bra - other.T2_bra,
+            T3_ket=self.T3_ket - other.T3_ket,
+            T3_bra=self.T3_bra - other.T3_bra,
+            T4_ket=self.T4_ket - other.T4_ket,
+            T4_bra=self.T4_bra - other.T4_bra,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+            interlayer_chi=self.interlayer_chi,
+            tensor_conj=self.tensor_conj,
+        )
+
     @classmethod
     def zeros_like(
         cls: Type[T_PEPS_Tensor_Split_Transfer], t: T_PEPS_Tensor_Split_Transfer
@@ -3665,6 +3761,57 @@ class PEPS_Tensor_Triangular:
             T5b=self.T5b + other.T5b,
             T6a=self.T6a + other.T6a,
             T6b=self.T6b + other.T6b,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+        )
+
+    def __sub__(self, other, *, checks: bool = True):
+        """
+        Subtract the environment tensors of two PEPS tensors.
+
+        Args:
+          other (:obj:`~varipeps.peps.PEPS_Tensor_Triangular`):
+            Other PEPS tensor object which should be subtracted to this one.
+        Keyword args:
+          checks (:obj:`bool`):
+            Enable checks that the addition of the two tensor objects makes
+            sense. Maybe disabled for jax transformations.
+        Returns:
+          :obj:`~varipeps.peps.PEPS_Tensor_Triangular`:
+            New instance with the subtracted env tensors.
+        """
+        if checks and (
+            self.tensor is not other.tensor
+            or self.d != other.d
+            or self.D != other.D
+            or self.chi != other.chi
+        ):
+            raise ValueError(
+                "Both PEPS tensors must have the same tensor, d, D and chi values."
+            )
+
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1 - other.C1,
+            C2=self.C2 - other.C2,
+            C3=self.C3 - other.C3,
+            C4=self.C4 - other.C4,
+            C5=self.C5 - other.C5,
+            C6=self.C6 - other.C6,
+            T1a=self.T1a - other.T1a,
+            T1b=self.T1b - other.T1b,
+            T2a=self.T2a - other.T2a,
+            T2b=self.T2b - other.T2b,
+            T3a=self.T3a - other.T3a,
+            T3b=self.T3b - other.T3b,
+            T4a=self.T4a - other.T4a,
+            T4b=self.T4b - other.T4b,
+            T5a=self.T5a - other.T5a,
+            T5b=self.T5b - other.T5b,
+            T6a=self.T6a - other.T6a,
+            T6b=self.T6b - other.T6b,
             d=self.d,
             D=self.D,
             chi=self.chi,
