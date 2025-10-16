@@ -96,36 +96,7 @@ def _get_ctmrg_1x2_structure(
 
 def _post_process_CTM_tensors(a: jnp.ndarray, config: VariPEPS_Config) -> jnp.ndarray:
     a = a / jnp.linalg.norm(a)
-    a_abs = jnp.abs(a)
-    a_abs_max = jnp.max(a_abs)
-
-    def scan_max_element(carry, x):
-        x_a, x_a_abs = x
-        found, phase = carry
-
-        def new_phase(ph, curr_x, curr_x_abs):
-            return cond(
-                curr_x_abs >= (config.svd_sign_fix_eps * a_abs_max),
-                lambda p, c_x, c_x_a: c_x / c_x_a,
-                lambda p, c_x, c_x_a: p,
-                ph,
-                curr_x,
-                curr_x_abs,
-            )
-
-        phase = cond(
-            found, lambda ph, curr_x, curr_x_abs: ph, new_phase, phase, x_a, x_a_abs
-        )
-
-        return (jnp.logical_not(jnp.isnan(phase)), phase), None
-
-    (_, phase), _ = scan(
-        scan_max_element,
-        (jnp.array(False), jnp.array(jnp.nan, dtype=a.dtype)),
-        (a.flatten(), a_abs.flatten()),
-    )
-
-    return a * phase.conj()
+    return a
 
 
 def do_left_absorption(
