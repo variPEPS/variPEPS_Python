@@ -1147,14 +1147,15 @@ def optimize_peps_network(
 
             count += 1
 
+            step_str = f"{float(linesearch_step):0.8f}" if linesearch_step is not None else "None"
             logger.info(
-                "📉 Step %d | Energy: %0.10f | Retries: %d | Conv: %0.8f | Line search step: %s | Max. trunc. err.: %0.8g",
-                count,
-                working_value,
-                random_noise_retries,
-                conv,
-                f"{float(linesearch_step):0.8f}" if linesearch_step is not None else "None",
-                max_trunc_error,
+                "📉 Step %d | Energy: %.8f | Retries: %d | Conv: %.3e | Line search step: %s | Max. trunc. err.: %.3e",
+                int(count),
+                float(working_value),
+                int(random_noise_retries),
+                float(conv),
+                step_str,
+                float(max_trunc_error),
             )
 
             if count % varipeps_config.optimizer_autosave_step_count == 0:

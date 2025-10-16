@@ -723,11 +723,17 @@ def calc_ctmrg_env(
         else:
             converged = False
             end_count = tmp_count
-        if logger.isEnabledFor(logging.INFO):
-            if logger.isEnabledFor(logging.WARNING) and not converged:
-                logger.warning("CTMRG: ❌ did not converge, took %.2f seconds. (Steps: %d, Smallest SVD Norm: %.3e)", time.perf_counter() - t0, end_count, norm_smallest_S)
-            else:
-                logger.info("CTMRG: ✅ converged, took %.2f seconds. (Steps: %d, Smallest SVD Norm: %.3e)", time.perf_counter() - t0, end_count, norm_smallest_S)
+        
+        if not converged and logger.isEnabledFor(logging.WARNING):
+            logger.warning(
+                "CTMRG: ❌ did not converge, took %.2f seconds. (Steps: %d, Smallest SVD Norm: %.3e)",
+                time.perf_counter() - t0, end_count, norm_smallest_S
+            )
+        elif logger.isEnabledFor(logging.INFO):
+            logger.info(
+                "CTMRG: ✅ converged, took %.2f seconds. (Steps: %d, Smallest SVD Norm: %.3e)",
+                time.perf_counter() - t0, end_count, norm_smallest_S
+            )
 
         if converged and (
             working_unitcell[0, 0][0][0].chi > best_chi or best_result is None
@@ -761,7 +767,7 @@ def calc_ctmrg_env(
 
                 if logger.isEnabledFor(logging.INFO):
                     logger.info(
-                        "Increasing chi to {} since smallest SVD Norm was {}.",
+                        "Increasing chi to %d since smallest SVD Norm was %.3e.",
                         new_chi,
                         norm_smallest_S,
                     )
@@ -795,7 +801,7 @@ def calc_ctmrg_env(
 
                 if logger.isEnabledFor(logging.INFO):
                     logger.info(
-                        "Decreasing chi to {} since smallest SVD Norm was {} or routine did not converge.",
+                        "Decreasing chi to %d since smallest SVD Norm was %.3e or routine did not converge.",
                         new_chi,
                         norm_smallest_S,
                     )
@@ -819,7 +825,7 @@ def calc_ctmrg_env(
             ):
                 if logger.isEnabledFor(logging.INFO):
                     logger.info(
-                        "Increasing SVD truncation eps to {}.",
+                        "Increasing SVD truncation eps to %d.",
                         new_truncation_eps,
                     )
                 varipeps_global_state.ctmrg_effective_truncation_eps = (
@@ -1029,7 +1035,17 @@ def calc_ctmrg_env_rev(
     )
 
     varipeps_global_state.ctmrg_effective_truncation_eps = None
-    debug_print("Custom VJP: Converged: {}, Steps: {}", converged, end_count)
+
+    if not converged and logger.isEnabledFor(logging.WARNING):
+        logger.warning(
+            "Custom VJP: ❌ did not converge, took %.2f seconds. (Steps: %d)",
+            time.perf_counter() - t0, end_count
+        )
+    elif logger.isEnabledFor(logging.INFO):
+        logger.info(
+            "Custom VJP: ✅ converged, took %.2f seconds. (Steps: %d)",
+            time.perf_counter() - t0, end_count
+        )
     if end_count == varipeps_config.ad_custom_max_steps and not converged:
         raise CTMRGGradientNotConvergedError
 
