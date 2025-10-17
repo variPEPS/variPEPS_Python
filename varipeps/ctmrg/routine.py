@@ -1,6 +1,9 @@
 from functools import partial
 import enum
 
+import numpy as np
+from scipy.sparse.linalg import LinearOperator, eigs
+
 import jax.numpy as jnp
 from jax import jit, custom_vjp, vjp, tree_util
 from jax.lax import cond, while_loop
@@ -945,6 +948,51 @@ def _ctmrg_rev_while_body(carry):
     return vjp_env, initial_bar, bar_fixed_point, converged, count, config, state
 
 
+def _ctmrg_rev_arnoldi(vjp_operator, initial_v):
+    v, v_treedev = jax.tree.flatten(initial_v)
+    v_flat = np.concatenate([i.reshape(-1) for i in v])
+
+    def matvec(vec):
+        new_vec = [None] * len(v)
+        for i in range(len(v)):
+            i_start = sum(j.size for j in v[:i])
+            elems = slice(i_start, i_start + v[i].size)
+            new_vec[i] = vec[elems].astype(v[i].dtype).reshape(v[i].shape)
+        new_vec = jax.tree.unflatten(v_treedev, new_vec)
+
+        new_vec = vjp_operator((new_vec, jnp.array(0, dtype=jnp.float64)))[0]
+
+        new_vec, _ = jax.tree.flatten(new_vec)
+        new_vec = np.concatenate([i.reshape(-1) for i in new_vec])
+
+        return np.append(new_vec + vec[-1] * v_flat, vec[-1])
+
+    lin_op = LinearOperator(
+        (v_flat.shape[0] + 1, v_flat.shape[0] + 1),
+        matvec=matvec,
+    )
+
+    _, vec = eigs(
+        lin_op, k=1, v0=np.append(v_flat, np.array(1, dtype=v_flat.dtype)), which="LM"
+    )
+
+    vec = vec.reshape(-1)
+
+    if np.abs(vec[-1]) >= 1e-10:
+        vec /= vec[-1]
+
+    result = [None] * len(v)
+    for i in range(len(v)):
+        i_start = sum(j.size for j in v[:i])
+        elems = slice(i_start, i_start + v[i].size)
+        result[i] = vec[elems].astype(v[i].dtype).reshape(v[i].shape)
+
+    if np.abs(vec[-1]) < 1e-10:
+        return jax.tree.unflatten(v_treedev, result), False
+
+    return jax.tree.unflatten(v_treedev, result), True
+
+
 @jit
 def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, state):
     if new_unitcell.is_triangular_peps():
@@ -988,6 +1036,7 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
     old_method = False
 
     if old_method:
+
         def cond_func(carry):
             _, _, _, converged, count, config, state = carry
 
@@ -999,30 +1048,50 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
             (vjp_env, new_unitcell_bar, new_unitcell_bar, False, 0, config, state),
         )
     else:
-        def f(w):
-            new_w = vjp_env((w, jnp.array(0, dtype=jnp.float64)))[0]
+        env_fixed_point, arnoldi_worked = jax.pure_callback(
+            _ctmrg_rev_arnoldi,
+            jax.eval_shape(lambda x: (x, True), new_unitcell_bar),
+            vjp(
+                lambda u: do_absorption_step(peps_tensors, u, config, state),
+                new_unitcell,
+            )[1],
+            new_unitcell_bar,
+        )
+        end_count = 0
 
-            new_w = new_w.replace_unique_tensors(
-                [
-                    t_old.__sub__(t_new, checks=False)
-                    for t_old, t_new in zip(
-                        w.get_unique_tensors(),
-                        new_w.get_unique_tensors(),
-                        strict=True,
-                    )
-                ]
+        debug_print("Arnoldi: {}", arnoldi_worked)
+
+        def run_gmres(v, e):
+            def f_gmres(w):
+                new_w = vjp_env((w, jnp.array(0, dtype=jnp.float64)))[0]
+
+                new_w = new_w.replace_unique_tensors(
+                    [
+                        t_old.__sub__(t_new, checks=False)
+                        for t_old, t_new in zip(
+                            w.get_unique_tensors(),
+                            new_w.get_unique_tensors(),
+                            strict=True,
+                        )
+                    ]
+                )
+
+                return new_w
+
+            is_gpu = jax.default_backend() == "gpu"
+
+            v, e = jax.scipy.sparse.linalg.gmres(
+                f_gmres,
+                new_unitcell_bar,
+                new_unitcell_bar,
+                solve_method="batched" if is_gpu else "incremental",
+                atol=config.ad_custom_convergence_eps,
             )
 
-            return new_w
+            return v, e
 
-        is_gpu = jax.default_backend() == "gpu"
-
-        env_fixed_point, end_count = jax.scipy.sparse.linalg.gmres(
-            f,
-            new_unitcell_bar,
-            new_unitcell_bar,
-            solve_method="batched" if is_gpu else "incremental",
-            atol=config.ad_custom_convergence_eps,
+        env_fixed_point, end_count = jax.lax.cond(
+            arnoldi_worked, lambda x, e: (x, e), run_gmres, env_fixed_point, end_count
         )
 
         converged = True
