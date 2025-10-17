@@ -1088,6 +1088,7 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
                 new_unitcell_bar,
                 solve_method="batched" if is_gpu else "incremental",
                 atol=config.ad_custom_convergence_eps,
+                maxiter=config.ad_custom_max_steps,
             )
 
             return v, e
