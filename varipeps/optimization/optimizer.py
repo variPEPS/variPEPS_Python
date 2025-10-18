@@ -270,10 +270,12 @@ def autosave_function(
     auxiliary_data: Optional[Dict[str, Any]] = None,
 ) -> None:
     if counter is not None:
+        logger.info(f"💾 Autosaving to {str(filename)}.{counter}")
         unitcell.save_to_file(
             f"{str(filename)}.{counter}", auxiliary_data=auxiliary_data
         )
     else:
+        logger.info(f"💾 Autosaving to {str(filename)}")
         unitcell.save_to_file(filename, auxiliary_data=auxiliary_data)
 
 

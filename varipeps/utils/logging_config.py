@@ -34,8 +34,13 @@ def init_logging(cfg: Any | None = None) -> None:
     root.setLevel(_to_py_log_level(getattr(cfg, "log_level_global", logging.INFO)))
     root.propagate = False
 
+    # fmt = logging.Formatter(
+    #     fmt="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    #     datefmt="%H:%M:%S",
+    # )
+
     fmt = logging.Formatter(
-        fmt="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        fmt="%(asctime)s %(levelname)s %(message)s",
         datefmt="%H:%M:%S",
     )
 

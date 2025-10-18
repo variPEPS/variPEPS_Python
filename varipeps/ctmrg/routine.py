@@ -898,6 +898,8 @@ def calc_ctmrg_env_fwd(
     Internal helper function of custom VJP to calculate the values in
     the forward sweep.
     """
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug("Custom VJP: Starting forward CTMRG calculation.")
     new_unitcell, last_truncation_eps, norm_smallest_S = calc_ctmrg_env_custom_rule(
         peps_tensors, unitcell, _return_truncation_eps=True
     )
@@ -952,7 +954,7 @@ def _ctmrg_rev_while_body(carry):
     count += 1
 
     if logger.isEnabledFor(logging.DEBUG):
-        jax.debug.callback(lambda cnt, msr: logger.debug(f"Custom VJP: Step {cnt}, Measure {msr}"), count, measure, ordered=True)
+        jax.debug.callback(lambda cnt, msr: logger.debug(f"Custom VJP: Step {cnt}: {msr}"), count, measure, ordered=True)
         if config.ad_custom_verbose_output:
             jax.debug.callback(print_verbose, verbose_data, ordered=True, ad=True)
 
@@ -1023,6 +1025,8 @@ def calc_ctmrg_env_rev(
     Internal helper function of custom VJP to calculate the gradient in
     the backward sweep.
     """
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug("Custom VJP: Starting reverse CTMRG calculation.")
     unitcell_bar, _ = input_bar
     peps_tensors, new_unitcell, input_unitcell, last_truncation_eps = res
 
