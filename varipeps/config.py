@@ -337,6 +337,7 @@ class VariPEPS_Config:
     log_level_optimizer: LogLevel = LogLevel.INFO
     log_level_ctmrg: LogLevel = LogLevel.INFO
     log_level_line_search: LogLevel = LogLevel.INFO
+    log_level_expectation: LogLevel = LogLevel.INFO
     log_to_console: bool = True
     log_to_file: bool = False
     log_file: str = "varipeps.log"
