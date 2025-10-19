@@ -64,6 +64,9 @@ def init_logging(cfg: Any | None = None) -> None:
     logging.getLogger("varipeps.line_search").setLevel(
         _to_py_log_level(getattr(cfg, "log_level_line_search", logging.INFO))
     )
+    logging.getLogger("varipeps.expectation").setLevel(
+        _to_py_log_level(getattr(cfg, "log_level_expectation", logging.INFO))
+    )
 
     _LOGGING_INITIALIZED = True
 
