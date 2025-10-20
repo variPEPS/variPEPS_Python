@@ -949,8 +949,8 @@ def optimize_peps_network(
                         is Projector_Method.HALF
                     )
                 ):
-                    tqdm.write(
-                        "Convergence is not sufficient. Retry with some random noise on best result."
+                    logger.warning(
+                        "⚠️ Convergence is not sufficient. Retry with some random noise on best result. 🔀"
                     )
 
                     if working_value < best_value:
