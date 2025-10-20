@@ -10,6 +10,7 @@ from jax.lax import cond, while_loop
 import jax.debug as jdebug
 
 from varipeps import varipeps_config, varipeps_global_state
+from varipeps.config import Grad_Fixed_Point_Method
 from varipeps.peps import PEPS_Tensor, PEPS_Tensor_Split_Transfer, PEPS_Unit_Cell
 from varipeps.utils.debug_print import debug_print
 from .absorption import do_absorption_step, do_absorption_step_split_transfer
@@ -1033,9 +1034,7 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
             )[1]
         )
 
-    old_method = False
-
-    if old_method:
+    if config.ad_custom_fixed_point_method is Grad_Fixed_Point_Method.ITERATIVE:
 
         def cond_func(carry):
             _, _, _, converged, count, config, state = carry
@@ -1048,18 +1047,21 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
             (vjp_env, new_unitcell_bar, new_unitcell_bar, False, 0, config, state),
         )
     else:
-        env_fixed_point, arnoldi_worked = jax.pure_callback(
-            _ctmrg_rev_arnoldi,
-            jax.eval_shape(lambda x: (x, True), new_unitcell_bar),
-            vjp(
-                lambda u: do_absorption_step(peps_tensors, u, config, state),
-                new_unitcell,
-            )[1],
-            new_unitcell_bar,
-        )
-        end_count = 0
+        if config.ad_custom_fixed_point_method is Grad_Fixed_Point_Method.EIGEN_SOLVER:
+            env_fixed_point, arnoldi_worked = jax.pure_callback(
+                _ctmrg_rev_arnoldi,
+                jax.eval_shape(lambda x: (x, True), new_unitcell_bar),
+                vjp(
+                    lambda u: do_absorption_step(peps_tensors, u, config, state),
+                    new_unitcell,
+                )[1],
+                new_unitcell_bar,
+            )
+        else:
+            env_fixed_point = new_unitcell_bar
+            arnoldi_worked = False
 
-        debug_print("Arnoldi: {}", arnoldi_worked)
+        end_count = 0
 
         def run_gmres(v, e):
             def f_gmres(w):

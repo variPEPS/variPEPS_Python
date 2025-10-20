@@ -41,6 +41,17 @@ class Wavevector_Type(IntEnum):
 
 
 @unique
+class Grad_Fixed_Point_Method(IntEnum):
+    ITERATIVE = auto()  #: Use iterative method to calculate gradient of CTMRG routine
+    LINEAR_SOLVER = (
+        auto()
+    )  #: Use linear solver method to calculate gradient of CTMRG routine
+    EIGEN_SOLVER = (
+        auto()
+    )  #: Use eigen solver method to calculate gradient of CTMRG routine
+
+
+@unique
 class Slurm_Restart_Mode(IntEnum):
     DISABLED = (
         auto()
@@ -73,6 +84,9 @@ class VariPEPS_Config:
       ad_custom_max_steps (:obj:`int`):
         Maximal number of steps for fix-pointer iteration of the custom VJP
         function.
+      ad_custom_fixed_point_method (:obj:`~varipeps.config.Grad_Fixed_Point_Method`):
+        Select method how the gradient of the CTMRG fixed point routine is
+        calculated.
       checkpointing_ncon (:obj:`bool`):
         Enable AD checkpointing for the ncon calls.
       checkpointing_projectors (:obj:`bool`):
@@ -242,6 +256,9 @@ class VariPEPS_Config:
     ad_custom_verbose_output: bool = False
     ad_custom_convergence_eps: float = 1e-7
     ad_custom_max_steps: int = 75
+    ad_custom_fixed_point_method: Grad_Fixed_Point_Method = (
+        Grad_Fixed_Point_Method.LINEAR_SOLVER
+    )
     checkpointing_ncon: bool = False
     checkpointing_projectors: bool = False
 
@@ -406,6 +423,7 @@ class ConfigModuleWrapper:
         "Line_Search_Methods",
         "Projector_Method",
         "Wavevector_Type",
+        "Grad_Fixed_Point_Method",
         "Slurm_Restart_Mode",
         "VariPEPS_Config",
         "config",
