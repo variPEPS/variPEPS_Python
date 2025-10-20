@@ -813,7 +813,7 @@ def optimize_peps_network(
                     )
                 ):
                     logger.warning(
-                        "Convergence is not sufficient. Retry with some random noise on best result."
+                        "⚠️ Convergence is not sufficient. Retry with some random noise on best result. 🔀"
                     )
 
                     if working_value < best_value:
