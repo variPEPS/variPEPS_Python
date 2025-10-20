@@ -379,12 +379,33 @@ class VariPEPS_Config:
             elif (
                 field.type is bool
                 and hasattr(value, "dtype")
-                and np.isdtype(value.dtype, np.bool)
+                and np.issubdtype(value.dtype, np.bool_)
                 and value.size == 1
             ):
                 if value.ndim > 0:
                     value = value.reshape(-1)[0]
                 value = bool(value)
+            elif isinstance(field.type, type) and issubclass(field.type, Enum):
+                # Accept ints/np.int64 or enum names for Enum fields
+                if isinstance(value, field.type):
+                    pass
+                elif isinstance(value, (int,)) or (
+                    hasattr(value, "dtype")
+                    and np.issubdtype(value.dtype, np.integer)
+                    and value.size == 1
+                ):
+                    if hasattr(value, "ndim") and value.ndim > 0:
+                        value = value.reshape(-1)[0]
+                    value = field.type(int(value))
+                elif isinstance(value, str):
+                    try:
+                        value = field.type[value]
+                    except KeyError:
+                        value = field.type(int(value))
+                else:
+                    raise TypeError(
+                        f"Type mismatch for option '{name}', got '{type(value)}', expected '{field.type}'."
+                    )
             else:
                 raise TypeError(
                     f"Type mismatch for option '{name}', got '{type(value)}', expected '{field.type}'."
