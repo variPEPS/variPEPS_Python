@@ -937,8 +937,6 @@ def optimize_peps_network(
                                 additional_input,
                             )
 
-                        pbar.reset()
-                        pbar.refresh()
 
                         continue
                     else:
