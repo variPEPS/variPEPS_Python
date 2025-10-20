@@ -5,7 +5,6 @@ from os import PathLike
 
 import jax.numpy as jnp
 from jax import jit
-import jax.util
 import h5py
 
 from varipeps import varipeps_config

@@ -3,7 +3,6 @@ import enum
 
 import jax.numpy as jnp
 from jax import jit, custom_vjp, vjp, tree_util
-import jax.util
 from jax.lax import cond, while_loop
 import jax.debug as jdebug
 

@@ -6,7 +6,6 @@ import h5py
 
 import jax.numpy as jnp
 from jax import jit
-import jax.util
 
 import varipeps.config
 from varipeps.peps import PEPS_Tensor, PEPS_Unit_Cell
