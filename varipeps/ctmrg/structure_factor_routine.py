@@ -5,6 +5,10 @@ import jax.numpy as jnp
 from jax import jit, custom_vjp, vjp, tree_util
 from jax.lax import cond, while_loop
 import jax.debug as jdebug
+import logging
+import time
+
+logger = logging.getLogger("varipeps.ctmrg")
 
 from varipeps import varipeps_config, varipeps_global_state
 from varipeps.peps import PEPS_Tensor, PEPS_Unit_Cell
@@ -125,8 +129,8 @@ def _ctmrg_body_func_structure_factor(carry):
         measure = jnp.linalg.norm(corner_svd - last_corner_svd)
         converged = measure < eps
 
-    if config.ctmrg_print_steps:
-        debug_print("CTMRG: {}: {}", count, measure)
+    if logger.isEnabledFor(logging.DEBUG):
+        jax.debug.callback(lambda cnt, msr: logger.debug(f"CTMRG: Step {cnt}: {msr}"), count, measure, ordered=True)
         if config.ctmrg_verbose_output:
             for ti, ctm_enum_i, diff in verbose_data:
                 debug_print(
@@ -244,6 +248,7 @@ def calc_ctmrg_env_structure_factor(
     norm_smallest_S = jnp.nan
     already_tried_chi = {working_unitcell[0, 0][0][0].chi}
 
+    t0 = time.perf_counter()
     while True:
         tmp_count = 0
         corner_singular_vals = None
@@ -304,6 +309,17 @@ def calc_ctmrg_env_structure_factor(
             )
         )
 
+        if not converged and logger.isEnabledFor(logging.WARNING):
+            logger.warning(
+                "CTMRG (SF): ❌ did not converge, took %.2f seconds. (Steps: %d, Smallest SVD Norm: %.3e)",
+                time.perf_counter() - t0, end_count, norm_smallest_S
+            )
+        elif logger.isEnabledFor(logging.INFO):
+            logger.info(
+                "CTMRG (SF): ✅ converged, took %.2f seconds. (Steps: %d, Smallest SVD Norm: %.3e)",
+                time.perf_counter() - t0, end_count, norm_smallest_S
+            )
+
         current_truncation_eps = (
             varipeps_config.ctmrg_truncation_eps
             if varipeps_global_state.ctmrg_effective_truncation_eps is None
@@ -326,15 +342,14 @@ def calc_ctmrg_env_structure_factor(
                 working_unitcell = working_unitcell.change_chi(new_chi)
                 initial_unitcell = initial_unitcell.change_chi(new_chi)
 
-                if varipeps_config.ctmrg_print_steps:
-                    debug_print(
-                        "CTMRG: Increasing chi to {} since smallest SVD Norm was {}.",
+                if logger.isEnabledFor(logging.INFO):
+                    logger.info(
+                        "CTMRG (SF): Increasing chi to %d since smallest SVD Norm was %.3e.",
                         new_chi,
                         norm_smallest_S,
                     )
 
                 already_tried_chi.add(new_chi)
-
                 continue
         elif (
             varipeps_config.ctmrg_heuristic_decrease_chi
@@ -351,15 +366,14 @@ def calc_ctmrg_env_structure_factor(
             if not new_chi in already_tried_chi:
                 working_unitcell = working_unitcell.change_chi(new_chi)
 
-                if varipeps_config.ctmrg_print_steps:
-                    debug_print(
-                        "CTMRG: Decreasing chi to {} since smallest SVD Norm was {}.",
+                if logger.isEnabledFor(logging.INFO):
+                    logger.info(
+                        "CTMRG (SF): Decreasing chi to %d since smallest SVD Norm was %.3e.",
                         new_chi,
                         norm_smallest_S,
                     )
 
                 already_tried_chi.add(new_chi)
-
                 continue
 
         if (
@@ -375,9 +389,9 @@ def calc_ctmrg_env_structure_factor(
                 new_truncation_eps
                 <= varipeps_config.ctmrg_increase_truncation_eps_max_value
             ):
-                if varipeps_config.ctmrg_print_steps:
-                    debug_print(
-                        "CTMRG: Increasing SVD truncation eps to {}.",
+                if logger.isEnabledFor(logging.INFO):
+                    logger.info(
+                        "CTMRG (SF): Increasing SVD truncation eps to %g.",
                         new_truncation_eps,
                     )
                 varipeps_global_state.ctmrg_effective_truncation_eps = (
