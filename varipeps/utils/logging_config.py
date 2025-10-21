@@ -41,7 +41,7 @@ def init_logging(cfg: Any | None = None) -> None:
 
     fmt = logging.Formatter(
         fmt="%(asctime)s %(levelname)s %(message)s",
-        datefmt="%H:%M:%S",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     if getattr(cfg, "log_to_console", True):

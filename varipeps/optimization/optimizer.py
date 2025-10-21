@@ -1159,19 +1159,16 @@ def optimize_peps_network(
 
         count += 1
 
-        pbar.update()
-        pbar.set_postfix(
-            {
-                "Energy": f"{working_value:0.10f}",
-                "Retries": random_noise_retries,
-                "Convergence": f"{conv:0.8f}",
-                "Line search step": (
-                    f"{linesearch_step:0.8f}"
-                    if linesearch_step is not None
-                    else "0"
-                ),
-                "Max. trunc. err.": f"{max_trunc_error:0.8g}",
-            }
+        step_str = f"{float(linesearch_step):0.8f}" if linesearch_step is not None else "None"
+        logger.info(
+            "📉 Step %d | Energy: %.8f | Retries: %d | Conv: %.3e | Line search step: %s | Max. trunc. err.: %.3e | Runtime: %.3f",
+            int(count),
+            float(working_value),
+            int(random_noise_retries),
+            float(conv),
+            step_str,
+            float(max_trunc_error),
+            float(runtime),
         )
         pbar.refresh()
 
