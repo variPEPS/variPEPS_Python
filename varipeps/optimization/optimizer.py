@@ -1022,13 +1022,14 @@ def optimize_peps_network(
 
         step_str = f"{float(linesearch_step):0.8f}" if linesearch_step is not None else "None"
         logger.info(
-            "📉 Step %d | Energy: %.8f | Retries: %d | Conv: %.3e | Line search step: %s | Max. trunc. err.: %.3e",
+            "📉 Step %d | Energy: %.8f | Retries: %d | Conv: %.3e | Line search step: %s | Max. trunc. err.: %.3e | Runtime: %.3f",
             int(count),
             float(working_value),
             int(random_noise_retries),
             float(conv),
             step_str,
             float(max_trunc_error),
+            float(runtime),
         )
 
         if count % varipeps_config.optimizer_autosave_step_count == 0:
