@@ -34,6 +34,7 @@ from varipeps.mapping import Map_To_PEPS_Model
 from varipeps.ctmrg import CTMRGNotConvergedError, CTMRGGradientNotConvergedError
 from varipeps.utils.random import PEPS_Random_Number_Generator
 from varipeps.utils.slurm import SlurmUtils
+from varipeps.utils.logging_config import ensure_logging_configured
 
 from .inner_function import (
     calc_ctmrg_expectation,
@@ -500,6 +501,7 @@ def optimize_peps_network(
         final expectation value. See the type definition for other possible
         fields.
     """
+    ensure_logging_configured()
     logger.info("🛠️ Starting optimization ... ")
     rng = PEPS_Random_Number_Generator.get_generator(backend="jax")
 
