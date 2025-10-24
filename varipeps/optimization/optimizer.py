@@ -1256,13 +1256,13 @@ def optimize_peps_unitcell(
     unitcell,
     expectation_func,
     autosave_filename="data/autosave.hdf5",
-    slurm_restart_script=None,
+    restart_state={},
 ):
     return optimize_peps_network(
         unitcell,
         expectation_func,
         autosave_filename=autosave_filename,
-        slurm_restart_script=slurm_restart_script,
+        restart_state=restart_state,
     )
 
 
