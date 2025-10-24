@@ -7,6 +7,7 @@ from jax.lax import cond, while_loop
 import jax.debug as jdebug
 import logging
 import time
+import jax
 
 logger = logging.getLogger("varipeps.ctmrg")
 
