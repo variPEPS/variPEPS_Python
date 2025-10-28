@@ -766,8 +766,8 @@ def calc_ctmrg_env(
                 working_unitcell = working_unitcell.change_chi(new_chi)
                 initial_unitcell = initial_unitcell.change_chi(new_chi)
 
-                if logger.isEnabledFor(logging.INFO):
-                    logger.info(
+                if logger.isEnabledFor(logging.WARNING):
+                    logger.warning(
                         "Increasing chi to %d since smallest SVD Norm was %.3e.",
                         new_chi,
                         norm_smallest_S,
@@ -800,8 +800,8 @@ def calc_ctmrg_env(
             if not new_chi in already_tried_chi:
                 working_unitcell = working_unitcell.change_chi(new_chi)
 
-                if logger.isEnabledFor(logging.INFO):
-                    logger.info(
+                if logger.isEnabledFor(logging.WARNING):
+                    logger.warning(
                         "Decreasing chi to %d since smallest SVD Norm was %.3e or routine did not converge.",
                         new_chi,
                         norm_smallest_S,
@@ -824,8 +824,8 @@ def calc_ctmrg_env(
                 new_truncation_eps
                 <= varipeps_config.ctmrg_increase_truncation_eps_max_value
             ):
-                if logger.isEnabledFor(logging.INFO):
-                    logger.info(
+                if logger.isEnabledFor(logging.WARNING):
+                    logger.warning(
                         "Increasing SVD truncation eps to %d.",
                         new_truncation_eps,
                     )
