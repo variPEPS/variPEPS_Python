@@ -4,7 +4,9 @@ import enum
 import numpy as np
 from scipy.sparse.linalg import LinearOperator, eigs
 
+import jax
 import jax.numpy as jnp
+import jax.scipy as jsp
 from jax import jit, custom_vjp, vjp, tree_util
 from jax.lax import cond, while_loop
 import jax.debug as jdebug
@@ -1048,14 +1050,24 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
         )
     else:
         if config.ad_custom_fixed_point_method is Grad_Fixed_Point_Method.EIGEN_SOLVER:
-            env_fixed_point, arnoldi_worked = jax.pure_callback(
-                _ctmrg_rev_arnoldi,
-                jax.eval_shape(lambda x: (x, True), new_unitcell_bar),
-                vjp(
-                    lambda u: do_absorption_step(peps_tensors, u, config, state),
-                    new_unitcell,
-                )[1],
-                new_unitcell_bar,
+            def f_arnoldi(x):
+                w = vjp_env((x[0], jnp.array(0, dtype=jnp.float64)))[0]
+                w = jax.tree.map(lambda v1, v2: v1 + x[1] * v2, w, new_unitcell_bar)
+                return (w, x[1])
+
+            eigval, eigvec = jsp.sparse.linalg.eigs(
+                f_arnoldi, 1, (new_unitcell_bar, 1.0)
+            )
+
+            print_debug("Eigval: {}", eigval)
+
+            env_fixed_point = jax.tree.map(lambda v: jnp.real(v[..., 0]), eigvec[0])
+
+            env_fixed_point, arnoldi_worked = cond(
+                jnp.real(eigvec[1][0]) >= 1e-10,
+                lambda x: (jax.tree.map(lambda v: v / jnp.real(eigvec[1][0]), x), True),
+                lambda x: (x, False),
+                env_fixed_point,
             )
         else:
             env_fixed_point = new_unitcell_bar
