@@ -1033,7 +1033,7 @@ def calc_ctmrg_env_rev(
 
     varipeps_global_state.ctmrg_effective_truncation_eps = last_truncation_eps
 
-    if logger.isEnabledFor(logging.INFO):
+    if logger.isEnabledFor(logging.WARNING):
         t0 = time.perf_counter()
     t_bar, converged, end_count = _ctmrg_rev_workhorse(
         peps_tensors, new_unitcell, unitcell_bar, varipeps_config, varipeps_global_state
