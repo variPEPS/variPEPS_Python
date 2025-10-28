@@ -35,16 +35,18 @@ class _Contraction_Cache:
 _ncon_jitted = jax.jit(_jittable_ncon, static_argnums=(1, 2, 3, 4, 5), inline=True)
 
 
+@partial(
+    jax.jit, static_argnames=("name", "disable_identity_check", "custom_definition")
+)
 def apply_contraction(
     name: str,
     peps_tensors: Sequence[jnp.ndarray],
     peps_tensor_objs: Sequence[PEPS_Tensor],
     additional_tensors: Sequence[jnp.ndarray],
     *,
-    disable_identity_check: bool = False,
+    disable_identity_check: bool = True,
     custom_definition: Optional[Definition] = None,
     config: VariPEPS_Config = varipeps_config,
-    _jitable: bool = False,
 ) -> jnp.ndarray:
     """
     Apply a contraction to a list of tensors.
@@ -83,8 +85,7 @@ def apply_contraction(
         )
 
     if (
-        not _jitable
-        and not disable_identity_check
+        not disable_identity_check
         and not all(isinstance(t, jax.core.Tracer) for t in peps_tensors)
         and not all(isinstance(to.tensor, jax.core.Tracer) for to in peps_tensor_objs)
         and not all(
@@ -133,36 +134,19 @@ def apply_contraction(
 
     tensors += additional_tensors
 
-    if _jitable:
-        if config.checkpointing_ncon:
-            f = jax.checkpoint(_ncon_jitted, static_argnums=(1, 2, 3, 4, 5))
-        else:
-            f = _ncon_jitted
+    tensor_shapes = tuple(tuple(e.shape) for e in tensors)
 
-        return f(
-            tensors,
-            contraction["ncon_flat_network"],
-            contraction["ncon_sizes"],
-            contraction["ncon_con_order"],
-            contraction["ncon_out_order"],
-            tn.backends.backend_factory.get_backend("jax"),
+    path = contraction["einsum_cache"].get(tensor_shapes)
+
+    if path is None:
+        path, _ = jnp.einsum_path(
+            contraction["einsum_network"],
+            *tensors,
+            optimize="optimal" if len(tensors) < 10 else "dp",
         )
+        contraction["einsum_cache"][tensor_shapes] = path
 
-    if config.checkpointing_ncon:
-        f = jax.checkpoint(
-            partial(
-                tn.ncon, network_structure=contraction["ncon_network"], backend="jax"
-            )
-        )
-    else:
-        f = partial(
-            tn.ncon, network_structure=contraction["ncon_network"], backend="jax"
-        )
-
-    return f(tensors)
+    return jnp.einsum(contraction["einsum_network"], *tensors, optimize=path)
 
 
-apply_contraction_jitted = jax.jit(
-    partial(apply_contraction, _jitable=True),
-    static_argnames=("name", "disable_identity_check", "custom_definition"),
-)
+apply_contraction_jitted = apply_contraction

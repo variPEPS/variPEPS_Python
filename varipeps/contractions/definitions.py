@@ -4,6 +4,7 @@ Definitions for contractions in this module.
 
 from collections import Counter
 
+import opt_einsum
 import tensornetwork as tn
 
 from typing import Dict, Optional, Union, List, Tuple, Sequence
@@ -117,6 +118,31 @@ class Definitions:
         )
 
     @classmethod
+    def _convert_to_einsum(cls, network):
+        max_contracted = 0
+        min_open = 0
+
+        result = tuple([] for _ in range(len(network)))
+
+        for ti, t in enumerate(network):
+            for i in t:
+                if i < 0 and i < min_open:
+                    min_open = i
+                elif i > 0 and i > max_contracted:
+                    max_contracted = i
+                if max_contracted >= (min_open + 52):
+                    raise ValueError("Letters in conversion are overlapping.")
+
+                result[ti].append(opt_einsum.get_symbol(i))
+
+        result = ["".join(e) for e in result]
+        open_result = [opt_einsum.get_symbol(i) for i in range(-1, min_open - 1, -1)]
+
+        result = f"{','.join(result)}->{''.join(open_result)}"
+
+        return result
+
+    @classmethod
     def _process_def(cls, e, name):
         (
             filter_peps_tensors,
@@ -128,6 +154,8 @@ class Definitions:
         ncon_network = [
             j for i in network_peps_tensors for j in i
         ] + network_additional_tensors
+
+        einsum_network = cls._convert_to_einsum(ncon_network)
 
         flatted_ncon_list = [j for i in ncon_network for j in i]
         counter_ncon_list = Counter(flatted_ncon_list)
@@ -142,28 +170,13 @@ class Definitions:
                 f'Non-monotonous indices in definition "{name}". Please check!'
             )
 
-        (
-            mapped_ncon_network,
-            mapping,
-        ) = tn.ncon_interface._canonicalize_network_structure(ncon_network)
-        flat_network = tuple(l for sublist in mapped_ncon_network for l in sublist)
-        unique_flat_network = list(set(flat_network))
-
-        out_order = tuple(
-            sorted([l for l in unique_flat_network if l < 0], reverse=True)
-        )
-        con_order = tuple(sorted([l for l in unique_flat_network if l > 0]))
-        sizes = tuple(len(l) for l in ncon_network)
-
         e["filter_peps_tensors"] = filter_peps_tensors
         e["filter_additional_tensors"] = filter_additional_tensors
         e["network_peps_tensors"] = network_peps_tensors
         e["network_additional_tensors"] = network_additional_tensors
         e["ncon_network"] = ncon_network
-        e["ncon_flat_network"] = flat_network
-        e["ncon_sizes"] = sizes
-        e["ncon_con_order"] = con_order
-        e["ncon_out_order"] = out_order
+        e["einsum_network"] = einsum_network
+        e["einsum_cache"] = dict()
 
     @classmethod
     def _prepare_defs(cls):
