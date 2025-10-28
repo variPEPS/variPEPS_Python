@@ -1160,9 +1160,9 @@ def optimize_peps_network(
 
         count += 1
 
-        step_str = f"{float(linesearch_step):0.8f}" if linesearch_step is not None else "None"
+        step_str = f"{float(linesearch_step):0.3f}" if linesearch_step is not None else "None"
         logger.info(
-            "📉 Step %d | Energy: %.8f Δ: %.2e | Retries: %d | Conv: %.3e | Line search step: %s | Max. trunc. err.: %.3e | Runtime: %.0f sec",
+            "📉 Step %d | Energy: %.8f Δ: %.2e | Retries: %d | Conv: %.3e | Line search step: %s | Max. trunc. err.: %.1e | Runtime: %.0f sec",
             int(count),
             float(working_value),
             -float(working_value - step_energies[random_noise_retries][-2]) if len(step_energies[random_noise_retries]) > 1 else 0.0,
