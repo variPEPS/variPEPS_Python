@@ -538,7 +538,7 @@ def line_search(
                         additional_input,
                         calc_preconverged=True,
                     )
-                tqdm.write(f"Line search step {count+1}, E={new_value:<.6f}, alpha={alpha:.4f}")
+                logger.info("🔎 Line search step %d, E=%.8f, alpha=%.8f", count + 1, new_value, alpha)
                 new_gradient = [elem.conj() for elem in new_gradient_seq]
 
                 if new_unitcell[0, 0][0][0].chi > unitcell[0, 0][0][0].chi:
@@ -1125,6 +1125,7 @@ def line_search(
         jax.clear_caches()
 
     if count == varipeps_config.line_search_max_steps:
+        logger.warn("❗ No suitable step size found in line search!")
         raise NoSuitableStepSizeError(f"Count {count}, Last alpha {alpha}")
 
     return (

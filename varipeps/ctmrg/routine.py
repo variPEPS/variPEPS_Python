@@ -624,9 +624,9 @@ def calc_ctmrg_env(
     best_norm_smallest_S = None
     best_truncation_eps = None
     have_been_increased = False
-    t0 = time.perf_counter()
     while True:
         tmp_count = 0
+        t0 = time.perf_counter()
         corner_singular_vals = None
 
         while tmp_count < varipeps_config.ctmrg_max_steps and (
@@ -826,7 +826,7 @@ def calc_ctmrg_env(
             ):
                 if logger.isEnabledFor(logging.WARNING):
                     logger.warning(
-                        "Increasing SVD truncation eps to %d.",
+                        "Increasing SVD truncation eps to %.1e.",
                         new_truncation_eps,
                     )
                 varipeps_global_state.ctmrg_effective_truncation_eps = (
