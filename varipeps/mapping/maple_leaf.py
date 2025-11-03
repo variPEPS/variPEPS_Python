@@ -251,6 +251,39 @@ def get_onsite_gates(g_e, b_e, r_e, d):
         red_45,
     )
 
+def get_onsite_gates_hexagon(b_e, d):
+    Id_other_sites = jnp.eye(d**4)
+
+    blue_base = jnp.kron(b_e, Id_other_sites)
+    blue_base = blue_base.reshape(d, d, d, d, d, d, d, d, d, d, d, d)
+
+    blue_12 = blue_base.transpose((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11))
+    blue_12 = blue_12.reshape(d**6, d**6)
+
+    blue_23 = blue_base.transpose((2, 0, 1, 3, 4, 5, 8, 6, 7, 9, 10, 11))
+    blue_23 = blue_23.reshape(d**6, d**6)
+
+    blue_34 = blue_base.transpose((2, 3, 0, 1, 4, 5, 8, 9, 6, 7, 10, 11))
+    blue_34 = blue_34.reshape(d**6, d**6)
+
+    blue_45 = blue_base.transpose((2, 3, 4, 0, 1, 5, 8, 9, 10, 6, 7, 11))
+    blue_45 = blue_45.reshape(d**6, d**6)
+
+    blue_56 = blue_base.transpose((2, 3, 4, 5, 0, 1, 8, 9, 10, 11, 6, 7))
+    blue_56 = blue_56.reshape(d**6, d**6)
+
+    blue_61 = blue_base.transpose((1, 2, 3, 4, 5, 0, 7, 8, 9, 10, 11, 6))
+    blue_61 = blue_61.reshape(d**6, d**6)
+
+    return (
+        blue_12,
+        blue_23,
+        blue_34,
+        blue_45,
+        blue_56,
+        blue_61,
+    )
+
 
 @partial(jit, static_argnums=(3, 4))
 def _calc_onsite_gate(
@@ -305,6 +338,48 @@ def _calc_onsite_gate(
 
     return result, single_gates
 
+@partial(jit, static_argnums=(1, 2))
+def _calc_onsite_gate_hexagon(
+    blue_gates: Sequence[jnp.ndarray],
+    d: int,
+    result_length: int,
+):
+    result = [None] * result_length
+
+    single_gates = [None] * result_length
+
+    for i, (b_e, ) in enumerate(
+        zip(blue_gates, strict=True)
+    ):
+        (
+            blue_12,
+            blue_23,
+            blue_34,
+            blue_45,
+            blue_56,
+            blue_61,
+        ) = get_onsite_gates_hexagon(b_e, d)
+
+        result[i] = (
+            blue_12 +
+            blue_23 +
+            blue_34 +
+            blue_45 +
+            blue_56 +
+            blue_61
+        )
+
+        single_gates[i] = (
+            blue_12,
+            blue_23,
+            blue_34,
+            blue_45,
+            blue_56,
+            blue_61,
+        )
+
+    return result, single_gates
+
 
 def get_right_gates(b_e, r_e, d):
     Id_other_site = jnp.eye(d)
@@ -317,6 +392,26 @@ def get_right_gates(b_e, r_e, d):
     blue_62 = blue_62.reshape(d**3, d**3)
 
     return red_61, blue_62
+
+def get_right_gates_hexagon(r_e, g_e, d):
+    Id_other_site = jnp.eye(d**2)
+
+    red_26 = jnp.kron(r_e, Id_other_site)
+    red_26 = red_26.reshape(d, d, d, d, d, d, d, d)
+    red_26 = red_26.transpose((0, 2, 3, 1, 4, 6, 7, 5))
+    red_26 = red_26.reshape(d**4, d**4)
+
+    red_35 = jnp.kron(r_e, Id_other_site)
+    red_35 = red_35.reshape(d, d, d, d, d, d, d, d)
+    red_35 = red_35.transpose((2, 0, 1, 3, 6, 4, 5, 7))
+    red_35 = red_35.reshape(d**4, d**4)
+
+    green_36 = jnp.kron(g_e, Id_other_site)
+    green_36 = green_36.reshape(d, d, d, d, d, d, d, d)
+    green_36 = green_36.transpose((2, 0, 3, 1, 6, 4, 7, 5))
+    green_36 = green_36.reshape(d**4, d**4)
+
+    return red_26, red_35, green_36
 
 
 @partial(jit, static_argnums=(2, 3))
@@ -339,6 +434,22 @@ def _calc_right_gate(
 
     return result, single_gates
 
+@partial(jit, static_argnums=(2, 3))
+def _calc_right_gate_hexagon(
+    red_gates: Sequence[jnp.ndarray],
+    green_gates: Sequence[jnp.ndarray],
+    d: int,
+    result_length: int,
+):
+    result = [None] * result_length
+    single_gates = [None] * result_length
+    for i, (r_e, g_e) in enumerate(zip(red_gates, green_gates, strict=True)):
+        red_26, red_35, green_36 = get_right_gates_hexagon(r_e, g_e, d)
+        result[i] = red_26 + red_35 + green_36
+        single_gates[i] = (red_26, red_35, green_36)
+
+    return result, single_gates
+
 
 def get_down_gates(b_e, r_e, d):
     Id_other_site = jnp.eye(d)
@@ -351,6 +462,26 @@ def get_down_gates(b_e, r_e, d):
     red_36 = red_36.reshape(d**3, d**3)
 
     return blue_35, red_36
+
+def get_down_gates_hexagon(r_e, g_e, d):
+    Id_other_site = jnp.eye(d**2)
+
+    red_42 = jnp.kron(r_e, Id_other_site)
+    red_42 = red_42.reshape(d, d, d, d, d, d, d, d)
+    red_42 = red_42.transpose((0, 2, 3, 1, 4, 6, 7, 5))
+    red_42 = red_42.reshape(d**4, d**4)
+
+    red_51 = jnp.kron(r_e, Id_other_site)
+    red_51 = red_51.reshape(d, d, d, d, d, d, d, d)
+    red_51 = red_51.transpose((2, 0, 1, 3, 6, 4, 5, 7))
+    red_51 = red_51.reshape(d**4, d**4)
+
+    green_52 = jnp.kron(g_e, Id_other_site)
+    green_52 = green_52.reshape(d, d, d, d, d, d, d, d)
+    green_52 = green_52.transpose((2, 0, 3, 1, 6, 4, 7, 5))
+    green_52 = green_52.reshape(d**4, d**4)
+
+    return red_42, red_51, green_52
 
 
 @partial(jit, static_argnums=(2, 3))
@@ -373,6 +504,22 @@ def _calc_down_gate(
 
     return result, single_gates
 
+@partial(jit, static_argnums=(2, 3))
+def _calc_down_gate_hexagon(
+    red_gates: Sequence[jnp.ndarray],
+    green_gates: Sequence[jnp.ndarray],
+    d: int,
+    result_length: int,
+):
+    result = [None] * result_length
+    single_gates = [None] * result_length
+    for i, (r_e, g_e) in enumerate(zip(red_gates, green_gates, strict=True)):
+        red_42, red_51, green_52 = get_down_gates_hexagon(r_e, g_e, d)
+        result[i] = red_42 + red_51 + green_52
+        single_gates[i] = (red_42, red_51, green_52)
+
+    return result, single_gates
+
 
 def get_diagonal_gates(b_e, r_e, d):
     Id_other_site = jnp.eye(d)
@@ -385,6 +532,26 @@ def get_diagonal_gates(b_e, r_e, d):
     red_31 = red_31.reshape(d**3, d**3)
 
     return blue_41, red_31
+
+def get_diagonal_gates_hexagon(r_e, g_e, d):
+    Id_other_site = jnp.eye(d**2)
+
+    red_31 = jnp.kron(r_e, Id_other_site)
+    red_31 = red_31.reshape(d, d, d, d, d, d, d, d)
+    red_31 = red_31.transpose((0, 2, 1, 3, 4, 6, 5, 7))
+    red_31 = red_31.reshape(d**4, d**4)
+
+    red_46 = jnp.kron(r_e, Id_other_site)
+    red_46 = red_46.reshape(d, d, d, d, d, d, d, d)
+    red_46 = red_46.transpose((2, 0, 3, 1, 6, 4, 7, 5))
+    red_46 = red_46.reshape(d**4, d**4)
+
+    green_41 = jnp.kron(g_e, Id_other_site)
+    green_41 = green_41.reshape(d, d, d, d, d, d, d, d)
+    green_41 = green_41.transpose((2, 0, 1, 3, 6, 4, 5, 7))
+    green_41 = green_41.reshape(d**4, d**4)
+
+    return red_31, red_46, green_41
 
 
 @partial(jit, static_argnums=(2, 3))
@@ -404,6 +571,22 @@ def _calc_diagonal_gate(
         result[i] = blue_41 + red_31
 
         single_gates[i] = (blue_41, red_31)
+
+    return result, single_gates
+
+@partial(jit, static_argnums=(2, 3))
+def _calc_diagonal_gate_hexagon(
+    red_gates: Sequence[jnp.ndarray],
+    green_gates: Sequence[jnp.ndarray],
+    d: int,
+    result_length: int,
+):
+    result = [None] * result_length
+    single_gates = [None] * result_length
+    for i, (r_e, g_e) in enumerate(zip(red_gates, green_gates, strict=True)):
+        red_31, red_46, green_41 = get_diagonal_gates_hexagon(r_e, g_e, d)
+        result[i] = red_31 + red_46 + green_41
+        single_gates[i] = (red_31, red_46, green_41)
 
     return result, single_gates
 
@@ -2284,6 +2467,509 @@ class Maple_Leaf_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                                         "red_36",
                                         "blue_41",
                                         "red_31",
+                                    ),
+                                    (
+                                        step_result_onsite[
+                                            index_onsite : (
+                                                index_onsite
+                                                + len(self._onsite_single_gates[0])
+                                            )
+                                        ]
+                                        + step_result_horizontal[
+                                            index_horizontal : (
+                                                index_horizontal
+                                                + len(self._right_single_gates[0])
+                                            )
+                                        ]
+                                        + step_result_vertical[
+                                            index_vertical : (
+                                                index_vertical
+                                                + len(self._down_single_gates[0])
+                                            )
+                                        ]
+                                        + step_result_diagonal[
+                                            index_diagonal : (
+                                                index_diagonal
+                                                + len(self._diagonal_single_gates[0])
+                                            )
+                                        ]
+                                    ),
+                                )
+                            )
+
+        if normalize_by_size:
+            if only_unique:
+                size = unitcell.get_len_unique_tensors()
+            else:
+                size = unitcell.get_size()[0] * unitcell.get_size()[1]
+            size = size * self.normalization_factor
+            result = [r / size for r in result]
+
+        if len(result) == 1:
+            result = result[0]
+
+        if return_single_gate_results:
+            return result, single_gates_result
+        else:
+            return result
+
+    def save_to_group(self, grp: h5py.Group):
+        cls = type(self)
+        grp.attrs["class"] = f"{cls.__module__}.{cls.__qualname__}"
+
+        grp_gates = grp.create_group("gates", track_order=True)
+        grp_gates.attrs["len"] = len(self.green_gates)
+        for i, (g_g, b_g, r_g) in enumerate(
+            zip(self.green_gates, self.blue_gates, self.red_gates, strict=True)
+        ):
+            grp_gates.create_dataset(
+                f"green_gate_{i:d}",
+                data=g_g,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp_gates.create_dataset(
+                f"blue_gate_{i:d}", data=b_g, compression="gzip", compression_opts=6
+            )
+            grp_gates.create_dataset(
+                f"red_gate_{i:d}", data=r_g, compression="gzip", compression_opts=6
+            )
+
+        grp.attrs["real_d"] = self.real_d
+        grp.attrs["normalization_factor"] = self.normalization_factor
+        grp.attrs["is_spiral_peps"] = self.is_spiral_peps
+
+        if self.is_spiral_peps:
+            grp.create_dataset(
+                "spiral_unitary_operator",
+                data=self.spiral_unitary_operator,
+                compression="gzip",
+                compression_opts=6,
+            )
+
+    @classmethod
+    def load_from_group(cls, grp: h5py.Group):
+        if not grp.attrs["class"] == f"{cls.__module__}.{cls.__qualname__}":
+            raise ValueError(
+                "The HDF5 group suggests that this is not the right class to load data from it."
+            )
+
+        green_gates = tuple(
+            jnp.asarray(grp["gates"][f"green_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+        blue_gates = tuple(
+            jnp.asarray(grp["gates"][f"blue_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+        red_gates = tuple(
+            jnp.asarray(grp["gates"][f"red_gate_{i:d}"])
+            for i in range(grp["gates"].attrs["len"])
+        )
+
+        is_spiral_peps = grp.attrs["is_spiral_peps"]
+
+        if is_spiral_peps:
+            spiral_unitary_operator = jnp.asarray(grp["spiral_unitary_operator"])
+        else:
+            spiral_unitary_operator = None
+
+        return cls(
+            green_gates=green_gates,
+            blue_gates=blue_gates,
+            red_gates=red_gates,
+            real_d=grp.attrs["real_d"],
+            normalization_factor=grp.attrs["normalization_factor"],
+            is_spiral_peps=is_spiral_peps,
+            spiral_unitary_operator=spiral_unitary_operator,
+        )
+
+@dataclass
+class Maple_Leaf_Hexagon_Triangular_CTMRG_Expectation_Value(Expectation_Model):
+    """
+    Class to calculate expectation values for a mapped Maple-Leaf
+    structure. This version uses the triangular CTMRG as basis.
+
+    Args:
+      green_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the green bonds as
+        shown in the image above.
+      blue_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the green bonds as
+        shown in the image above.
+      red_gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence with the gates that should be applied to the green bonds as
+        shown in the image above.
+      real_d (:obj:`int`):
+        Physical dimension of a single site before mapping.
+      normalization_factor (:obj:`int`):
+        Factor which should be used to normalize the calculated values.
+        Likely will be 6 for the a single layer structure.
+      is_spiral_peps (:obj:`bool`):
+        Flag if the expectation value is for a spiral iPEPS ansatz.
+      spiral_unitary_operator (:obj:`jax.numpy.ndarray`):
+        Operator used to generate unitary for spiral iPEPS ansatz. Required
+        if spiral iPEPS ansatz is used.
+    """
+
+    green_gates: Sequence[jnp.ndarray]
+    blue_gates: Sequence[jnp.ndarray]
+    red_gates: Sequence[jnp.ndarray]
+    real_d: int
+    normalization_factor: int = 6
+
+    is_spiral_peps: bool = False
+    spiral_unitary_operator: Optional[jnp.ndarray] = None
+
+    def __post_init__(self) -> None:
+        if isinstance(self.green_gates, jnp.ndarray):
+            self.green_gates = (self.green_gates,)
+
+        if isinstance(self.blue_gates, jnp.ndarray):
+            self.blue_gates = (self.blue_gates,)
+
+        if isinstance(self.red_gates, jnp.ndarray):
+            self.red_gates = (self.red_gates,)
+
+        if (len(self.green_gates) != len(self.blue_gates)) or (
+            len(self.green_gates) != len(self.red_gates)
+        ):
+            raise ValueError("Lengths of gate lists mismatch.")
+
+        tmp_result = _calc_onsite_gate_hexagon(
+            self.blue_gates,
+            self.real_d,
+            len(self.green_gates),
+        )
+        self._full_onsite_tuple, self._onsite_single_gates = tuple(
+            tmp_result[0]
+        ), tuple(tmp_result[1])
+
+        tmp_result = _calc_right_gate_hexagon(
+            self.red_gates,
+            self.green_gates,
+            self.real_d,
+            len(self.red_gates),
+        )
+        self._right_tuple, self._right_single_gates = tuple(tmp_result[0]), tuple(
+            tmp_result[1]
+        )
+
+        tmp_result = _calc_down_gate_hexagon(
+            self.red_gates,
+            self.green_gates,
+            self.real_d,
+            len(self.red_gates),
+        )
+        self._down_tuple, self._down_single_gates = tuple(tmp_result[0]), tuple(
+            tmp_result[1]
+        )
+
+        tmp_result = _calc_diagonal_gate_hexagon(
+            self.red_gates,
+            self.green_gates,
+            self.real_d,
+            len(self.red_gates),
+        )
+        self._diagonal_tuple, self._diagonal_single_gates = tuple(tmp_result[0]), tuple(
+            tmp_result[1]
+        )
+
+        self._result_type = (
+            jnp.float64
+            if all(jnp.allclose(g, g.T.conj()) for g in self.red_gates)
+            and all(jnp.allclose(g, g.T.conj()) for g in self.green_gates)
+            and all(jnp.allclose(g, g.T.conj()) for g in self.blue_gates)
+            else jnp.complex128
+        )
+
+        if self.is_spiral_peps:
+            self._spiral_D, self._spiral_sigma = jnp.linalg.eigh(
+                self.spiral_unitary_operator
+            )
+
+    def __call__(
+        self,
+        peps_tensors: Sequence[jnp.ndarray],
+        unitcell: PEPS_Unit_Cell,
+        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
+        *,
+        normalize_by_size: bool = True,
+        only_unique: bool = True,
+        return_single_gate_results: bool = False,
+    ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
+        result = [
+            jnp.array(0, dtype=self._result_type) for _ in range(len(self.green_gates))
+        ]
+
+        if return_single_gate_results:
+            single_gates_result = [dict()] * len(self.green_gates)
+
+        working_onsite_gates = tuple(o for e in self._onsite_single_gates for o in e)
+
+        if self.is_spiral_peps:
+            if isinstance(spiral_vectors, jnp.ndarray):
+                spiral_vectors = (spiral_vectors,)
+
+            working_h_gates = tuple(
+                apply_unitary(
+                    h,
+                    jnp.array((0, 1)),
+                    spiral_vectors[0],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    4,
+                    (2, 3),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for h in self._right_tuple
+            )
+            working_v_gates = tuple(
+                apply_unitary(
+                    v,
+                    jnp.array((1, 0)),
+                    spiral_vectors[0],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    4,
+                    (2, 3),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for v in self._down_tuple
+            )
+            working_d_gates = tuple(
+                apply_unitary(
+                    d,
+                    jnp.array((1, 1)),
+                    spiral_vectors[0],
+                    self._spiral_D,
+                    self._spiral_sigma,
+                    self.real_d,
+                    4,
+                    (2, 3),
+                    varipeps_config.spiral_wavevector_type,
+                )
+                for d in self._diagonal_tuple
+            )
+
+            if return_single_gate_results:
+                working_h_single_gates = tuple(
+                    apply_unitary(
+                        h,
+                        jnp.array((0, 1)),
+                        spiral_vectors[0],
+                        self._spiral_D,
+                        self._spiral_sigma,
+                        self.real_d,
+                        4,
+                        (2, 3),
+                        varipeps_config.spiral_wavevector_type,
+                    )
+                    for e in self._right_single_gates
+                    for h in e
+                )
+                working_v_single_gates = tuple(
+                    apply_unitary(
+                        v,
+                        jnp.array((1, 0)),
+                        spiral_vectors[0],
+                        self._spiral_D,
+                        self._spiral_sigma,
+                        self.real_d,
+                        4,
+                        (2, 3),
+                        varipeps_config.spiral_wavevector_type,
+                    )
+                    for e in self._down_single_gates
+                    for v in e
+                )
+                working_d_single_gates = tuple(
+                    apply_unitary(
+                        d,
+                        jnp.array((1, 1)),
+                        spiral_vectors[0],
+                        self._spiral_D,
+                        self._spiral_sigma,
+                        self.real_d,
+                        4,
+                        (2, 3),
+                        varipeps_config.spiral_wavevector_type,
+                    )
+                    for e in self._diagonal_single_gates
+                    for d in e
+                )
+        else:
+            working_h_gates = self._right_tuple
+            working_v_gates = self._down_tuple
+            working_d_gates = self._diagonal_tuple
+
+            if return_single_gate_results:
+                working_h_single_gates = tuple(
+                    h for e in self._right_single_gates for h in e
+                )
+                working_v_single_gates = tuple(
+                    v for e in self._down_single_gates for v in e
+                )
+                working_d_single_gates = tuple(
+                    d for e in self._diagonal_single_gates for d in e
+                )
+
+        for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
+            for y, view in iter_rows:
+                # On site term
+                if len(self.green_gates) > 0:
+                    onsite_tensor = peps_tensors[view.get_indices((0, 0))[0][0]]
+                    onsite_tensor_obj = view[0, 0][0][0]
+
+                    if return_single_gate_results:
+                        step_result_onsite = calc_triangular_one_site(
+                            onsite_tensor,
+                            onsite_tensor_obj,
+                            self._full_onsite_tuple + working_onsite_gates,
+                        )
+                    else:
+                        step_result_onsite = calc_triangular_one_site(
+                            onsite_tensor,
+                            onsite_tensor_obj,
+                            self._full_onsite_tuple,
+                        )
+
+                    horizontal_tensors_i = view.get_indices((0, slice(0, 2, None)))
+                    horizontal_tensors = [
+                        peps_tensors[i] for j in horizontal_tensors_i for i in j
+                    ]
+                    horizontal_tensor_objs = [t for tl in view[0, :2] for t in tl]
+                    (
+                        density_matrix_left,
+                        density_matrix_right,
+                    ) = maple_leaf_triangular_ctmrg_density_matrix_horizontal(
+                        horizontal_tensors, horizontal_tensor_objs, ((2, 3), (5, 6))
+                    )
+
+                    if return_single_gate_results:
+                        step_result_horizontal = calc_triangular_two_sites_workhorse(
+                            density_matrix_left,
+                            density_matrix_right,
+                            working_h_gates + working_h_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_horizontal = calc_triangular_two_sites_workhorse(
+                            density_matrix_left,
+                            density_matrix_right,
+                            working_h_gates,
+                            self._result_type is jnp.float64,
+                        )
+
+                    vertical_tensors_i = view.get_indices((slice(0, 2, None), 0))
+                    vertical_tensors = [
+                        peps_tensors[i] for j in vertical_tensors_i for i in j
+                    ]
+                    vertical_tensor_objs = [t for tl in view[:2, 0] for t in tl]
+                    (
+                        density_matrix_top,
+                        density_matrix_bottom,
+                    ) = maple_leaf_triangular_ctmrg_density_matrix_vertical(
+                        vertical_tensors, vertical_tensor_objs, ((4, 5), (1, 2))
+                    )
+
+                    if return_single_gate_results:
+                        step_result_vertical = calc_triangular_two_sites_workhorse(
+                            density_matrix_top,
+                            density_matrix_bottom,
+                            working_v_gates + working_v_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_vertical = calc_triangular_two_sites_workhorse(
+                            density_matrix_top,
+                            density_matrix_bottom,
+                            working_v_gates,
+                            self._result_type is jnp.float64,
+                        )
+
+                    diagonal_tensors_i = view.get_indices(
+                        (slice(0, 2, None), slice(0, 2, None))
+                    )
+                    diagonal_tensors = [
+                        peps_tensors[diagonal_tensors_i[0][0]],
+                        peps_tensors[diagonal_tensors_i[1][1]],
+                    ]
+                    diagonal_tensor_objs = [view[0, 0][0][0], view[1, 1][0][0]]
+                    (
+                        density_matrix_top_left,
+                        density_matrix_bottom_right,
+                    ) = maple_leaf_triangular_ctmrg_density_matrix_diagonal(
+                        diagonal_tensors,
+                        diagonal_tensor_objs,
+                        ((3, 4), (1, 6)),
+                    )
+
+                    if return_single_gate_results:
+                        step_result_diagonal = calc_triangular_two_sites_workhorse(
+                            density_matrix_top_left,
+                            density_matrix_bottom_right,
+                            working_d_gates + working_d_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_diagonal = calc_triangular_two_sites_workhorse(
+                            density_matrix_top_left,
+                            density_matrix_bottom_right,
+                            working_d_gates,
+                            self._result_type is jnp.float64,
+                        )
+
+                    for sr_i, (sr_o, sr_h, sr_v, sr_d) in enumerate(
+                        zip(
+                            step_result_onsite[: len(self.green_gates)],
+                            step_result_horizontal[: len(self.green_gates)],
+                            step_result_vertical[: len(self.green_gates)],
+                            step_result_diagonal[: len(self.green_gates)],
+                            strict=True,
+                        )
+                    ):
+                        result[sr_i] += sr_o + sr_h + sr_v + sr_d
+
+                    if return_single_gate_results:
+                        for sr_i in range(len(self.green_gates)):
+                            index_onsite = (
+                                len(self.green_gates)
+                                + len(self._onsite_single_gates[0]) * sr_i
+                            )
+                            index_horizontal = (
+                                len(self.green_gates)
+                                + len(self._right_single_gates[0]) * sr_i
+                            )
+                            index_vertical = (
+                                len(self.green_gates)
+                                + len(self._down_single_gates[0]) * sr_i
+                            )
+                            index_diagonal = (
+                                len(self.green_gates)
+                                + len(self._diagonal_single_gates[0]) * sr_i
+                            )
+
+                            single_gates_result[sr_i][(x, y)] = dict(
+                                zip(
+                                    (
+                                        "blue_12",
+                                        "blue_23",
+                                        "blue_34",
+                                        "blue_45",
+                                        "blue_56",
+                                        "blue_61",
+                                        "red_26",
+                                        "red_35",
+                                        "green_36",
+                                        "red_42",
+                                        "red_51",
+                                        "green_52",
+                                        "red_31",
+                                        "red_46",
+                                        "green_41",
                                     ),
                                     (
                                         step_result_onsite[
