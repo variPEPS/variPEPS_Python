@@ -109,7 +109,8 @@ def _truncated_SVD(
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     U, S, Vh = gauge_fixed_svd(matrix)
 
-    if len(S) > chi:
+    len_S = len(S)
+    if len_S > chi:
         gaps = (S[:chi] - S[1 : chi + 1]) / S[0]
 
     # Truncate the singular values
@@ -117,7 +118,7 @@ def _truncated_SVD(
     U = U[:, :chi]
     Vh = Vh[:chi, :]
 
-    if len(S) > chi:
+    if len_S > chi:
 
         def fix_multiplets(carry, x):
             S_elem, gap = x
