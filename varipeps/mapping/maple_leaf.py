@@ -17,6 +17,11 @@ from varipeps.expectation.two_sites import (
     _two_site_workhorse,
     _two_site_diagonal_workhorse,
 )
+from varipeps.expectation.triangular_helpers import (
+    partially_traced_vertical_two_site_density_matrices_triangular,
+    partially_traced_horizontal_two_site_density_matrices_triangular,
+    partially_traced_diagonal_two_site_density_matrices_triangular,
+)
 from varipeps.expectation.triangular_one_site import calc_triangular_one_site
 from varipeps.expectation.triangular_two_sites import (
     calc_triangular_two_sites_workhorse,
@@ -2836,32 +2841,6 @@ class Maple_Leaf_Hexagon_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                             self._full_onsite_tuple,
                         )
 
-                    horizontal_tensors_i = view.get_indices((0, slice(0, 2, None)))
-                    horizontal_tensors = [
-                        peps_tensors[i] for j in horizontal_tensors_i for i in j
-                    ]
-                    horizontal_tensor_objs = [t for tl in view[0, :2] for t in tl]
-                    (
-                        density_matrix_left,
-                        density_matrix_right,
-                    ) = maple_leaf_triangular_ctmrg_density_matrix_horizontal(
-                        horizontal_tensors, horizontal_tensor_objs, ((2, 3), (5, 6))
-                    )
-
-                    if return_single_gate_results:
-                        step_result_horizontal = calc_triangular_two_sites_workhorse(
-                            density_matrix_left,
-                            density_matrix_right,
-                            working_h_gates + working_h_single_gates,
-                            self._result_type is jnp.float64,
-                        )
-                    else:
-                        step_result_horizontal = calc_triangular_two_sites_workhorse(
-                            density_matrix_left,
-                            density_matrix_right,
-                            working_h_gates,
-                            self._result_type is jnp.float64,
-                        )
 
                     vertical_tensors_i = view.get_indices((slice(0, 2, None), 0))
                     vertical_tensors = [
@@ -2871,8 +2850,8 @@ class Maple_Leaf_Hexagon_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                     (
                         density_matrix_top,
                         density_matrix_bottom,
-                    ) = maple_leaf_triangular_ctmrg_density_matrix_vertical(
-                        vertical_tensors, vertical_tensor_objs, ((4, 5), (1, 2))
+                    ) = partially_traced_vertical_two_site_density_matrices_triangular(
+                        vertical_tensors, vertical_tensor_objs, 2, 6, ((4, 5), (1, 2))
                     )
 
                     if return_single_gate_results:
@@ -2890,6 +2869,35 @@ class Maple_Leaf_Hexagon_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                             self._result_type is jnp.float64,
                         )
 
+
+                    horizontal_tensors_i = view.get_indices((0, slice(0, 2, None)))
+                    horizontal_tensors = [
+                        peps_tensors[i] for j in horizontal_tensors_i for i in j
+                    ]
+                    horizontal_tensor_objs = [t for tl in view[0, :2] for t in tl]
+                    (
+                        density_matrix_left,
+                        density_matrix_right,
+                    ) = partially_traced_horizontal_two_site_density_matrices_triangular(
+                        horizontal_tensors, horizontal_tensor_objs, 2, 6, ((2, 3), (5, 6))
+                    )
+
+                    if return_single_gate_results:
+                        step_result_horizontal = calc_triangular_two_sites_workhorse(
+                            density_matrix_left,
+                            density_matrix_right,
+                            working_h_gates + working_h_single_gates,
+                            self._result_type is jnp.float64,
+                        )
+                    else:
+                        step_result_horizontal = calc_triangular_two_sites_workhorse(
+                            density_matrix_left,
+                            density_matrix_right,
+                            working_h_gates,
+                            self._result_type is jnp.float64,
+                        )
+
+
                     diagonal_tensors_i = view.get_indices(
                         (slice(0, 2, None), slice(0, 2, None))
                     )
@@ -2901,10 +2909,8 @@ class Maple_Leaf_Hexagon_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                     (
                         density_matrix_top_left,
                         density_matrix_bottom_right,
-                    ) = maple_leaf_triangular_ctmrg_density_matrix_diagonal(
-                        diagonal_tensors,
-                        diagonal_tensor_objs,
-                        ((3, 4), (1, 6)),
+                    ) = partially_traced_diagonal_two_site_density_matrices_triangular(
+                        diagonal_tensors, diagonal_tensor_objs, 2, 6, ((3, 4), (1, 6))
                     )
 
                     if return_single_gate_results:
