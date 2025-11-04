@@ -951,51 +951,6 @@ def _ctmrg_rev_while_body(carry):
     return vjp_env, initial_bar, bar_fixed_point, converged, count, config, state
 
 
-def _ctmrg_rev_arnoldi(vjp_operator, initial_v):
-    v, v_treedev = jax.tree.flatten(initial_v)
-    v_flat = np.concatenate([i.reshape(-1) for i in v])
-
-    def matvec(vec):
-        new_vec = [None] * len(v)
-        for i in range(len(v)):
-            i_start = sum(j.size for j in v[:i])
-            elems = slice(i_start, i_start + v[i].size)
-            new_vec[i] = vec[elems].astype(v[i].dtype).reshape(v[i].shape)
-        new_vec = jax.tree.unflatten(v_treedev, new_vec)
-
-        new_vec = vjp_operator((new_vec, jnp.array(0, dtype=jnp.float64)))[0]
-
-        new_vec, _ = jax.tree.flatten(new_vec)
-        new_vec = np.concatenate([i.reshape(-1) for i in new_vec])
-
-        return np.append(new_vec + vec[-1] * v_flat, vec[-1])
-
-    lin_op = LinearOperator(
-        (v_flat.shape[0] + 1, v_flat.shape[0] + 1),
-        matvec=matvec,
-    )
-
-    _, vec = eigs(
-        lin_op, k=1, v0=np.append(v_flat, np.array(1, dtype=v_flat.dtype)), which="LM"
-    )
-
-    vec = vec.reshape(-1)
-
-    if np.abs(vec[-1]) >= 1e-10:
-        vec /= vec[-1]
-
-    result = [None] * len(v)
-    for i in range(len(v)):
-        i_start = sum(j.size for j in v[:i])
-        elems = slice(i_start, i_start + v[i].size)
-        result[i] = vec[elems].astype(v[i].dtype).reshape(v[i].shape)
-
-    if np.abs(vec[-1]) < 1e-10:
-        return jax.tree.unflatten(v_treedev, result), False
-
-    return jax.tree.unflatten(v_treedev, result), True
-
-
 @jit
 def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, state):
     if new_unitcell.is_triangular_peps():
@@ -1049,34 +1004,110 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
             (vjp_env, new_unitcell_bar, new_unitcell_bar, False, 0, config, state),
         )
     else:
+        real = jax.dtypes.result_type(
+            *jax.tree.leaves(new_unitcell_bar)
+        ) == jax.dtypes.canonicalize_dtype(jnp.float64)
         if config.ad_custom_fixed_point_method is Grad_Fixed_Point_Method.EIGEN_SOLVER:
+
             def f_arnoldi(x):
-                w = vjp_env((x[0], jnp.array(0, dtype=jnp.float64)))[0]
+                w = x[0]
+                if not real:
+                    w = jax.tree.map(lambda x, y: x + 1j * y, w[0], w[1])
+
+                w = vjp_env((w, jnp.array(0, dtype=jnp.float64)))[0]
                 w = jax.tree.map(lambda v1, v2: v1 + x[1] * v2, w, new_unitcell_bar)
+
+                if not real:
+                    w = (
+                        jax.tree.map(lambda x: jnp.real(x), w),
+                        jax.tree.map(lambda x: jnp.imag(x), w),
+                    )
+
                 return (w, x[1])
 
-            eigval, eigvec = jsp.sparse.linalg.eigs(
-                f_arnoldi, 1, (new_unitcell_bar, 1.0)
+            if real:
+                eigval, eigvec = jsp.sparse.linalg.eigs(
+                    f_arnoldi, 1, (new_unitcell_bar, 1.0)
+                )
+            else:
+                eigval, eigvec = jsp.sparse.linalg.eigs(
+                    f_arnoldi,
+                    1,
+                    (
+                        (
+                            jax.tree.map(lambda x: jnp.real(x), new_unitcell_bar),
+                            jax.tree.map(lambda x: jnp.imag(x), new_unitcell_bar),
+                        ),
+                        1.0,
+                    ),
+                )
+
+            converged = cond(
+                jnp.logical_and(
+                    jnp.abs(jnp.real(eigval[0]))
+                    < (1 + 1e-2 * config.ad_custom_convergence_eps),
+                    jnp.abs(jnp.imag(eigval[0]))
+                    < 1e-2 * config.ad_custom_convergence_eps,
+                ),
+                lambda: True,
+                lambda: False,
             )
 
-            print_debug("Eigval: {}", eigval)
+            if config.ad_custom_verbose_output:
+                debug_print(
+                    "AD: Converged: {}, Eigval: {}, Eigvec[1]: {}",
+                    converged,
+                    eigval[0],
+                    eigvec[1][0],
+                )
 
-            env_fixed_point = jax.tree.map(lambda v: jnp.real(v[..., 0]), eigvec[0])
-
-            env_fixed_point, arnoldi_worked = cond(
-                jnp.real(eigvec[1][0]) >= 1e-10,
-                lambda x: (jax.tree.map(lambda v: v / jnp.real(eigvec[1][0]), x), True),
-                lambda x: (x, False),
-                env_fixed_point,
-            )
+            if real:
+                env_fixed_point = jax.tree.map(lambda v: jnp.real(v[..., 0]), eigvec[0])
+                env_fixed_point, arnoldi_worked = cond(
+                    jnp.logical_and(
+                        converged,
+                        jnp.abs(eigvec[1][0])
+                        >= 1e-2 * config.ad_custom_convergence_eps,
+                    ),
+                    lambda x: (
+                        jax.tree.map(lambda v: v / jnp.real(eigvec[1][0]), x),
+                        True,
+                    ),
+                    lambda x: (x, False),
+                    env_fixed_point,
+                )
+            else:
+                env_fixed_point = jax.tree.map(
+                    lambda v, w: v[..., 0] + 1j * w[..., 0], eigvec[0][0], eigvec[0][1]
+                )
+                env_fixed_point, arnoldi_worked = cond(
+                    jnp.logical_and(
+                        converged,
+                        jnp.abs(eigvec[1][0])
+                        >= 1e-2 * config.ad_custom_convergence_eps,
+                    ),
+                    lambda x: (
+                        jax.tree.map(lambda v: v / jnp.real(eigvec[1][0]), x),
+                        True,
+                    ),
+                    lambda x: (x, False),
+                    env_fixed_point,
+                )
         else:
             env_fixed_point = new_unitcell_bar
             arnoldi_worked = False
+            converged = True
 
         end_count = 0
 
         def run_gmres(v, e):
+            if config.ad_custom_verbose_output:
+                debug_print("AD: Computing gradient with GMRES")
+
             def f_gmres(w):
+                if not real:
+                    w = jax.tree.map(lambda x, y: x + 1j * y, w[0], w[1])
+
                 new_w = vjp_env((w, jnp.array(0, dtype=jnp.float64)))[0]
 
                 new_w = new_w.replace_unique_tensors(
@@ -1090,26 +1121,46 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
                     ]
                 )
 
+                if not real:
+                    new_w = (
+                        jax.tree.map(lambda x: jnp.real(x), new_w),
+                        jax.tree.map(lambda x: jnp.imag(x), new_w),
+                    )
+
                 return new_w
 
             is_gpu = jax.default_backend() == "gpu"
 
+            if real:
+                v0 = new_unitcell_bar
+            else:
+                v0 = (
+                    jax.tree.map(lambda x: jnp.real(x), new_unitcell_bar),
+                    jax.tree.map(lambda x: jnp.imag(x), new_unitcell_bar),
+                )
+
             v, e = jax.scipy.sparse.linalg.gmres(
                 f_gmres,
-                new_unitcell_bar,
-                new_unitcell_bar,
+                v0,
+                v0,
                 solve_method="batched" if is_gpu else "incremental",
                 atol=config.ad_custom_convergence_eps,
-                maxiter=config.ad_custom_max_steps,
+                # maxiter=config.ad_custom_max_steps,
             )
+
+            if not real:
+                v = jax.tree.map(lambda x, y: x + 1j * y, v[0], v[1])
 
             return v, e
 
-        env_fixed_point, end_count = jax.lax.cond(
-            arnoldi_worked, lambda x, e: (x, e), run_gmres, env_fixed_point, end_count
+        env_fixed_point, end_count, converged = jax.lax.cond(
+            jnp.logical_and(converged, jnp.logical_not(arnoldi_worked)),
+            lambda x, ec, c: (*run_gmres(x, ec), True),
+            lambda x, ec, c: (x, ec, c),
+            env_fixed_point,
+            end_count,
+            converged,
         )
-
-        converged = True
 
     (t_bar,) = vjp_peps_tensors((env_fixed_point, jnp.array(0, dtype=jnp.float64)))
 
@@ -1135,7 +1186,7 @@ def calc_ctmrg_env_rev(
 
     varipeps_global_state.ctmrg_effective_truncation_eps = None
 
-    if end_count == varipeps_config.ad_custom_max_steps and not converged:
+    if not converged:
         raise CTMRGGradientNotConvergedError
 
     empty_t = [t.zeros_like_self() for t in input_unitcell.get_unique_tensors()]
