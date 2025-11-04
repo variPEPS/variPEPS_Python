@@ -6,6 +6,7 @@ from . import one_site
 from . import two_sites
 from . import three_sites
 from . import four_sites
+from . import triangular_helpers
 from . import triangular_one_site
 from . import triangular_two_sites
 from . import triangular_next_nearest
