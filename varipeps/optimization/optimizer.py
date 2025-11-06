@@ -6,6 +6,7 @@ import importlib
 import os
 from os import PathLike
 import pathlib
+import sys
 import time
 
 from scipy.optimize import OptimizeResult
@@ -1156,6 +1157,11 @@ def optimize_peps_network(
                 )
 
                 if remaining_slurm_time < time_of_one_step:
+                    print(
+                        "Average time of optimizer step below remaining Slurm runtime",
+                        file=sys.stderr,
+                    )
+
                     if (
                         restart_needed_filename := os.environ.get(
                             "VARIPEPS_NEED_RESTART_FILE"
