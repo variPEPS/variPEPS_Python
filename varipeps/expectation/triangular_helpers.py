@@ -74,8 +74,10 @@ def partially_traced_vertical_two_site_density_matrices_triangular(
             "tensors": [["tensor", "tensor_conj", "T6a", "C1", "C2", "C3", "T3b"]],
             "network": [
                 [
-                    (4, 5, 7, 13, -2 * len(top_i) - 2, 3) + phys_contraction_i_top,  # tensor
-                    (9, 10, 11, 14, -2 * len(top_i) - 3, 8) + phys_contraction_i_conj_top,  # tensor_conj
+                    (4, 5, 7, 13, -2 * len(top_i) - 2, 3)
+                    + phys_contraction_i_top,  # tensor
+                    (9, 10, 11, 14, -2 * len(top_i) - 3, 8)
+                    + phys_contraction_i_conj_top,  # tensor_conj
                     (-2 * len(top_i) - 1, 3, 8, 1),  # T6a
                     (1, 4, 9, 2),  # C1
                     (2, 5, 10, 6),  # C2
@@ -117,7 +119,8 @@ def partially_traced_vertical_two_site_density_matrices_triangular(
             "network": [
                 [
                     (13, -2, 3, 4, 5, 7) + phys_contraction_i_bottom,  # tensor
-                    (14, -3, 8, 9, 10, 11) + phys_contraction_i_conj_bottom,  # tensor_conj
+                    (14, -3, 8, 9, 10, 11)
+                    + phys_contraction_i_conj_bottom,  # tensor_conj
                     (-4, 3, 8, 1),  # T3a
                     (1, 4, 9, 2),  # C4
                     (2, 5, 10, 6),  # C5
@@ -256,8 +259,10 @@ def partially_traced_horizontal_two_site_density_matrices_triangular(
             "tensors": [["tensor", "tensor_conj", "T4a", "C5", "C6", "C1", "T1b"]],
             "network": [
                 [
-                    (7, 13, -2 * len(left_i) - 2, 3, 4, 5) + phys_contraction_i_left,  # tensor
-                    (11, 14, -2 * len(left_i) - 3, 8, 9, 10) + phys_contraction_i_conj_left,  # tensor_conj
+                    (7, 13, -2 * len(left_i) - 2, 3, 4, 5)
+                    + phys_contraction_i_left,  # tensor
+                    (11, 14, -2 * len(left_i) - 3, 8, 9, 10)
+                    + phys_contraction_i_conj_left,  # tensor_conj
                     (-2 * len(left_i) - 4, 3, 8, 1),  # T4a
                     (1, 4, 9, 2),  # C5
                     (2, 5, 10, 6),  # C6
@@ -299,7 +304,8 @@ def partially_traced_horizontal_two_site_density_matrices_triangular(
             "network": [
                 [
                     (3, 4, 5, 7, 13, -2) + phys_contraction_i_right,  # tensor
-                    (8, 9, 10, 11, 14, -3) + phys_contraction_i_conj_right,  # tensor_conj
+                    (8, 9, 10, 11, 14, -3)
+                    + phys_contraction_i_conj_right,  # tensor_conj
                     (-1, 3, 8, 1),  # T1a
                     (1, 4, 9, 2),  # C2
                     (2, 5, 10, 6),  # C3
@@ -438,8 +444,10 @@ def partially_traced_diagonal_two_site_density_matrices_triangular(
             "tensors": [["tensor", "tensor_conj", "T5a", "C6", "C1", "C2", "T2b"]],
             "network": [
                 [
-                    (5, 7, 13, -2 * len(top_i) - 2, 3, 4) + phys_contraction_i_top,  # tensor
-                    (10, 11, 14, -2 * len(top_i) - 3, 8, 9) + phys_contraction_i_conj_top,  # tensor_conj
+                    (5, 7, 13, -2 * len(top_i) - 2, 3, 4)
+                    + phys_contraction_i_top,  # tensor
+                    (10, 11, 14, -2 * len(top_i) - 3, 8, 9)
+                    + phys_contraction_i_conj_top,  # tensor_conj
                     (-2 * len(top_i) - 1, 3, 8, 1),  # T5a
                     (1, 4, 9, 2),  # C6
                     (2, 5, 10, 6),  # C1
@@ -481,7 +489,8 @@ def partially_traced_diagonal_two_site_density_matrices_triangular(
             "network": [
                 [
                     (-2, 3, 4, 5, 7, 13) + phys_contraction_i_bottom,  # tensor
-                    (-3, 8, 9, 10, 11, 14) + phys_contraction_i_conj_bottom,  # tensor_conj
+                    (-3, 8, 9, 10, 11, 14)
+                    + phys_contraction_i_conj_bottom,  # tensor_conj
                     (-4, 3, 8, 1),  # T2a
                     (1, 4, 9, 2),  # C3
                     (2, 5, 10, 6),  # C4

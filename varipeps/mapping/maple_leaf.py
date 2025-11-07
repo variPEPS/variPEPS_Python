@@ -256,6 +256,7 @@ def get_onsite_gates(g_e, b_e, r_e, d):
         red_45,
     )
 
+
 def get_onsite_gates_hexagon(b_e, d):
     Id_other_sites = jnp.eye(d**4)
 
@@ -343,6 +344,7 @@ def _calc_onsite_gate(
 
     return result, single_gates
 
+
 @partial(jit, static_argnums=(1, 2))
 def _calc_onsite_gate_hexagon(
     blue_gates: Sequence[jnp.ndarray],
@@ -353,9 +355,7 @@ def _calc_onsite_gate_hexagon(
 
     single_gates = [None] * result_length
 
-    for i, (b_e, ) in enumerate(
-        zip(blue_gates, strict=True)
-    ):
+    for i, (b_e,) in enumerate(zip(blue_gates, strict=True)):
         (
             blue_12,
             blue_23,
@@ -365,14 +365,7 @@ def _calc_onsite_gate_hexagon(
             blue_61,
         ) = get_onsite_gates_hexagon(b_e, d)
 
-        result[i] = (
-            blue_12 +
-            blue_23 +
-            blue_34 +
-            blue_45 +
-            blue_56 +
-            blue_61
-        )
+        result[i] = blue_12 + blue_23 + blue_34 + blue_45 + blue_56 + blue_61
 
         single_gates[i] = (
             blue_12,
@@ -397,6 +390,7 @@ def get_right_gates(b_e, r_e, d):
     blue_62 = blue_62.reshape(d**3, d**3)
 
     return red_61, blue_62
+
 
 def get_right_gates_hexagon(r_e, g_e, d):
     Id_other_site = jnp.eye(d**2)
@@ -439,6 +433,7 @@ def _calc_right_gate(
 
     return result, single_gates
 
+
 @partial(jit, static_argnums=(2, 3))
 def _calc_right_gate_hexagon(
     red_gates: Sequence[jnp.ndarray],
@@ -467,6 +462,7 @@ def get_down_gates(b_e, r_e, d):
     red_36 = red_36.reshape(d**3, d**3)
 
     return blue_35, red_36
+
 
 def get_down_gates_hexagon(r_e, g_e, d):
     Id_other_site = jnp.eye(d**2)
@@ -509,6 +505,7 @@ def _calc_down_gate(
 
     return result, single_gates
 
+
 @partial(jit, static_argnums=(2, 3))
 def _calc_down_gate_hexagon(
     red_gates: Sequence[jnp.ndarray],
@@ -537,6 +534,7 @@ def get_diagonal_gates(b_e, r_e, d):
     red_31 = red_31.reshape(d**3, d**3)
 
     return blue_41, red_31
+
 
 def get_diagonal_gates_hexagon(r_e, g_e, d):
     Id_other_site = jnp.eye(d**2)
@@ -578,6 +576,7 @@ def _calc_diagonal_gate(
         single_gates[i] = (blue_41, red_31)
 
     return result, single_gates
+
 
 @partial(jit, static_argnums=(2, 3))
 def _calc_diagonal_gate_hexagon(
@@ -1881,7 +1880,11 @@ class Maple_Leaf_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                         density_matrix_top_left,
                         density_matrix_bottom_right,
                     ) = partially_traced_diagonal_two_site_density_matrices_triangular(
-                        diagonal_tensors, diagonal_tensor_objs, 2, 6, ((3, 4), (1,)),
+                        diagonal_tensors,
+                        diagonal_tensor_objs,
+                        2,
+                        6,
+                        ((3, 4), (1,)),
                     )
 
                     if return_single_gate_results:
@@ -2063,6 +2066,7 @@ class Maple_Leaf_Triangular_CTMRG_Expectation_Value(Expectation_Model):
             is_spiral_peps=is_spiral_peps,
             spiral_unitary_operator=spiral_unitary_operator,
         )
+
 
 @dataclass
 class Maple_Leaf_Hexagon_Triangular_CTMRG_Expectation_Value(Expectation_Model):
@@ -2316,7 +2320,6 @@ class Maple_Leaf_Hexagon_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                             self._full_onsite_tuple,
                         )
 
-
                     vertical_tensors_i = view.get_indices((slice(0, 2, None), 0))
                     vertical_tensors = [
                         peps_tensors[i] for j in vertical_tensors_i for i in j
@@ -2344,7 +2347,6 @@ class Maple_Leaf_Hexagon_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                             self._result_type is jnp.float64,
                         )
 
-
                     horizontal_tensors_i = view.get_indices((0, slice(0, 2, None)))
                     horizontal_tensors = [
                         peps_tensors[i] for j in horizontal_tensors_i for i in j
@@ -2354,7 +2356,11 @@ class Maple_Leaf_Hexagon_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                         density_matrix_left,
                         density_matrix_right,
                     ) = partially_traced_horizontal_two_site_density_matrices_triangular(
-                        horizontal_tensors, horizontal_tensor_objs, 2, 6, ((2, 3), (5, 6))
+                        horizontal_tensors,
+                        horizontal_tensor_objs,
+                        2,
+                        6,
+                        ((2, 3), (5, 6)),
                     )
 
                     if return_single_gate_results:
@@ -2371,7 +2377,6 @@ class Maple_Leaf_Hexagon_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                             working_h_gates,
                             self._result_type is jnp.float64,
                         )
-
 
                     diagonal_tensors_i = view.get_indices(
                         (slice(0, 2, None), slice(0, 2, None))
