@@ -5,6 +5,43 @@ from typing import Any
 
 from varipeps import config as _cfg_mod  # uses the global config instance
 
+# --- Custom tqdm-based handlers ---
+
+class TqdmUpdateHandler(logging.Handler):
+    """Updates a tqdm progress bar's postfix string instead of printing."""
+    def __init__(self, pbar: Any):
+        super().__init__()
+        self.pbar = pbar
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = self.format(record)
+            # Truncate to keep the bar compact
+            self.pbar.set_postfix_str(str(msg), refresh=True)
+        except Exception:  # nosec - logging must never raise
+            self.handleError(record)
+
+
+class TqdmWriteHandler(logging.Handler):
+    """Writes messages via tqdm.write (thread-safe)."""
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = self.format(record)
+            from tqdm import tqdm
+            tqdm.write(str(msg))
+        except Exception:
+            self.handleError(record)
+
+
+class ExcludeLoggerFilter(logging.Filter):
+    """Exclude records whose logger name starts with a given prefix."""
+    def __init__(self, prefix: str):
+        super().__init__()
+        self.prefix = prefix
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return not record.name.startswith(self.prefix)
+
 _LOGGING_INITIALIZED = False
 
 def _to_py_log_level(level: Any) -> int:
@@ -34,25 +71,61 @@ def init_logging(cfg: Any | None = None) -> None:
     root.setLevel(_to_py_log_level(getattr(cfg, "log_level_global", logging.INFO)))
     root.propagate = False
 
-    # fmt = logging.Formatter(
-    #     fmt="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    #     datefmt="%H:%M:%S",
-    # )
-
     fmt = logging.Formatter(
         fmt="%(asctime)s %(levelname)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    if getattr(cfg, "log_to_console", True):
-        sh = logging.StreamHandler()
-        sh.setFormatter(fmt)
-        root.addHandler(sh)
+    use_tqdm = bool(getattr(cfg, "log_tqdm", False))
 
-    if getattr(cfg, "log_to_file", False):
-        fh = logging.FileHandler(getattr(cfg, "log_file", "varipeps.log"))
-        fh.setFormatter(fmt)
-        root.addHandler(fh)
+    if use_tqdm:
+        fmt = logging.Formatter(fmt="%(message)s")
+        # Console via tqdm.write for all varipeps loggers except optimizer
+        tw = TqdmWriteHandler()
+        tw.setFormatter(fmt)
+        tw.addFilter(ExcludeLoggerFilter("varipeps.optimizer"))
+        root.addHandler(tw)
+
+        # Preserve file logging if enabled
+        if getattr(cfg, "log_to_file", False):
+            fh = logging.FileHandler(getattr(cfg, "log_file", "varipeps.log"))
+            fh.setFormatter(fmt)
+            root.addHandler(fh)
+
+        # Optimizer uses a tqdm progress bar update handler
+        opt_logger = logging.getLogger("varipeps.optimizer")
+        for h in list(opt_logger.handlers):
+            opt_logger.removeHandler(h)
+
+        from tqdm import tqdm
+        # Create a lightweight bar that we only update the postfix for
+        pbar = tqdm(total=0, position=0, leave=True, dynamic_ncols=True)
+
+        if pbar is not None:
+            th = TqdmUpdateHandler(pbar)
+            th.setFormatter(fmt)
+            opt_logger.addHandler(th)
+
+        # Keep propagation so optimizer still logs to file handler if present,
+        # while console is suppressed by the ExcludeLoggerFilter on root.
+        opt_logger.propagate = True
+    else:
+        # Standard console/file logging
+        if getattr(cfg, "log_to_console", True):
+            sh = logging.StreamHandler()
+            sh.setFormatter(fmt)
+            root.addHandler(sh)
+
+        if getattr(cfg, "log_to_file", False):
+            fh = logging.FileHandler(getattr(cfg, "log_file", "varipeps.log"))
+            fh.setFormatter(fmt)
+            root.addHandler(fh)
+
+        # Ensure optimizer has no leftover tqdm handler from a previous init
+        opt_logger = logging.getLogger("varipeps.optimizer")
+        for h in list(opt_logger.handlers):
+            opt_logger.removeHandler(h)
+        opt_logger.propagate = True
 
     # Per-module levels
     logging.getLogger("varipeps.optimizer").setLevel(
