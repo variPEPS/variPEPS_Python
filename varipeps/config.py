@@ -236,23 +236,26 @@ class VariPEPS_Config:
       slurm_restart_mode (:obj:`Slurm_Restart_Mode`):
         Mode of operation to restart slurm job if maximal runtime is reached.
       log_level_global (:obj:`LogLevel`):
-        Global logging level.
+        Global logging level for the 'varipeps' package logger.
       log_level_optimizer (:obj:`LogLevel`):
-        Logging level for optimizer module.
+        Logging level for 'varipeps.optimizer'.
       log_level_ctmrg (:obj:`LogLevel`):
-        Logging level for CTMRG module.
+        Logging level for 'varipeps.ctmrg'.
       log_level_line_search (:obj:`LogLevel`):
-        Logging level for line search module.
+        Logging level for 'varipeps.line_search'.
       log_level_expectation (:obj:`LogLevel`):
-        Logging level for expectation value calculations.
+        Logging level for 'varipeps.expectation'.
       log_to_console (:obj:`bool`):
-        Enable logging to console.
+        Enable standard console logging (StreamHandler).
+        Ignored when :obj:`VariPEPS_Config.log_tqdm` is True.
       log_to_file (:obj:`bool`):
         Enable logging to file.
       log_file (:obj:`str`):
-        Filename for logging to file.
+        Filename for logging to file (used when :obj:`VariPEPS_Config.log_to_file` is True).
       log_tqdm (:obj:`bool`):
-        Enable tqdm-based console logging.
+        Enable tqdm-based console logging. If True, messages from
+        'varipeps.optimizer' update a tqdm progress bar, while other modules
+        log via tqdm.write. File logging settings still apply.
     """
 
     # AD config
@@ -347,7 +350,6 @@ class VariPEPS_Config:
     log_to_console: bool = True
     log_to_file: bool = False
     log_file: str = "varipeps.log"
-    log_step_summary_every_n: int = 1
     log_tqdm: bool = False              #: Enable tqdm-based console logging
 
     def update(self, name: str, value: Any) -> NoReturn:
