@@ -1,6 +1,5 @@
 import enum
 
-from tqdm_loggable.auto import tqdm
 
 import jax
 import jax.numpy as jnp
@@ -14,6 +13,9 @@ from varipeps.peps import PEPS_Unit_Cell
 from varipeps.expectation import Expectation_Model
 from varipeps.mapping import Map_To_PEPS_Model
 from varipeps.utils.debug_print import debug_print
+import logging
+
+logger = logging.getLogger("varipeps.line_search")
 
 from .inner_function import (
     calc_ctmrg_expectation,
@@ -443,6 +445,7 @@ def line_search(
                     additional_input,
                     enforce_elementwise_convergence=enforce_elementwise_convergence,
                 )
+                logger.info("🔎 Line search step %d, E=%.6f, alpha=%.3e", count + 1, new_value, alpha)
 
                 if new_unitcell[0, 0][0][0].chi > unitcell[0, 0][0][0].chi:
                     tmp_value = current_value
@@ -463,10 +466,11 @@ def line_search(
                     else:
                         unitcell = unitcell.change_chi(new_unitcell[0, 0][0][0].chi)
 
-                        debug_print(
-                            "Line search: Recalculate original unitcell with higher chi {}.",
-                            new_unitcell[0, 0][0][0].chi,
-                        )
+                        if logger.isEnabledFor(logging.DEBUG):
+                            logger.debug(
+                                "Line search: Recalculate original unitcell with higher chi %s.",
+                                new_unitcell[0, 0][0][0].chi,
+                            )
 
                         if varipeps_config.ad_use_custom_vjp:
                             (
@@ -534,6 +538,7 @@ def line_search(
                         additional_input,
                         calc_preconverged=True,
                     )
+                logger.info("🔎 Line search step %d, E=%.8f, alpha=%.8f", count + 1, new_value, alpha)
                 new_gradient = [elem.conj() for elem in new_gradient_seq]
 
                 if new_unitcell[0, 0][0][0].chi > unitcell[0, 0][0][0].chi:
@@ -554,11 +559,11 @@ def line_search(
                         ) = cache_original_unitcell[new_unitcell[0, 0][0][0].chi]
                     else:
                         unitcell = unitcell.change_chi(new_unitcell[0, 0][0][0].chi)
-
-                        debug_print(
-                            "Line search: Recalculate original unitcell with higher chi {}.",
-                            new_unitcell[0, 0][0][0].chi,
-                        )
+                        if logger.isEnabledFor(logging.DEBUG):
+                            logger.debug(
+                                "Line search: Recalculate original unitcell with higher chi %s.",
+                                new_unitcell[0, 0][0][0].chi,
+                            )
 
                         if varipeps_config.ad_use_custom_vjp:
                             (
@@ -1002,7 +1007,7 @@ def line_search(
                 )
 
                 if alpha <= 0:
-                    tqdm.write("Found negative alpha in secant operation!")
+                    logger.warning("Found negative alpha in secant operation!")
 
                 hz_secant_alpha = alpha
 
@@ -1123,6 +1128,7 @@ def line_search(
         jax.clear_caches()
 
     if count == varipeps_config.line_search_max_steps:
+        logger.warn("❗ No suitable step size found in line search!")
         raise NoSuitableStepSizeError(f"Count {count}, Last alpha {alpha}")
 
     return (

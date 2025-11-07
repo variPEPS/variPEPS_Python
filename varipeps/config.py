@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from enum import Enum, IntEnum, auto, unique
+from typing import TypeVar, Tuple, Any, Type, NoReturn
+import logging
 
 import numpy as np
 
 from jax.tree_util import register_pytree_node_class
 
-from typing import TypeVar, Tuple, Any, Type, NoReturn
 
 T_VariPEPS_Config = TypeVar("T_VariPEPS_Config", bound="VariPEPS_Config")
 
@@ -52,6 +53,15 @@ class Slurm_Restart_Mode(IntEnum):
         auto()
     )  #: Write slurm restart script but do not submit new slurm job
     AUTOMATIC_RESTART = auto()  #: Write restart script and start new slurm job with it
+
+
+@unique
+class LogLevel(IntEnum):
+    OFF = 0
+    ERROR = logging.ERROR
+    WARNING = logging.WARNING
+    INFO = logging.INFO
+    DEBUG = logging.DEBUG
 
 
 @dataclass
@@ -225,6 +235,27 @@ class VariPEPS_Config:
         Type of wavevector to be used (only positive/symmetric interval/...).
       slurm_restart_mode (:obj:`Slurm_Restart_Mode`):
         Mode of operation to restart slurm job if maximal runtime is reached.
+      log_level_global (:obj:`LogLevel`):
+        Global logging level for the 'varipeps' package logger.
+      log_level_optimizer (:obj:`LogLevel`):
+        Logging level for 'varipeps.optimizer'.
+      log_level_ctmrg (:obj:`LogLevel`):
+        Logging level for 'varipeps.ctmrg'.
+      log_level_line_search (:obj:`LogLevel`):
+        Logging level for 'varipeps.line_search'.
+      log_level_expectation (:obj:`LogLevel`):
+        Logging level for 'varipeps.expectation'.
+      log_to_console (:obj:`bool`):
+        Enable standard console logging (StreamHandler).
+        Ignored when :obj:`VariPEPS_Config.log_tqdm` is True.
+      log_to_file (:obj:`bool`):
+        Enable logging to file.
+      log_file (:obj:`str`):
+        Filename for logging to file (used when :obj:`VariPEPS_Config.log_to_file` is True).
+      log_tqdm (:obj:`bool`):
+        Enable tqdm-based console logging. If True, messages from
+        'varipeps.optimizer' update a tqdm progress bar, while other modules
+        log via tqdm.write. File logging settings still apply.
     """
 
     # AD config
@@ -310,6 +341,17 @@ class VariPEPS_Config:
     # Slurm
     slurm_restart_mode: Slurm_Restart_Mode = Slurm_Restart_Mode.WRITE_NEED_RESTART_FILE
 
+    # Logging configuration
+    log_level_global: LogLevel = LogLevel.INFO
+    log_level_optimizer: LogLevel = LogLevel.INFO
+    log_level_ctmrg: LogLevel = LogLevel.INFO
+    log_level_line_search: LogLevel = LogLevel.INFO
+    log_level_expectation: LogLevel = LogLevel.INFO
+    log_to_console: bool = True
+    log_to_file: bool = False
+    log_file: str = "varipeps.log"
+    log_tqdm: bool = False              #: Enable tqdm-based console logging
+
     def update(self, name: str, value: Any) -> NoReturn:
         self.__setattr__(name, value)
 
@@ -346,12 +388,33 @@ class VariPEPS_Config:
             elif (
                 field.type is bool
                 and hasattr(value, "dtype")
-                and np.isdtype(value.dtype, np.bool)
+                and np.issubdtype(value.dtype, np.bool_)
                 and value.size == 1
             ):
                 if value.ndim > 0:
                     value = value.reshape(-1)[0]
                 value = bool(value)
+            elif isinstance(field.type, type) and issubclass(field.type, Enum):
+                # Accept ints/np.int64 or enum names for Enum fields
+                if isinstance(value, field.type):
+                    pass
+                elif isinstance(value, (int,)) or (
+                    hasattr(value, "dtype")
+                    and np.issubdtype(value.dtype, np.integer)
+                    and value.size == 1
+                ):
+                    if hasattr(value, "ndim") and value.ndim > 0:
+                        value = value.reshape(-1)[0]
+                    value = field.type(int(value))
+                elif isinstance(value, str):
+                    try:
+                        value = field.type[value]
+                    except KeyError:
+                        value = field.type(int(value))
+                else:
+                    raise TypeError(
+                        f"Type mismatch for option '{name}', got '{type(value)}', expected '{field.type}'."
+                    )
             else:
                 raise TypeError(
                     f"Type mismatch for option '{name}', got '{type(value)}', expected '{field.type}'."
@@ -395,6 +458,7 @@ class ConfigModuleWrapper:
         "Projector_Method",
         "Wavevector_Type",
         "Slurm_Restart_Mode",
+        "LogLevel",
         "VariPEPS_Config",
         "config",
     }
