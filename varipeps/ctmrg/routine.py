@@ -800,7 +800,7 @@ def calc_ctmrg_env(
             if not new_chi in already_tried_chi:
                 working_unitcell = working_unitcell.change_chi(new_chi)
 
-                if logger.isEnabledFor(logging.info):
+                if logger.isEnabledFor(logging.INFO):
                     logger.info(
                         "Decreasing chi to %d since smallest SVD Norm was %.3e or routine did not converge.",
                         new_chi,
