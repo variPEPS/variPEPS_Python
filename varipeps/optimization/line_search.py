@@ -1116,7 +1116,10 @@ def line_search(
 
         count += 1
 
-    if new_unitcell[0, 0][0][0].chi != unitcell[0, 0][0][0].chi:
+    if (
+        new_unitcell is not None
+        and new_unitcell[0, 0][0][0].chi != unitcell[0, 0][0][0].chi
+    ):
         jax.clear_caches()
 
     if count == varipeps_config.line_search_max_steps:
