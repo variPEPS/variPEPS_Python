@@ -235,6 +235,24 @@ class VariPEPS_Config:
         Type of wavevector to be used (only positive/symmetric interval/...).
       slurm_restart_mode (:obj:`Slurm_Restart_Mode`):
         Mode of operation to restart slurm job if maximal runtime is reached.
+      log_level_global (:obj:`LogLevel`):
+        Global logging level.
+      log_level_optimizer (:obj:`LogLevel`):
+        Logging level for optimizer module.
+      log_level_ctmrg (:obj:`LogLevel`):
+        Logging level for CTMRG module.
+      log_level_line_search (:obj:`LogLevel`):
+        Logging level for line search module.
+      log_level_expectation (:obj:`LogLevel`):
+        Logging level for expectation value calculations.
+      log_to_console (:obj:`bool`):
+        Enable logging to console.
+      log_to_file (:obj:`bool`):
+        Enable logging to file.
+      log_file (:obj:`str`):
+        Filename for logging to file.
+      log_tqdm (:obj:`bool`):
+        Enable tqdm-based console logging.
     """
 
     # AD config
@@ -330,6 +348,7 @@ class VariPEPS_Config:
     log_to_file: bool = False
     log_file: str = "varipeps.log"
     log_step_summary_every_n: int = 1
+    log_tqdm: bool = False              #: Enable tqdm-based console logging
 
     def update(self, name: str, value: Any) -> NoReturn:
         self.__setattr__(name, value)
