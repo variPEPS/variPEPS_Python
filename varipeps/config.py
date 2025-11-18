@@ -166,6 +166,15 @@ class VariPEPS_Config:
       optimizer_reuse_env_eps (:obj:`float`):
         Reuse CTMRG environment of previous step if norm of gradient is below
         this threshold.
+      optimizer_use_preconditioning (:obj:`bool`):
+        Use (local) preconditioning method as described in
+        https://arxiv.org/abs/2511.09546.
+      optimizer_precond_gmres_krylov_subspace_size (:obj:`int`):
+        Size of Krylov subspace built up during GMRES method for the inversion
+        of the preconditioner.
+      optimizer_precond_gmres_maxiter (:obj:`int`):
+        Maximal number of outer iterations inside the GMRES method for the
+        inversion of the preconditioner.
       line_search_method (:obj:`Line_Search_Methods`):
         Method used for the line search routine.
       line_search_initial_step_size (:obj:`float`):
@@ -263,19 +272,22 @@ class VariPEPS_Config:
     svd_ad_lorentz_broadening_eps: float = 1e-13
 
     # Optimizer
-    optimizer_method: Optimizing_Methods = Optimizing_Methods.BFGS
+    optimizer_method: Optimizing_Methods = Optimizing_Methods.L_BFGS
     optimizer_max_steps: int = 300
     optimizer_convergence_eps: float = 1e-5
     optimizer_ctmrg_preconverged_eps: float = 1e-5
     optimizer_fail_if_no_step_size_found: bool = False
     optimizer_l_bfgs_maxlen: int = 15
-    optimizer_preconverge_with_half_projectors: bool = True
+    optimizer_preconverge_with_half_projectors: bool = False
     optimizer_preconverge_with_half_projectors_eps: float = 1e-3
     optimizer_autosave_step_count: int = 2
     optimizer_random_noise_eps: float = 1e-4
     optimizer_random_noise_max_retries: int = 5
     optimizer_random_noise_relative_amplitude: float = 1e-1
     optimizer_reuse_env_eps: float = 1e-3
+    optimizer_use_preconditioning: bool = True
+    optimizer_precond_gmres_krylov_subspace_size: int = 30
+    optimizer_precond_gmres_maxiter: int = 3
 
     # Line search
     line_search_method: Line_Search_Methods = Line_Search_Methods.HAGERZHANG

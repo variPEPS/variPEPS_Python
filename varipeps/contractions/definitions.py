@@ -4860,5 +4860,74 @@ class Definitions:
         ],
     }
 
+    precondition_operator: Definition = {
+        "tensors": [["C1", "T1", "C2", "T2", "C3", "T3", "C4", "T4"], "ket_tensor"],
+        "network": [
+            [
+                (2, 12),  # C1
+                (12, 9, -5, 3),  # T1
+                (3, 8),  # C2
+                (10, -4, 4, 8),  # T2
+                (11, 4),  # C3
+                (1, 11, -2, 7),  # T3
+                (1, 5),  # C4
+                (5, -1, 6, 2),  # T4
+            ],
+            (6, 7, -3, 10, 9),  # ket_tensor
+        ],
+    }
+
+    precondition_operator_triangular: Definition = {
+        "tensors": [["C1", "C2", "C3", "C4", "C5", "C6"], "ket_tensor"],
+        "network": [
+            [
+                (12, 5, -1, 1),  # C1
+                (1, 6, -2, 2),  # C2
+                (2, 7, -3, 8),  # C3
+                (8, 9, -4, 3),  # C4
+                (3, 10, -5, 4),  # C5
+                (4, 11, -6, 12),  # C6
+            ],
+            (5, 6, 7, 9, 10, 11, -7),  # ket_tensor
+        ],
+    }
+
+    precondition_operator_split_transfer: Definition = {
+        "tensors": [
+            [
+                "C1",
+                "T1_ket",
+                "T1_bra",
+                "C2",
+                "T2_ket",
+                "T2_bra",
+                "C3",
+                "T3_bra",
+                "T3_ket",
+                "C4",
+                "T4_bra",
+                "T4_ket",
+            ],
+            "ket_tensor",
+        ],
+        "network": [
+            [
+                (1, 2),  # C1
+                (2, 13, 3),  # T1_ket
+                (3, -5, 4),  # T1_bra
+                (4, 5),  # C2
+                (6, 14, 5),  # T2_ket
+                (7, -4, 6),  # T2_bra
+                (8, 7),  # C3
+                (9, 15, 8),  # T3_ket
+                (10, -2, 9),  # T3_bra
+                (10, 11),  # C4
+                (11, 16, 12),  # T4_ket
+                (12, -1, 1),  # T4_bra
+            ],
+            (16, 15, -3, 14, 13),  # ket_tensor
+        ],
+    }
+
 
 Definitions._prepare_defs()

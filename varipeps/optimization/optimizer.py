@@ -20,7 +20,7 @@ import numpy as np
 import jax
 from jax import jit
 import jax.numpy as jnp
-from jax.lax import scan
+from jax.lax import scan, cond
 from jax.flatten_util import ravel_pytree
 
 from varipeps import varipeps_config, varipeps_global_state
@@ -32,6 +32,8 @@ from varipeps.mapping import Map_To_PEPS_Model
 from varipeps.ctmrg import CTMRGNotConvergedError, CTMRGGradientNotConvergedError
 from varipeps.utils.random import PEPS_Random_Number_Generator
 from varipeps.utils.slurm import SlurmUtils
+from varipeps.contractions import apply_contraction_jitted
+from varipeps.utils.debug_print import debug_print
 
 from .inner_function import (
     calc_ctmrg_expectation,
@@ -143,7 +145,7 @@ def _bfgs_workhorse(
 
 
 @jit
-def _l_bfgs_workhorse(value_tuple, gradient_tuple):
+def _l_bfgs_workhorse(value_tuple, gradient_tuple, t_objs, config):
     gradient_elem_0, gradient_unravel = ravel_pytree(gradient_tuple[0])
     gradient_len = gradient_elem_0.size
 
@@ -154,6 +156,9 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple):
         if iscomplex:
             return jnp.concatenate((jnp.real(x_1d), jnp.imag(x_1d)))
         return x_1d
+
+    gradient_elem_0_1d = _make_1d(gradient_elem_0)
+    norm_grad_square = jnp.sum(gradient_elem_0_1d * gradient_elem_0_1d)
 
     value_arr = jnp.asarray([_make_1d(e) for e in value_tuple])
     gradient_arr = jnp.asarray([_make_1d(e) for e in gradient_tuple])
@@ -173,9 +178,69 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple):
         (pho_arr[:, jnp.newaxis] * s_arr, y_arr),
     )
 
-    gamma = jnp.sum(s_arr[-1] * y_arr[-1]) / jnp.sum(y_arr[-1] * y_arr[-1])
+    def apply_precond(x):
+        if hasattr(t_objs[0], "is_triangular_peps") and t_objs[0].is_triangular_peps:
+            contraction = "precondition_operator_triangular"
+        elif hasattr(t_objs[0], "is_split_transfer") and t_objs[0].is_split_transfer:
+            contraction = "precondition_operator_split_transfer"
+        else:
+            contraction = "precondition_operator"
 
-    z_result = gamma * q
+        if iscomplex:
+            x = x[:gradient_len] + 1j * x[gradient_len:]
+        x = gradient_unravel(x)
+        x = [
+            apply_contraction_jitted(contraction, (te.tensor,), (te,), (xe,))
+            + norm_grad_square * xe
+            for te, xe in zip(t_objs, x, strict=True)
+        ]
+
+        return _make_1d(x)
+
+    if config.optimizer_use_preconditioning:
+        y_precond, _ = jax.scipy.sparse.linalg.gmres(
+            apply_precond,
+            y_arr[0],
+            y_arr[0],
+            restart=config.optimizer_precond_gmres_krylov_subspace_size,
+            maxiter=config.optimizer_precond_gmres_maxiter,
+            solve_method="incremental",
+        )
+
+        def calc_q_precond(y, y_precond, q):
+            q_precond, _ = jax.scipy.sparse.linalg.gmres(
+                apply_precond,
+                q,
+                q,
+                restart=config.optimizer_precond_gmres_krylov_subspace_size,
+                maxiter=config.optimizer_precond_gmres_maxiter,
+                solve_method="incremental",
+            )
+
+            return cond(
+                jnp.sum(q_precond * q) >= 0,
+                lambda y, y_precond, q, q_precond: (y_precond, q_precond),
+                lambda y, y_precond, q, q_precond: (y, q),
+                y,
+                y_precond,
+                q,
+                q_precond,
+            )
+
+        y_precond, q_precond = cond(
+            jnp.sum(y_precond * y_arr[0]) >= 0,
+            calc_q_precond,
+            lambda y, y_precond, q: (y, q),
+            y_arr[0],
+            y_precond,
+            q,
+        )
+    else:
+        y_precond = y_arr[0]
+        q_precond = q
+
+    gamma = jnp.sum(s_arr[0] * y_arr[0]) / jnp.sum(y_arr[0] * y_precond)
+    z_result = gamma * q_precond
 
     def second_loop(z, x):
         pho_y, s, alpha_i = x
@@ -753,9 +818,72 @@ def optimize_peps_network(
 
                 if count == 0 or signal_reset_descent_dir:
                     descent_dir = [-elem for elem in working_gradient]
+
+                    if varipeps_config.optimizer_use_preconditioning:
+                        if (
+                            hasattr(
+                                working_unitcell.get_unique_tensors()[0],
+                                "is_triangular_peps",
+                            )
+                            and working_unitcell.get_unique_tensors()[
+                                0
+                            ].is_triangular_peps
+                        ):
+                            contraction = "precondition_operator_triangular"
+                        elif (
+                            hasattr(
+                                working_unitcell.get_unique_tensors()[0],
+                                "is_split_transfer",
+                            )
+                            and working_unitcell.get_unique_tensors()[
+                                0
+                            ].is_split_transfer
+                        ):
+                            contraction = "precondition_operator_split_transfer"
+                        else:
+                            contraction = "precondition_operator"
+
+                        grad_norm_squared = 1e-2 * (
+                            jnp.linalg.norm(jnp.asarray(working_gradient)) ** 2
+                        )
+
+                        tmp_descent_dir = [
+                            jax.scipy.sparse.linalg.gmres(
+                                lambda x: (
+                                    apply_contraction_jitted(
+                                        contraction, (te.tensor,), (te,), (x,)
+                                    )
+                                    + grad_norm_squared * x
+                                ),
+                                xe,
+                                xe,
+                                restart=varipeps_config.optimizer_precond_gmres_krylov_subspace_size,
+                                maxiter=varipeps_config.optimizer_precond_gmres_maxiter,
+                                solve_method="incremental",
+                            )[0]
+                            for te, xe in zip(
+                                working_unitcell.get_unique_tensors(),
+                                descent_dir,
+                                strict=True,
+                            )
+                        ]
+                        if all(
+                            jnp.sum(xe * x2e.conj()) >= 0
+                            for xe, x2e in zip(
+                                descent_dir, tmp_descent_dir, strict=True
+                            )
+                        ):
+                            descent_dir = tmp_descent_dir
+                        else:
+                            tqdm.write("Warning: Non-positive preconditioner")
+                        del contraction
+                        del grad_norm_squared
                 else:
                     descent_dir = _l_bfgs_workhorse(
-                        tuple(l_bfgs_x_cache), tuple(l_bfgs_grad_cache)
+                        tuple(l_bfgs_x_cache),
+                        tuple(l_bfgs_grad_cache),
+                        working_unitcell.get_unique_tensors(),
+                        varipeps_config,
                     )
             else:
                 raise ValueError("Unknown optimization method.")
@@ -767,6 +895,8 @@ def optimize_peps_network(
                 descent_dir = [-elem for elem in working_gradient]
 
             conv = jnp.linalg.norm(ravel_pytree(working_gradient)[0])
+            if jnp.isinf(conv) or jnp.isnan(conv):
+                conv = 0
             step_conv[random_noise_retries].append(conv)
 
             try:
