@@ -844,7 +844,7 @@ def optimize_peps_network(
                             contraction = "precondition_operator"
 
                         grad_norm_squared = 1e-2 * (
-                            jnp.linalg.norm(jnp.asarray(working_gradient)) ** 2
+                            jnp.linalg.norm(ravel_pytree(working_gradient)[0]) ** 2
                         )
 
                         tmp_descent_dir = [
