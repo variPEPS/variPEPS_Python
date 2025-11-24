@@ -193,7 +193,7 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple, t_objs, config):
             apply_contraction_jitted(contraction, (te.tensor,), (te,), (xe,))
             + norm_grad_square * xe
             for te, xe in zip(t_objs, x[: len(t_objs)], strict=True)
-        ]
+        ] + list(x[len(t_objs) :])
 
         return _make_1d(x)
 
@@ -868,7 +868,9 @@ def optimize_peps_network(
                                 ],
                                 strict=True,
                             )
-                        ]
+                        ] + list(
+                            descent_dir[working_unitcell.get_len_unique_tensors() :]
+                        )
                         if all(
                             jnp.sum(xe * x2e.conj()) >= 0
                             for xe, x2e in zip(
