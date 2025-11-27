@@ -130,7 +130,7 @@ def _ctmrg_body_func_structure_factor(carry):
         converged = measure < eps
 
     if logger.isEnabledFor(logging.DEBUG):
-        jax.debug.callback(lambda cnt, msr: logger.debug(f"CTMRG: Step {cnt}: {msr}"), count, measure, ordered=True)
+        jdebug.callback(lambda cnt, msr: logger.debug(f"CTMRG: Step {cnt}: {msr}"), count, measure, ordered=True)
         if config.ctmrg_verbose_output:
             for ti, ctm_enum_i, diff in verbose_data:
                 debug_print(
