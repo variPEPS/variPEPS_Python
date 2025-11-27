@@ -86,15 +86,7 @@ def partially_traced_vertical_two_site_density_matrices_triangular(
                 ],
             ],
         }
-        Definitions._process_def(
-            contraction_top,
-            (
-                f"partially_traced_vertical_two_site_density_matrices_triangular_top_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{top_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_vertical_two_site_density_matrices_triangular_top_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{top_i}"
@@ -129,15 +121,7 @@ def partially_traced_vertical_two_site_density_matrices_triangular(
                 ],
             ],
         }
-        Definitions._process_def(
-            contraction_bottom,
-            (
-                f"partially_traced_vertical_two_site_density_matrices_triangular_bottom_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{bottom_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_vertical_two_site_density_matrices_triangular_bottom_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{bottom_i}"
@@ -271,15 +255,7 @@ def partially_traced_horizontal_two_site_density_matrices_triangular(
                 ],
             ],
         }
-        Definitions._process_def(
-            contraction_left,
-            (
-                f"partially_traced_horizontal_two_site_density_matrices_triangular_left_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{left_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_horizontal_two_site_density_matrices_triangular_left_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{left_i}"
@@ -314,15 +290,7 @@ def partially_traced_horizontal_two_site_density_matrices_triangular(
                 ],
             ],
         }
-        Definitions._process_def(
-            contraction_right,
-            (
-                f"partially_traced_horizontal_two_site_density_matrices_triangular_right_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{right_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_horizontal_two_site_density_matrices_triangular_right_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{right_i}"
@@ -456,15 +424,7 @@ def partially_traced_diagonal_two_site_density_matrices_triangular(
                 ],
             ],
         }
-        Definitions._process_def(
-            contraction_top,
-            (
-                f"partially_traced_diagonal_two_site_density_matrices_triangular_top_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{top_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_diagonal_two_site_density_matrices_triangular_top_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{top_i}"
@@ -499,15 +459,7 @@ def partially_traced_diagonal_two_site_density_matrices_triangular(
                 ],
             ],
         }
-        Definitions._process_def(
-            contraction_bottom,
-            (
-                f"partially_traced_diagonal_two_site_density_matrices_triangular_bottom_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{bottom_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_diagonal_two_site_density_matrices_triangular_bottom_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{bottom_i}"

@@ -2,41 +2,20 @@
 Helpers to apply contractions.
 """
 
-import collections
 from functools import partial
 
 import jax
 import jax.numpy as jnp
-import tensornetwork as tn
-from tensornetwork.ncon_interface import _jittable_ncon
 
 from varipeps.peps import PEPS_Tensor
-from varipeps import varipeps_config
-from varipeps.config import VariPEPS_Config
-from varipeps.utils.func_cache import Checkpointing_Cache
 
 from .definitions import Definitions, Definition
 
 from typing import Sequence, List, Tuple, Dict, Union, Optional
 
 
-class _Contraction_Cache:
-    _cache = None
-
-    def __class_getitem__(cls, name: str) -> Checkpointing_Cache:
-        name = f"_{name}"
-        obj = getattr(cls, name)
-        if obj is None:
-            obj = Checkpointing_Cache(varipeps_config.checkpointing_ncon)
-            setattr(cls, name, obj)
-        return obj
-
-
-_ncon_jitted = jax.jit(_jittable_ncon, static_argnums=(1, 2, 3, 4, 5), inline=True)
-
-
 @partial(
-    jax.jit, static_argnames=("name", "disable_identity_check", "custom_definition")
+    jax.jit, static_argnames=("name", "disable_identity_check")
 )
 def apply_contraction(
     name: str,
@@ -45,8 +24,6 @@ def apply_contraction(
     additional_tensors: Sequence[jnp.ndarray],
     *,
     disable_identity_check: bool = True,
-    custom_definition: Optional[Definition] = None,
-    config: VariPEPS_Config = varipeps_config,
 ) -> jnp.ndarray:
     """
     Apply a contraction to a list of tensors.
@@ -69,12 +46,6 @@ def apply_contraction(
       disable_identity_check (:obj:`bool`):
         Disable the check if the tensor is identical to the one of the
         corresponding object.
-      custom_definition (:obj:`~varipeps.contractions.apply.Definition`, optional):
-        Use a custom definition for the contraction which is not defined in the
-        :class:`varipeps.contractions.Definitions` class.
-      config (:obj:`~varipeps.config.VariPEPS_Config`):
-        Global configuration object of the variPEPS library. Please see its
-        class definition for details.
     Returns:
       jax.numpy.ndarray:
         The contracted tensor.
@@ -97,10 +68,7 @@ def apply_contraction(
             "Sequence of PEPS tensors mismatch the objects sequence. Please check your code!"
         )
 
-    if custom_definition is not None:
-        contraction = custom_definition
-    else:
-        contraction = getattr(Definitions, name)
+    contraction = getattr(Definitions, name)
 
     if len(contraction["filter_peps_tensors"]) != len(peps_tensors):
         raise ValueError(
@@ -136,17 +104,11 @@ def apply_contraction(
 
     tensor_shapes = tuple(tuple(e.shape) for e in tensors)
 
-    path = contraction["einsum_cache"].get(tensor_shapes)
-
-    if path is None:
-        path, _ = jnp.einsum_path(
-            contraction["einsum_network"],
-            *tensors,
-            optimize="optimal" if len(tensors) < 10 else "dp",
-        )
-        contraction["einsum_cache"][tensor_shapes] = path
-
-    return jnp.einsum(contraction["einsum_network"], *tensors, optimize=path)
+    return jnp.einsum(
+        contraction["einsum_network"],
+        *tensors,
+        optimize="optimal" if len(tensors) < 10 else "dp",
+    )
 
 
 apply_contraction_jitted = apply_contraction

@@ -176,17 +176,21 @@ class Definitions:
         e["network_additional_tensors"] = network_additional_tensors
         e["ncon_network"] = ncon_network
         e["einsum_network"] = einsum_network
-        e["einsum_cache"] = dict()
 
     @classmethod
     def _prepare_defs(cls):
         for name in dir(cls):
-            if name.startswith("_"):
+            if name == "add_def" or name.startswith("_"):
                 continue
 
             e = getattr(cls, name)
 
             cls._process_def(e, name)
+
+    @classmethod
+    def add_def(cls, name, definition):
+        cls._process_def(definition, name)
+        setattr(cls, name, definition)
 
     density_matrix_one_site: Definition = {
         "tensors": [

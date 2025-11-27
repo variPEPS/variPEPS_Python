@@ -88,15 +88,7 @@ def partially_traced_four_site_density_matrices(
                 ]
             ],
         }
-        Definitions._process_def(
-            contraction_top_left,
-            (
-                f"partially_traced_four_site_density_matrices_top_left_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{top_left_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_four_site_density_matrices_top_left_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{top_left_i}"
@@ -147,15 +139,7 @@ def partially_traced_four_site_density_matrices(
                 # ]
             ],
         }
-        Definitions._process_def(
-            contraction_top_right,
-            (
-                f"partially_traced_four_site_density_matrices_top_right_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{top_right_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_four_site_density_matrices_top_right_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{top_right_i}"
@@ -218,15 +202,7 @@ def partially_traced_four_site_density_matrices(
                 # ]
             ],
         }
-        Definitions._process_def(
-            contraction_bottom_left,
-            (
-                f"partially_traced_four_site_density_matrices_bottom_left_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{bottom_left_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_four_site_density_matrices_bottom_left_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{bottom_left_i}"
@@ -279,15 +255,7 @@ def partially_traced_four_site_density_matrices(
                 # ]
             ],
         }
-        Definitions._process_def(
-            contraction_bottom_right,
-            (
-                f"partially_traced_four_site_density_matrices_bottom_right_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{bottom_right_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_four_site_density_matrices_bottom_right_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{bottom_right_i}"
@@ -470,15 +438,7 @@ def partially_traced_horizontal_two_site_density_matrices(
                 ]
             ],
         }
-        Definitions._process_def(
-            contraction_left,
-            (
-                f"partially_traced_horizontal_two_site_density_matrices_left_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{left_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_horizontal_two_site_density_matrices_left_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{left_i}"
@@ -512,15 +472,7 @@ def partially_traced_horizontal_two_site_density_matrices(
                 ]
             ],
         }
-        Definitions._process_def(
-            contraction_right,
-            (
-                f"partially_traced_horizontal_two_site_density_matrices_right_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{right_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_horizontal_two_site_density_matrices_right_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{right_i}"
@@ -654,15 +606,7 @@ def partially_traced_vertical_two_site_density_matrices(
                 ]
             ],
         }
-        Definitions._process_def(
-            contraction_top,
-            (
-                f"partially_traced_vertical_two_site_density_matrices_top_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{top_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_vertical_two_site_density_matrices_top_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{top_i}"
@@ -696,15 +640,7 @@ def partially_traced_vertical_two_site_density_matrices(
                 ]
             ],
         }
-        Definitions._process_def(
-            contraction_bottom,
-            (
-                f"partially_traced_vertical_two_site_density_matrices_bottom_"
-                f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{bottom_i}"
-            ),
-        )
-        setattr(
-            Definitions,
+        Definitions.add_def(
             (
                 f"partially_traced_vertical_two_site_density_matrices_bottom_"
                 f"{real_physical_dimension}_{num_coarse_grained_physical_indices}_{bottom_i}"

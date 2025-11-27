@@ -17,6 +17,11 @@ from varipeps.expectation.two_sites import (
     _two_site_workhorse,
     _two_site_diagonal_workhorse,
 )
+from varipeps.expectation.helpers import (
+    partially_traced_four_site_density_matrices,
+    partially_traced_horizontal_two_site_density_matrices,
+    partially_traced_vertical_two_site_density_matrices,
+)
 from varipeps.expectation.triangular_helpers import (
     partially_traced_vertical_two_site_density_matrices_triangular,
     partially_traced_horizontal_two_site_density_matrices_triangular,
@@ -31,10 +36,6 @@ from varipeps.typing import Tensor
 from varipeps.mapping import Map_To_PEPS_Model
 from varipeps.utils.random import PEPS_Random_Number_Generator
 
-from varipeps.mapping.square_kagome import (
-    square_kagome_density_matrix_horizontal,
-    square_kagome_density_matrix_vertical,
-)
 
 from typing import (
     Sequence,
@@ -52,161 +53,6 @@ from typing import (
 T_Maple_Leaf_Map_PESS_To_PEPS = TypeVar(
     "T_Maple_Leaf_Map_PESS_To_PEPS", bound="Maple_Leaf_Map_PESS_To_PEPS"
 )
-
-
-def maple_leaf_density_matrix_diagonal(
-    peps_tensors: Sequence[jnp.ndarray],
-    peps_tensor_objs: Sequence[PEPS_Tensor],
-    open_physical_indices: Tuple[Tuple[int], Tuple[int]],
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    """
-    Calculate the two parts of the diagxonal two sites density matrix of the
-    mapped maple leaf lattice. Hereby, one can specify which physical indices
-    should be open and which ones be traced before contracting the CTM
-    structure.
-
-    Args:
-      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
-        Sequence of the PEPS tensors used for the density matrix.
-      peps_tensor_objs (:term:`sequence` of :obj:`varipeps.peps.PEPS_Tensor`):
-        Sequence of the corresponding PEPS tensor objects.
-      open_physical_indices (:obj:`tuple` of two :obj:`tuple` of :obj:`int`):
-        Tuple with two tuples consisting of the physical indices which should
-        be kept open for the top left and bottom right site.
-    Returns:
-      :obj:`tuple` of two:obj:`jax.numpy.ndarray`:
-        Top left and bottom right part of the density matrix. Can be used for
-        the two sites expectation value functions.
-    """
-    t_top_left, t_bottom_right = peps_tensors
-    t_obj_top_left, t_obj_bottom_right = peps_tensor_objs
-    top_left_i, bottom_right_i = open_physical_indices
-
-    new_d = round(t_obj_top_left.d ** (1 / 6))
-
-    t_top_left = t_top_left.reshape(
-        t_top_left.shape[0],
-        t_top_left.shape[1],
-        new_d,
-        new_d,
-        new_d,
-        new_d,
-        new_d,
-        new_d,
-        t_top_left.shape[3],
-        t_top_left.shape[4],
-    )
-    t_bottom_right = t_bottom_right.reshape(
-        t_bottom_right.shape[0],
-        t_bottom_right.shape[1],
-        new_d,
-        new_d,
-        new_d,
-        new_d,
-        new_d,
-        new_d,
-        t_bottom_right.shape[3],
-        t_bottom_right.shape[4],
-    )
-
-    phys_contraction_i_top_left = list(range(7, 7 + 6 - len(top_left_i)))
-    phys_contraction_i_conj_top_left = list(range(7, 7 + 6 - len(top_left_i)))
-
-    for pos, i in enumerate(top_left_i):
-        phys_contraction_i_top_left.insert(i - 1, -(pos + 1))
-        phys_contraction_i_conj_top_left.insert(i - 1, -len(top_left_i) - (pos + 1))
-
-    contraction_top_left = {
-        "tensors": [["tensor", "tensor_conj", "C1", "T1", "T4"]],
-        "network": [
-            [
-                [4, -2 * len(top_left_i) - 2]
-                + phys_contraction_i_top_left
-                + [-2 * len(top_left_i) - 5, 3],  # tensor
-                [6, -2 * len(top_left_i) - 3]
-                + phys_contraction_i_conj_top_left
-                + [-2 * len(top_left_i) - 6, 5],  # tensor_conj
-                (2, 1),  # C1
-                (1, 3, 5, -2 * len(top_left_i) - 4),  # T1
-                (-2 * len(top_left_i) - 1, 6, 4, 2),  # T4
-            ]
-        ],
-    }
-    Definitions._process_def(
-        contraction_top_left, f"maple_leaf_diagonal_top_left_open_{top_left_i}"
-    )
-
-    density_top_left = apply_contraction(
-        f"maple_leaf_diagonal_top_left_open_{top_left_i}",
-        [t_top_left],
-        [t_obj_top_left],
-        [],
-        disable_identity_check=True,
-        custom_definition=contraction_top_left,
-    )
-
-    density_top_left = density_top_left.reshape(
-        new_d ** len(top_left_i),
-        new_d ** len(top_left_i),
-        density_top_left.shape[-6],
-        density_top_left.shape[-5],
-        density_top_left.shape[-4],
-        density_top_left.shape[-3],
-        density_top_left.shape[-2],
-        density_top_left.shape[-1],
-    )
-
-    phys_contraction_i_bottom_right = list(range(7, 7 + 6 - len(bottom_right_i)))
-    phys_contraction_i_conj_bottom_right = list(range(7, 7 + 6 - len(bottom_right_i)))
-
-    for pos, i in enumerate(bottom_right_i):
-        phys_contraction_i_bottom_right.insert(i - 1, -(pos + 1))
-        phys_contraction_i_conj_bottom_right.insert(
-            i - 1, -len(bottom_right_i) - (pos + 1)
-        )
-
-    contraction_bottom_right = {
-        "tensors": [["tensor", "tensor_conj", "T2", "T3", "C3"]],
-        "network": [
-            [
-                [-2 * len(bottom_right_i) - 6, 3]
-                + phys_contraction_i_bottom_right
-                + [4, -2 * len(bottom_right_i) - 3],  # tensor
-                [-2 * len(bottom_right_i) - 5, 5]
-                + phys_contraction_i_conj_bottom_right
-                + [6, -2 * len(bottom_right_i) - 2],  # tensor_conj
-                (4, 6, 2, -2 * len(bottom_right_i) - 1),  # T2
-                (-2 * len(bottom_right_i) - 4, 1, 5, 3),  # T3
-                (1, 2),  # C3
-            ]
-        ],
-    }
-    Definitions._process_def(
-        contraction_bottom_right,
-        f"maple_leap_diagonal_bottom_right_open_{bottom_right_i}",
-    )
-
-    density_bottom_right = apply_contraction(
-        f"maple_leap_diagonal_bottom_right_open_{bottom_right_i}",
-        [t_bottom_right],
-        [t_obj_bottom_right],
-        [],
-        disable_identity_check=True,
-        custom_definition=contraction_bottom_right,
-    )
-
-    density_bottom_right = density_bottom_right.reshape(
-        new_d ** len(bottom_right_i),
-        new_d ** len(bottom_right_i),
-        density_bottom_right.shape[-6],
-        density_bottom_right.shape[-5],
-        density_bottom_right.shape[-4],
-        density_bottom_right.shape[-3],
-        density_bottom_right.shape[-2],
-        density_bottom_right.shape[-1],
-    )
-
-    return density_top_left, density_bottom_right
 
 
 def get_onsite_gates(g_e, b_e, r_e, d):
@@ -896,8 +742,12 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                     (
                         density_matrix_left,
                         density_matrix_right,
-                    ) = square_kagome_density_matrix_horizontal(
-                        horizontal_tensors, horizontal_tensor_objs, ((6,), (1, 2))
+                    ) = partially_traced_horizontal_two_site_density_matrices(
+                        horizontal_tensors,
+                        horizontal_tensor_objs,
+                        self.real_d,
+                        6,
+                        ((6,), (1, 2)),
                     )
 
                     if return_single_gate_results:
@@ -923,8 +773,12 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                     (
                         density_matrix_top,
                         density_matrix_bottom,
-                    ) = square_kagome_density_matrix_vertical(
-                        vertical_tensors, vertical_tensor_objs, ((3,), (5, 6))
+                    ) = partially_traced_vertical_two_site_density_matrices(
+                        vertical_tensors,
+                        vertical_tensor_objs,
+                        self.real_d,
+                        6,
+                        ((3,), (5, 6)),
                     )
 
                     if return_single_gate_results:
@@ -951,25 +805,15 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
                     diagonal_tensor_objs = [t for tl in view[:2, :2] for t in tl]
                     (
                         density_matrix_top_left,
+                        traced_density_matrix_top_right,
+                        traced_density_matrix_bottom_left,
                         density_matrix_bottom_right,
-                    ) = maple_leaf_density_matrix_diagonal(
-                        (diagonal_tensors[0], diagonal_tensors[3]),
-                        (diagonal_tensor_objs[0], diagonal_tensor_objs[3]),
-                        ((3, 4), (1,)),
-                    )
-
-                    traced_density_matrix_top_right = apply_contraction(
-                        "ctmrg_top_right",
-                        [diagonal_tensors[1]],
-                        [diagonal_tensor_objs[1]],
-                        [],
-                    )
-
-                    traced_density_matrix_bottom_left = apply_contraction(
-                        "ctmrg_bottom_left",
-                        [diagonal_tensors[2]],
-                        [diagonal_tensor_objs[2]],
-                        [],
+                    ) = partially_traced_four_site_density_matrices(
+                        diagonal_tensors,
+                        diagonal_tensor_objs,
+                        self.real_d,
+                        6,
+                        ((3, 4), (), (), (1,)),
                     )
 
                     if return_single_gate_results:
