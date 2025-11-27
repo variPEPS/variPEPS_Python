@@ -5,7 +5,6 @@ Definitions for contractions in this module.
 from collections import Counter
 
 import opt_einsum
-import tensornetwork as tn
 
 from typing import Dict, Optional, Union, List, Tuple, Sequence
 
