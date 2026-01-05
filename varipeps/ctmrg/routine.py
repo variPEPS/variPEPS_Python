@@ -106,6 +106,7 @@ def _calc_corner_svds(
 
     return step_corner_svd
 
+
 @partial(jit, static_argnums=(2,), inline=True)
 def _calc_corner_svds_triangular(
     peps_tensors: List[PEPS_Tensor],
@@ -143,14 +144,19 @@ def _calc_corner_svds_triangular(
             # get environment tensor and reshape it into a matrix
             env_tensor = getattr(peps_tensors[ti], name)
             env_matrix = env_tensor.reshape(
-                (env_tensor.shape[0] * env_tensor.shape[1], env_tensor.shape[2] * env_tensor.shape[3])
+                (
+                    env_tensor.shape[0] * env_tensor.shape[1],
+                    env_tensor.shape[2] * env_tensor.shape[3],
+                )
             )
 
             # compute singular values
-            singular_values = jnp.linalg.svd(env_matrix, full_matrices=False, compute_uv=False)
-            step_corner_svd = step_corner_svd.at[ti, ni, : singular_values.shape[0]].set(
-                singular_values, indices_are_sorted=True, unique_indices=True
+            singular_values = jnp.linalg.svd(
+                env_matrix, full_matrices=False, compute_uv=False
             )
+            step_corner_svd = step_corner_svd.at[
+                ti, ni, : singular_values.shape[0]
+            ].set(singular_values, indices_are_sorted=True, unique_indices=True)
 
     return step_corner_svd
 
@@ -534,18 +540,15 @@ def _ctmrg_body_func(carry):
             verbose_data = (
                 [(jnp.array(0), jnp.array(0), jnp.array(0.0))] * 18 * len(w_tensors)
             )
-            corner_svd = _calc_corner_svds_triangular(new, old_corner, None)
+        elif w_unitcell_last_step.is_split_transfer():
+            verbose_data = (
+                [(jnp.array(0), jnp.array(0), jnp.array(0.0))] * 12 * len(w_tensors)
+            )
         else:
-            if w_unitcell_last_step.is_split_transfer():
-                verbose_data = (
-                    [(jnp.array(0), jnp.array(0), jnp.array(0.0))] * 12 * len(w_tensors)
-                )
-            else:
-                verbose_data = (
-                    [(jnp.array(0), jnp.array(0), jnp.array(0.0))] * 8 * len(w_tensors)
-                )
-            corner_svd = _calc_corner_svds(new, old_corner, None)
-        
+            verbose_data = (
+                [(jnp.array(0), jnp.array(0), jnp.array(0.0))] * 8 * len(w_tensors)
+            )
+
         if old_corner is None:
             return (
                 False,
@@ -553,7 +556,12 @@ def _ctmrg_body_func(carry):
                 verbose_data,
                 old_corner,
             )
-        
+
+        if w_unitcell_last_step.is_triangular_peps():
+            corner_svd = _calc_corner_svds_triangular(new, old_corner, None)
+        else:
+            corner_svd = _calc_corner_svds(new, old_corner, None)
+
         measure = jnp.linalg.norm(corner_svd - old_corner)
         converged = measure < conv_eps
         return (
@@ -825,10 +833,13 @@ def calc_ctmrg_env(
                         shape_corner_svd = (
                             working_unitcell.get_len_unique_tensors(),
                             18,
-                            working_unitcell[0, 0][0][0].chi * working_unitcell[0, 0][0][0].D[0],
+                            working_unitcell[0, 0][0][0].chi
+                            * working_unitcell[0, 0][0][0].D[0],
                         )
                         init_corner_singular_vals = _calc_corner_svds_triangular(
-                            working_unitcell.get_unique_tensors(), None, shape_corner_svd
+                            working_unitcell.get_unique_tensors(),
+                            None,
+                            shape_corner_svd,
                         )
                     else:
                         shape_corner_svd = (
@@ -837,7 +848,9 @@ def calc_ctmrg_env(
                             working_unitcell[0, 0][0][0].chi,
                         )
                         init_corner_singular_vals = _calc_corner_svds(
-                            working_unitcell.get_unique_tensors(), None, shape_corner_svd
+                            working_unitcell.get_unique_tensors(),
+                            None,
+                            shape_corner_svd,
                         )
 
                 if varipeps_config.ctmrg_print_steps:
