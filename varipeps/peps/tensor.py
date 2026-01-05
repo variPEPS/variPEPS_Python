@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import collections
 from dataclasses import dataclass
+from enum import Enum, IntEnum, auto, unique
 
 import numpy as np
 import jax
@@ -24,6 +25,15 @@ T_PEPS_Tensor = TypeVar("T_PEPS_Tensor", bound="PEPS_Tensor")
 T_PEPS_Tensor_Split_Transfer = TypeVar(
     "T_PEPS_Tensor_Split_Transfer", bound="PEPS_Tensor_Split_Transfer"
 )
+
+
+@unique
+class PEPS_Type(IntEnum):
+    SQUARE = auto()  #: Square-lattice based iPEPS state with full transfer tensors
+    SQUARE_SPLIT = (
+        auto()
+    )  #: Square-lattice based iPEPS state with split transfer tensors
+    TRIANGULAR = auto()  #: Triangular-lattice based iPEPS state
 
 
 @dataclass
@@ -1171,6 +1181,10 @@ class PEPS_Tensor:
     @property
     def is_split_transfer(self: T_PEPS_Tensor) -> bool:
         return False
+
+    @property
+    def peps_type(self) -> PEPS_Type:
+        return PEPS_Type.SQUARE
 
     def convert_to_split_transfer(
         self: T_PEPS_Tensor, interlayer_chi: Optional[int] = None
@@ -2916,6 +2930,10 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
     def is_split_transfer(self: T_PEPS_Tensor_Split_Transfer) -> bool:
         return True
 
+    @property
+    def peps_type(self) -> PEPS_Type:
+        return PEPS_Type.SQUARE_SPLIT
+
     def convert_to_split_transfer(
         self: T_PEPS_Tensor_Split_Transfer,
     ) -> T_PEPS_Tensor_Split_Transfer:
@@ -4042,6 +4060,10 @@ class PEPS_Tensor_Triangular:
     @property
     def is_triangular_peps(self) -> bool:
         return True
+
+    @property
+    def peps_type(self) -> PEPS_Type:
+        return PEPS_Type.TRIANGULAR
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
         data = (

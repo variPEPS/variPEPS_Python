@@ -14,9 +14,7 @@ from .definitions import Definitions, Definition
 from typing import Sequence, List, Tuple, Dict, Union, Optional
 
 
-@partial(
-    jax.jit, static_argnames=("name", "disable_identity_check")
-)
+@partial(jax.jit, static_argnames=("name", "disable_identity_check"))
 def apply_contraction(
     name: str,
     peps_tensors: Sequence[jnp.ndarray],

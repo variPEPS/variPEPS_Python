@@ -17,7 +17,12 @@ import numpy as np
 import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
 
-from .tensor import PEPS_Tensor, PEPS_Tensor_Split_Transfer, PEPS_Tensor_Triangular
+from .tensor import (
+    PEPS_Tensor,
+    PEPS_Tensor_Split_Transfer,
+    PEPS_Tensor_Triangular,
+    PEPS_Type,
+)
 import varipeps
 from varipeps.utils.random import PEPS_Random_Number_Generator
 from varipeps.utils.periodic_indices import calculate_periodic_indices
@@ -273,6 +278,7 @@ class PEPS_Unit_Cell:
         chi: Union[int, Sequence[int]],
         dtype: Type[jnp.number],
         max_chi: Optional[int] = None,
+        peps_type: PEPS_Type = PEPS_Type.SQUARE,
         *,
         seed: Optional[int] = None,
         destroy_random_state: bool = True,
@@ -320,7 +326,10 @@ class PEPS_Unit_Cell:
             )
 
         if isinstance(D, int):
-            D = [(D, D, D, D) for _ in range(tensors_i.size)]
+            if peps_type is PEPS_Type.TRIANGULAR:
+                D = [(D, D, D, D, D, D) for _ in range(tensors_i.size)]
+            else:
+                D = [(D, D, D, D) for _ in range(tensors_i.size)]
 
         if (
             not all(isinstance(j, int) for i in D for j in i)
@@ -344,19 +353,28 @@ class PEPS_Unit_Cell:
 
         peps_tensors = []
 
+        if peps_type is PEPS_Type.TRIANGULAR:
+            peps_tensor_class = PEPS_Tensor_Triangular
+        else:
+            peps_tensor_class = PEPS_Tensor
+
         for i in tensors_i:
             if i > 0:
                 seed = None
 
             peps_tensors.append(
-                PEPS_Tensor.random(
+                peps_tensor_class.random(
                     d=d[i], D=D[i], chi=chi[i], dtype=dtype, seed=seed, max_chi=max_chi
                 )
             )
 
         data = cls.Unit_Cell_Data(peps_tensors=peps_tensors, structure=structure)
 
-        return cls(data=data)
+        result = cls(data=data)
+
+        if peps_type is PEPS_Type.SQUARE_SPLIT:
+            return result.convert_to_split_transfer()
+        return result
 
     def get_size(self) -> Tuple[int, int]:
         """
