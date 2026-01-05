@@ -16,7 +16,7 @@ varipeps.config.ad_custom_convergence_eps = 5e-8
 varipeps.config.ctmrg_print_steps = True
 varipeps.config.ad_custom_print_steps = False
 ## Select the method used to calculate the descent direction during optimization
-varipeps.config.optimizer_method = varipeps.config.Optimizing_Methods.CG
+varipeps.config.optimizer_method = varipeps.config.Optimizing_Methods.L_BFGS
 ## Select the method used to calculate the (full) projectors in the CTMRG routine
 varipeps.config.ctmrg_full_projector_method = varipeps.config.Projector_Method.FISHMAN
 ## Set maximal steps for the optimization routine
@@ -33,9 +33,9 @@ chiB = 2
 # Physical dimension
 p = 2
 # Maximal enviroment bond dimension
-maxChi = 36
+maxChi = 64
 # Start value for enviroment bond dimension
-startChi = chiB**2 if chiB**2 < maxChi else maxChi
+startChi = maxChi
 
 # define spin-1/2 matrices
 Id = jnp.eye(2)
@@ -47,13 +47,19 @@ Sz = jnp.array([[1, 0], [0, -1]]) / 2
 hamiltonianGates = J * (jnp.kron(Sx, Sx) + jnp.kron(Sy, Sy) + jnp.kron(Sz, Sz))
 
 # create function to compute expectation values for the square Heisenberg AFM
-exp_func = varipeps.expectation.Two_Sites_Expectation_Value(
-    horizontal_gates=(hamiltonianGates,),
-    vertical_gates=(hamiltonianGates,),
+exp_func = (
+    varipeps.expectation.triangular_two_sites.Triangular_Two_Sites_Expectation_Value(
+        horizontal_gates=(hamiltonianGates,),
+        vertical_gates=(hamiltonianGates,),
+        diagonal_gates=(hamiltonianGates,),
+        real_d=2,
+        is_spiral_peps=True,
+        spiral_unitary_operator=Sy,
+    )
 )
 
 # Unit cell structure
-structure = [[0, 1], [1, 0]]
+structure = [[0]]
 
 # Create random initialization for the iPEPS unit cell
 unitcell = varipeps.peps.PEPS_Unit_Cell.random(
@@ -63,13 +69,15 @@ unitcell = varipeps.peps.PEPS_Unit_Cell.random(
     startChi,  # Start value for enviroment bond dimension
     float,  # Data type for the tensors: float (real) or complex tensors
     max_chi=maxChi,  # Maximal enviroment bond dimension
+    peps_type=varipeps.peps.PEPS_Type.TRIANGULAR,  # Select triangular PEPS
 )
 
 # Run optimization
-result = varipeps.optimization.optimize_peps_network(
+result = varipeps.optimization.optimize_unitcell_fixed_spiral_vector(
     unitcell,
+    jnp.array((2 / 3, 2 / 3), dtype=jnp.float64),  # Spiral vector
     exp_func,
-    autosave_filename=f"data/autosave_square_chiB_{chiB:d}.hdf5",
+    autosave_filename=f"data/autosave_triangular_chiB_{chiB:d}.hdf5",
 )
 
 # Calculate magnetic expectation values
@@ -79,7 +87,7 @@ Mag_Gates = [Sx, Sy, Sz]
 def calc_magnetic(unitcell):
     mag_result = []
     for ti, t in enumerate(unitcell.get_unique_tensors()):
-        r = varipeps.expectation.one_site.calc_one_site_multi_gates(
+        r = varipeps.expectation.triangular_one_site.calc_triangular_one_site(
             t.tensor, t, Mag_Gates
         )
         mag_result += r
@@ -103,6 +111,6 @@ for k in sorted(result.max_trunc_error_list.keys()):
 
 # save full iPEPS state
 result.unitcell.save_to_file(
-    f"data/heisenberg_square_J_{J:d}_chiB_{chiB:d}_chiMax_{chiM:d}.hdf5",
+    f"data/heisenberg_triangular_J_{J:d}_chiB_{chiB:d}_chiMax_{chiM:d}.hdf5",
     auxiliary_data=auxiliary_data,
 )
