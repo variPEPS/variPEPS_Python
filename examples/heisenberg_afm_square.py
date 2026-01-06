@@ -69,7 +69,7 @@ unitcell = varipeps.peps.PEPS_Unit_Cell.random(
 result = varipeps.optimization.optimize_peps_network(
     unitcell,
     exp_func,
-    autosave_filename=f"data/autosave_square_chiB_{chiB:d}.hdf5",
+    autosave_filename=f"data/autosave_square_chiB_{chiB:d}_chiMax_{maxChi:d}.hdf5",
 )
 
 # Calculate magnetic expectation values
@@ -103,6 +103,6 @@ for k in sorted(result.max_trunc_error_list.keys()):
 
 # save full iPEPS state
 result.unitcell.save_to_file(
-    f"data/heisenberg_square_J_{J:d}_chiB_{chiB:d}_chiMax_{chiM:d}.hdf5",
+    f"data/heisenberg_square_J_{J:d}_chiB_{chiB:d}_chiMax_{maxChi:d}.hdf5",
     auxiliary_data=auxiliary_data,
 )

@@ -77,7 +77,7 @@ result = varipeps.optimization.optimize_unitcell_fixed_spiral_vector(
     unitcell,
     jnp.array((2 / 3, 2 / 3), dtype=jnp.float64),  # Spiral vector
     exp_func,
-    autosave_filename=f"data/autosave_triangular_chiB_{chiB:d}.hdf5",
+    autosave_filename=f"data/autosave_triangular_chiB_{chiB:d}_chiMax_{maxChi:d}.hdf5",
 )
 
 # Calculate magnetic expectation values
@@ -111,6 +111,6 @@ for k in sorted(result.max_trunc_error_list.keys()):
 
 # save full iPEPS state
 result.unitcell.save_to_file(
-    f"data/heisenberg_triangular_J_{J:d}_chiB_{chiB:d}_chiMax_{chiM:d}.hdf5",
+    f"data/heisenberg_triangular_J_{J:d}_chiB_{chiB:d}_chiMax_{maxChi:d}.hdf5",
     auxiliary_data=auxiliary_data,
 )
