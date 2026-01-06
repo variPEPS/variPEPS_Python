@@ -28,7 +28,7 @@ Usage
 
 The :obj:`varipeps` module is organized in several submodules corresponding to
 the different features. For a variational optimization the most important parts
-are (a full overview can be found in the :ref:`_api`):
+are (a full overview can be found in the :ref:`api`):
 
 * :obj:`varipeps.peps`: To define iPEPS unit cell and the tensors on each site,
   the library provides in this submodule the abstractions to define such a unit
@@ -46,7 +46,7 @@ are (a full overview can be found in the :ref:`_api`):
   with this part by the main function
   :obj:`varipeps.optimization.optimize_peps_network`.
 
-All these different modules can be seen in action in the :ref:`_examples`
+All these different modules can be seen in action in the :ref:`examples`
 section of the documentation where exemplary code is discussed in detail.
 
 Citation

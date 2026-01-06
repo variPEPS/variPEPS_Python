@@ -52,7 +52,7 @@ exp_func = (
         horizontal_gates=(hamiltonianGates,),
         vertical_gates=(hamiltonianGates,),
         diagonal_gates=(hamiltonianGates,),
-        real_d=2,
+        real_d=p,
         is_spiral_peps=True,
         spiral_unitary_operator=Sy,
     )

@@ -1,12 +1,4 @@
-.. _examples:
-
-
-Examples
-========
-
-We provide several examples in the `examples/ folder of the variPEPS Git repository <https://github.com/variPEPS/variPEPS_Python/tree/main/examples>`_ that demonstrate how to use the code for variational energy optimization in typical 2D many-body problems.
-
-.. In this section we want to elaborately walk through the example for the Heisenberg AFM on the 2d square lattice to explain a typical usage of the library.
+.. _examples_heisenberg_afm_square:
 
 Heisenberg antiferromagnet on the square lattice
 ------------------------------------------------
