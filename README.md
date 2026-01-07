@@ -1,3 +1,4 @@
+![Logo of the variPEPS library with a triangular-PEPS norm as picture and "variPEPS -- Variational PEPS Library" as text right of it](/docs/source/images/logo.svg)
 
 # variPEPS -- Versatile tensor network library for variational ground state simulations in two spatial dimensions.
 
