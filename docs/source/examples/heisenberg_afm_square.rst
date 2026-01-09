@@ -71,7 +71,7 @@ variPEPS config settings
    varipeps.config.ad_custom_print_steps = False
 
    ## Select the method used to calculate the descent direction during optimization
-   varipeps.config.optimizer_method = varipeps.config.Optimizing_Methods.CG
+   varipeps.config.optimizer_method = varipeps.config.Optimizing_Methods.L_BFGS
    ## Set maximal number of steps for the optimization routine
    varipeps.config.optimizer_max_steps = 2000
 

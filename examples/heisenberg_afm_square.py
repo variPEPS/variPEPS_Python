@@ -16,7 +16,7 @@ varipeps.config.ad_custom_convergence_eps = 5e-8
 varipeps.config.ctmrg_print_steps = True
 varipeps.config.ad_custom_print_steps = False
 ## Select the method used to calculate the descent direction during optimization
-varipeps.config.optimizer_method = varipeps.config.Optimizing_Methods.CG
+varipeps.config.optimizer_method = varipeps.config.Optimizing_Methods.L_BFGS
 ## Select the method used to calculate the (full) projectors in the CTMRG routine
 varipeps.config.ctmrg_full_projector_method = varipeps.config.Projector_Method.FISHMAN
 ## Set maximal steps for the optimization routine
