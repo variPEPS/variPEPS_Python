@@ -196,7 +196,7 @@ numbers. Other ways to initialize the tensors are provided, for example loading 
 from a simple update calculation.
 
 As we simulate a triangular lattice, we use the triangular-CTMRG method
-described in the reference `DOI 10.1103/g5gm-tzf8
+described in `Phys. Rev. B 113, 045117 (2026)
 <https://doi.org/10.1103/g5gm-tzf8>`_. This is selected at the time of creation
 of the unit cell by the ``peps_type`` parameter.
 
@@ -267,7 +267,7 @@ or the staggered magnetization of our model at/near the ground state.
 
    # save full iPEPS state
    result.unitcell.save_to_file(
-       f"data/heisenberg_square_J_{J:d}_chiB_{chiB:d}_chiMax_{maxChi:d}.hdf5",
+       f"data/heisenberg_triangular_J_{J:d}_chiB_{chiB:d}_chiMax_{maxChi:d}.hdf5",
        auxiliary_data=auxiliary_data,
    )
 
