@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Project information -----------------------------------------------------
 
 project = "varipeps"
-copyright = "2021-2025, Jan Naumann, Philipp Schmoll, Roberto Losada, Frederik Wilde, Finn Krein"
+copyright = "2021-2026, Jan Naumann, Philipp Schmoll, Roberto Losada, Frederik Wilde, Finn Krein"
 author = "Jan Naumann, Philipp Schmoll, Roberto Losada, Frederik Wilde, Finn Krein"
 
 # The full version, including alpha/beta/rc tags
@@ -144,7 +144,15 @@ html_theme = "sphinx_rtd_theme"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
+html_logo = "images/logo.svg"
+
+html_theme_options = {
+    'logo_only': True,
+}
+
 rst_prolog = """
 .. |default| raw:: html
 
     <div class="default-value-section"> <span class="default-value-label">Default:</span>"""
+
+numfig = True

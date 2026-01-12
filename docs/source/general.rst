@@ -23,6 +23,24 @@ Python package manager pip:
 
    $ python3 -m pip install variPEPS
 
+Core Features
+=============
+
+* Calculation of expectation values, structure factors, overlaps and correlation
+  lengths of (infinite) PEPS states.
+* Variational optimization for ground state search of Hamiltonian models using
+  automatic differentiation.
+* Predefined mappings of other lattices (kagome, maple-leaf, ...) to square and
+  triangular PEPS structure.
+* Support for spiral-PEPS method (`Phys. Rev. Lett. 133, 176502 (2024)
+  <https://doi.org/10.1103/PhysRevLett.133.176502>`_).
+* Reference implementation of the split-CTMRG (`Phys. Rev. B 111, 235116 (2025)
+  <https://doi.org/10.1103/PhysRevB.111.235116>`_) and triangular-CTMRG
+  (`Phys. Rev. B 113, 045117 (2026) <https://doi.org/10.1103/g5gm-tzf8>`_)
+  variants.
+* Direct support of just-in-time compilation (JIT) and GPU devices thanks to the
+  :obj:`jax` framework.
+
 Usage
 =====
 
@@ -44,7 +62,7 @@ are (a full overview can be found in the :ref:`api`):
 * :obj:`varipeps.optimization`: The submodule providing the optimization
   algorithm and interface of the library. In almost all cases, one will interact
   with this part by the main function
-  :obj:`varipeps.optimization.optimize_peps_network`.
+  :obj:`varipeps.optimization.optimize_peps_network` or the convience wrapper around t.
 
 All these different modules can be seen in action in the :ref:`examples`
 section of the documentation where exemplary code is discussed in detail.

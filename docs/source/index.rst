@@ -8,14 +8,32 @@ Index
 
 .. toctree::
    :maxdepth: 2
-   :caption: VariPEPS
+   :caption: Getting started
 
    general
-   design/features
+
+.. toctree::
+   :maxdepth: 2
+   :caption: variPEPS
+
+   varipeps/unitcell
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Examples
+
    examples/index
+   examples/heisenberg_afm_square
+   examples/heisenberg_afm_triangular
 
 .. toctree::
    :maxdepth: 2
    :caption: API documentation
 
    Public API Reference <api/index>
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Appendix
+
+   license
