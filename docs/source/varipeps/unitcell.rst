@@ -3,6 +3,9 @@
 iPEPS Unit Cells
 ================
 
+Theoretical Overview
+--------------------
+
 The text in this section is mainly copied (and only slightly modifed) from the
 publication `SciPost Phys. Lect. Notes 86 (2024)
 <https://doi.org/10.21468/SciPostPhysLectNotes.86>`_ by Jan Naumann, Erik
@@ -10,7 +13,7 @@ Lennart Weerda, Matteo Rizzi, Jens Eisert and Philipp Schmoll. This section is
 licensed under the :ref:`license_cc_by` as the original work.
 
 General iPEPS unit cell structure
----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We aim to simulate quantum many-body systems directly in the thermodynamic
 limit. To this end, we consider a unit cell of lattice sites that is repeated
@@ -59,7 +62,7 @@ problems to find the correct pattern.
 
 
 Spiral PEPS ansatz
-------------------
+^^^^^^^^^^^^^^^^^^
 
 To circumvent the problem of a fixed and a priori chosen unit cell structure,
 recently an alternative description to the periodic structure has been proposed
@@ -75,3 +78,88 @@ corresponds to the specification of a unit cell structure in the common iPEPS
 setup. This approach allows for a variational optimization of the wave vector
 along with the translationally invariant iPEPS tensor, removing the need to
 choose a fixed unit cell structure altogether.
+
+Technical implementation
+------------------------
+
+.. role:: python(code)
+   :language: python
+
+This section is provided under the default :ref:`license_cc_by_sa` license of
+the documentation.
+
+Initialization of unit cell
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The most usual way to initialize a unit cell
+
+.. code-block:: python
+
+   # Unit cell structure
+   structure = [[0, 1, ...], ...]
+
+   # Physical dimension
+   d: int = ...
+
+   # iPEPS bond dimension
+   D: int = ...
+
+   # Start value for enviroment bond dimension
+   startChi: int = ...
+
+   # Data type for the tensors: `float` (real) or `complex` tensors
+   unitcell_dtype = ...
+
+   # Maximal enviroment bond dimension
+   max_chi: int = ...
+
+   # Type of iPEPS ansatz (SQUARE/SQUARE_SPLIT/TRIANGULAR)
+   peps_type: varipeps.peps.PEPS_Type = varipeps.peps.PEPS_Type.SQUARE, # Use square iPEPS ansatz
+
+   # Create random initialization for the iPEPS unit cell
+   unitcell = varipeps.peps.PEPS_Unit_Cell.random(
+       structure=structure,  # Unit cell structure
+       d=d,  # Physical dimension
+       D=chiB,  # iPEPS bond dimension
+       chi=startChi,  # Start value for enviroment bond dimension
+       dtype=unitcell_dtype,  # Data type for the tensors: `float` (real) or `complex` tensors
+       max_chi=max_chi,  # Maximal enviroment bond dimension
+       peps_type=peps_type, # Type of iPEPS ansatz
+   )
+
+Here we define the unit cell structure which is used to simulate our model.
+Using the unit cell structure and the model parameter (see below), we can
+generate an initial unit cell. Here we initialize the iPEPS tensors with random
+numbers and we are using the above discussed square iPEPS ansatz. The structure
+is supplied as matrix with different numbers encoding the different tensors
+(:math:`A`/:math:`B`/:math:`C`/:math:`\dots` in the example above).
+
+Unit cell parameters
+^^^^^^^^^^^^^^^^^^^^
+
+In the above code block we already showcase the (most important) parameters for
+a iPEPS unit cell. To describe them in more detail:
+
+* :python:`d`: The physical dimension of our iPEPS ansatz. E.g. :python:`d = 2`
+  for a spin-:math:`1/2` state.
+* :python:`D`: The (bulk) bond dimension of the virtual links of our local iPEPS
+  tensors. Sometimes also called :math:`\chi_B`.
+* :python:`chi`: The initial value of the environment bond dimension of the
+  CTMRG tensors. Sometimes also called :math:`\chi_E`.
+* :python:`dtype`: The numerical data type used to represent the tensors. In the
+  default configuration of the library this can be :obj:`float` (or
+  equivalent :obj:`numpy.float64`) for real double-precision floating point
+  numbers or :obj:`complex` (or equivalent :obj:`numpy.complex128`) for
+  complex double-precision floating point numbers.
+* :python:`max_chi`: The :obj:`varipeps` library supports a dynamical
+  increase/decrease of the environment bond dimension mainly based on some
+  heuristics around the truncation error of the truncated singular value
+  decomposition. This parameter selects a maximum value for the environment bond
+  dimension to ensure that the simulation stays within some computational and
+  memory limits.
+* :python:`peps_type`: As hinted already, the :obj:`varipeps` library supports
+  different structures for the iPEPS ansatz and the environment structure. In
+  the above theoretical overview, we limited us to the most common square case
+  but we will discuss in other sections the split- and triangular CTMRG
+  variants. These different cases can be selected at initialization time using
+  this parameter.

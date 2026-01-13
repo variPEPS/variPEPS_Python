@@ -145,6 +145,7 @@ html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 
 html_logo = "images/logo.svg"
+html_favicon = "images/favicon/favicon.svg"
 
 html_theme_options = {
     'logo_only': True,

@@ -16,6 +16,7 @@ Index
    :maxdepth: 2
    :caption: variPEPS
 
+   varipeps/varipeps
    varipeps/unitcell
 
 .. toctree::

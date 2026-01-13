@@ -16,7 +16,7 @@ all: ${PDFS} ${SVGS} logo.png
 	inkscape --pdf-poppler "$<" -o "$@"
 
 %.png: %.pdf
-	inkscape --pdf-poppler "$<" --export-dpi=200 --export-png="$@"
+	inkscape --pdf-poppler "$<" --export-dpi=300 --export-png="$@"
 
 texauxclean:
 	rm -f ${AUXS}

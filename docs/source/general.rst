@@ -27,7 +27,7 @@ Core Features
 =============
 
 * Calculation of expectation values, structure factors, overlaps and correlation
-  lengths of (infinite) PEPS states.
+  lengths of infinite PEPS states.
 * Variational optimization for ground state search of Hamiltonian models using
   automatic differentiation.
 * Predefined mappings of other lattices (kagome, maple-leaf, ...) to square and
