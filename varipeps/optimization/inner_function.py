@@ -55,6 +55,9 @@ def _map_tensors(
         peps_tensors = input_tensors
 
     if is_spiral_peps:
+        if isinstance(spiral_vectors, jnp.ndarray):
+            spiral_vectors = (spiral_vectors,)
+
         return peps_tensors, unitcell, spiral_vectors
     return peps_tensors, unitcell
 
