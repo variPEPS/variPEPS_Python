@@ -19,6 +19,7 @@ dependencies = [
     "h5py >= 3.6.0",
     "tqdm[notebook] >= 4.64.1",
     "tqdm-loggable >= 0.1.3",
+    "psutil>=7.2.2",
 ]
 keywords = [
     "physics",

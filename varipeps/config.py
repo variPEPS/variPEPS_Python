@@ -339,6 +339,9 @@ class VariPEPS_Config:
     # Slurm
     slurm_restart_mode: Slurm_Restart_Mode = Slurm_Restart_Mode.WRITE_NEED_RESTART_FILE
 
+    # JAX related settings
+    jax_compilation_cache_memory_factor: float = 0.2
+
     def update(self, name: str, value: Any) -> NoReturn:
         self.__setattr__(name, value)
 
