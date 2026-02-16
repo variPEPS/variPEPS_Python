@@ -248,6 +248,9 @@ class VariPEPS_Config:
         Type of wavevector to be used (only positive/symmetric interval/...).
       slurm_restart_mode (:obj:`Slurm_Restart_Mode`):
         Mode of operation to restart slurm job if maximal runtime is reached.
+      jax_compilation_cache_memory_factor (:obj:`float`):
+        Limit the jax compilation cache to maximal this factor times the total
+        available memory.
     """
 
     # AD config
@@ -340,7 +343,7 @@ class VariPEPS_Config:
     slurm_restart_mode: Slurm_Restart_Mode = Slurm_Restart_Mode.WRITE_NEED_RESTART_FILE
 
     # JAX related settings
-    jax_compilation_cache_memory_factor: float = 0.2
+    jax_compilation_cache_memory_factor: float = 0.5
 
     def update(self, name: str, value: Any) -> NoReturn:
         self.__setattr__(name, value)
