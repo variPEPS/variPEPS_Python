@@ -897,7 +897,7 @@ class Square_Kagome_Map_PESS_To_PEPS(Map_To_PEPS_Model):
 
 @jit
 def _map_4_1_1(input_tensors):
-    (t1, t6, square_tensor) = input_tensors
+    t1, t6, square_tensor = input_tensors
 
     result = jnp.tensordot(t1, square_tensor, ((2,), (1,)))
     result = jnp.tensordot(result, t6, ((7,), (2,)))

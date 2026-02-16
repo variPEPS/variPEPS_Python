@@ -134,8 +134,7 @@ class SlurmUtils:
         slurm_data,
         executable=None,
     ):
-        TEMPLATE_PYTHON = textwrap.dedent(
-            """\
+        TEMPLATE_PYTHON = textwrap.dedent("""\
         #!/usr/bin/env python3
         import argparse
         import pathlib
@@ -146,11 +145,9 @@ class SlurmUtils:
         args = parser.parse_args()
 
         varipeps.optimization.restart_from_state_file(args.filename)
-        """
-        )
+        """)
 
-        TEMPLATE_SLURM = textwrap.dedent(
-            """\
+        TEMPLATE_SLURM = textwrap.dedent("""\
         #!/bin/bash
 
         #SBATCH --partition={partition}
@@ -165,8 +162,7 @@ class SlurmUtils:
         {mail_user}
 
         "{executable}" "{python_script}" "{state_file}"
-        """
-        )
+        """)
 
         python_script_path = pathlib.Path(python_script_path).resolve()
 

@@ -1236,7 +1236,7 @@ class Maple_Leaf_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         grp_pess.attrs["num_peps_sites"] = num_peps_sites
 
         for i in range(num_peps_sites):
-            (t1, t2, t3, up, down) = tensors[(i * 5) : (i * 5 + 5)]
+            t1, t2, t3, up, down = tensors[(i * 5) : (i * 5 + 5)]
 
             grp_pess.create_dataset(
                 f"site{i}_t1", data=t1, compression="gzip", compression_opts=6
