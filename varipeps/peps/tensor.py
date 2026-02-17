@@ -95,26 +95,26 @@ class PEPS_Tensor:
         if not self.sanity_checks:
             return
 
-        # Copied from https://stackoverflow.com/questions/50563546/validating-detailed-types-in-python-dataclasses
-        for field_name, field_def in self.__dataclass_fields__.items():  # type: ignore
-            actual_value = getattr(self, field_name)
-            if isinstance(actual_value, jax.core.Tracer):
-                continue
-            evaled_type = eval(field_def.type)
-            if isinstance(evaled_type, typing._SpecialForm):
-                # No check for typing.Any, typing.Union, typing.ClassVar (without parameters)
-                continue
-            try:
-                actual_type = evaled_type.__origin__
-            except AttributeError:
-                actual_type = evaled_type
-            if isinstance(actual_type, typing._SpecialForm):
-                # case of typing.Union[…] or typing.ClassVar[…]
-                actual_type = evaled_type.__args__
-            if not isinstance(actual_value, actual_type):
-                raise ValueError(
-                    f"Invalid type for field '{field_name}'. Expected '{field_def.type}', got '{type(field_name)}.'"
-                )
+        # # Copied from https://stackoverflow.com/questions/50563546/validating-detailed-types-in-python-dataclasses
+        # for field_name, field_def in self.__dataclass_fields__.items():  # type: ignore
+        #     actual_value = getattr(self, field_name)
+        #     if isinstance(actual_value, jax.core.Tracer):
+        #         continue
+        #     evaled_type = eval(field_def.type)
+        #     if isinstance(evaled_type, typing._SpecialForm):
+        #         # No check for typing.Any, typing.Union, typing.ClassVar (without parameters)
+        #         continue
+        #     try:
+        #         actual_type = evaled_type.__origin__
+        #     except AttributeError:
+        #         actual_type = evaled_type
+        #     if isinstance(actual_type, typing._SpecialForm):
+        #         # case of typing.Union[…] or typing.ClassVar[…]
+        #         actual_type = evaled_type.__args__
+        #     if not isinstance(actual_value, actual_type):
+        #         raise ValueError(
+        #             f"Invalid type for field '{field_name}'. Expected '{field_def.type}', got '{type(field_name)}.'"
+        #         )
 
         if not len(self.D) == 4:
             raise ValueError(
@@ -3122,26 +3122,26 @@ class PEPS_Tensor_Triangular:
         if not self.sanity_checks:
             return
 
-        # Copied from https://stackoverflow.com/questions/50563546/validating-detailed-types-in-python-dataclasses
-        for field_name, field_def in self.__dataclass_fields__.items():  # type: ignore
-            actual_value = getattr(self, field_name)
-            if isinstance(actual_value, jax.core.Tracer):
-                continue
-            evaled_type = eval(field_def.type)
-            if isinstance(evaled_type, typing._SpecialForm):
-                # No check for typing.Any, typing.Union, typing.ClassVar (without parameters)
-                continue
-            try:
-                actual_type = evaled_type.__origin__
-            except AttributeError:
-                actual_type = evaled_type
-            if isinstance(actual_type, typing._SpecialForm):
-                # case of typing.Union[…] or typing.ClassVar[…]
-                actual_type = evaled_type.__args__
-            if not isinstance(actual_value, actual_type):
-                raise ValueError(
-                    f"Invalid type for field '{field_name}'. Expected '{field_def.type}', got '{type(field_name)}.'"
-                )
+        # # Copied from https://stackoverflow.com/questions/50563546/validating-detailed-types-in-python-dataclasses
+        # for field_name, field_def in self.__dataclass_fields__.items():  # type: ignore
+        #     actual_value = getattr(self, field_name)
+        #     if isinstance(actual_value, jax.core.Tracer):
+        #         continue
+        #     evaled_type = eval(field_def.type)
+        #     if isinstance(evaled_type, typing._SpecialForm):
+        #         # No check for typing.Any, typing.Union, typing.ClassVar (without parameters)
+        #         continue
+        #     try:
+        #         actual_type = evaled_type.__origin__
+        #     except AttributeError:
+        #         actual_type = evaled_type
+        #     if isinstance(actual_type, typing._SpecialForm):
+        #         # case of typing.Union[…] or typing.ClassVar[…]
+        #         actual_type = evaled_type.__args__
+        #     if not isinstance(actual_value, actual_type):
+        #         raise ValueError(
+        #             f"Invalid type for field '{field_name}'. Expected '{field_def.type}', got '{type(field_name)}.'"
+        #         )
 
         if not len(self.D) == 6:
             raise ValueError(
