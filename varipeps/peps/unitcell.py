@@ -1088,8 +1088,10 @@ class PEPS_Unit_Cell:
 
                 self.save_auxiliary_data(grp_aux, auxiliary_data)
 
-    @staticmethod
-    def save_auxiliary_data(grp: h5py.Group, auxiliary_data: Optional[Dict[str, Any]]):
+    @classmethod
+    def save_auxiliary_data(
+        cls, grp: h5py.Group, auxiliary_data: Optional[Dict[str, Any]]
+    ):
         """
         Save auxiliary data to HDF5 group.
 
@@ -1121,6 +1123,9 @@ class PEPS_Unit_Cell:
                     compression="gzip",
                     compression_opts=6,
                 )
+            elif isinstance(val, collections.abc.Mapping):
+                inner_grp = grp.create_group(key)
+                cls.save_auxiliary_data(inner_grp, val)
             else:
                 grp.attrs[key] = val
 
@@ -1177,6 +1182,7 @@ class PEPS_Unit_Cell:
     def load_from_file(
         cls: Type[T_PEPS_Unit_Cell],
         path: PathLike,
+        return_unitcell: bool = True,
         return_config: bool = False,
         return_auxiliary_data: bool = False,
     ) -> Union[
@@ -1191,6 +1197,8 @@ class PEPS_Unit_Cell:
         Args:
           path (:obj:`os.PathLike`):
             Path of the HDF5 file.
+          return_unitcell (:obj:`bool`):
+            Return the PEPS unit cell.
           return_config (:obj:`bool`):
             Return a config object initialized with the values from the HDF5
             files. If no config is stored in the file, just the data is returned.
@@ -1201,22 +1209,25 @@ class PEPS_Unit_Cell:
             should be stored along the other data in the file.
         """
         with h5py.File(path, "r") as f:
-            out = cls.load_from_group(f["unitcell"], return_config)
+            out = cls.load_from_group(f["unitcell"], return_unitcell, return_config)
 
-            auxiliary_data = {}
-            if (auxiliary_data_grp := f.get("auxiliary_data")) is not None:
-                auxiliary_data = cls.load_auxiliary_data(auxiliary_data_grp)
-            elif (max_trunc_error_list := f.get("max_trunc_error_list")) is not None:
-                auxiliary_data["max_trunc_error_list"] = jnp.asarray(
-                    max_trunc_error_list
-                )
+            if return_auxiliary_data:
+                auxiliary_data = {}
+                if (auxiliary_data_grp := f.get("auxiliary_data")) is not None:
+                    auxiliary_data = cls.load_auxiliary_data(auxiliary_data_grp)
+                elif (
+                    max_trunc_error_list := f.get("max_trunc_error_list")
+                ) is not None:
+                    auxiliary_data["max_trunc_error_list"] = jnp.asarray(
+                        max_trunc_error_list
+                    )
 
-        if return_config and return_auxiliary_data:
-            return out[0], out[1], auxiliary_data
-        elif return_config:
-            return out[0], out[1]
-        elif return_auxiliary_data:
-            return out, auxiliary_data
+                if out is None:
+                    out = auxiliary_data
+                elif isinstance(out, tuple):
+                    out = out + (auxiliary_data,)
+                else:
+                    out = (out, auxiliary_data)
 
         return out
 
@@ -1241,7 +1252,10 @@ class PEPS_Unit_Cell:
 
     @classmethod
     def load_from_group(
-        cls: Type[T_PEPS_Unit_Cell], grp: h5py.Group, return_config: bool = False
+        cls: Type[T_PEPS_Unit_Cell],
+        grp: h5py.Group,
+        return_unitcell: bool = True,
+        return_config: bool = False,
     ) -> Union[
         T_PEPS_Unit_Cell, Tuple[T_PEPS_Unit_Cell, varipeps.config.VariPEPS_Config]
     ]:
@@ -1251,15 +1265,20 @@ class PEPS_Unit_Cell:
         Args:
           grp (:obj:`h5py.Group`):
             HDF5 group object to load the data from.
+          return_unitcell (:obj:`bool`):
+            Return the PEPS unit cell.
           return_config (:obj:`bool`):
             Return a config object initialized with the values from the HDF5
             files. If no config is stored in the file, just the data is returned.
             Missing config flags in the file uses the default values from the
             config object.
         """
-        data = cls.Unit_Cell_Data.load_from_group(grp["data"])
-        real_ix = int(grp.attrs["real_ix"])
-        real_iy = int(grp.attrs["real_iy"])
+        if return_unitcell:
+            data = cls.Unit_Cell_Data.load_from_group(grp["data"])
+            real_ix = int(grp.attrs["real_ix"])
+            real_iy = int(grp.attrs["real_iy"])
+        elif not return_config:
+            return None
 
         if return_config:
             if grp.get("config") is None:
@@ -1293,9 +1312,12 @@ class PEPS_Unit_Cell:
                     config_dict["slurm_restart_mode"]
                 )
 
-            return cls(
-                data=data, real_ix=real_ix, real_iy=real_iy
-            ), varipeps.config.VariPEPS_Config(**config_dict)
+            if return_unitcell:
+                return cls(
+                    data=data, real_ix=real_ix, real_iy=real_iy
+                ), varipeps.config.VariPEPS_Config(**config_dict)
+            else:
+                return varipeps.config.VariPEPS_Config(**config_dict)
 
         return cls(data=data, real_ix=real_ix, real_iy=real_iy)
 
