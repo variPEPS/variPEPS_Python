@@ -303,7 +303,11 @@ class PEPS_Unit_Cell:
           dtype (:term:`type` of :obj:`jax.numpy.number`):
             Data type of the PEPS tensors.
           max_chi (:obj:`int`):
-            Maximal allowed bond dimension for the environment tensors
+            Maximal allowed bond dimension for the environment tensors.
+          peps_type (:obj:`~varipeps.peps.PEPS_Type`):
+            Select which type of PEPS state should be generated. For example
+            selects a square with full transfer tensor, a square with
+            split-CTMRG env or the triangular PEPS mode.
         Keyword args:
           seed (:obj:`int`, optional):
             Seed for random number generator
