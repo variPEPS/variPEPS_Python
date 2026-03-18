@@ -37,8 +37,8 @@ identifiers:
     value: 10.1103/PhysRevB.111.235116
     description: Journal article with description of the split-CTMRG method
   - type: doi
-    value: 10.48550/arXiv.2510.04907
-    description: Preprint with description of the triangular CTMRG method
+    value: 10.1103/g5gm-tzf8
+    description: Journal article with description of the triangular CTMRG method
   - type: doi
     value: 10.5281/zenodo.10852390
     description: Zenodo DOI for current version of the code

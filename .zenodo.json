@@ -65,9 +65,9 @@
             "resource_type": "publication-article"
         },
         {
-            "identifier": "arXiv:2510.04907",
+            "identifier": "https://doi.org/10.1103/g5gm-tzf8",
             "relation": "isDocumentedBy",
-            "resource_type": "publication-preprint"
+            "resource_type": "publication-article"
         },
         {
             "identifier": "https://varipeps.readthedocs.io/en/stable/",
