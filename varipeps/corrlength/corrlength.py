@@ -7,7 +7,10 @@ from varipeps.contractions import apply_contraction_jitted
 from varipeps.peps import PEPS_Unit_Cell
 
 
-def calculate_correlation_length(unitcell: PEPS_Unit_Cell):
+def calculate_correlation_length(unitcell: PEPS_Unit_Cell, num_eigvals: int = 8):
+    if num_eigvals < 2:
+        raise ValueError("Number of eigenvalues must be at least two to compute the correlation length.")
+
     initial_vector_left = apply_contraction_jitted(
         "corrlength_vector_left",
         (unitcell[0, 0][0][0].tensor,),
@@ -47,7 +50,7 @@ def calculate_correlation_length(unitcell: PEPS_Unit_Cell):
         matvec=left_matvec,
     )
 
-    eig_left, eigvec_left = eigs(left_lin_op, k=5, v0=initial_vector_left, which="LM")
+    eig_left, eigvec_left = eigs(left_lin_op, k=num_eigvals, v0=initial_vector_left, which="LM")
 
     eig_left = eig_left[np.argsort(np.abs(eig_left))[::-1]]
     eig_left /= np.abs(eig_left[0])
@@ -77,7 +80,7 @@ def calculate_correlation_length(unitcell: PEPS_Unit_Cell):
         matvec=top_matvec,
     )
 
-    eig_top, eigvec_top = eigs(top_lin_op, k=5, v0=initial_vector_top, which="LM")
+    eig_top, eigvec_top = eigs(top_lin_op, k=num_eigvals, v0=initial_vector_top, which="LM")
 
     eig_top = eig_top[np.argsort(np.abs(eig_top))[::-1]]
     eig_top /= np.abs(eig_top[0])

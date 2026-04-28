@@ -7,7 +7,10 @@ from varipeps.contractions import apply_contraction_jitted
 from varipeps.peps import PEPS_Unit_Cell
 
 
-def calculate_triangular_correlation_length(unitcell: PEPS_Unit_Cell):
+def calculate_triangular_correlation_length(unitcell: PEPS_Unit_Cell, num_eigvals: int = 8):
+    if num_eigvals < 2:
+        raise ValueError("Number of eigenvalues must be at least two to compute the correlation length.")
+
     initial_vector_60 = apply_contraction_jitted(
         "triangular_ctmrg_corrlen_vec_60",
         (unitcell[-1, 0][0][0].tensor,),
@@ -101,21 +104,21 @@ def calculate_triangular_correlation_length(unitcell: PEPS_Unit_Cell):
         matvec=matvec_180,
     )
 
-    eig_60, eigvec_60 = eigs(lin_op_60, k=5, v0=initial_vector_60, which="LM")
+    eig_60, eigvec_60 = eigs(lin_op_60, k=num_eigvals, v0=initial_vector_60, which="LM")
 
     eig_60 = eig_60[np.argsort(np.abs(eig_60))[::-1]]
     eig_60 /= np.abs(eig_60[0])
 
     corr_len_60 = -1 / np.log(np.abs(eig_60[1]))
 
-    eig_120, eigvec_120 = eigs(lin_op_120, k=5, v0=initial_vector_120, which="LM")
+    eig_120, eigvec_120 = eigs(lin_op_120, k=num_eigvals, v0=initial_vector_120, which="LM")
 
     eig_120 = eig_120[np.argsort(np.abs(eig_120))[::-1]]
     eig_120 /= np.abs(eig_120[0])
 
     corr_len_120 = -1 / np.log(np.abs(eig_120[1]))
 
-    eig_180, eigvec_180 = eigs(lin_op_180, k=5, v0=initial_vector_180, which="LM")
+    eig_180, eigvec_180 = eigs(lin_op_180, k=num_eigvals, v0=initial_vector_180, which="LM")
 
     eig_180 = eig_180[np.argsort(np.abs(eig_180))[::-1]]
     eig_180 /= np.abs(eig_180[0])
