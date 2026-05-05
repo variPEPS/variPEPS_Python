@@ -179,7 +179,7 @@ class Definitions:
     @classmethod
     def _prepare_defs(cls):
         for name in dir(cls):
-            if name == "add_def" or name.startswith("_"):
+            if name == "add_def" or name == "join_defs" or name.startswith("_"):
                 continue
 
             e = getattr(cls, name)
@@ -190,6 +190,74 @@ class Definitions:
     def add_def(cls, name, definition):
         cls._process_def(definition, name)
         setattr(cls, name, definition)
+
+    @classmethod
+    def join_defs(cls, name1, name2, join_indices):
+        new_name = f"joined_{name1}_{name2}_{join_indices}"
+        if getattr(cls, new_name, None) is not None:
+            return new_name
+
+        if len(join_indices[0]) != len(join_indices[1]):
+            raise ValueError("Length of join indices mismatches.")
+
+        def1 = getattr(cls, name1)
+        def2 = getattr(cls, name2)
+
+        new_def = {}
+
+        new_def["tensors"] = list(def1["tensors"]) + list(def2["tensors"])
+
+        def1_flatten = [j for i in def1["ncon_network"] for j in i]
+        max1 = max(def1_flatten)
+        min1 = min(def1_flatten)
+        def2_flatten = [j for i in def2["ncon_network"] for j in i]
+        max2 = max(def2_flatten)
+        min2 = min(def2_flatten)
+
+        new_def["network"] = []
+
+        def map_join_indices(i, offset, neg_offset, indices_map):
+            if i > 0:
+                return i + offset
+            elems_joined_before = 0
+            for pos, j in enumerate(indices_map):
+                if i == j:
+                    return max1 + max2 + pos + 1
+                if j > i:
+                    elems_joined_before += 1
+            return i + elems_joined_before - neg_offset
+
+        def gen_new_network_entry(n, offset, neg_offset, indices_map):
+            if isinstance(n, (list, tuple)) and all(
+                isinstance(ni, (list, tuple)) for ni in n
+            ):
+                new_entry = []
+                for e in n:
+                    new_entry.append(
+                        tuple(
+                            map_join_indices(i, offset, neg_offset, indices_map)
+                            for i in e
+                        )
+                    )
+                return new_entry
+            elif isinstance(n, (list, tuple)) and all(isinstance(ni, int) for ni in n):
+                return tuple(
+                    map_join_indices(i, offset, neg_offset, indices_map) for i in n
+                )
+
+        for n in def1["network"]:
+            new_def["network"].append(gen_new_network_entry(n, 0, 0, join_indices[0]))
+
+        for n in def2["network"]:
+            new_def["network"].append(
+                gen_new_network_entry(
+                    n, max1, -min1 - len(join_indices[0]), join_indices[1]
+                )
+            )
+
+        cls.add_def(new_name, new_def)
+
+        return new_name
 
     density_matrix_one_site: Definition = {
         "tensors": [
