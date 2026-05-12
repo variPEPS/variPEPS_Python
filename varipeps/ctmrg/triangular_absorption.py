@@ -68,10 +68,10 @@ def decompose_new_T(new_T, chi, truncation_eps, config):
     )
 
     return (
-        _post_process_CTM_tensors(new_Ta, config),
-        _post_process_CTM_tensors(new_Tb, config),
-        _post_process_CTM_tensors(new_Ta_trunc, config),
-        _post_process_CTM_tensors(new_Tb_trunc, config),
+        new_Ta / jnp.linalg.norm(new_Ta),
+        new_Tb / jnp.linalg.norm(new_Tb),
+        new_Ta_trunc / jnp.linalg.norm(new_Ta_trunc),
+        new_Tb_trunc / jnp.linalg.norm(new_Tb_trunc),
     )
 
 
@@ -198,7 +198,9 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [C1_proj_left, C1_proj_right],
             )
-            new_C1_list.append(_post_process_CTM_tensors(new_C1, config))
+            new_C1_list.append(
+                _post_process_CTM_tensors(new_C1, view[1, 1][0][0].C1, config)
+            )
 
             C2_proj_left = corner_90_projectors.get_projector(x, y, 0, -1)[0]
             C2_proj_right = corner_30_projectors.get_projector(x, y, 0, 0)[1]
@@ -208,7 +210,9 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [C2_proj_left, C2_proj_right],
             )
-            new_C2_list.append(_post_process_CTM_tensors(new_C2, config))
+            new_C2_list.append(
+                _post_process_CTM_tensors(new_C2, view[1, 0][0][0].C2, config)
+            )
 
             C3_proj_left = corner_30_projectors.get_projector(x, y, -1, -1)[0]
             C3_proj_right = corner_330_projectors.get_projector(x, y, 0, 0)[1]
@@ -218,7 +222,9 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [C3_proj_left, C3_proj_right],
             )
-            new_C3_list.append(_post_process_CTM_tensors(new_C3, config))
+            new_C3_list.append(
+                _post_process_CTM_tensors(new_C3, view[0, -1][0][0].C3, config)
+            )
 
             C4_proj_left = corner_330_projectors.get_projector(x, y, -1, 0)[0]
             C4_proj_right = corner_270_projectors.get_projector(x, y, 0, -1)[1]
@@ -228,7 +234,9 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [C4_proj_left, C4_proj_right],
             )
-            new_C4_list.append(_post_process_CTM_tensors(new_C4, config))
+            new_C4_list.append(
+                _post_process_CTM_tensors(new_C4, view[-1, -1][0][0].C4, config)
+            )
 
             C5_proj_left = corner_270_projectors.get_projector(x, y, 0, 0)[0]
             C5_proj_right = corner_210_projectors.get_projector(x, y, -1, -1)[1]
@@ -238,7 +246,9 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [C5_proj_left, C5_proj_right],
             )
-            new_C5_list.append(_post_process_CTM_tensors(new_C5, config))
+            new_C5_list.append(
+                _post_process_CTM_tensors(new_C5, view[-1, 0][0][0].C5, config)
+            )
 
             C6_proj_left = corner_210_projectors.get_projector(x, y, 0, 0)[0]
             C6_proj_right = corner_150_projectors.get_projector(x, y, -1, 0)[1]
@@ -248,7 +258,9 @@ def do_absorption_step_triangular(
                 [working_tensor_obj],
                 [C6_proj_left, C6_proj_right],
             )
-            new_C6_list.append(_post_process_CTM_tensors(new_C6, config))
+            new_C6_list.append(
+                _post_process_CTM_tensors(new_C6, view[0, 1][0][0].C6, config)
+            )
 
             T1_proj_left = corner_90_projectors.get_projector(x, y, 0, -1)[0]
             T1_proj_right = corner_90_projectors.get_projector(x, y, 0, 0)[1]
@@ -421,6 +433,7 @@ def do_absorption_step_triangular(
                     new_t.T1a,
                     ((1,), (0,)),
                 ),
+                unitcell[x + 1, y + 1][0][0].T1a,
                 config,
             )
             new_t.T1b = _post_process_CTM_tensors(
@@ -429,6 +442,7 @@ def do_absorption_step_triangular(
                     T_90_projectors.get_projector(x, y, 0, 0)[1],
                     ((3,), (0,)),
                 ),
+                unitcell[x + 1, y][0][0].T1b,
                 config,
             )
 
@@ -438,6 +452,7 @@ def do_absorption_step_triangular(
                     new_t.T3a,
                     ((1,), (0,)),
                 ),
+                unitcell[x, y - 1][0][0].T3a,
                 config,
             )
             new_t.T3b = _post_process_CTM_tensors(
@@ -446,6 +461,7 @@ def do_absorption_step_triangular(
                     T_330_projectors.get_projector(x, y, 0, 0)[1],
                     ((3,), (0,)),
                 ),
+                unitcell[x - 1, y - 1][0][0].T3b,
                 config,
             )
 
@@ -455,6 +471,7 @@ def do_absorption_step_triangular(
                     new_t.T5a,
                     ((1,), (0,)),
                 ),
+                unitcell[x - 1, y][0][0].T5a,
                 config,
             )
             new_t.T5b = _post_process_CTM_tensors(
@@ -463,6 +480,7 @@ def do_absorption_step_triangular(
                     T_210_projectors.get_projector(x, y, -1, -1)[1],
                     ((3,), (0,)),
                 ),
+                unitcell[x, y + 1][0][0].T5b,
                 config,
             )
 
@@ -490,6 +508,7 @@ def do_absorption_step_triangular(
                     new_t.T2a,
                     ((1,), (0,)),
                 ),
+                unitcell[x + 1, y][0][0].T2a,
                 config,
             )
             new_t.T2b = _post_process_CTM_tensors(
@@ -498,6 +517,7 @@ def do_absorption_step_triangular(
                     T_30_projectors.get_projector(x, y, 0, 0)[1],
                     ((3,), (0,)),
                 ),
+                unitcell[x, y - 1][0][0].T2b,
                 config,
             )
 
@@ -507,6 +527,7 @@ def do_absorption_step_triangular(
                     new_t.T4a,
                     ((1,), (0,)),
                 ),
+                unitcell[x - 1, y - 1][0][0].T4a,
                 config,
             )
             new_t.T4b = _post_process_CTM_tensors(
@@ -515,6 +536,7 @@ def do_absorption_step_triangular(
                     T_270_projectors.get_projector(x, y, 0, -1)[1],
                     ((3,), (0,)),
                 ),
+                unitcell[x - 1, y][0][0].T4b,
                 config,
             )
 
@@ -524,6 +546,7 @@ def do_absorption_step_triangular(
                     new_t.T6a,
                     ((1,), (0,)),
                 ),
+                unitcell[x, y + 1][0][0].T6a,
                 config,
             )
             new_t.T6b = _post_process_CTM_tensors(
@@ -532,6 +555,7 @@ def do_absorption_step_triangular(
                     T_150_projectors.get_projector(x, y, -1, 0)[1],
                     ((3,), (0,)),
                 ),
+                unitcell[x + 1, y + 1][0][0].T6b,
                 config,
             )
 
@@ -718,7 +742,9 @@ def do_absorption_step_triangular_split(
                     C1_proj_right_bra,
                 ],
             )
-            new_C1_list.append(_post_process_CTM_tensors(new_C1, config))
+            new_C1_list.append(
+                _post_process_CTM_tensors(new_C1, view[1, 1][0][0].C1, config)
+            )
 
             C2_proj_left_bra = corner_90_bra_projectors.get_projector(x, y, 0, -1)[0]
             C2_proj_left_ket = corner_90_ket_projectors.get_projector(x, y, 0, -1)[0]
@@ -735,7 +761,9 @@ def do_absorption_step_triangular_split(
                     C2_proj_right_bra,
                 ],
             )
-            new_C2_list.append(_post_process_CTM_tensors(new_C2, config))
+            new_C2_list.append(
+                _post_process_CTM_tensors(new_C2, view[1, 0][0][0].C2, config)
+            )
 
             C3_proj_left_bra = corner_30_bra_projectors.get_projector(x, y, -1, -1)[0]
             C3_proj_left_ket = corner_30_ket_projectors.get_projector(x, y, -1, -1)[0]
@@ -752,7 +780,9 @@ def do_absorption_step_triangular_split(
                     C3_proj_right_ket,
                 ],
             )
-            new_C3_list.append(_post_process_CTM_tensors(new_C3, config))
+            new_C3_list.append(
+                _post_process_CTM_tensors(new_C3, view[0, -1][0][0].C3, config)
+            )
 
             C4_proj_left_ket = corner_330_ket_projectors.get_projector(x, y, -1, 0)[0]
             C4_proj_left_bra = corner_330_bra_projectors.get_projector(x, y, -1, 0)[0]
@@ -769,7 +799,9 @@ def do_absorption_step_triangular_split(
                     C4_proj_right_ket,
                 ],
             )
-            new_C4_list.append(_post_process_CTM_tensors(new_C4, config))
+            new_C4_list.append(
+                _post_process_CTM_tensors(new_C4, view[-1, -1][0][0].C4, config)
+            )
 
             C5_proj_left_ket = corner_270_ket_projectors.get_projector(x, y, 0, 0)[0]
             C5_proj_left_bra = corner_270_bra_projectors.get_projector(x, y, 0, 0)[0]
@@ -786,7 +818,9 @@ def do_absorption_step_triangular_split(
                     C5_proj_right_ket,
                 ],
             )
-            new_C5_list.append(_post_process_CTM_tensors(new_C5, config))
+            new_C5_list.append(
+                _post_process_CTM_tensors(new_C5, view[-1, 0][0][0].C5, config)
+            )
 
             C6_proj_left_ket = corner_210_ket_projectors.get_projector(x, y, 0, 0)[0]
             C6_proj_left_bra = corner_210_bra_projectors.get_projector(x, y, 0, 0)[0]
@@ -803,7 +837,9 @@ def do_absorption_step_triangular_split(
                     C6_proj_right_bra,
                 ],
             )
-            new_C6_list.append(_post_process_CTM_tensors(new_C6, config))
+            new_C6_list.append(
+                _post_process_CTM_tensors(new_C6, view[0, 1][0][0].C6, config)
+            )
 
             T1_proj_left_bra = corner_90_bra_projectors.get_projector(x, y, 0, -1)[0]
             T1_proj_left_ket = corner_90_ket_projectors.get_projector(x, y, 0, -1)[0]
@@ -1028,6 +1064,7 @@ def do_absorption_step_triangular_split(
                     new_t.T1a,
                     ((1,), (0,)),
                 ),
+                unitcell[x + 1, y + 1][0][0].T1a,
                 config,
             )
             new_t.T1b = _post_process_CTM_tensors(
@@ -1036,6 +1073,7 @@ def do_absorption_step_triangular_split(
                     T_90_projectors.get_projector(x, y, 0, 0)[1],
                     ((3,), (0,)),
                 ),
+                unitcell[x + 1, y][0][0].T1b,
                 config,
             )
 
@@ -1045,6 +1083,7 @@ def do_absorption_step_triangular_split(
                     new_t.T2a,
                     ((1,), (0,)),
                 ),
+                unitcell[x + 1, y][0][0].T2a,
                 config,
             )
             new_t.T2b = _post_process_CTM_tensors(
@@ -1053,6 +1092,7 @@ def do_absorption_step_triangular_split(
                     T_30_projectors.get_projector(x, y, 0, 0)[1],
                     ((3,), (0,)),
                 ),
+                unitcell[x, y - 1][0][0].T2b,
                 config,
             )
 
@@ -1062,6 +1102,7 @@ def do_absorption_step_triangular_split(
                     new_t.T3a,
                     ((1,), (0,)),
                 ),
+                unitcell[x, y - 1][0][0].T3a,
                 config,
             )
             new_t.T3b = _post_process_CTM_tensors(
@@ -1070,6 +1111,7 @@ def do_absorption_step_triangular_split(
                     T_330_projectors.get_projector(x, y, 0, 0)[1],
                     ((3,), (0,)),
                 ),
+                unitcell[x - 1, y - 1][0][0].T3b,
                 config,
             )
 
@@ -1079,6 +1121,7 @@ def do_absorption_step_triangular_split(
                     new_t.T4a,
                     ((1,), (0,)),
                 ),
+                unitcell[x - 1, y - 1][0][0].T4a,
                 config,
             )
             new_t.T4b = _post_process_CTM_tensors(
@@ -1087,6 +1130,7 @@ def do_absorption_step_triangular_split(
                     T_270_projectors.get_projector(x, y, 0, -1)[1],
                     ((3,), (0,)),
                 ),
+                unitcell[x - 1, y][0][0].T4b,
                 config,
             )
 
@@ -1096,6 +1140,7 @@ def do_absorption_step_triangular_split(
                     new_t.T5a,
                     ((1,), (0,)),
                 ),
+                unitcell[x - 1, y][0][0].T5a,
                 config,
             )
             new_t.T5b = _post_process_CTM_tensors(
@@ -1104,6 +1149,7 @@ def do_absorption_step_triangular_split(
                     T_210_projectors.get_projector(x, y, -1, -1)[1],
                     ((3,), (0,)),
                 ),
+                unitcell[x, y + 1][0][0].T5b,
                 config,
             )
 
@@ -1113,6 +1159,7 @@ def do_absorption_step_triangular_split(
                     new_t.T6a,
                     ((1,), (0,)),
                 ),
+                unitcell[x, y + 1][0][0].T6a,
                 config,
             )
             new_t.T6b = _post_process_CTM_tensors(
@@ -1121,6 +1168,7 @@ def do_absorption_step_triangular_split(
                     T_150_projectors.get_projector(x, y, -1, 0)[1],
                     ((3,), (0,)),
                 ),
+                unitcell[x + 1, y + 1][0][0].T6b,
                 config,
             )
 
