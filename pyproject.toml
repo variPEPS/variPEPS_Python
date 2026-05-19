@@ -67,7 +67,5 @@ build-type = "Release"
 experimental = true
 
 [tool.cibuildwheel]
-# Enable free-threaded support
-enable = ["cpython-freethreading"]
 # Disable building PyPy, musllinux and thread-freethreading on Mac and Windows wheels
-skip = ["pp*", "*musllinux*", "*t-win*"]
+skip = ["*musllinux*", "*t-win*"]
