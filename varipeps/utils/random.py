@@ -15,7 +15,6 @@ import jax.numpy as jnp
 
 from typing import Type, Sequence, Optional
 from varipeps.typing import Tensor
-from varipeps.peps.unitcell import PEPS_Unit_Cell
 
 
 class PEPS_Random_Number_Generator:
@@ -201,7 +200,7 @@ class PEPS_Jax_Random(PEPS_Random_Impl):
 
 
 def apply_random_noise_unitcell(
-    unitcell: PEPS_Unit_Cell,
+    unitcell,
     noise_amplitude: float = 1e-3,
     relative_noise: bool = True,
     normalize: bool = True,
