@@ -15,6 +15,7 @@ import jax.numpy as jnp
 
 from typing import Type, Sequence, Optional
 from varipeps.typing import Tensor
+from varipeps.peps.unitcell import PEPS_Unit_Cell
 
 
 class PEPS_Random_Number_Generator:
@@ -199,11 +200,23 @@ class PEPS_Jax_Random(PEPS_Random_Impl):
         return block
 
 
-def apply_random_noise_unitcell(unitcell, relative_amplitude=1e-3):
+def apply_random_noise_unitcell(
+    unitcell: PEPS_Unit_Cell,
+    noise_amplitude: float = 1e-3,
+    relative_noise: bool = True,
+    normalize: bool = True,
+):
     rng = PEPS_Random_Number_Generator.get_generator()
 
     def random_noise(a):
-        return a + a * rng.block(a.shape, dtype=a.dtype) * relative_amplitude
+        noise = rng.block(a.shape, dtype=a.dtype) * noise_amplitude
+
+        a_noisy = (a + a * noise) if relative_noise else (a + noise)
+
+        if normalize:
+            a_noisy /= jnp.linalg.norm(a_noisy)
+
+        return a_noisy
 
     new_t = [
         t.replace_tensor(random_noise(t.tensor)) for t in unitcell.get_unique_tensors()
