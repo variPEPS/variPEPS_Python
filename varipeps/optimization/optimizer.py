@@ -1164,6 +1164,10 @@ def optimize_peps_network(
                         else "0"
                     ),
                     "Max. trunc. err.": f"{max_trunc_error:0.8g}",
+                    "chiE/chiMax": (
+                        f"{working_unitcell.get_unique_tensors()[0].chi:d}/"
+                        f"{working_unitcell.get_unique_tensors()[0].max_chi:d}"
+                    ),
                 }
             )
             pbar.refresh()
