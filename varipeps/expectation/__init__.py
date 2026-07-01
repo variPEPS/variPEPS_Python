@@ -2,6 +2,7 @@ from . import helpers
 from . import spiral_helpers
 from . import structure_factor
 from . import model
+from . import physical_indices
 from . import one_site
 from . import two_sites
 from . import three_sites

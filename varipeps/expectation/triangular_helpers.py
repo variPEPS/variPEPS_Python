@@ -1,12 +1,16 @@
 import jax.numpy as jnp
-from jax import jit
 
 from varipeps.peps import PEPS_Tensor
 from varipeps.contractions import apply_contraction, Definitions
 
+from .physical_indices import build_physical_contraction_indices
+
 from typing import Sequence, Tuple
 
 
+# ========================================
+# N two site triangular gates
+# ========================================
 def partially_traced_vertical_two_site_density_matrices_triangular(
     peps_tensors: Sequence[jnp.ndarray],
     peps_tensor_objs: Sequence[PEPS_Tensor],
@@ -16,7 +20,7 @@ def partially_traced_vertical_two_site_density_matrices_triangular(
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
 
     if not all(
-        all(isinstance(open_idx, int) for open_idx in tup) or len(tup) == 0
+        all(isinstance(open_idx, int) for open_idx in tup)
         for tup in open_physical_indices
     ):
         raise TypeError(
@@ -58,18 +62,14 @@ def partially_traced_vertical_two_site_density_matrices_triangular(
         )
     ):
 
-        phys_contraction_i_top = list(
-            range(15, 15 + num_coarse_grained_physical_indices - len(top_i))
+        phys_contraction_i_top, phys_contraction_i_conj_top = (
+            build_physical_contraction_indices(
+                site_open_physical_indices=top_i,
+                num_coarse_grained_physical_indices=num_coarse_grained_physical_indices,
+                start_contraction_at=15,
+                negative_offset=0,
+            )
         )
-        phys_contraction_i_conj_top = list(
-            range(15, 15 + num_coarse_grained_physical_indices - len(top_i))
-        )
-        for pos, i in enumerate(top_i):
-            phys_contraction_i_top.insert(i - 1, -(pos + 1))
-            phys_contraction_i_conj_top.insert(i - 1, -len(top_i) - (pos + 1))
-        phys_contraction_i_top = tuple(phys_contraction_i_top)
-        phys_contraction_i_conj_top = tuple(phys_contraction_i_conj_top)
-
         contraction_top = {
             "tensors": [["tensor", "tensor_conj", "T6a", "C1", "C2", "C3", "T3b"]],
             "network": [
@@ -94,18 +94,14 @@ def partially_traced_vertical_two_site_density_matrices_triangular(
             contraction_top,
         )
 
-        phys_contraction_i_bottom = list(
-            range(15, 15 + num_coarse_grained_physical_indices - len(bottom_i))
+        phys_contraction_i_bottom, phys_contraction_i_conj_bottom = (
+            build_physical_contraction_indices(
+                site_open_physical_indices=bottom_i,
+                num_coarse_grained_physical_indices=num_coarse_grained_physical_indices,
+                start_contraction_at=15,
+                negative_offset=-4,
+            )
         )
-        phys_contraction_i_conj_bottom = list(
-            range(15, 15 + num_coarse_grained_physical_indices - len(bottom_i))
-        )
-        for pos, i in enumerate(bottom_i):
-            phys_contraction_i_bottom.insert(i - 1, -4 - (pos + 1))
-            phys_contraction_i_conj_bottom.insert(i - 1, -4 - len(bottom_i) - (pos + 1))
-        phys_contraction_i_bottom = tuple(phys_contraction_i_bottom)
-        phys_contraction_i_conj_bottom = tuple(phys_contraction_i_conj_bottom)
-
         contraction_bottom = {
             "tensors": [["tensor", "tensor_conj", "T3a", "C4", "C5", "C6", "T6b"]],
             "network": [
@@ -139,15 +135,14 @@ def partially_traced_vertical_two_site_density_matrices_triangular(
         [],
         disable_identity_check=True,
     )
-    if len(top_i) > 0:
-        density_top = density_top.reshape(
-            real_physical_dimension ** len(top_i),
-            real_physical_dimension ** len(top_i),
-            density_top.shape[-4],
-            density_top.shape[-3],
-            density_top.shape[-2],
-            density_top.shape[-1],
-        )
+    density_top = density_top.reshape(
+        real_physical_dimension ** len(top_i),
+        real_physical_dimension ** len(top_i),
+        density_top.shape[-4],
+        density_top.shape[-3],
+        density_top.shape[-2],
+        density_top.shape[-1],
+    )
 
     density_bottom = apply_contraction(
         (
@@ -159,16 +154,14 @@ def partially_traced_vertical_two_site_density_matrices_triangular(
         [],
         disable_identity_check=True,
     )
-    if len(bottom_i) > 0:
-        # Physical indices are at the end (ket, bra), for consistency with _two_site_workhorse
-        density_bottom = density_bottom.reshape(
-            density_bottom.shape[0],
-            density_bottom.shape[1],
-            density_bottom.shape[2],
-            density_bottom.shape[3],
-            real_physical_dimension ** len(bottom_i),
-            real_physical_dimension ** len(bottom_i),
-        )
+    density_bottom = density_bottom.reshape(
+        density_bottom.shape[0],
+        density_bottom.shape[1],
+        density_bottom.shape[2],
+        density_bottom.shape[3],
+        real_physical_dimension ** len(bottom_i),
+        real_physical_dimension ** len(bottom_i),
+    )
 
     return (
         density_top,
@@ -185,7 +178,7 @@ def partially_traced_horizontal_two_site_density_matrices_triangular(
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
 
     if not all(
-        all(isinstance(open_idx, int) for open_idx in tup) or len(tup) == 0
+        all(isinstance(open_idx, int) for open_idx in tup)
         for tup in open_physical_indices
     ):
         raise TypeError(
@@ -227,18 +220,14 @@ def partially_traced_horizontal_two_site_density_matrices_triangular(
         )
     ):
 
-        phys_contraction_i_left = list(
-            range(15, 15 + num_coarse_grained_physical_indices - len(left_i))
+        phys_contraction_i_left, phys_contraction_i_conj_left = (
+            build_physical_contraction_indices(
+                site_open_physical_indices=left_i,
+                num_coarse_grained_physical_indices=num_coarse_grained_physical_indices,
+                start_contraction_at=15,
+                negative_offset=0,
+            )
         )
-        phys_contraction_i_conj_left = list(
-            range(15, 15 + num_coarse_grained_physical_indices - len(left_i))
-        )
-        for pos, i in enumerate(left_i):
-            phys_contraction_i_left.insert(i - 1, -(pos + 1))
-            phys_contraction_i_conj_left.insert(i - 1, -len(left_i) - (pos + 1))
-        phys_contraction_i_left = tuple(phys_contraction_i_left)
-        phys_contraction_i_conj_left = tuple(phys_contraction_i_conj_left)
-
         contraction_left = {
             "tensors": [["tensor", "tensor_conj", "T4a", "C5", "C6", "C1", "T1b"]],
             "network": [
@@ -263,18 +252,14 @@ def partially_traced_horizontal_two_site_density_matrices_triangular(
             contraction_left,
         )
 
-        phys_contraction_i_right = list(
-            range(15, 15 + num_coarse_grained_physical_indices - len(right_i))
+        phys_contraction_i_right, phys_contraction_i_conj_right = (
+            build_physical_contraction_indices(
+                site_open_physical_indices=right_i,
+                num_coarse_grained_physical_indices=num_coarse_grained_physical_indices,
+                start_contraction_at=15,
+                negative_offset=-4,
+            )
         )
-        phys_contraction_i_conj_right = list(
-            range(15, 15 + num_coarse_grained_physical_indices - len(right_i))
-        )
-        for pos, i in enumerate(right_i):
-            phys_contraction_i_right.insert(i - 1, -4 - (pos + 1))
-            phys_contraction_i_conj_right.insert(i - 1, -4 - len(right_i) - (pos + 1))
-        phys_contraction_i_right = tuple(phys_contraction_i_right)
-        phys_contraction_i_conj_right = tuple(phys_contraction_i_conj_right)
-
         contraction_right = {
             "tensors": [["tensor", "tensor_conj", "T1a", "C2", "C3", "C4", "T4b"]],
             "network": [
@@ -308,15 +293,14 @@ def partially_traced_horizontal_two_site_density_matrices_triangular(
         [],
         disable_identity_check=True,
     )
-    if len(left_i) > 0:
-        density_left = density_left.reshape(
-            real_physical_dimension ** len(left_i),
-            real_physical_dimension ** len(left_i),
-            density_left.shape[-4],
-            density_left.shape[-3],
-            density_left.shape[-2],
-            density_left.shape[-1],
-        )
+    density_left = density_left.reshape(
+        real_physical_dimension ** len(left_i),
+        real_physical_dimension ** len(left_i),
+        density_left.shape[-4],
+        density_left.shape[-3],
+        density_left.shape[-2],
+        density_left.shape[-1],
+    )
 
     density_right = apply_contraction(
         (
@@ -328,16 +312,14 @@ def partially_traced_horizontal_two_site_density_matrices_triangular(
         [],
         disable_identity_check=True,
     )
-    if len(right_i) > 0:
-        # Physical indices are at the end (ket, bra), for consistency with _two_site_workhorse
-        density_right = density_right.reshape(
-            density_right.shape[0],
-            density_right.shape[1],
-            density_right.shape[2],
-            density_right.shape[3],
-            real_physical_dimension ** len(right_i),
-            real_physical_dimension ** len(right_i),
-        )
+    density_right = density_right.reshape(
+        density_right.shape[0],
+        density_right.shape[1],
+        density_right.shape[2],
+        density_right.shape[3],
+        real_physical_dimension ** len(right_i),
+        real_physical_dimension ** len(right_i),
+    )
 
     return (
         density_left,
@@ -354,7 +336,7 @@ def partially_traced_diagonal_two_site_density_matrices_triangular(
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
 
     if not all(
-        all(isinstance(open_idx, int) for open_idx in tup) or len(tup) == 0
+        all(isinstance(open_idx, int) for open_idx in tup)
         for tup in open_physical_indices
     ):
         raise TypeError(
@@ -396,18 +378,14 @@ def partially_traced_diagonal_two_site_density_matrices_triangular(
         )
     ):
 
-        phys_contraction_i_top = list(
-            range(15, 15 + num_coarse_grained_physical_indices - len(top_i))
+        phys_contraction_i_top, phys_contraction_i_conj_top = (
+            build_physical_contraction_indices(
+                site_open_physical_indices=top_i,
+                num_coarse_grained_physical_indices=num_coarse_grained_physical_indices,
+                start_contraction_at=15,
+                negative_offset=0,
+            )
         )
-        phys_contraction_i_conj_top = list(
-            range(15, 15 + num_coarse_grained_physical_indices - len(top_i))
-        )
-        for pos, i in enumerate(top_i):
-            phys_contraction_i_top.insert(i - 1, -(pos + 1))
-            phys_contraction_i_conj_top.insert(i - 1, -len(top_i) - (pos + 1))
-        phys_contraction_i_top = tuple(phys_contraction_i_top)
-        phys_contraction_i_conj_top = tuple(phys_contraction_i_conj_top)
-
         contraction_top = {
             "tensors": [["tensor", "tensor_conj", "T5a", "C6", "C1", "C2", "T2b"]],
             "network": [
@@ -432,18 +410,14 @@ def partially_traced_diagonal_two_site_density_matrices_triangular(
             contraction_top,
         )
 
-        phys_contraction_i_bottom = list(
-            range(15, 15 + num_coarse_grained_physical_indices - len(bottom_i))
+        phys_contraction_i_bottom, phys_contraction_i_conj_bottom = (
+            build_physical_contraction_indices(
+                site_open_physical_indices=bottom_i,
+                num_coarse_grained_physical_indices=num_coarse_grained_physical_indices,
+                start_contraction_at=15,
+                negative_offset=-4,
+            )
         )
-        phys_contraction_i_conj_bottom = list(
-            range(15, 15 + num_coarse_grained_physical_indices - len(bottom_i))
-        )
-        for pos, i in enumerate(bottom_i):
-            phys_contraction_i_bottom.insert(i - 1, -4 - (pos + 1))
-            phys_contraction_i_conj_bottom.insert(i - 1, -4 - len(bottom_i) - (pos + 1))
-        phys_contraction_i_bottom = tuple(phys_contraction_i_bottom)
-        phys_contraction_i_conj_bottom = tuple(phys_contraction_i_conj_bottom)
-
         contraction_bottom = {
             "tensors": [["tensor", "tensor_conj", "T2a", "C3", "C4", "C5", "T5b"]],
             "network": [
@@ -477,15 +451,14 @@ def partially_traced_diagonal_two_site_density_matrices_triangular(
         [],
         disable_identity_check=True,
     )
-    if len(top_i) > 0:
-        density_top = density_top.reshape(
-            real_physical_dimension ** len(top_i),
-            real_physical_dimension ** len(top_i),
-            density_top.shape[-4],
-            density_top.shape[-3],
-            density_top.shape[-2],
-            density_top.shape[-1],
-        )
+    density_top = density_top.reshape(
+        real_physical_dimension ** len(top_i),
+        real_physical_dimension ** len(top_i),
+        density_top.shape[-4],
+        density_top.shape[-3],
+        density_top.shape[-2],
+        density_top.shape[-1],
+    )
 
     density_bottom = apply_contraction(
         (
@@ -497,16 +470,14 @@ def partially_traced_diagonal_two_site_density_matrices_triangular(
         [],
         disable_identity_check=True,
     )
-    if len(bottom_i) > 0:
-        # Physical indices are at the end (ket, bra), for consistency with _two_site_workhorse
-        density_bottom = density_bottom.reshape(
-            density_bottom.shape[0],
-            density_bottom.shape[1],
-            density_bottom.shape[2],
-            density_bottom.shape[3],
-            real_physical_dimension ** len(bottom_i),
-            real_physical_dimension ** len(bottom_i),
-        )
+    density_bottom = density_bottom.reshape(
+        density_bottom.shape[0],
+        density_bottom.shape[1],
+        density_bottom.shape[2],
+        density_bottom.shape[3],
+        real_physical_dimension ** len(bottom_i),
+        real_physical_dimension ** len(bottom_i),
+    )
 
     return (
         density_top,

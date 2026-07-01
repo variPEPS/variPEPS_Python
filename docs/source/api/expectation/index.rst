@@ -16,6 +16,7 @@ Calculation of expectation values (:mod:`varipeps.expectation`)
    three_sites
    four_sites
    spiral_helpers
+   physical_indices
 
 .. automodule:: varipeps.expectation
    :members:
