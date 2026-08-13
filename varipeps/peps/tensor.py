@@ -3949,6 +3949,12 @@ class PEPS_Tensor_Triangular:
             "T5b_trunc",
             "T6a_trunc",
             "T6b_trunc",
+            "T1_full",
+            "T2_full",
+            "T3_full",
+            "T4_full",
+            "T5_full",
+            "T6_full",
         ):
             if hasattr(self, e):
                 setattr(new, e, getattr(self, e))
@@ -4104,6 +4110,12 @@ class PEPS_Tensor_Triangular:
                 "T5b_trunc",
                 "T6a_trunc",
                 "T6b_trunc",
+                "T1_full",
+                "T2_full",
+                "T3_full",
+                "T4_full",
+                "T5_full",
+                "T6_full",
             )
         ):
             trunc_found = []
@@ -4120,9 +4132,16 @@ class PEPS_Tensor_Triangular:
                 "T5b_trunc",
                 "T6a_trunc",
                 "T6b_trunc",
+                "T1_full",
+                "T2_full",
+                "T3_full",
+                "T4_full",
+                "T5_full",
+                "T6_full",
             ):
-                data += (getattr(self, e),)
-                trunc_found.append(e)
+                if hasattr(self, e):
+                    data += (getattr(self, e),)
+                    trunc_found.append(e)
             aux_data += (tuple(trunc_found),)
 
         return (data, aux_data)

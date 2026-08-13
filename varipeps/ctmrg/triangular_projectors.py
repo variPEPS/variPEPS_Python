@@ -1,3 +1,4 @@
+import numpy as np
 import jax
 import jax.numpy as jnp
 
@@ -579,6 +580,250 @@ def calc_T_90_210_330_projectors(
         (projector_T_210_left, projector_T_210_right),
         (projector_T_330_left, projector_T_330_right),
         (smallest_S_90, smallest_S_210, smallest_S_330),
+    )
+
+
+def _T_truncated_workhorse(
+    tensor_left: jnp.ndarray,
+    tensor_full_T: jnp.ndarray,
+    tensor_right: jnp.ndarray,
+    chi: int,
+    truncation_eps: float,
+):
+    left_matrix = tensor_left.reshape(
+        np.prod(tensor_left.shape[:3]), np.prod(tensor_left.shape[3:6])
+    )
+
+    full_T_matrix = tensor_full_T.reshape(
+        np.prod(tensor_full_T.shape[:3]), np.prod(tensor_full_T.shape[3:6])
+    )
+
+    right_matrix = tensor_right.reshape(
+        np.prod(tensor_right.shape[:3]), np.prod(tensor_right.shape[3:6])
+    )
+
+    left_matrix /= jnp.linalg.norm(left_matrix)
+    right_matrix /= jnp.linalg.norm(right_matrix)
+
+    product_matrix = left_matrix @ full_T_matrix @ right_matrix
+    product_matrix /= jnp.linalg.norm(product_matrix)
+
+    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
+
+    Ta = jnp.dot(
+        jnp.dot(
+            S_inv_sqrt[:, jnp.newaxis] * U.transpose().conj(),
+            left_matrix,
+        ),
+        full_T_matrix,
+    )
+
+    Tb = jnp.dot(
+        full_T_matrix,
+        jnp.dot(right_matrix, Vh.transpose().conj() * S_inv_sqrt[jnp.newaxis, :]),
+    )
+
+    Ta = Ta.reshape(
+        Ta.shape[0],
+        *tensor_full_T.shape[3:],
+    )
+
+    Tb = Tb.reshape(*tensor_full_T.shape[:3], Tb.shape[1])
+
+    return (
+        Ta,
+        Tb,
+        smallest_S,
+    )
+
+
+def calc_T_90_210_330_truncated(
+    peps_tensors: Sequence[Sequence[jnp.ndarray]],
+    peps_tensor_objs: Sequence[Sequence[PEPS_Tensor_Triangular]],
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
+):
+    if config.checkpointing_projectors:
+        raise NotImplementedError(
+            "Checkpointing not implemented for triangular CTMRG approach."
+        )
+
+    chi = _check_chi(peps_tensor_objs)
+
+    projector_method = (
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method
+    )
+    truncation_eps = (
+        config.ctmrg_truncation_eps
+        if state.ctmrg_effective_truncation_eps is None
+        else state.ctmrg_effective_truncation_eps
+    )
+
+    T_90_left = apply_contraction_jitted(
+        "triangular_ctmrg_T_trunc_90_left",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+    T_90_right = apply_contraction_jitted(
+        "triangular_ctmrg_T_trunc_90_right",
+        [peps_tensors[0][1]],
+        [peps_tensor_objs[0][1]],
+        [],
+    )
+
+    T_210_left = apply_contraction_jitted(
+        "triangular_ctmrg_T_trunc_210_left",
+        [peps_tensors[1][1]],
+        [peps_tensor_objs[1][1]],
+        [],
+    )
+    T_210_right = apply_contraction_jitted(
+        "triangular_ctmrg_T_trunc_210_right",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+
+    T_330_left = apply_contraction_jitted(
+        "triangular_ctmrg_T_trunc_330_left",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+    T_330_right = apply_contraction_jitted(
+        "triangular_ctmrg_T_trunc_330_right",
+        [peps_tensors[1][0]],
+        [peps_tensor_objs[1][0]],
+        [],
+    )
+
+    T1a, T1b, smallest_S_90 = _T_truncated_workhorse(
+        T_90_left,
+        peps_tensor_objs[0][0].T1_full,
+        T_90_right,
+        chi,
+        truncation_eps,
+    )
+
+    T3a, T3b, smallest_S_330 = _T_truncated_workhorse(
+        T_330_left,
+        peps_tensor_objs[0][0].T3_full,
+        T_330_right,
+        chi,
+        truncation_eps,
+    )
+
+    T5a, T5b, smallest_S_210 = _T_truncated_workhorse(
+        T_210_left,
+        peps_tensor_objs[0][0].T5_full,
+        T_210_right,
+        chi,
+        truncation_eps,
+    )
+
+    return (
+        (T1a, T1b),
+        (T3a, T3b),
+        (T5a, T5b),
+        (smallest_S_90, smallest_S_210, smallest_S_330),
+    )
+
+
+def calc_T_30_150_270_truncated(
+    peps_tensors: Sequence[Sequence[jnp.ndarray]],
+    peps_tensor_objs: Sequence[Sequence[PEPS_Tensor_Triangular]],
+    config: VariPEPS_Config,
+    state: VariPEPS_Global_State,
+):
+    if config.checkpointing_projectors:
+        raise NotImplementedError(
+            "Checkpointing not implemented for triangular CTMRG approach."
+        )
+
+    chi = _check_chi(peps_tensor_objs)
+
+    projector_method = (
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method
+    )
+    truncation_eps = (
+        config.ctmrg_truncation_eps
+        if state.ctmrg_effective_truncation_eps is None
+        else state.ctmrg_effective_truncation_eps
+    )
+
+    T_30_left = apply_contraction_jitted(
+        "triangular_ctmrg_T_trunc_30_left",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+    T_30_right = apply_contraction_jitted(
+        "triangular_ctmrg_T_trunc_30_right",
+        [peps_tensors[1][1]],
+        [peps_tensor_objs[1][1]],
+        [],
+    )
+
+    T_150_left = apply_contraction_jitted(
+        "triangular_ctmrg_T_trunc_150_left",
+        [peps_tensors[1][0]],
+        [peps_tensor_objs[1][0]],
+        [],
+    )
+    T_150_right = apply_contraction_jitted(
+        "triangular_ctmrg_T_trunc_150_right",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+
+    T_270_left = apply_contraction_jitted(
+        "triangular_ctmrg_T_trunc_270_left",
+        [peps_tensors[0][1]],
+        [peps_tensor_objs[0][1]],
+        [],
+    )
+    T_270_right = apply_contraction_jitted(
+        "triangular_ctmrg_T_trunc_270_right",
+        [peps_tensors[0][0]],
+        [peps_tensor_objs[0][0]],
+        [],
+    )
+
+    T2a, T2b, smallest_S_30 = _T_truncated_workhorse(
+        T_30_left,
+        peps_tensor_objs[0][0].T2_full,
+        T_30_right,
+        chi,
+        truncation_eps,
+    )
+
+    T4a, T4b, smallest_S_270 = _T_truncated_workhorse(
+        T_270_left,
+        peps_tensor_objs[0][0].T4_full,
+        T_270_right,
+        chi,
+        truncation_eps,
+    )
+
+    T6a, T6b, smallest_S_150 = _T_truncated_workhorse(
+        T_150_left,
+        peps_tensor_objs[0][0].T6_full,
+        T_150_right,
+        chi,
+        truncation_eps,
+    )
+
+    return (
+        (T2a, T2b),
+        (T4a, T4b),
+        (T6a, T6b),
+        (smallest_S_30, smallest_S_150, smallest_S_270),
     )
 
 
