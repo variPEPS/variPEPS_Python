@@ -589,6 +589,7 @@ def _T_truncated_workhorse(
     tensor_right: jnp.ndarray,
     chi: int,
     truncation_eps: float,
+    fishman: bool,
 ):
     left_matrix = tensor_left.reshape(
         np.prod(tensor_left.shape[:3]), np.prod(tensor_left.shape[3:6])
@@ -604,6 +605,23 @@ def _T_truncated_workhorse(
 
     left_matrix /= jnp.linalg.norm(left_matrix)
     right_matrix /= jnp.linalg.norm(right_matrix)
+
+    if fishman:
+        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh")
+        left_S = jnp.where(
+            left_S / left_S[0] < truncation_eps,
+            0,
+            jnp.sqrt(jnp.where(left_S / left_S[0] < truncation_eps, 1, left_S)),
+        )
+        left_matrix = left_S[:, jnp.newaxis] * left_Vh
+
+        right_U, right_S = gauge_fixed_svd(right_matrix, only_u_or_vh="U")
+        right_S = jnp.where(
+            right_S / right_S[0] < truncation_eps,
+            0,
+            jnp.sqrt(jnp.where(right_S / right_S[0] < truncation_eps, 1, right_S)),
+        )
+        right_matrix = right_U * right_S[jnp.newaxis, :]
 
     product_matrix = left_matrix @ full_T_matrix @ right_matrix
     product_matrix /= jnp.linalg.norm(product_matrix)
@@ -706,6 +724,8 @@ def calc_T_90_210_330_truncated(
         T_90_right,
         chi,
         truncation_eps,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     T3a, T3b, smallest_S_330 = _T_truncated_workhorse(
@@ -714,6 +734,8 @@ def calc_T_90_210_330_truncated(
         T_330_right,
         chi,
         truncation_eps,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     T5a, T5b, smallest_S_210 = _T_truncated_workhorse(
@@ -722,6 +744,8 @@ def calc_T_90_210_330_truncated(
         T_210_right,
         chi,
         truncation_eps,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     return (
@@ -801,6 +825,8 @@ def calc_T_30_150_270_truncated(
         T_30_right,
         chi,
         truncation_eps,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     T4a, T4b, smallest_S_270 = _T_truncated_workhorse(
@@ -809,6 +835,8 @@ def calc_T_30_150_270_truncated(
         T_270_right,
         chi,
         truncation_eps,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     T6a, T6b, smallest_S_150 = _T_truncated_workhorse(
@@ -817,6 +845,8 @@ def calc_T_30_150_270_truncated(
         T_150_right,
         chi,
         truncation_eps,
+        projector_method is Projector_Method.FISHMAN
+        or projector_method is Projector_Method.HALF_FISHMAN,
     )
 
     return (
