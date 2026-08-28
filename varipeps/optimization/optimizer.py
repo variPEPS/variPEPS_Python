@@ -84,12 +84,13 @@ def _cg_workhorse(new_gradient, old_gradient, old_descent_dir):
     )
     old_des_grad_diff = jnp.dot(old_des_dir_vec, grad_diff)
     beta = (
-        grad_diff - 2 * jnp.linalg.norm(grad_diff) * old_des_dir_vec / old_des_grad_diff
+        grad_diff
+        - 2 * jnp.linalg.norm(grad_diff) ** 2 * old_des_dir_vec / old_des_grad_diff
     )
     beta = jnp.dot(beta, new_grad_vec) / old_des_grad_diff
     beta = jnp.fmax(eta_k, beta)
 
-    beta = jnp.fmax(0, beta)
+    # beta = jnp.fmax(0, beta)
 
     result = -new_grad_vec + beta * old_des_dir_vec
 
