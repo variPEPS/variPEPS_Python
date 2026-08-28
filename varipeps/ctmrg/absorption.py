@@ -22,7 +22,7 @@ from .projectors import (
     calc_bottom_projectors_split_transfer,
 )
 from varipeps.expectation.one_site import calc_one_site_single_gate_obj
-from varipeps.config import VariPEPS_Config
+from varipeps.config import VariPEPS_Config, Projector_Method
 from varipeps.global_state import VariPEPS_Global_State
 
 from typing import Sequence, Tuple, List, Dict, Literal
@@ -142,13 +142,38 @@ def do_left_absorption(
 
     smallest_S_list = []
 
+    projector_method = (
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method
+    )
+
     for y, iter_columns in working_unitcell.iter_all_columns(only_unique=True):
         column_views = [view for view in iter_columns]
 
         for x, view in column_views:
-            left_proj, smallest_S = calc_left_projectors(
-                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"), config, state
-            )
+            if projector_method is Projector_Method.FULL_QR:
+                left_proj, smallest_S, (new_qr_left, new_qr_right) = (
+                    calc_left_projectors(
+                        *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"),
+                        config,
+                        state,
+                    )
+                )
+
+                new_t = view[1, 1][0][0].copy()
+                new_t.qr_right_traced_top = new_qr_left
+                view[1, 1] = new_t
+
+                new_t = view[0, 1][0][0].copy()
+                new_t.qr_right_traced_bottom = new_qr_right
+                view[0, 1] = new_t
+            else:
+                left_proj, smallest_S = calc_left_projectors(
+                    *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"),
+                    config,
+                    state,
+                )
             left_projectors[(x, y)] = left_proj
             smallest_S_list.append(smallest_S)
 
@@ -248,17 +273,40 @@ def do_right_absorption(
 
     smallest_S_list = []
 
+    projector_method = (
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method
+    )
+
     for y, iter_columns in working_unitcell.iter_all_columns(
         reverse=True, only_unique=True
     ):
         column_views = [view for view in iter_columns]
 
         for x, view in column_views:
-            right_proj, smallest_S = calc_right_projectors(
-                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-right"),
-                config,
-                state,
-            )
+            if projector_method is Projector_Method.FULL_QR:
+                right_proj, smallest_S, (new_qr_left, new_qr_right) = (
+                    calc_right_projectors(
+                        *_get_ctmrg_2x2_structure(peps_tensors, view, "top-right"),
+                        config,
+                        state,
+                    )
+                )
+
+                new_t = view[0, -1][0][0].copy()
+                new_t.qr_left_traced_bottom = new_qr_left
+                view[0, -1] = new_t
+
+                new_t = view[1, -1][0][0].copy()
+                new_t.qr_left_traced_top = new_qr_right
+                view[1, -1] = new_t
+            else:
+                right_proj, smallest_S = calc_right_projectors(
+                    *_get_ctmrg_2x2_structure(peps_tensors, view, "top-right"),
+                    config,
+                    state,
+                )
             right_projectors[(x, y)] = right_proj
             smallest_S_list.append(smallest_S)
 
@@ -357,13 +405,36 @@ def do_top_absorption(
 
     smallest_S_list = []
 
+    projector_method = (
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method
+    )
+
     for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
         row_views = [view for view in iter_rows]
 
         for y, view in row_views:
-            top_proj, smallest_S = calc_top_projectors(
-                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"), config, state
-            )
+            if projector_method is Projector_Method.FULL_QR:
+                top_proj, smallest_S, (new_qr_left, new_qr_right) = calc_top_projectors(
+                    *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"),
+                    config,
+                    state,
+                )
+
+                new_t = view[1, 0][0][0].copy()
+                new_t.qr_bottom_traced_right = new_qr_left
+                view[1, 0] = new_t
+
+                new_t = view[1, 1][0][0].copy()
+                new_t.qr_bottom_traced_left = new_qr_right
+                view[1, 1] = new_t
+            else:
+                top_proj, smallest_S = calc_top_projectors(
+                    *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"),
+                    config,
+                    state,
+                )
             top_projectors[(x, y)] = top_proj
             smallest_S_list.append(smallest_S)
 
@@ -462,15 +533,38 @@ def do_bottom_absorption(
 
     smallest_S_list = []
 
+    projector_method = (
+        config.ctmrg_full_projector_method
+        if state.ctmrg_projector_method is None
+        else state.ctmrg_projector_method
+    )
+
     for x, iter_rows in working_unitcell.iter_all_rows(reverse=True, only_unique=True):
         row_views = [view for view in iter_rows]
 
         for y, view in row_views:
-            bottom_proj, smallest_S = calc_bottom_projectors(
-                *_get_ctmrg_2x2_structure(peps_tensors, view, "bottom-left"),
-                config,
-                state,
-            )
+            if projector_method is Projector_Method.FULL_QR:
+                bottom_proj, smallest_S, (new_qr_left, new_qr_right) = (
+                    calc_bottom_projectors(
+                        *_get_ctmrg_2x2_structure(peps_tensors, view, "bottom-left"),
+                        config,
+                        state,
+                    )
+                )
+
+                new_t = view[-1, 1][0][0].copy()
+                new_t.qr_top_traced_left = new_qr_left
+                view[-1, 1] = new_t
+
+                new_t = view[-1, 0][0][0].copy()
+                new_t.qr_top_traced_right = new_qr_right
+                view[-1, 0] = new_t
+            else:
+                bottom_proj, smallest_S = calc_bottom_projectors(
+                    *_get_ctmrg_2x2_structure(peps_tensors, view, "bottom-left"),
+                    config,
+                    state,
+                )
             bottom_projectors[(x, y)] = bottom_proj
             smallest_S_list.append(smallest_S)
 

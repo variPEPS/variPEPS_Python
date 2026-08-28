@@ -198,6 +198,72 @@ class PEPS_Jax_Random(PEPS_Random_Impl):
             block /= jnp.linalg.norm(block)
         return block
 
+    def uniform(self, dim: Sequence[int], dtype: Type[np.number], minval=0, maxval=1):
+        if jnp.dtype(dtype) is jnp.dtype(jnp.complex64) or jnp.dtype(
+            dtype
+        ) is jnp.dtype(jnp.complex128):
+            self.key, key1, key2 = jax.random.split(self.key, 3)
+            block = jax.random.uniform(key1, dim, minval=minval, maxval=maxval).astype(
+                dtype
+            ) + 1j * jax.random.uniform(key2, dim, minval=minval, maxval=maxval).astype(
+                dtype
+            )
+        else:
+            self.key, key1 = jax.random.split(self.key, 2)
+            block = jax.random.uniform(
+                key1, dim, dtype=dtype, minval=minval, maxval=maxval
+            )
+        return block
+
+    def normal(
+        self,
+        dim: Sequence[int],
+        sigma: float,
+        dtype: Type[np.number],
+        normalize: bool = False,
+    ) -> jnp.ndarray:
+        if jnp.dtype(dtype) is jnp.dtype(jnp.complex64) or jnp.dtype(
+            dtype
+        ) is jnp.dtype(jnp.complex128):
+            self.key, key1, key2 = jax.random.split(self.key, 3)
+            block = sigma * (
+                jax.random.normal(key1, dim).astype(dtype)
+                + 1j * jax.random.normal(key2, dim).astype(dtype)
+            )
+        else:
+            self.key, key1 = jax.random.split(self.key, 2)
+            block = sigma * jax.random.normal(key1, dim, dtype=dtype)
+        if normalize:
+            block /= jnp.linalg.norm(block)
+        return block
+
+    def multivariate_normal(
+        self,
+        dim: Sequence[int],
+        mean: jnp.ndarray,
+        cov: jnp.ndarray,
+        dtype: Type[np.number],
+    ):
+        if jnp.dtype(dtype) is jnp.dtype(jnp.complex64) or jnp.dtype(
+            dtype
+        ) is jnp.dtype(jnp.complex128):
+            self.key, key1, key2 = jax.random.split(self.key, 3)
+            block = jax.random.multivariate_normal(key1, jnp.real(mean), cov).astype(
+                dtype
+            ) + 1j * jax.random.multivariate_normal(key2, jnp.imag(mean), cov).astype(
+                dtype
+            )
+        else:
+            self.key, key1 = jax.random.split(self.key, 2)
+            block = jax.random.multivariate_normal(key1, mean, cov, dtype=dtype)
+        return block.reshape(dim)
+
+    def biased_coin(self, prob: float) -> bool:
+        self.key, key1 = jax.random.split(self.key, 2)
+        rand_num = jax.random.uniform(key1)
+
+        return rand_num <= prob
+
 
 def apply_random_noise_unitcell(
     unitcell,

@@ -12,7 +12,7 @@ from jax.lax import cond, while_loop
 import jax.debug as jdebug
 
 from varipeps import varipeps_config, varipeps_global_state
-from varipeps.config import Grad_Fixed_Point_Method
+from varipeps.config import Grad_Fixed_Point_Method, Projector_Method
 from varipeps.peps import PEPS_Tensor, PEPS_Tensor_Split_Transfer, PEPS_Unit_Cell
 from varipeps.utils.debug_print import debug_print
 from .absorption import do_absorption_step, do_absorption_step_split_transfer
@@ -696,6 +696,7 @@ def calc_ctmrg_env(
     best_norm_smallest_S = None
     best_truncation_eps = None
     have_been_increased = False
+    reset_qr = False
 
     while True:
         tmp_count = 0
@@ -746,6 +747,14 @@ def calc_ctmrg_env(
                 )
             )
         ):
+            if (
+                varipeps_global_state.ctmrg_projector_method is None
+                and varipeps_config.ctmrg_full_projector_method
+                is Projector_Method.FULL_QR
+            ):
+                varipeps_global_state.ctmrg_projector_method = Projector_Method.FULL
+                reset_qr = True
+
             (
                 _,
                 working_unitcell,
@@ -771,6 +780,10 @@ def calc_ctmrg_env(
                     varipeps_config,
                 )
             )
+
+        if reset_qr:
+            varipeps_global_state.ctmrg_projector_method = None
+            reset_qr = False
 
         if tmp_count < varipeps_config.ctmrg_max_steps:
             working_unitcell, converged, end_count, norm_smallest_S = (

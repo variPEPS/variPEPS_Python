@@ -32,6 +32,9 @@ class Projector_Method(IntEnum):
     FULL = auto()  #: Use full network for projector calculation
     FISHMAN = auto()  #: Use the Fishman method for projector calculation
     HALF_FISHMAN = auto()  #: Use the Fishman method but with half projectors as basis
+    FULL_QR = (
+        auto()
+    )  #: Use full network for projector calculation applying the QR subspace projection
 
 
 @unique

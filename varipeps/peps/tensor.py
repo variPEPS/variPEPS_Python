@@ -14,6 +14,8 @@ import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
 import h5py
 
+from varipeps import varipeps_config
+from varipeps.config import Projector_Method
 from varipeps.utils.random import PEPS_Random_Number_Generator
 from varipeps.utils.svd import gauge_fixed_svd
 
@@ -91,6 +93,15 @@ class PEPS_Tensor:
     sanity_checks: bool = True
     tensor_conj: Optional[Tensor] = None
 
+    qr_left_traced_top: Optional[Tensor] = None
+    qr_left_traced_bottom: Optional[Tensor] = None
+    qr_right_traced_top: Optional[Tensor] = None
+    qr_right_traced_bottom: Optional[Tensor] = None
+    qr_top_traced_left: Optional[Tensor] = None
+    qr_top_traced_right: Optional[Tensor] = None
+    qr_bottom_traced_left: Optional[Tensor] = None
+    qr_bottom_traced_right: Optional[Tensor] = None
+
     def __post_init__(self) -> None:
         if not self.sanity_checks:
             return
@@ -138,6 +149,36 @@ class PEPS_Tensor:
             raise ValueError(
                 "At least one transfer tensors mismatch bond dimensions of PEPS tensor."
             )
+
+    def _random_initialize_qr(self):
+        rng = PEPS_Random_Number_Generator.get_generator(backend="jax")
+
+        qr_chi = self.chi + self.chi // 7 + 1
+
+        self.qr_left_traced_top = rng.normal(
+            (self.chi * self.D[3] * self.D[3], qr_chi), 1, self.tensor.dtype, True
+        )
+        self.qr_left_traced_bottom = rng.normal(
+            (qr_chi, self.chi * self.D[1] * self.D[1]), 1, self.tensor.dtype, True
+        )
+        self.qr_right_traced_top = rng.normal(
+            (qr_chi, self.chi * self.D[3] * self.D[3]), 1, self.tensor.dtype, True
+        )
+        self.qr_right_traced_bottom = rng.normal(
+            (self.chi * self.D[1] * self.D[1], qr_chi), 1, self.tensor.dtype, True
+        )
+        self.qr_top_traced_left = rng.normal(
+            (qr_chi, self.chi * self.D[0] * self.D[0]), 1, self.tensor.dtype, True
+        )
+        self.qr_top_traced_right = rng.normal(
+            (self.chi * self.D[2] * self.D[2], qr_chi), 1, self.tensor.dtype, True
+        )
+        self.qr_bottom_traced_left = rng.normal(
+            (self.chi * self.D[0] * self.D[0], qr_chi), 1, self.tensor.dtype, True
+        )
+        self.qr_bottom_traced_right = rng.normal(
+            (qr_chi, self.chi * self.D[2] * self.D[2]), 1, self.tensor.dtype, True
+        )
 
     @property
     def left_upper_transfer_shape(self) -> Tensor:
@@ -262,7 +303,7 @@ class PEPS_Tensor:
             T3 = rng.block((chi, chi, D[1], D[1]), dtype, normalize=normalize)
             T4 = rng.block((chi, D[0], D[0], chi), dtype, normalize=normalize)
 
-        return cls(
+        result = cls(
             tensor=tensor,
             C1=C1,
             C2=C2,
@@ -277,6 +318,11 @@ class PEPS_Tensor:
             chi=chi,
             max_chi=max_chi,
         )
+
+        if varipeps_config.ctmrg_full_projector_method is Projector_Method.FULL_QR:
+            result._random_initialize_qr()
+
+        return result
 
     @classmethod
     def random(
@@ -357,7 +403,7 @@ class PEPS_Tensor:
             T3 = rng.block((chi, chi, D[1], D[1]), dtype, normalize=normalize)
             T4 = rng.block((chi, D[0], D[0], chi), dtype, normalize=normalize)
 
-        return cls(
+        result = cls(
             tensor=tensor,
             C1=C1,
             C2=C2,
@@ -372,6 +418,11 @@ class PEPS_Tensor:
             chi=chi,
             max_chi=max_chi,
         )
+
+        if varipeps_config.ctmrg_full_projector_method is Projector_Method.FULL_QR:
+            result._random_initialize_qr()
+
+        return result
 
     def replace_tensor(
         self: T_PEPS_Tensor,
@@ -400,8 +451,8 @@ class PEPS_Tensor:
         elif not isinstance(new_D, tuple) and len(new_D) != 4:
             raise ValueError("Invalid argument for parameter new_D")
 
-        if reinitialize_env_as_identities:
-            return type(self)(
+        if new_D != self.D or reinitialize_env_as_identities:
+            result = type(self)(
                 tensor=new_tensor,
                 C1=jnp.ones((1, 1), dtype=self.C1.dtype),
                 C2=jnp.ones((1, 1), dtype=self.C2.dtype),
@@ -424,6 +475,11 @@ class PEPS_Tensor:
                 chi=self.chi,
                 max_chi=self.max_chi,
             )
+
+            if self.qr_left_traced_top is not None:
+                result._random_initialize_qr()
+
+            return result
         else:
             return type(self)(
                 tensor=new_tensor,
@@ -439,6 +495,14 @@ class PEPS_Tensor:
                 D=new_D,
                 chi=self.chi,
                 max_chi=self.max_chi,
+                qr_left_traced_top=self.qr_left_traced_top,
+                qr_left_traced_bottom=self.qr_left_traced_bottom,
+                qr_right_traced_top=self.qr_right_traced_top,
+                qr_right_traced_bottom=self.qr_right_traced_bottom,
+                qr_top_traced_left=self.qr_top_traced_left,
+                qr_top_traced_right=self.qr_top_traced_right,
+                qr_bottom_traced_left=self.qr_bottom_traced_left,
+                qr_bottom_traced_right=self.qr_bottom_traced_right,
             )
 
     def change_chi(
@@ -471,7 +535,7 @@ class PEPS_Tensor:
             )
 
         if new_chi < self.chi and reinitialize_env_as_identities:
-            return type(self)(
+            result = type(self)(
                 tensor=self.tensor,
                 C1=jnp.ones((1, 1), dtype=self.C1.dtype),
                 C2=jnp.ones((1, 1), dtype=self.C2.dtype),
@@ -495,7 +559,24 @@ class PEPS_Tensor:
                 max_chi=new_max_chi,
                 tensor_conj=self.tensor_conj,
             )
+
+            if self.qr_left_traced_top is not None:
+                result._random_initialize_qr()
+
+            return result
         else:
+            if self.qr_left_traced_top is not None:
+                raise NotImplementedError
+            else:
+                qr_left_traced_top = None
+                qr_left_traced_bottom = None
+                qr_right_traced_top = None
+                qr_right_traced_bottom = None
+                qr_top_traced_left = None
+                qr_top_traced_right = None
+                qr_bottom_traced_left = None
+                qr_bottom_traced_right = None
+
             return type(self)(
                 tensor=self.tensor,
                 C1=self.C1,
@@ -511,6 +592,14 @@ class PEPS_Tensor:
                 chi=new_chi,
                 max_chi=new_max_chi,
                 tensor_conj=self.tensor_conj,
+                qr_left_traced_top=qr_left_traced_top,
+                qr_left_traced_bottom=qr_left_traced_bottom,
+                qr_right_traced_top=qr_right_traced_top,
+                qr_right_traced_bottom=qr_right_traced_bottom,
+                qr_top_traced_left=qr_top_traced_left,
+                qr_top_traced_right=qr_top_traced_right,
+                qr_bottom_traced_left=qr_bottom_traced_left,
+                qr_bottom_traced_right=qr_bottom_traced_right,
             )
 
     def increase_max_chi(
@@ -547,6 +636,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=new_max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_left_env_tensors(
@@ -581,6 +678,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_right_env_tensors(
@@ -615,6 +720,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_top_env_tensors(
@@ -649,6 +762,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_bottom_env_tensors(
@@ -683,6 +804,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_C1(self: T_PEPS_Tensor, new_C1: Tensor) -> T_PEPS_Tensor:
@@ -711,6 +840,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_C2(self: T_PEPS_Tensor, new_C2: Tensor) -> T_PEPS_Tensor:
@@ -739,6 +876,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_C3(self: T_PEPS_Tensor, new_C3: Tensor) -> T_PEPS_Tensor:
@@ -767,6 +912,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_C4(self: T_PEPS_Tensor, new_C4: Tensor) -> T_PEPS_Tensor:
@@ -795,6 +948,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_T1(self: T_PEPS_Tensor, new_T1: Tensor) -> T_PEPS_Tensor:
@@ -823,6 +984,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_T2(self: T_PEPS_Tensor, new_T2: Tensor) -> T_PEPS_Tensor:
@@ -851,6 +1020,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_T3(self: T_PEPS_Tensor, new_T3: Tensor) -> T_PEPS_Tensor:
@@ -879,6 +1056,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_T4(self: T_PEPS_Tensor, new_T4: Tensor) -> T_PEPS_Tensor:
@@ -907,6 +1092,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_C1_C3(
@@ -939,6 +1132,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def replace_T1_C2_T2_T3_C4_T4(
@@ -985,6 +1186,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
         )
 
     def __add__(
@@ -1111,6 +1320,39 @@ class PEPS_Tensor:
         """
         return type(self).zeros_like(self)
 
+    def copy(self: T_PEPS_Tensor) -> T_PEPS_Tensor:
+        """
+        Shallow copy the object.
+
+        Returns:
+          :obj:`~varipeps.peps.PEPS_Tensor`:
+            New instance of the class with shallow copy.
+        """
+        return type(self)(
+            tensor=self.tensor,
+            C1=self.C1,
+            C2=self.C2,
+            C3=self.C3,
+            C4=self.C4,
+            T1=self.T1,
+            T2=self.T2,
+            T3=self.T3,
+            T4=self.T4,
+            d=self.d,
+            D=self.D,
+            chi=self.chi,
+            max_chi=self.max_chi,
+            tensor_conj=self.tensor_conj,
+            qr_left_traced_top=self.qr_left_traced_top,
+            qr_left_traced_bottom=self.qr_left_traced_bottom,
+            qr_right_traced_top=self.qr_right_traced_top,
+            qr_right_traced_bottom=self.qr_right_traced_bottom,
+            qr_top_traced_left=self.qr_top_traced_left,
+            qr_top_traced_right=self.qr_top_traced_right,
+            qr_bottom_traced_left=self.qr_bottom_traced_left,
+            qr_bottom_traced_right=self.qr_bottom_traced_right,
+        )
+
     def save_to_group(self, grp: h5py.Group) -> None:
         """
         Store the PEPS tensor into a HDF5 group.
@@ -1134,6 +1376,56 @@ class PEPS_Tensor:
         grp.create_dataset("T2", data=self.T2, compression="gzip", compression_opts=6)
         grp.create_dataset("T3", data=self.T3, compression="gzip", compression_opts=6)
         grp.create_dataset("T4", data=self.T4, compression="gzip", compression_opts=6)
+
+        if self.qr_left_traced_top is not None:
+            grp.create_dataset(
+                "qr_left_traced_top",
+                data=self.qr_left_traced_top,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp.create_dataset(
+                "qr_left_traced_bottom",
+                data=self.qr_left_traced_bottom,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp.create_dataset(
+                "qr_right_traced_top",
+                data=self.qr_right_traced_top,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp.create_dataset(
+                "qr_right_traced_bottom",
+                data=self.qr_right_traced_bottom,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp.create_dataset(
+                "qr_top_traced_left",
+                data=self.qr_top_traced_left,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp.create_dataset(
+                "qr_top_traced_right",
+                data=self.qr_top_traced_right,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp.create_dataset(
+                "qr_bottom_traced_left",
+                data=self.qr_bottom_traced_left,
+                compression="gzip",
+                compression_opts=6,
+            )
+            grp.create_dataset(
+                "qr_bottom_traced_right",
+                data=self.qr_bottom_traced_right,
+                compression="gzip",
+                compression_opts=6,
+            )
 
     @classmethod
     def load_from_group(cls: Type[T_PEPS_Tensor], grp: h5py.Group) -> T_PEPS_Tensor:
@@ -1162,6 +1454,25 @@ class PEPS_Tensor:
         T3 = jnp.asarray(grp["T3"])
         T4 = jnp.asarray(grp["T4"])
 
+        try:
+            qr_left_traced_top = jnp.asarray(grp["qr_left_traced_top"])
+            qr_left_traced_bottom = jnp.asarray(grp["qr_left_traced_bottom"])
+            qr_right_traced_top = jnp.asarray(grp["qr_right_traced_top"])
+            qr_right_traced_bottom = jnp.asarray(grp["qr_right_traced_bottom"])
+            qr_top_traced_left = jnp.asarray(grp["qr_top_traced_left"])
+            qr_top_traced_right = jnp.asarray(grp["qr_top_traced_right"])
+            qr_bottom_traced_left = jnp.asarray(grp["qr_bottom_traced_left"])
+            qr_bottom_traced_right = jnp.asarray(grp["qr_bottom_traced_right"])
+        except KeyError:
+            qr_left_traced_top = None
+            qr_left_traced_bottom = None
+            qr_right_traced_top = None
+            qr_right_traced_bottom = None
+            qr_top_traced_left = None
+            qr_top_traced_right = None
+            qr_bottom_traced_left = None
+            qr_bottom_traced_right = None
+
         return cls(
             tensor=tensor,
             C1=C1,
@@ -1176,6 +1487,14 @@ class PEPS_Tensor:
             D=D,
             chi=chi,
             max_chi=max_chi,
+            qr_left_traced_top=qr_left_traced_top,
+            qr_left_traced_bottom=qr_left_traced_bottom,
+            qr_right_traced_top=qr_right_traced_top,
+            qr_right_traced_bottom=qr_right_traced_bottom,
+            qr_top_traced_left=qr_top_traced_left,
+            qr_top_traced_right=qr_top_traced_right,
+            qr_bottom_traced_left=qr_bottom_traced_left,
+            qr_bottom_traced_right=qr_bottom_traced_right,
         )
 
     @property
@@ -1225,6 +1544,14 @@ class PEPS_Tensor:
             self.T3,
             self.T4,
             self.tensor_conj,
+            self.qr_left_traced_top,
+            self.qr_left_traced_bottom,
+            self.qr_right_traced_top,
+            self.qr_right_traced_bottom,
+            self.qr_top_traced_left,
+            self.qr_top_traced_right,
+            self.qr_bottom_traced_left,
+            self.qr_bottom_traced_right,
         )
         aux_data = (self.d, self.D, self.chi, self.max_chi)
 
@@ -1234,7 +1561,26 @@ class PEPS_Tensor:
     def tree_unflatten(
         cls: Type[T_PEPS_Tensor], aux_data: Tuple[Any, ...], children: Tuple[Any, ...]
     ) -> T_PEPS_Tensor:
-        tensor, C1, C2, C3, C4, T1, T2, T3, T4, tensor_conj = children
+        (
+            tensor,
+            C1,
+            C2,
+            C3,
+            C4,
+            T1,
+            T2,
+            T3,
+            T4,
+            tensor_conj,
+            qr_left_traced_top,
+            qr_left_traced_bottom,
+            qr_right_traced_top,
+            qr_right_traced_bottom,
+            qr_top_traced_left,
+            qr_top_traced_right,
+            qr_bottom_traced_left,
+            qr_bottom_traced_right,
+        ) = children
         d, D, chi, max_chi = aux_data
 
         return cls(
@@ -1253,6 +1599,14 @@ class PEPS_Tensor:
             max_chi=max_chi,
             sanity_checks=False,
             tensor_conj=tensor_conj,
+            qr_left_traced_top=qr_left_traced_top,
+            qr_left_traced_bottom=qr_left_traced_bottom,
+            qr_right_traced_top=qr_right_traced_top,
+            qr_right_traced_bottom=qr_right_traced_bottom,
+            qr_top_traced_left=qr_top_traced_left,
+            qr_top_traced_right=qr_top_traced_right,
+            qr_bottom_traced_left=qr_bottom_traced_left,
+            qr_bottom_traced_right=qr_bottom_traced_right,
         )
 
 

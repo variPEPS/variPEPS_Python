@@ -105,9 +105,12 @@ def _calc_ctmrg_quarters(
 
 
 def _truncated_SVD(
-    matrix: jnp.ndarray, chi: int, truncation_eps: float
+    matrix: jnp.ndarray,
+    chi: int,
+    truncation_eps: float,
+    return_full_U_Vh: bool = False,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    U, S, Vh = gauge_fixed_svd(matrix)
+    full_U, S, full_Vh = gauge_fixed_svd(matrix)
 
     len_S = len(S)
     if len_S > chi:
@@ -115,8 +118,8 @@ def _truncated_SVD(
 
     # Truncate the singular values
     S = S[:chi]
-    U = U[:, :chi]
-    Vh = Vh[:chi, :]
+    U = full_U[:, :chi]
+    Vh = full_Vh[:chi, :]
 
     if len_S > chi:
 
@@ -153,6 +156,9 @@ def _truncated_SVD(
         0,
         jnp.sqrt(jnp.where(trunc_error < truncation_eps**2, 1, trunc_error)),
     )
+
+    if return_full_U_Vh:
+        return S_inv_sqrt, U, Vh, trunc_error, full_U, full_Vh
 
     return S_inv_sqrt, U, Vh, trunc_error
 
@@ -565,12 +571,13 @@ def _vertical_cut_split_transfer(
     )
 
 
-@partial(jit, static_argnums=(4, 5, 6), inline=True)
+@partial(jit, static_argnums=(5, 6, 7), inline=True)
 def _left_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
+    peps_tensor_objs,
     truncation_eps: float,
     projector_method: Projector_Method,
     chi: int,
@@ -601,17 +608,92 @@ def _left_projectors_workhorse(
         bottom_matrix = jnp.sqrt(bottom_S)[:, jnp.newaxis] * bottom_Vh
         top_matrix /= jnp.linalg.norm(top_matrix)
         bottom_matrix /= jnp.linalg.norm(bottom_matrix)
+    elif projector_method is Projector_Method.FULL_QR:
+        (
+            top_left_matrix,
+            top_right_matrix,
+            bottom_left_matrix,
+            bottom_right_matrix,
+        ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+
+        qr_left = peps_tensor_objs[1][1].qr_right_traced_top
+        qr_right = peps_tensor_objs[0][1].qr_right_traced_bottom
+
+        new_qr_left = (
+            qr_left
+            @ bottom_right_matrix
+            @ bottom_left_matrix
+            @ top_left_matrix
+            @ top_right_matrix
+            @ top_right_matrix.T.conj()
+            @ top_left_matrix.T.conj()
+            @ bottom_left_matrix.T.conj()
+            @ bottom_right_matrix.T.conj()
+        )
+        new_qr_left /= jnp.linalg.norm(new_qr_left)
+
+        new_qr_left, _ = jnp.linalg.qr(new_qr_left.T.conj(), mode="reduced")
+        new_qr_left = new_qr_left.T.conj()
+
+        new_qr_right = top_right_matrix.T.conj() @ (
+            top_left_matrix.T.conj()
+            @ (
+                bottom_left_matrix.T.conj()
+                @ (
+                    bottom_right_matrix.T.conj()
+                    @ (
+                        bottom_right_matrix
+                        @ (
+                            bottom_left_matrix
+                            @ (top_left_matrix @ (top_right_matrix @ qr_right))
+                        )
+                    )
+                )
+            )
+        )
+        new_qr_right /= jnp.linalg.norm(new_qr_right)
+
+        new_qr_right, _ = jnp.linalg.qr(new_qr_right, mode="reduced")
     else:
         raise ValueError("Invalid projector method!")
 
-    product_matrix = jnp.dot(bottom_matrix, top_matrix)
+    if projector_method is Projector_Method.FULL_QR:
+        product_matrix = (
+            new_qr_left
+            @ bottom_right_matrix
+            @ bottom_left_matrix
+            @ top_left_matrix
+            @ top_right_matrix
+            @ new_qr_right
+        )
+    else:
+        product_matrix = jnp.dot(bottom_matrix, top_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
+    product_matrix /= jnp.linalg.norm(product_matrix)
 
-    projector_left_top = jnp.dot(top_matrix, Vh.transpose().conj() * S_inv_sqrt)
-    projector_left_bottom = jnp.dot(
-        U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], bottom_matrix
+    S_inv_sqrt, U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
+        product_matrix, chi, truncation_eps, return_full_U_Vh=True
     )
+
+    if projector_method is Projector_Method.FULL_QR:
+        new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
+        new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
+
+        projector_left_top = jnp.dot(
+            top_left_matrix,
+            jnp.dot(top_right_matrix, new_qr_right[:, :chi] * S_inv_sqrt),
+        )
+        projector_left_bottom = jnp.dot(
+            jnp.dot(
+                S_inv_sqrt[:, jnp.newaxis] * new_qr_left[:chi, :], bottom_right_matrix
+            ),
+            bottom_left_matrix,
+        )
+    else:
+        projector_left_top = jnp.dot(top_matrix, Vh.transpose().conj() * S_inv_sqrt)
+        projector_left_bottom = jnp.dot(
+            U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], bottom_matrix
+        )
 
     projector_left_top = projector_left_top.reshape(
         top_left.shape[0],
@@ -625,6 +707,13 @@ def _left_projectors_workhorse(
         bottom_left.shape[4],
         bottom_left.shape[5],
     )
+
+    if projector_method is Projector_Method.FULL_QR:
+        return (
+            Left_Projectors(top=projector_left_top, bottom=projector_left_bottom),
+            smallest_S,
+            (new_qr_left, new_qr_right),
+        )
 
     return (
         Left_Projectors(top=projector_left_top, bottom=projector_left_bottom),
@@ -674,6 +763,7 @@ def calc_left_projectors(
         top_right,
         bottom_left,
         bottom_right,
+        peps_tensor_objs,
         (
             config.ctmrg_truncation_eps
             if state.ctmrg_effective_truncation_eps is None
@@ -688,12 +778,13 @@ def calc_left_projectors(
     )
 
 
-@partial(jit, static_argnums=(4, 5, 6), inline=True)
+@partial(jit, static_argnums=(5, 6, 7), inline=True)
 def _right_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
+    peps_tensor_objs,
     truncation_eps: float,
     projector_method: Projector_Method,
     chi: int,
@@ -724,17 +815,92 @@ def _right_projectors_workhorse(
         bottom_matrix = bottom_U * jnp.sqrt(bottom_S)[jnp.newaxis, :]
         top_matrix /= jnp.linalg.norm(top_matrix)
         bottom_matrix /= jnp.linalg.norm(bottom_matrix)
+    elif projector_method is Projector_Method.FULL_QR:
+        (
+            top_left_matrix,
+            top_right_matrix,
+            bottom_left_matrix,
+            bottom_right_matrix,
+        ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+
+        qr_left = peps_tensor_objs[0][0].qr_left_traced_bottom
+        qr_right = peps_tensor_objs[1][0].qr_left_traced_top
+
+        new_qr_left = (
+            qr_left
+            @ top_left_matrix
+            @ top_right_matrix
+            @ bottom_right_matrix
+            @ bottom_left_matrix
+            @ bottom_left_matrix.T.conj()
+            @ bottom_right_matrix.T.conj()
+            @ top_right_matrix.T.conj()
+            @ top_left_matrix.T.conj()
+        )
+        new_qr_left /= jnp.linalg.norm(new_qr_left)
+
+        new_qr_left, _ = jnp.linalg.qr(new_qr_left.T.conj(), mode="reduced")
+        new_qr_left = new_qr_left.T.conj()
+
+        new_qr_right = bottom_left_matrix.T.conj() @ (
+            bottom_right_matrix.T.conj()
+            @ (
+                top_right_matrix.T.conj()
+                @ (
+                    top_left_matrix.T.conj()
+                    @ (
+                        top_left_matrix
+                        @ (
+                            top_right_matrix
+                            @ (bottom_right_matrix @ (bottom_left_matrix @ qr_right))
+                        )
+                    )
+                )
+            )
+        )
+        new_qr_right /= jnp.linalg.norm(new_qr_right)
+
+        new_qr_right, _ = jnp.linalg.qr(new_qr_right, mode="reduced")
     else:
         raise ValueError("Invalid projector method!")
 
-    product_matrix = jnp.dot(top_matrix, bottom_matrix)
+    if projector_method is Projector_Method.FULL_QR:
+        product_matrix = (
+            new_qr_left
+            @ top_left_matrix
+            @ top_right_matrix
+            @ bottom_right_matrix
+            @ bottom_left_matrix
+            @ new_qr_right
+        )
+    else:
+        product_matrix = jnp.dot(top_matrix, bottom_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
+    product_matrix /= jnp.linalg.norm(product_matrix)
 
-    projector_right_top = jnp.dot(
-        U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], top_matrix
+    S_inv_sqrt, U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
+        product_matrix, chi, truncation_eps, return_full_U_Vh=True
     )
-    projector_right_bottom = jnp.dot(bottom_matrix, Vh.transpose().conj() * S_inv_sqrt)
+
+    if projector_method is Projector_Method.FULL_QR:
+        new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
+        new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
+
+        projector_right_top = jnp.dot(
+            jnp.dot(S_inv_sqrt[:, jnp.newaxis] * new_qr_left[:chi, :], top_left_matrix),
+            top_right_matrix,
+        )
+        projector_right_bottom = jnp.dot(
+            bottom_right_matrix,
+            jnp.dot(bottom_left_matrix, new_qr_right[:, :chi] * S_inv_sqrt),
+        )
+    else:
+        projector_right_top = jnp.dot(
+            U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], top_matrix
+        )
+        projector_right_bottom = jnp.dot(
+            bottom_matrix, Vh.transpose().conj() * S_inv_sqrt
+        )
 
     projector_right_top = projector_right_top.reshape(
         projector_right_top.shape[0],
@@ -748,6 +914,13 @@ def _right_projectors_workhorse(
         bottom_right.shape[2],
         projector_right_bottom.shape[1],
     )
+
+    if projector_method is Projector_Method.FULL_QR:
+        return (
+            Right_Projectors(top=projector_right_top, bottom=projector_right_bottom),
+            smallest_S,
+            (new_qr_left, new_qr_right),
+        )
 
     return (
         Right_Projectors(top=projector_right_top, bottom=projector_right_bottom),
@@ -797,6 +970,7 @@ def calc_right_projectors(
         top_right,
         bottom_left,
         bottom_right,
+        peps_tensor_objs,
         (
             config.ctmrg_truncation_eps
             if state.ctmrg_effective_truncation_eps is None
@@ -811,12 +985,13 @@ def calc_right_projectors(
     )
 
 
-@partial(jit, static_argnums=(4, 5, 6), inline=True)
+@partial(jit, static_argnums=(5, 6, 7), inline=True)
 def _top_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
+    peps_tensor_objs,
     truncation_eps: float,
     projector_method: Projector_Method,
     chi: int,
@@ -847,17 +1022,92 @@ def _top_projectors_workhorse(
         right_matrix = right_U * jnp.sqrt(right_S)[jnp.newaxis, :]
         left_matrix /= jnp.linalg.norm(left_matrix)
         right_matrix /= jnp.linalg.norm(right_matrix)
+    elif projector_method is Projector_Method.FULL_QR:
+        (
+            top_left_matrix,
+            top_right_matrix,
+            bottom_left_matrix,
+            bottom_right_matrix,
+        ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+
+        qr_left = peps_tensor_objs[1][0].qr_bottom_traced_right
+        qr_right = peps_tensor_objs[1][1].qr_bottom_traced_left
+
+        new_qr_left = (
+            qr_left
+            @ bottom_left_matrix
+            @ top_left_matrix
+            @ top_right_matrix
+            @ bottom_right_matrix
+            @ bottom_right_matrix.T.conj()
+            @ top_right_matrix.T.conj()
+            @ top_left_matrix.T.conj()
+            @ bottom_left_matrix.T.conj()
+        )
+        new_qr_left /= jnp.linalg.norm(new_qr_left)
+
+        new_qr_left, _ = jnp.linalg.qr(new_qr_left.T.conj(), mode="reduced")
+        new_qr_left = new_qr_left.T.conj()
+
+        new_qr_right = bottom_right_matrix.T.conj() @ (
+            top_right_matrix.T.conj()
+            @ (
+                top_left_matrix.T.conj()
+                @ (
+                    bottom_left_matrix.T.conj()
+                    @ (
+                        bottom_left_matrix
+                        @ (
+                            top_left_matrix
+                            @ (top_right_matrix @ (bottom_right_matrix @ qr_right))
+                        )
+                    )
+                )
+            )
+        )
+        new_qr_right /= jnp.linalg.norm(new_qr_right)
+
+        new_qr_right, _ = jnp.linalg.qr(new_qr_right, mode="reduced")
     else:
         raise ValueError("Invalid projector method!")
 
-    product_matrix = jnp.dot(left_matrix, right_matrix)
+    if projector_method is Projector_Method.FULL_QR:
+        product_matrix = (
+            new_qr_left
+            @ bottom_left_matrix
+            @ top_left_matrix
+            @ top_right_matrix
+            @ bottom_right_matrix
+            @ new_qr_right
+        )
+    else:
+        product_matrix = jnp.dot(left_matrix, right_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
+    product_matrix /= jnp.linalg.norm(product_matrix)
 
-    projector_top_left = jnp.dot(
-        U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], left_matrix
+    S_inv_sqrt, U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
+        product_matrix, chi, truncation_eps, return_full_U_Vh=True
     )
-    projector_top_right = jnp.dot(right_matrix, Vh.transpose().conj() * S_inv_sqrt)
+
+    if projector_method is Projector_Method.FULL_QR:
+        new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
+        new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
+
+        projector_top_left = jnp.dot(
+            jnp.dot(
+                S_inv_sqrt[:, jnp.newaxis] * new_qr_left[:chi, :], bottom_left_matrix
+            ),
+            top_left_matrix,
+        )
+        projector_top_right = jnp.dot(
+            top_right_matrix,
+            jnp.dot(bottom_right_matrix, new_qr_right[:, :chi] * S_inv_sqrt),
+        )
+    else:
+        projector_top_left = jnp.dot(
+            U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], left_matrix
+        )
+        projector_top_right = jnp.dot(right_matrix, Vh.transpose().conj() * S_inv_sqrt)
 
     projector_top_left = projector_top_left.reshape(
         projector_top_left.shape[0],
@@ -871,6 +1121,13 @@ def _top_projectors_workhorse(
         top_right.shape[2],
         projector_top_right.shape[1],
     )
+
+    if projector_method is Projector_Method.FULL_QR:
+        return (
+            Top_Projectors(left=projector_top_left, right=projector_top_right),
+            smallest_S,
+            (new_qr_left, new_qr_right),
+        )
 
     return (
         Top_Projectors(left=projector_top_left, right=projector_top_right),
@@ -920,6 +1177,7 @@ def calc_top_projectors(
         top_right,
         bottom_left,
         bottom_right,
+        peps_tensor_objs,
         (
             config.ctmrg_truncation_eps
             if state.ctmrg_effective_truncation_eps is None
@@ -934,12 +1192,13 @@ def calc_top_projectors(
     )
 
 
-@partial(jit, static_argnums=(4, 5, 6), inline=True)
+@partial(jit, static_argnums=(5, 6, 7), inline=True)
 def _bottom_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
     bottom_left: jnp.ndarray,
     bottom_right: jnp.ndarray,
+    peps_tensor_objs,
     truncation_eps: float,
     projector_method: Projector_Method,
     chi: int,
@@ -970,17 +1229,92 @@ def _bottom_projectors_workhorse(
         right_matrix = jnp.sqrt(right_S)[:, jnp.newaxis] * right_Vh
         left_matrix /= jnp.linalg.norm(left_matrix)
         right_matrix /= jnp.linalg.norm(right_matrix)
+    elif projector_method is Projector_Method.FULL_QR:
+        (
+            top_left_matrix,
+            top_right_matrix,
+            bottom_left_matrix,
+            bottom_right_matrix,
+        ) = _quarter_tensors_to_matrix(top_left, top_right, bottom_left, bottom_right)
+
+        qr_left = peps_tensor_objs[0][1].qr_top_traced_left
+        qr_right = peps_tensor_objs[0][0].qr_top_traced_right
+
+        new_qr_left = (
+            qr_left
+            @ top_right_matrix
+            @ bottom_right_matrix
+            @ bottom_left_matrix
+            @ top_left_matrix
+            @ top_left_matrix.T.conj()
+            @ bottom_left_matrix.T.conj()
+            @ bottom_right_matrix.T.conj()
+            @ top_right_matrix.T.conj()
+        )
+        new_qr_left /= jnp.linalg.norm(new_qr_left)
+
+        new_qr_left, _ = jnp.linalg.qr(new_qr_left.T.conj(), mode="reduced")
+        new_qr_left = new_qr_left.T.conj()
+
+        new_qr_right = top_left_matrix.T.conj() @ (
+            bottom_left_matrix.T.conj()
+            @ (
+                bottom_right_matrix.T.conj()
+                @ (
+                    top_right_matrix.T.conj()
+                    @ (
+                        top_right_matrix
+                        @ (
+                            bottom_right_matrix
+                            @ (bottom_left_matrix @ (top_left_matrix @ qr_right))
+                        )
+                    )
+                )
+            )
+        )
+        new_qr_right /= jnp.linalg.norm(new_qr_right)
+
+        new_qr_right, _ = jnp.linalg.qr(new_qr_right, mode="reduced")
     else:
         raise ValueError("Invalid projector method!")
 
-    product_matrix = jnp.dot(right_matrix, left_matrix)
+    if projector_method is Projector_Method.FULL_QR:
+        product_matrix = (
+            new_qr_left
+            @ top_right_matrix
+            @ bottom_right_matrix
+            @ bottom_left_matrix
+            @ top_left_matrix
+            @ new_qr_right
+        )
+    else:
+        product_matrix = jnp.dot(right_matrix, left_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
+    product_matrix /= jnp.linalg.norm(product_matrix)
 
-    projector_bottom_left = jnp.dot(left_matrix, Vh.transpose().conj() * S_inv_sqrt)
-    projector_bottom_right = jnp.dot(
-        U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], right_matrix
+    S_inv_sqrt, U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
+        product_matrix, chi, truncation_eps, return_full_U_Vh=True
     )
+
+    if projector_method is Projector_Method.FULL_QR:
+        new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
+        new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
+
+        projector_bottom_left = jnp.dot(
+            bottom_left_matrix,
+            jnp.dot(top_left_matrix, new_qr_right[:, :chi] * S_inv_sqrt),
+        )
+        projector_bottom_right = jnp.dot(
+            jnp.dot(
+                S_inv_sqrt[:, jnp.newaxis] * new_qr_left[:chi, :], top_right_matrix
+            ),
+            bottom_right_matrix,
+        )
+    else:
+        projector_bottom_left = jnp.dot(left_matrix, Vh.transpose().conj() * S_inv_sqrt)
+        projector_bottom_right = jnp.dot(
+            U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], right_matrix
+        )
 
     projector_bottom_left = projector_bottom_left.reshape(
         bottom_left.shape[0],
@@ -994,6 +1328,13 @@ def _bottom_projectors_workhorse(
         bottom_right.shape[4],
         bottom_right.shape[5],
     )
+
+    if projector_method is Projector_Method.FULL_QR:
+        return (
+            Bottom_Projectors(left=projector_bottom_left, right=projector_bottom_right),
+            smallest_S,
+            (new_qr_left, new_qr_right),
+        )
 
     return (
         Bottom_Projectors(left=projector_bottom_left, right=projector_bottom_right),
@@ -1043,6 +1384,7 @@ def calc_bottom_projectors(
         top_right,
         bottom_left,
         bottom_right,
+        peps_tensor_objs,
         (
             config.ctmrg_truncation_eps
             if state.ctmrg_effective_truncation_eps is None
