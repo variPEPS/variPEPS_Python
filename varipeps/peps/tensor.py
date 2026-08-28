@@ -1223,7 +1223,16 @@ class PEPS_Tensor:
                 "Both PEPS tensors must have the same tensor, d, D and chi values."
             )
 
-        return PEPS_Tensor(
+        def _add_opt(a, b):
+            if a is None and b is None:
+                return None
+            if a is None or b is None:
+                raise ValueError(
+                    "Both PEPS tensors must have the same optional env tensors set."
+                )
+            return a + b
+
+        return type(self)(
             tensor=self.tensor,
             C1=self.C1 + other.C1,
             C2=self.C2 + other.C2,
@@ -1238,6 +1247,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=_add_opt(self.qr_left_traced_top, other.qr_left_traced_top),
+            qr_left_traced_bottom=_add_opt(self.qr_left_traced_bottom, other.qr_left_traced_bottom),
+            qr_right_traced_top=_add_opt(self.qr_right_traced_top, other.qr_right_traced_top),
+            qr_right_traced_bottom=_add_opt(self.qr_right_traced_bottom, other.qr_right_traced_bottom),
+            qr_top_traced_left=_add_opt(self.qr_top_traced_left, other.qr_top_traced_left),
+            qr_top_traced_right=_add_opt(self.qr_top_traced_right, other.qr_top_traced_right),
+            qr_bottom_traced_left=_add_opt(self.qr_bottom_traced_left, other.qr_bottom_traced_left),
+            qr_bottom_traced_right=_add_opt(self.qr_bottom_traced_right, other.qr_bottom_traced_right),
         )
 
     def __sub__(
@@ -1267,7 +1284,16 @@ class PEPS_Tensor:
                 "Both PEPS tensors must have the same tensor, d, D and chi values."
             )
 
-        return PEPS_Tensor(
+        def _sub_opt(a, b):
+            if a is None and b is None:
+                return None
+            if a is None or b is None:
+                raise ValueError(
+                    "Both PEPS tensors must have the same optional env tensors set."
+                )
+            return a - b
+
+        return type(self)(
             tensor=self.tensor,
             C1=self.C1 - other.C1,
             C2=self.C2 - other.C2,
@@ -1282,6 +1308,14 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
+            qr_left_traced_top=_sub_opt(self.qr_left_traced_top, other.qr_left_traced_top),
+            qr_left_traced_bottom=_sub_opt(self.qr_left_traced_bottom, other.qr_left_traced_bottom),
+            qr_right_traced_top=_sub_opt(self.qr_right_traced_top, other.qr_right_traced_top),
+            qr_right_traced_bottom=_sub_opt(self.qr_right_traced_bottom, other.qr_right_traced_bottom),
+            qr_top_traced_left=_sub_opt(self.qr_top_traced_left, other.qr_top_traced_left),
+            qr_top_traced_right=_sub_opt(self.qr_top_traced_right, other.qr_top_traced_right),
+            qr_bottom_traced_left=_sub_opt(self.qr_bottom_traced_left, other.qr_bottom_traced_left),
+            qr_bottom_traced_right=_sub_opt(self.qr_bottom_traced_right, other.qr_bottom_traced_right),
         )
 
     @classmethod
@@ -1297,6 +1331,10 @@ class PEPS_Tensor:
           :obj:`~varipeps.peps.PEPS_Tensor`:
             New instance with the zero initialized tensors.
         """
+
+        def _zeros_like_opt(t: Optional[Tensor]) -> Optional[Tensor]:
+            return None if t is None else jnp.zeros_like(t)
+
         return cls(
             tensor=jnp.zeros_like(t.tensor),
             C1=jnp.zeros_like(t.C1),
@@ -1311,6 +1349,14 @@ class PEPS_Tensor:
             D=t.D,
             chi=t.chi,
             max_chi=t.max_chi,
+            qr_left_traced_top=_zeros_like_opt(t.qr_left_traced_top),
+            qr_left_traced_bottom=_zeros_like_opt(t.qr_left_traced_bottom),
+            qr_right_traced_top=_zeros_like_opt(t.qr_right_traced_top),
+            qr_right_traced_bottom=_zeros_like_opt(t.qr_right_traced_bottom),
+            qr_top_traced_left=_zeros_like_opt(t.qr_top_traced_left),
+            qr_top_traced_right=_zeros_like_opt(t.qr_top_traced_right),
+            qr_bottom_traced_left=_zeros_like_opt(t.qr_bottom_traced_left),
+            qr_bottom_traced_right=_zeros_like_opt(t.qr_bottom_traced_right),
         )
 
     def zeros_like_self(self: T_PEPS_Tensor) -> T_PEPS_Tensor:
