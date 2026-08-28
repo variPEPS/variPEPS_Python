@@ -166,7 +166,15 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple, t_objs, config):
 
     s_arr = -jnp.diff(value_arr, axis=0)
     y_arr = -jnp.diff(gradient_arr, axis=0)
-    pho_arr = 1 / jnp.sum(y_arr * s_arr, axis=1)
+    # pho_arr = 1 / jnp.sum(y_arr * s_arr, axis=1)
+
+    pho_arr = jnp.sum(y_arr * s_arr, axis=1)
+    pho_arr = jnp.where(
+        pho_arr
+        >= (1e-12 * jnp.linalg.norm(y_arr, axis=1) * jnp.linalg.norm(s_arr, axis=1)),
+        1 / pho_arr,
+        0,
+    )
 
     def first_loop(q, x):
         pho_s, y = x
@@ -898,6 +906,7 @@ def optimize_peps_network(
             if _scalar_descent_grad(descent_dir, working_gradient) > 0:
                 tqdm.write("Found bad descent dir. Reset to negative gradient!")
                 descent_dir = [-elem for elem in working_gradient]
+                signal_reset_descent_dir = True
 
             conv = jnp.linalg.norm(ravel_pytree(working_gradient)[0])
             if jnp.isinf(conv) or jnp.isnan(conv):
