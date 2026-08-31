@@ -1247,14 +1247,30 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
-            qr_left_traced_top=_add_opt(self.qr_left_traced_top, other.qr_left_traced_top),
-            qr_left_traced_bottom=_add_opt(self.qr_left_traced_bottom, other.qr_left_traced_bottom),
-            qr_right_traced_top=_add_opt(self.qr_right_traced_top, other.qr_right_traced_top),
-            qr_right_traced_bottom=_add_opt(self.qr_right_traced_bottom, other.qr_right_traced_bottom),
-            qr_top_traced_left=_add_opt(self.qr_top_traced_left, other.qr_top_traced_left),
-            qr_top_traced_right=_add_opt(self.qr_top_traced_right, other.qr_top_traced_right),
-            qr_bottom_traced_left=_add_opt(self.qr_bottom_traced_left, other.qr_bottom_traced_left),
-            qr_bottom_traced_right=_add_opt(self.qr_bottom_traced_right, other.qr_bottom_traced_right),
+            qr_left_traced_top=_add_opt(
+                self.qr_left_traced_top, other.qr_left_traced_top
+            ),
+            qr_left_traced_bottom=_add_opt(
+                self.qr_left_traced_bottom, other.qr_left_traced_bottom
+            ),
+            qr_right_traced_top=_add_opt(
+                self.qr_right_traced_top, other.qr_right_traced_top
+            ),
+            qr_right_traced_bottom=_add_opt(
+                self.qr_right_traced_bottom, other.qr_right_traced_bottom
+            ),
+            qr_top_traced_left=_add_opt(
+                self.qr_top_traced_left, other.qr_top_traced_left
+            ),
+            qr_top_traced_right=_add_opt(
+                self.qr_top_traced_right, other.qr_top_traced_right
+            ),
+            qr_bottom_traced_left=_add_opt(
+                self.qr_bottom_traced_left, other.qr_bottom_traced_left
+            ),
+            qr_bottom_traced_right=_add_opt(
+                self.qr_bottom_traced_right, other.qr_bottom_traced_right
+            ),
         )
 
     def __sub__(
@@ -1308,14 +1324,30 @@ class PEPS_Tensor:
             chi=self.chi,
             max_chi=self.max_chi,
             tensor_conj=self.tensor_conj,
-            qr_left_traced_top=_sub_opt(self.qr_left_traced_top, other.qr_left_traced_top),
-            qr_left_traced_bottom=_sub_opt(self.qr_left_traced_bottom, other.qr_left_traced_bottom),
-            qr_right_traced_top=_sub_opt(self.qr_right_traced_top, other.qr_right_traced_top),
-            qr_right_traced_bottom=_sub_opt(self.qr_right_traced_bottom, other.qr_right_traced_bottom),
-            qr_top_traced_left=_sub_opt(self.qr_top_traced_left, other.qr_top_traced_left),
-            qr_top_traced_right=_sub_opt(self.qr_top_traced_right, other.qr_top_traced_right),
-            qr_bottom_traced_left=_sub_opt(self.qr_bottom_traced_left, other.qr_bottom_traced_left),
-            qr_bottom_traced_right=_sub_opt(self.qr_bottom_traced_right, other.qr_bottom_traced_right),
+            qr_left_traced_top=_sub_opt(
+                self.qr_left_traced_top, other.qr_left_traced_top
+            ),
+            qr_left_traced_bottom=_sub_opt(
+                self.qr_left_traced_bottom, other.qr_left_traced_bottom
+            ),
+            qr_right_traced_top=_sub_opt(
+                self.qr_right_traced_top, other.qr_right_traced_top
+            ),
+            qr_right_traced_bottom=_sub_opt(
+                self.qr_right_traced_bottom, other.qr_right_traced_bottom
+            ),
+            qr_top_traced_left=_sub_opt(
+                self.qr_top_traced_left, other.qr_top_traced_left
+            ),
+            qr_top_traced_right=_sub_opt(
+                self.qr_top_traced_right, other.qr_top_traced_right
+            ),
+            qr_bottom_traced_left=_sub_opt(
+                self.qr_bottom_traced_left, other.qr_bottom_traced_left
+            ),
+            qr_bottom_traced_right=_sub_opt(
+                self.qr_bottom_traced_right, other.qr_bottom_traced_right
+            ),
         )
 
     @classmethod

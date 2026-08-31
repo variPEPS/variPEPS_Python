@@ -10,6 +10,7 @@ from varipeps.contractions import apply_contraction, apply_contraction_jitted
 from varipeps import varipeps_config
 from varipeps.utils.func_cache import Checkpointing_Cache
 from varipeps.utils.svd import gauge_fixed_svd
+from varipeps.utils.qr import thin_qr
 from varipeps.utils.projector_dict import (
     Left_Projectors,
     Right_Projectors,
@@ -632,7 +633,7 @@ def _left_projectors_workhorse(
         )
         new_qr_left /= jnp.linalg.norm(new_qr_left)
 
-        new_qr_left, _ = jnp.linalg.qr(new_qr_left.T.conj(), mode="reduced")
+        new_qr_left, _ = thin_qr(new_qr_left.T.conj())
         new_qr_left = new_qr_left.T.conj()
 
         new_qr_right = top_right_matrix.T.conj() @ (
@@ -653,7 +654,7 @@ def _left_projectors_workhorse(
         )
         new_qr_right /= jnp.linalg.norm(new_qr_right)
 
-        new_qr_right, _ = jnp.linalg.qr(new_qr_right, mode="reduced")
+        new_qr_right, _ = thin_qr(new_qr_right)
     else:
         raise ValueError("Invalid projector method!")
 
@@ -839,7 +840,7 @@ def _right_projectors_workhorse(
         )
         new_qr_left /= jnp.linalg.norm(new_qr_left)
 
-        new_qr_left, _ = jnp.linalg.qr(new_qr_left.T.conj(), mode="reduced")
+        new_qr_left, _ = thin_qr(new_qr_left.T.conj())
         new_qr_left = new_qr_left.T.conj()
 
         new_qr_right = bottom_left_matrix.T.conj() @ (
@@ -860,7 +861,7 @@ def _right_projectors_workhorse(
         )
         new_qr_right /= jnp.linalg.norm(new_qr_right)
 
-        new_qr_right, _ = jnp.linalg.qr(new_qr_right, mode="reduced")
+        new_qr_right, _ = thin_qr(new_qr_right)
     else:
         raise ValueError("Invalid projector method!")
 
@@ -1046,7 +1047,7 @@ def _top_projectors_workhorse(
         )
         new_qr_left /= jnp.linalg.norm(new_qr_left)
 
-        new_qr_left, _ = jnp.linalg.qr(new_qr_left.T.conj(), mode="reduced")
+        new_qr_left, _ = thin_qr(new_qr_left.T.conj())
         new_qr_left = new_qr_left.T.conj()
 
         new_qr_right = bottom_right_matrix.T.conj() @ (
@@ -1067,7 +1068,7 @@ def _top_projectors_workhorse(
         )
         new_qr_right /= jnp.linalg.norm(new_qr_right)
 
-        new_qr_right, _ = jnp.linalg.qr(new_qr_right, mode="reduced")
+        new_qr_right, _ = thin_qr(new_qr_right)
     else:
         raise ValueError("Invalid projector method!")
 
@@ -1253,7 +1254,7 @@ def _bottom_projectors_workhorse(
         )
         new_qr_left /= jnp.linalg.norm(new_qr_left)
 
-        new_qr_left, _ = jnp.linalg.qr(new_qr_left.T.conj(), mode="reduced")
+        new_qr_left, _ = thin_qr(new_qr_left.T.conj())
         new_qr_left = new_qr_left.T.conj()
 
         new_qr_right = top_left_matrix.T.conj() @ (
@@ -1274,7 +1275,7 @@ def _bottom_projectors_workhorse(
         )
         new_qr_right /= jnp.linalg.norm(new_qr_right)
 
-        new_qr_right, _ = jnp.linalg.qr(new_qr_right, mode="reduced")
+        new_qr_right, _ = thin_qr(new_qr_right)
     else:
         raise ValueError("Invalid projector method!")
 
