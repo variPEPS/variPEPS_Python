@@ -338,6 +338,18 @@ def line_search(
       :obj:`RuntimeError`: The line search does not converge.
     """
 
+    initial_gradient = ravel_pytree(gradient)[0]
+    initial_direction = ravel_pytree(descent_direction)[0]
+    initial_slope = _scalar_descent_grad(descent_direction, gradient)
+    if not (
+        bool(jnp.isfinite(current_value))
+        and bool(jnp.all(jnp.isfinite(initial_gradient)))
+        and bool(jnp.all(jnp.isfinite(initial_direction)))
+        and bool(jnp.isfinite(initial_slope))
+        and bool(initial_slope < 0)
+    ):
+        raise NoSuitableStepSizeError("Nonfinite input or non-descent direction.")
+
     has_been_increased = False
     incrementation_not_helped = False
     enforce_elementwise_convergence = (
@@ -535,6 +547,13 @@ def line_search(
                         calc_preconverged=True,
                     )
                 new_gradient = [elem.conj() for elem in new_gradient_seq]
+                if not (
+                    bool(jnp.isfinite(new_value))
+                    and bool(jnp.all(jnp.isfinite(ravel_pytree(new_gradient)[0])))
+                ):
+                    raise CTMRGGradientNotConvergedError(
+                        "Nonfinite trial objective or gradient."
+                    )
 
                 if new_unitcell[0, 0][0][0].chi > unitcell[0, 0][0][0].chi:
                     tmp_value = current_value

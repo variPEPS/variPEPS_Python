@@ -166,15 +166,22 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple, t_objs, config):
 
     s_arr = -jnp.diff(value_arr, axis=0)
     y_arr = -jnp.diff(gradient_arr, axis=0)
-    # pho_arr = 1 / jnp.sum(y_arr * s_arr, axis=1)
 
-    pho_arr = jnp.sum(y_arr * s_arr, axis=1)
-    pho_arr = jnp.where(
-        pho_arr
-        >= (1e-12 * jnp.linalg.norm(y_arr, axis=1) * jnp.linalg.norm(s_arr, axis=1)),
-        1 / pho_arr,
-        0,
-    )
+    sy = jnp.sum(y_arr * s_arr, axis=1)
+    pair_scale = jnp.linalg.norm(y_arr, axis=1) * jnp.linalg.norm(s_arr, axis=1)
+    valid_pair = (
+        jnp.all(jnp.isfinite(s_arr), axis=1)
+        & jnp.all(jnp.isfinite(y_arr), axis=1)
+        & jnp.isfinite(sy)
+        & jnp.isfinite(pair_scale)
+        & (sy > 1e-12 * pair_scale)
+     )
+    
+    s_arr = jnp.where(valid_pair[:, None], s_arr, 0)
+    y_arr = jnp.where(valid_pair[:, None], y_arr, 0)
+    pho_arr = jnp.where(valid_pair, 1 / jnp.where(valid_pair, sy, 1), 0)
+    scale_index = jnp.argmax(valid_pair)
+    scale_y = y_arr[scale_index]
 
     def first_loop(q, x):
         pho_s, y = x
@@ -209,8 +216,8 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple, t_objs, config):
     if config.optimizer_use_preconditioning:
         y_precond, _ = jax.scipy.sparse.linalg.gmres(
             apply_precond,
-            y_arr[0],
-            y_arr[0],
+            scale_y,
+            scale_y,
             restart=config.optimizer_precond_gmres_krylov_subspace_size,
             maxiter=config.optimizer_precond_gmres_maxiter,
             solve_method="incremental",
@@ -237,18 +244,28 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple, t_objs, config):
             )
 
         y_precond, q_precond = cond(
-            jnp.sum(y_precond * y_arr[0]) >= 0,
+            jnp.sum(y_precond * scale_y) >= 0,
             calc_q_precond,
             lambda y, y_precond, q: (y, q),
-            y_arr[0],
+            scale_y,
             y_precond,
             q,
         )
     else:
-        y_precond = y_arr[0]
+        y_precond = scale_y
         q_precond = q
 
-    gamma = jnp.sum(s_arr[0] * y_arr[0]) / jnp.sum(y_arr[0] * y_precond)
+    scale_numerator = jnp.sum(s_arr[scale_index] * scale_y)
+    scale_denominator = jnp.sum(scale_y * y_precond)
+    valid_scale = (
+        valid_pair[scale_index]
+        & jnp.isfinite(scale_numerator)
+        & jnp.isfinite(scale_denominator)
+        & (scale_numerator > 0)
+        & (scale_denominator > 0)
+    )
+    gamma_candidate = scale_numerator / jnp.where(valid_scale, scale_denominator, 1)
+    gamma = jnp.where(valid_scale & jnp.isfinite(gamma_candidate), gamma_candidate, 1)
     z_result = gamma * q_precond
 
     def second_loop(z, x):
@@ -903,8 +920,13 @@ def optimize_peps_network(
 
             signal_reset_descent_dir = False
 
-            if _scalar_descent_grad(descent_dir, working_gradient) > 0:
-                tqdm.write("Found bad descent dir. Reset to negative gradient!")
+            slope = _scalar_descent_grad(descent_dir, working_gradient)
+            if not (
+                bool(jnp.all(jnp.isfinite(ravel_pytree(descent_dir)[0])))
+                and bool(jnp.isfinite(slope))
+                and bool(slope < 0)
+            ):
+                tqdm.write("Invalid descent direction. Reset to negative gradient!")
                 descent_dir = [-elem for elem in working_gradient]
                 signal_reset_descent_dir = True
 
