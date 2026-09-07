@@ -622,7 +622,7 @@ def line_search(
                     2 * varipeps_config.line_search_hager_zhang_delta - 1
                 ) * hager_zhang_descent_grad
 
-                if hz_approx_wolfe_left >= hager_zhang_descent_grad and new_value <= (
+                if hz_approx_wolfe_left >= descent_new_grad and new_value <= (
                     current_value + hager_zhang_eps
                 ):
                     break
