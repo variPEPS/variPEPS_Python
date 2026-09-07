@@ -504,7 +504,7 @@ def line_search(
                                 calc_preconverged=True,
                             )
                         gradient = [elem.conj() for elem in tmp_gradient_seq]
-                        descent_direction = [-elem for elem in tmp_gradient]
+                        descent_direction = [-elem for elem in gradient]
 
                         cache_original_unitcell[new_unitcell[0, 0][0][0].chi] = (
                             unitcell,
@@ -603,7 +603,7 @@ def line_search(
                                 calc_preconverged=True,
                             )
                         gradient = [elem.conj() for elem in tmp_gradient_seq]
-                        descent_direction = [-elem for elem in tmp_gradient]
+                        descent_direction = [-elem for elem in gradient]
 
                         cache_original_unitcell[new_unitcell[0, 0][0][0].chi] = (
                             unitcell,
