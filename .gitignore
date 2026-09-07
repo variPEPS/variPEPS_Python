@@ -494,3 +494,6 @@ TSWLatexianTemp*
 
 data/
 test_scripts/
+
+# macOS
+.DS_Store
