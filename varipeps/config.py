@@ -82,6 +82,10 @@ class VariPEPS_Config:
         Print steps of fix-point iteration in custom VJP function.
       ad_custom_verbose_output (:obj:`bool`):
         Print verbose output in custom VJP function.
+      ad_custom_gmres_relative_eps (:obj:`float`):
+        Relative tolerance for GMRES gradient solver.
+      ad_custom_gmres_krylov_subspace_size (:obj:`int`):
+        Maximal size of Krylov subspace for GMRES gradient solver.
       ad_custom_convergence_eps (:obj:`float`):
         Convergence criterion for the custom VJP function.
       ad_custom_max_steps (:obj:`int`):
@@ -260,6 +264,8 @@ class VariPEPS_Config:
     ad_use_custom_vjp: bool = True
     ad_custom_print_steps: bool = False
     ad_custom_verbose_output: bool = False
+    ad_custom_gmres_relative_eps: float = 1e-7
+    ad_custom_gmres_krylov_subspace_size: int = 30
     ad_custom_convergence_eps: float = 1e-7
     ad_custom_max_steps: int = 75
     ad_custom_fixed_point_method: Grad_Fixed_Point_Method = (
@@ -399,11 +405,13 @@ class VariPEPS_Config:
 
     def update_from_config_dict(self, new_config):
         for k in self.__dataclass_fields__:
-            setattr(self, k, new_config[k])
+            setattr(self, k, new_config.get(k, self.__dataclass_fields__[k].default))
 
     def update_from_config_object(self, new_config):
         for k in self.__dataclass_fields__:
-            setattr(self, k, getattr(new_config, k))
+            setattr(
+                self, k, getattr(new_config, k, self.__dataclass_fields__[k].default)
+            )
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
         aux_data = (

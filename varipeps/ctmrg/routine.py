@@ -10,6 +10,7 @@ import jax.scipy as jsp
 from jax import jit, custom_vjp, vjp, tree_util
 from jax.lax import cond, while_loop
 import jax.debug as jdebug
+from jax.flatten_util import ravel_pytree
 
 from varipeps import varipeps_config, varipeps_global_state
 from varipeps.config import Grad_Fixed_Point_Method, Projector_Method
@@ -1253,18 +1254,44 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
                 v0,
                 v0,
                 solve_method="batched" if is_gpu else "incremental",
+                tol=config.ad_custom_gmres_relative_eps,
                 atol=config.ad_custom_convergence_eps,
-                # maxiter=config.ad_custom_max_steps,
+                restart=config.ad_custom_gmres_krylov_subspace_size,
+                maxiter=config.ad_custom_max_steps,
             )
+
+            applied = f_gmres(v)
+            residual = jax.tree.map(lambda ax, b: ax - b, applied, v0)
+            residual_norm = jnp.linalg.norm(ravel_pytree(residual)[0])
+            rhs_norm = jnp.linalg.norm(ravel_pytree(v0)[0])
+            threshold = jnp.maximum(
+                config.ad_custom_convergence_eps,
+                config.ad_custom_gmres_relative_eps * rhs_norm,
+            )
+            solved = (
+                jnp.all(jnp.isfinite(ravel_pytree(v)[0]))
+                & jnp.isfinite(rhs_norm)
+                & jnp.isfinite(residual_norm)
+                & (residual_norm <= threshold)
+            )
+
+            if config.ad_custom_verbose_output:
+                debug_print(
+                    "AD GMRES: residual {}, rhs norm {}, threshold {}, accepted {}",
+                    residual_norm,
+                    rhs_norm,
+                    threshold,
+                    solved,
+                )
 
             if not real:
                 v = jax.tree.map(lambda x, y: x + 1j * y, v[0], v[1])
 
-            return v, e
+            return v, e, solved
 
         env_fixed_point, end_count, converged = jax.lax.cond(
             jnp.logical_and(converged, jnp.logical_not(arnoldi_worked)),
-            lambda x, ec, c: (*run_gmres(x, ec), True),
+            lambda x, ec, c: run_gmres(x, ec),
             lambda x, ec, c: (x, ec, c),
             env_fixed_point,
             end_count,
@@ -1295,8 +1322,10 @@ def calc_ctmrg_env_rev(
 
     varipeps_global_state.ctmrg_effective_truncation_eps = None
 
-    if not converged:
-        raise CTMRGGradientNotConvergedError
+    if not converged or not bool(jnp.all(jnp.isfinite(ravel_pytree(t_bar)[0]))):
+        raise CTMRGGradientNotConvergedError(
+            "Backward CTMRG failed residual validation or produced a nonfinite gradient."
+        )
 
     empty_t = [t.zeros_like_self() for t in input_unitcell.get_unique_tensors()]
 
