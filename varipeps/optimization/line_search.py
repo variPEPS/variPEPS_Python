@@ -724,6 +724,11 @@ def line_search(
                 hager_zhang_upper_bound_des_grad = descent_new_grad
                 hager_zhang_initial_found = _Hager_Zhang_Initial_State.FOUND
             elif descent_new_grad < 0 and new_value > (current_value + hager_zhang_eps):
+                hager_zhang_upper_bound = alpha
+                hager_zhang_upper_bound_value = new_value
+                hager_zhang_upper_bound_grad = new_gradient
+                hager_zhang_upper_bound_des_grad = descent_new_grad
+
                 alpha = varipeps_config.line_search_hager_zhang_theta * alpha
                 hager_zhang_initial_found = (
                     _Hager_Zhang_Initial_State.SCALAR_LOWER_VALUE_GREATER

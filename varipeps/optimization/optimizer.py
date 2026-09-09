@@ -175,8 +175,8 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple, t_objs, config):
         & jnp.isfinite(sy)
         & jnp.isfinite(pair_scale)
         & (sy > 1e-12 * pair_scale)
-     )
-    
+    )
+
     s_arr = jnp.where(valid_pair[:, None], s_arr, 0)
     y_arr = jnp.where(valid_pair[:, None], y_arr, 0)
     pho_arr = jnp.where(valid_pair, 1 / jnp.where(valid_pair, sy, 1), 0)
