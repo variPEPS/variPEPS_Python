@@ -565,19 +565,7 @@ class PEPS_Tensor:
 
             return result
         else:
-            if self.qr_left_traced_top is not None:
-                raise NotImplementedError
-            else:
-                qr_left_traced_top = None
-                qr_left_traced_bottom = None
-                qr_right_traced_top = None
-                qr_right_traced_bottom = None
-                qr_top_traced_left = None
-                qr_top_traced_right = None
-                qr_bottom_traced_left = None
-                qr_bottom_traced_right = None
-
-            return type(self)(
+            result = type(self)(
                 tensor=self.tensor,
                 C1=self.C1,
                 C2=self.C2,
@@ -592,15 +580,12 @@ class PEPS_Tensor:
                 chi=new_chi,
                 max_chi=new_max_chi,
                 tensor_conj=self.tensor_conj,
-                qr_left_traced_top=qr_left_traced_top,
-                qr_left_traced_bottom=qr_left_traced_bottom,
-                qr_right_traced_top=qr_right_traced_top,
-                qr_right_traced_bottom=qr_right_traced_bottom,
-                qr_top_traced_left=qr_top_traced_left,
-                qr_top_traced_right=qr_top_traced_right,
-                qr_bottom_traced_left=qr_bottom_traced_left,
-                qr_bottom_traced_right=qr_bottom_traced_right,
             )
+
+            if self.qr_left_traced_top is not None:
+                result._random_initialize_qr()
+
+            return result
 
     def increase_max_chi(
         self: T_PEPS_Tensor,
