@@ -148,7 +148,7 @@ html_logo = "images/logo.svg"
 html_favicon = "images/favicon/favicon.svg"
 
 html_theme_options = {
-    'logo_only': True,
+    "logo_only": True,
 }
 
 rst_prolog = """
@@ -157,3 +157,9 @@ rst_prolog = """
     <div class="default-value-section"> <span class="default-value-label">Default:</span>"""
 
 numfig = True
+
+latex_elements = {
+    "preamble": r"""
+\usepackage{braket}
+""",
+}

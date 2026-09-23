@@ -572,7 +572,7 @@ class Triangular_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell],
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell, varipeps.config.VariPEPS_Config],
     ]:
-        """
+        r"""
         Load Triangular tensors and unit cell from a HDF5 file.
 
         This function read the group "triangular_pess" from the file and pass
@@ -636,7 +636,7 @@ class Triangular_Map_PESS_To_PEPS(Map_To_PEPS_Model):
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell],
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell, varipeps.config.VariPEPS_Config],
     ]:
-        """
+        r"""
         Load the unit cell from a HDF5 group which is be passed to the method.
 
         Args:

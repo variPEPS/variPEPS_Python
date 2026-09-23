@@ -71,7 +71,7 @@ def calc_ctmrg_expectation(
     *,
     enforce_elementwise_convergence: Optional[bool] = None,
 ) -> Tuple[jnp.ndarray, PEPS_Unit_Cell]:
-    """
+    r"""
     Calculate the CTMRG environment and the (energy) expectation value for a
     iPEPS unitcell.
 
@@ -164,7 +164,7 @@ def calc_preconverged_ctmrg_value_and_grad(
     *,
     calc_preconverged: bool = True,
 ) -> Tuple[Tuple[jnp.ndarray, PEPS_Unit_Cell], Sequence[jnp.ndarray]]:
-    """
+    r"""
     Calculate the CTMRG environment and the (energy) expectation value as well
     as the gradient of this steps for a iPEPS unitcell.
 
@@ -258,7 +258,7 @@ def calc_ctmrg_expectation_custom(
     convert_to_unitcell_func: Optional[Map_To_PEPS_Model],
     additional_input: Dict[str, jnp.ndarray] = dict(),
 ) -> Tuple[jnp.ndarray, PEPS_Unit_Cell]:
-    """
+    r"""
     Calculate the CTMRG environment and the (energy) expectation value for a
     iPEPS unitcell using the custom VJP rule implementation.
 

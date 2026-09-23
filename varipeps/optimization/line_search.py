@@ -319,7 +319,7 @@ def line_search(
     Union[float, jnp.ndarray],
     Optional[List[jnp.ndarray]],
 ]:
-    """
+    r"""
     Run two-way backtracing line search method for the CTMRG routine.
 
     Args:

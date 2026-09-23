@@ -590,7 +590,7 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell],
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell, varipeps.config.VariPEPS_Config],
     ]:
-        """
+        r"""
         Load Kagome PESS tensors and unit cell from a HDF5 file.
 
         This function read the group "kagome_pess" from the file and pass
@@ -654,7 +654,7 @@ class Kagome_Map_PESS3_To_Single_PEPS_Site(Map_To_PEPS_Model):
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell],
         Tuple[List[jnp.ndarray], PEPS_Unit_Cell, varipeps.config.VariPEPS_Config],
     ]:
-        """
+        r"""
         Load the Kagome PESS tensors and  unit cell from a HDF5 group which is
         be passed to the method.
 

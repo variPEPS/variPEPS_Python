@@ -381,7 +381,7 @@ class PEPS_Unit_Cell:
         return result
 
     def get_size(self) -> Tuple[int, int]:
-        """
+        r"""
         Returns the size of the unit cell as tuple (x_size, y_size).
 
         Returns:
@@ -893,7 +893,7 @@ class PEPS_Unit_Cell:
     def iter_one_column(
         self: T_PEPS_Unit_Cell, fixed_y: int, *, only_unique: bool = False
     ) -> Iterator[Tuple[int, T_PEPS_Unit_Cell]]:
-        """
+        r"""
         Get a iterator over a single column with a fixed y value.
 
         Args:
@@ -913,7 +913,7 @@ class PEPS_Unit_Cell:
     def iter_all_columns(
         self: T_PEPS_Unit_Cell, *, reverse: bool = False, only_unique: bool = False
     ) -> Iterator[Tuple[int, Iterator[Tuple[int, T_PEPS_Unit_Cell]]]]:
-        """
+        r"""
         Get a iterator over all columns.
 
         This function calls :obj:`~varipeps.peps.PEPS_Unit_Cell.iter_one_column`
@@ -957,7 +957,7 @@ class PEPS_Unit_Cell:
     def iter_main_diagonal(
         self: T_PEPS_Unit_Cell,
     ) -> Iterator[Tuple[int, T_PEPS_Unit_Cell]]:
-        """
+        r"""
         Get a iterator over the main diagonal.
 
         Returns:
@@ -994,7 +994,7 @@ class PEPS_Unit_Cell:
     def iter_one_row(
         self: T_PEPS_Unit_Cell, fixed_x: int, *, only_unique: bool = False
     ) -> Iterator[Tuple[int, T_PEPS_Unit_Cell]]:
-        """
+        r"""
         Get a iterator over a single row with a fixed x value.
 
         Args:
@@ -1014,7 +1014,7 @@ class PEPS_Unit_Cell:
     def iter_all_rows(
         self: T_PEPS_Unit_Cell, *, reverse: bool = False, only_unique: bool = False
     ) -> Iterator[Tuple[int, Iterator[Tuple[int, T_PEPS_Unit_Cell]]]]:
-        """
+        r"""
         Get a iterator over all rows.
 
         This function calls :obj:`~varipeps.peps.PEPS_Unit_Cell.iter_one_row`

@@ -1538,7 +1538,7 @@ def calc_left_projectors_split_transfer(
     config: VariPEPS_Config,
     state: VariPEPS_Global_State,
 ) -> Left_Projectors_Split_Transfer:
-    """
+    r"""
     Calculate the left projectors for the CTMRG method. This functions uses the
     CTMRG method with split transfer matrices for the bra and ket layer.
 
@@ -1929,7 +1929,7 @@ def calc_right_projectors_split_transfer(
     config: VariPEPS_Config,
     state: VariPEPS_Global_State,
 ) -> Right_Projectors_Split_Transfer:
-    """
+    r"""
     Calculate the right projectors for the CTMRG method. This functions uses the
     CTMRG method with split transfer matrices for the bra and ket layer.
 
@@ -2320,7 +2320,7 @@ def calc_top_projectors_split_transfer(
     config: VariPEPS_Config,
     state: VariPEPS_Global_State,
 ) -> Top_Projectors_Split_Transfer:
-    """
+    r"""
     Calculate the top projectors for the CTMRG method. This functions uses the
     CTMRG method with split transfer matrices for the bra and ket layer.
 
@@ -2709,7 +2709,7 @@ def calc_bottom_projectors_split_transfer(
     config: VariPEPS_Config,
     state: VariPEPS_Global_State,
 ) -> Bottom_Projectors_Split_Transfer:
-    """
+    r"""
     Calculate the bottom projectors for the CTMRG method. This functions uses the
     CTMRG method with split transfer matrices for the bra and ket layer.
 
