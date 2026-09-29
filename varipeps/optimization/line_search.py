@@ -295,6 +295,9 @@ def line_search(
     PEPS_Unit_Cell,
     Union[float, jnp.ndarray],
     Union[float, jnp.ndarray],
+    bool,
+    Union[float, jnp.ndarray],
+    Optional[List[jnp.ndarray]],
 ]:
     """
     Run two-way backtracing line search method for the CTMRG routine.
@@ -333,6 +336,9 @@ def line_search(
       :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`, :obj:`float`, :obj:`float`):
         Tuple with the optimized tensors, the new unitcell, the reduced
         expectation value and the step size found in the line search.
+        Additionally, the flag if the descent direction should be reset, the
+        maximal truncation error and the gradient at the new tensors if it was
+        already calculated during the line search (else :obj:`None`).
     Raises:
       :obj:`ValueError`: The parameters mismatch the expected inputs.
       :obj:`RuntimeError`: The line search does not converge.
@@ -415,6 +421,7 @@ def line_search(
     )
 
     new_value = current_value
+    new_gradient = None
 
     tmp_value = None
     tmp_unitcell = None
@@ -1156,4 +1163,5 @@ def line_search(
         alpha,
         signal_reset_descent_dir,
         max_trunc_error,
+        new_gradient,
     )

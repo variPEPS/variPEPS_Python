@@ -623,6 +623,7 @@ def optimize_peps_network(
     old_descent_dir = restart_state.get("old_descent_dir")
     descent_dir = None
     working_value = None
+    linesearch_gradient = None
 
     max_trunc_error = jnp.nan
 
@@ -701,7 +702,11 @@ def optimize_peps_network(
 
             chi_before_ctmrg = working_unitcell[0, 0][0][0].chi
             try:
-                if varipeps_config.ad_use_custom_vjp:
+                if linesearch_gradient is not None:
+                    # Environment and gradient for the current tensors were
+                    # already calculated in the successful line search step
+                    working_gradient_seq = None
+                elif varipeps_config.ad_use_custom_vjp:
                     (
                         working_value,
                         (working_unitcell, _),
@@ -797,7 +802,11 @@ def optimize_peps_network(
             if working_unitcell[0, 0][0][0].chi != chi_before_ctmrg:
                 jax.clear_caches()
 
-            working_gradient = [elem.conj() for elem in working_gradient_seq]
+            if linesearch_gradient is not None:
+                working_gradient = linesearch_gradient
+                linesearch_gradient = None
+            else:
+                working_gradient = [elem.conj() for elem in working_gradient_seq]
 
             if signal_reset_descent_dir:
                 if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
@@ -943,6 +952,7 @@ def optimize_peps_network(
                     linesearch_step,
                     signal_reset_descent_dir,
                     max_trunc_error,
+                    linesearch_gradient,
                 ) = line_search(
                     working_tensors,
                     working_unitcell,
@@ -1141,6 +1151,7 @@ def optimize_peps_network(
                 )
                 descent_dir = None
                 working_gradient = None
+                linesearch_gradient = None
                 signal_reset_descent_dir = True
                 conv = jnp.inf
                 linesearch_step = None
