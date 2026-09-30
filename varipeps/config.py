@@ -248,15 +248,6 @@ class VariPEPS_Config:
         Factor used for gradient based eps calculation. See parameter
         :obj:`VariPEPS_Config.line_search_hager_zhang_eps_use_grad_norm`
         for details.
-      basinhopping_niter (:obj:`int`):
-        Value for parameter `niter` of :obj:`scipy.optimize.basinhopping`.
-        See this function for details.
-      basinhopping_T (:obj:`int`):
-        Value for parameter `T` of :obj:`scipy.optimize.basinhopping`.
-        See this function for details.
-      basinhopping_niter_success (:obj:`int`):
-        Value for parameter `niterniter_success` of
-        :obj:`scipy.optimize.basinhopping`. See this function for details.
       spiral_wavevector_type (:obj:`Wavevector_Type`):
         Type of wavevector to be used (only positive/symmetric interval/...).
       slurm_restart_mode (:obj:`Slurm_Restart_Mode`):
@@ -346,11 +337,6 @@ class VariPEPS_Config:
     line_search_hager_zhang_rho: float = 5
     line_search_hager_zhang_eps_use_grad_norm: bool = True
     line_search_hager_zhang_eps_grad_norm_factor: float = 1e-2
-
-    # Basinhopping
-    basinhopping_niter: int = 20
-    basinhopping_T: float = 0.001
-    basinhopping_niter_success: int = 5
 
     # Spiral PEPS
     spiral_wavevector_type: Wavevector_Type = Wavevector_Type.TWO_PI_POSITIVE_ONLY

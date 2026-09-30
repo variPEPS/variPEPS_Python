@@ -10,7 +10,6 @@ Variational optimizer for the PEPS network (:mod:`varipeps.optimization`)
 .. toctree::
    :maxdepth: 2
 
-   basinhopping
    inner_function
    line_search
    optimizer

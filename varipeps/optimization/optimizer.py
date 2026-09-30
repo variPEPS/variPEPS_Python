@@ -763,10 +763,7 @@ def optimize_peps_network(
     step_conv = restart_state.get("step_conv", {random_noise_retries: []})
     step_runtime = restart_state.get("step_runtime", {random_noise_retries: []})
 
-    if (
-        varipeps_config.optimizer_preconverge_with_half_projectors
-        and not varipeps_global_state.basinhopping_disable_half_projector
-    ):
+    if varipeps_config.optimizer_preconverge_with_half_projectors:
         varipeps_global_state.ctmrg_projector_method = (
             Projector_Method.HALF
             if restart_state.get("projector_method", "HALF") == "HALF"
@@ -1085,7 +1082,6 @@ def optimize_peps_network(
                         < varipeps_config.optimizer_random_noise_max_retries
                         and not (
                             varipeps_config.optimizer_preconverge_with_half_projectors
-                            and not varipeps_global_state.basinhopping_disable_half_projector
                             and varipeps_global_state.ctmrg_projector_method
                             is Projector_Method.HALF
                         )
@@ -1239,7 +1235,6 @@ def optimize_peps_network(
 
             if (
                 varipeps_config.optimizer_preconverge_with_half_projectors
-                and not varipeps_global_state.basinhopping_disable_half_projector
                 and varipeps_global_state.ctmrg_projector_method
                 is Projector_Method.HALF
                 and conv
@@ -1373,7 +1368,6 @@ def optimize_peps_network(
 
                 if working_value < best_value and not (
                     varipeps_config.optimizer_preconverge_with_half_projectors
-                    and not varipeps_global_state.basinhopping_disable_half_projector
                     and varipeps_global_state.ctmrg_projector_method
                     is Projector_Method.HALF
                 ):
@@ -1439,7 +1433,6 @@ def optimize_peps_network(
 
             if working_value < best_value and not (
                 varipeps_config.optimizer_preconverge_with_half_projectors
-                and not varipeps_global_state.basinhopping_disable_half_projector
                 and varipeps_global_state.ctmrg_projector_method
                 is Projector_Method.HALF
             ):
@@ -1525,7 +1518,6 @@ def optimize_peps_network(
 
         if not (
             varipeps_config.optimizer_preconverge_with_half_projectors
-            and not varipeps_global_state.basinhopping_disable_half_projector
             and varipeps_global_state.ctmrg_projector_method is Projector_Method.HALF
         ):
             _autosave_wrapper(
