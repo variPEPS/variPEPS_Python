@@ -198,9 +198,10 @@ class VariPEPS_Config:
         inversion of the preconditioner.
       optimizer_use_norm_preserving_retraction (:obj:`bool`):
         Restrict each optimized tensor to the manifold of tensors with fixed
-        norm. Steps are performed by a norm-preserving retraction and the
-        tangent vectors of previous steps (CG, (L-)BFGS) are transported to
-        the new point on the manifold.
+        norm 1. The tensors are normalized at the start of the optimization,
+        steps are performed by a norm-preserving retraction and the tangent
+        vectors of previous steps (CG, (L-)BFGS) are transported to the new
+        point on the manifold.
       line_search_method (:obj:`Line_Search_Methods`):
         Method used for the line search routine.
       line_search_initial_step_size (:obj:`float`):

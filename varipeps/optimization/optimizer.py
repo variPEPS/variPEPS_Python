@@ -41,7 +41,11 @@ from .inner_function import (
     calc_ctmrg_expectation_custom_value_and_grad,
 )
 from .line_search import line_search, NoSuitableStepSizeError, _scalar_descent_grad
-from .retraction import norm_preserving_transport, project_to_tangent_space
+from .retraction import (
+    normalize_tensors,
+    norm_preserving_transport,
+    project_to_tangent_space,
+)
 
 from typing import List, Union, Tuple, cast, Sequence, Callable, Optional, Dict, Any
 
@@ -691,6 +695,13 @@ def optimize_peps_network(
     retraction_skip_indices = (
         tuple(spiral_indices) if spiral_indices is not None else ()
     )
+
+    if varipeps_config.optimizer_use_norm_preserving_retraction:
+        # The retraction keeps the norm of each tensor fixed, so start from
+        # normalized tensors to avoid a badly conditioned optimization
+        working_tensors = normalize_tensors(
+            working_tensors, retraction_skip_indices
+        )
 
     if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
         bfgs_prefactor = restart_state.get(

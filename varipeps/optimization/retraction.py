@@ -212,3 +212,31 @@ def norm_preserving_transport(
             zip(vectors, peps_tensors, descent_dir, strict=True)
         )
     ]
+
+
+@partial(jit, static_argnums=(1,))
+def normalize_tensors(
+    peps_tensors: Sequence[jnp.ndarray],
+    skip_indices: Tuple[int, ...] = (),
+) -> List[jnp.ndarray]:
+    """
+    Normalize each tensor to norm 1. Used as starting point of the
+    norm-preserving optimization since the retraction keeps the norm of each
+    tensor fixed and strongly differing norms lead to a badly conditioned
+    optimization. This follows the function ``peps_normalize`` of the
+    PEPSKit.jl package.
+
+    Args:
+      peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        Sequence of the tensors which should be normalized.
+      skip_indices (:obj:`tuple` of :obj:`int`):
+        Indices of the elements which are not restricted to fixed norm (e.g.
+        the wave vectors of spiral iPEPS). These elements are returned
+        unchanged.
+    Returns:
+      :obj:`list` of :obj:`jax.numpy.ndarray`:
+        The normalized tensors.
+    """
+    return [
+        t if i in skip_indices else t / _norm(t) for i, t in enumerate(peps_tensors)
+    ]
