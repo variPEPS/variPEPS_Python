@@ -699,9 +699,7 @@ def optimize_peps_network(
     if varipeps_config.optimizer_use_norm_preserving_retraction:
         # The retraction keeps the norm of each tensor fixed, so start from
         # normalized tensors to avoid a badly conditioned optimization
-        working_tensors = normalize_tensors(
-            working_tensors, retraction_skip_indices
-        )
+        working_tensors = normalize_tensors(working_tensors, retraction_skip_indices)
 
     if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
         bfgs_prefactor = restart_state.get(
