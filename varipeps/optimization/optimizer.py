@@ -699,7 +699,31 @@ def optimize_peps_network(
     if varipeps_config.optimizer_use_norm_preserving_retraction:
         # The retraction keeps the norm of each tensor fixed, so start from
         # normalized tensors to avoid a badly conditioned optimization
-        working_tensors = normalize_tensors(working_tensors, retraction_skip_indices)
+        if not all(
+            jnp.allclose(jnp.linalg.norm(t.ravel()), 1)
+            for i, t in enumerate(working_tensors)
+            if i not in retraction_skip_indices
+        ):
+            working_tensors = normalize_tensors(
+                working_tensors, retraction_skip_indices
+            )
+
+            if working_unitcell is not None:
+                # Keep the unitcell consistent with the normalized tensors. The
+                # environment only changes by a scalar factor, so keep it as
+                # starting point for the CTMRG.
+                working_unitcell = working_unitcell.replace_unique_tensors(
+                    [
+                        e.replace_tensor(
+                            working_tensors[i], reinitialize_env_as_identities=False
+                        )
+                        for i, e in enumerate(working_unitcell.get_unique_tensors())
+                    ]
+                )
+
+            # Restart data (gradient, descent direction, (L-)BFGS history)
+            # refers to the unnormalized tensors
+            signal_reset_descent_dir = True
 
     if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
         bfgs_prefactor = restart_state.get(
