@@ -8,7 +8,7 @@ invariant under a rescaling of each individual tensor, this does not restrict
 the variational space. Tangent vectors :math:`B` at :math:`A` satisfy
 :math:`\\mathrm{Re}\\langle A, B \\rangle = 0`, a step along a tangent vector
 is performed by a retraction and tangent vectors from previous steps (as needed
-by the CG and (L-)BFGS methods) are moved to the new point by a vector
+by the CG and L-BFGS methods) are moved to the new point by a vector
 transport.
 
 The implementation follows the functions ``norm_preserving_retract`` and

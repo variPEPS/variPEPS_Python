@@ -14,7 +14,7 @@ T_VariPEPS_Config = TypeVar("T_VariPEPS_Config", bound="VariPEPS_Config")
 class Optimizing_Methods(IntEnum):
     STEEPEST = auto()  #: Steepest gradient descent
     CG = auto()  #: Conjugate gradient method
-    BFGS = auto()  #: BFGS method
+    BFGS = auto()  #: BFGS method (unused, kept for compatibility reason)
     L_BFGS = auto()  #: L-BFGS method
 
 
@@ -200,7 +200,7 @@ class VariPEPS_Config:
         Restrict each optimized tensor to the manifold of tensors with fixed
         norm 1. The tensors are normalized at the start of the optimization,
         steps are performed by a norm-preserving retraction and the tangent
-        vectors of previous steps (CG, (L-)BFGS) are transported to the new
+        vectors of previous steps (CG, L-BFGS) are transported to the new
         point on the manifold.
       line_search_method (:obj:`Line_Search_Methods`):
         Method used for the line search routine.

@@ -105,51 +105,6 @@ def _cg_workhorse(new_gradient, old_gradient, old_descent_dir):
     return new_grad_unravel(result), beta
 
 
-@partial(jit, static_argnums=(5,))
-def _bfgs_workhorse(
-    new_gradient, old_gradient, old_descent_dir, old_alpha, B_inv, calc_new_B_inv
-):
-    new_grad_vec, new_grad_unravel = ravel_pytree(new_gradient)
-    new_grad_len = new_grad_vec.size
-
-    iscomplex = jnp.iscomplexobj(new_grad_vec)
-    if iscomplex:
-        new_grad_vec = jnp.concatenate((jnp.real(new_grad_vec), jnp.imag(new_grad_vec)))
-
-    if calc_new_B_inv:
-        old_grad_vec, old_grad_unravel = ravel_pytree(old_gradient)
-        old_descent_dir_vec, old_descent_dir_unravel = ravel_pytree(old_descent_dir)
-        if iscomplex:
-            old_grad_vec = jnp.concatenate(
-                (jnp.real(old_grad_vec), jnp.imag(old_grad_vec))
-            )
-            old_descent_dir_vec = jnp.concatenate(
-                (jnp.real(old_descent_dir_vec), jnp.imag(old_descent_dir_vec))
-            )
-
-        sk = old_alpha * old_descent_dir_vec
-        yk = new_grad_vec - old_grad_vec
-
-        skyk_scalar = jnp.dot(sk, yk)
-        B_inv_yk = jnp.dot(B_inv, yk)
-
-        new_B_inv = (
-            B_inv
-            + ((skyk_scalar + jnp.dot(yk, B_inv_yk)) / (skyk_scalar**2))
-            * jnp.outer(sk, sk)
-            - (jnp.outer(B_inv_yk, sk) + jnp.outer(sk, B_inv_yk)) / skyk_scalar
-        )
-    else:
-        new_B_inv = B_inv
-
-    result = -jnp.dot(new_B_inv, new_grad_vec)
-
-    if iscomplex:
-        result = result[:new_grad_len] + 1j * result[new_grad_len:]
-
-    return new_grad_unravel(result), new_B_inv
-
-
 @jit
 def _l_bfgs_workhorse(value_tuple, gradient_tuple, t_objs, config):
     gradient_elem_0, gradient_unravel = ravel_pytree(gradient_tuple[0])
@@ -452,13 +407,7 @@ def autosave_function_restartable(
         if linesearch_step is not None:
             grp_restart_data.attrs["linesearch_step"] = linesearch_step
 
-        if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
-            bfgs_prefactor, bfgs_B_inv = descent_method_tuple
-            grp_restart_data.attrs["bfgs_prefactor"] = bfgs_prefactor
-            grp_restart_data.create_dataset(
-                "bfgs_B_inv", data=bfgs_B_inv, compression="gzip", compression_opts=6
-            )
-        elif varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
+        if varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
             l_bfgs_x_cache, l_bfgs_grad_cache = descent_method_tuple
 
             grp_l_bfgs = grp_restart_data.create_group("l_bfgs", track_order=True)
@@ -722,21 +671,12 @@ def optimize_peps_network(
                     ]
                 )
 
-            # Restart data (gradient, descent direction, (L-)BFGS history)
+            # Restart data (gradient, descent direction, L-BFGS history)
             # refers to the unnormalized tensors
             signal_reset_descent_dir = True
             tensors_renormalized = True
 
-    if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
-        bfgs_prefactor = restart_state.get(
-            "bfgs_prefactor",
-            2 if any(jnp.iscomplexobj(t) for t in working_tensors) else 1,
-        )
-        bfgs_B_inv = restart_state.get(
-            "bfgs_B_inv",
-            jnp.eye(bfgs_prefactor * sum([t.size for t in working_tensors])),
-        )
-    elif varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
+    if varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
         l_bfgs_x_cache = deque(
             restart_state.get("l_bfgs_x_cache", []),
             maxlen=varipeps_config.optimizer_l_bfgs_maxlen + 1,
@@ -901,14 +841,7 @@ def optimize_peps_network(
                 )
 
             if signal_reset_descent_dir:
-                if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
-                    bfgs_prefactor = (
-                        2 if any(jnp.iscomplexobj(t) for t in working_tensors) else 1
-                    )
-                    bfgs_B_inv = jnp.eye(
-                        bfgs_prefactor * sum([t.size for t in working_tensors])
-                    )
-                elif varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
+                if varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
                     l_bfgs_x_cache = deque(
                         maxlen=varipeps_config.optimizer_l_bfgs_maxlen + 1
                     )
@@ -924,20 +857,6 @@ def optimize_peps_network(
                 else:
                     descent_dir, beta = _cg_workhorse(
                         working_gradient, old_gradient, old_descent_dir
-                    )
-            elif varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
-                if count == 0 or signal_reset_descent_dir:
-                    descent_dir, _ = _bfgs_workhorse(
-                        working_gradient, None, None, None, bfgs_B_inv, False
-                    )
-                else:
-                    descent_dir, bfgs_B_inv = _bfgs_workhorse(
-                        working_gradient,
-                        old_gradient,
-                        old_descent_dir,
-                        linesearch_step,
-                        bfgs_B_inv,
-                        True,
                     )
             elif varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
                 l_bfgs_x_cache.appendleft(tuple(working_tensors))
@@ -1170,11 +1089,6 @@ def optimize_peps_network(
                             descent_method_tuple = None
                             if (
                                 varipeps_config.optimizer_method
-                                is Optimizing_Methods.BFGS
-                            ):
-                                descent_method_tuple = (bfgs_prefactor, bfgs_B_inv)
-                            elif (
-                                varipeps_config.optimizer_method
                                 is Optimizing_Methods.L_BFGS
                             ):
                                 descent_method_tuple = (
@@ -1390,9 +1304,7 @@ def optimize_peps_network(
 
                 if autosave_func is autosave_function:
                     descent_method_tuple = None
-                    if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
-                        descent_method_tuple = (bfgs_prefactor, bfgs_B_inv)
-                    elif varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
+                    if varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
                         descent_method_tuple = (l_bfgs_x_cache, l_bfgs_grad_cache)
                     _autosave_wrapper(
                         partial(
@@ -1739,10 +1651,7 @@ def restart_from_state_file(filename: PathLike):
                 auxiliary_data[f"step_runtime_{k:d}"]
             )
 
-        if config.optimizer_method is Optimizing_Methods.BFGS:
-            restart_state["bfgs_prefactor"] = grp_restart_data.attrs["bfgs_prefactor"]
-            restart_state["bfgs_B_inv"] = jnp.asarray(grp_restart_data["bfgs_B_inv"])
-        elif config.optimizer_method is Optimizing_Methods.L_BFGS:
+        if config.optimizer_method is Optimizing_Methods.L_BFGS:
             restart_state["l_bfgs_x_cache"] = [
                 [
                     jnp.asarray(grp_restart_data["l_bfgs"][f"x_{i:d}_{j:d}"])
