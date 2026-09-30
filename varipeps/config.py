@@ -76,8 +76,6 @@ class VariPEPS_Config:
     :obj:`config` is used.
 
     Parameters:
-      ad_use_custom_vjp (:obj:`bool`):
-        Use custom VJP rule for the CTMRG routine during AD calculation.
       ad_custom_print_steps (:obj:`bool`):
         Print steps of fix-point iteration in custom VJP function.
       ad_custom_verbose_output (:obj:`bool`):
@@ -160,9 +158,6 @@ class VariPEPS_Config:
         Maximal number of steps for fix-pointer iteration in optimization routine.
       optimizer_convergence_eps (:obj:`float`):
         Convergence criterion for the optimization routine.
-      optimizer_ctmrg_preconverged_eps (:obj:`float`):
-        Convergence criterion for the optimization routine using the gradient
-        calculations with the preconverged environment.
       optimizer_fail_if_no_step_size_found (:obj:`bool`):
         Flag if the optimizer routine should fail with an error if no step size
         can be found before the gradient norm is below the convergence
@@ -258,7 +253,6 @@ class VariPEPS_Config:
     """
 
     # AD config
-    ad_use_custom_vjp: bool = True
     ad_custom_print_steps: bool = False
     ad_custom_verbose_output: bool = False
     ad_custom_gmres_relative_eps: float = 1e-7
@@ -301,7 +295,6 @@ class VariPEPS_Config:
     optimizer_method: Optimizing_Methods = Optimizing_Methods.L_BFGS
     optimizer_max_steps: int = 300
     optimizer_convergence_eps: float = 1e-5
-    optimizer_ctmrg_preconverged_eps: float = 1e-5
     optimizer_fail_if_no_step_size_found: bool = False
     optimizer_l_bfgs_maxlen: int = 15
     optimizer_preconverge_with_half_projectors: bool = False

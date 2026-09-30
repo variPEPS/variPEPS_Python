@@ -37,7 +37,6 @@ from varipeps.utils.debug_print import debug_print
 
 from .inner_function import (
     calc_ctmrg_expectation,
-    calc_preconverged_ctmrg_value_and_grad,
     calc_ctmrg_expectation_custom_value_and_grad,
 )
 from .line_search import line_search, NoSuitableStepSizeError, _scalar_descent_grad
@@ -725,7 +724,7 @@ def optimize_peps_network(
                     # Environment and gradient for the current tensors were
                     # already calculated in the successful line search step
                     working_gradient_seq = None
-                elif varipeps_config.ad_use_custom_vjp:
+                else:
                     (
                         working_value,
                         (working_unitcell, _),
@@ -735,18 +734,6 @@ def optimize_peps_network(
                         expectation_func,
                         convert_to_unitcell_func,
                         additional_input,
-                    )
-                else:
-                    (
-                        working_value,
-                        (working_unitcell, _),
-                    ), working_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
-                        working_tensors,
-                        working_unitcell,
-                        expectation_func,
-                        convert_to_unitcell_func,
-                        additional_input,
-                        calc_preconverged=(count == 0),
                     )
             except (CTMRGNotConvergedError, CTMRGGradientNotConvergedError) as e:
                 varipeps_global_state.ctmrg_projector_method = None
@@ -1165,7 +1152,7 @@ def optimize_peps_network(
                         expectation_func,
                         convert_to_unitcell_func,
                         additional_input,
-                        enforce_elementwise_convergence=varipeps_config.ad_use_custom_vjp,
+                        enforce_elementwise_convergence=True,
                     )
                 )
                 descent_dir = None
@@ -1185,7 +1172,7 @@ def optimize_peps_network(
                     expectation_func,
                     convert_to_unitcell_func,
                     additional_input,
-                    enforce_elementwise_convergence=varipeps_config.ad_use_custom_vjp,
+                    enforce_elementwise_convergence=True,
                 )
 
                 try:

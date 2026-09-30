@@ -17,7 +17,6 @@ from varipeps.utils.debug_print import debug_print
 
 from .inner_function import (
     calc_ctmrg_expectation,
-    calc_preconverged_ctmrg_value_and_grad,
     calc_ctmrg_expectation_custom_value_and_grad,
 )
 from .retraction import norm_preserving_retract, project_to_tangent_space
@@ -378,10 +377,9 @@ def line_search(
 
     has_been_increased = False
     incrementation_not_helped = False
-    enforce_elementwise_convergence = (
-        varipeps_config.ctmrg_enforce_elementwise_convergence
-        or varipeps_config.ad_use_custom_vjp
-    )
+    # The custom VJP rule calculates the environment with elementwise
+    # convergence, so use the same criterion for the pure value calculations
+    enforce_elementwise_convergence = True
 
     if varipeps_config.line_search_method is Line_Search_Methods.HAGERZHANG:
         if last_step_size is None or last_step_size <= 0:
@@ -509,29 +507,16 @@ def line_search(
                             new_unitcell[0, 0][0][0].chi,
                         )
 
-                        if varipeps_config.ad_use_custom_vjp:
-                            (
-                                current_value,
-                                (unitcell, max_trunc_error),
-                            ), tmp_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
-                                input_tensors,
-                                unitcell,
-                                expectation_func,
-                                convert_to_unitcell_func,
-                                additional_input,
-                            )
-                        else:
-                            (
-                                current_value,
-                                (unitcell, max_trunc_error),
-                            ), tmp_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
-                                input_tensors,
-                                unitcell,
-                                expectation_func,
-                                convert_to_unitcell_func,
-                                additional_input,
-                                calc_preconverged=True,
-                            )
+                        (
+                            current_value,
+                            (unitcell, max_trunc_error),
+                        ), tmp_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
+                            input_tensors,
+                            unitcell,
+                            expectation_func,
+                            convert_to_unitcell_func,
+                            additional_input,
+                        )
                         gradient = [elem.conj() for elem in tmp_gradient_seq]
                         if varipeps_config.optimizer_use_norm_preserving_retraction:
                             gradient = project_to_tangent_space(
@@ -565,29 +550,16 @@ def line_search(
             wolfe_value_last_step = new_value
 
             try:
-                if varipeps_config.ad_use_custom_vjp:
-                    (
-                        new_value,
-                        (new_unitcell, max_trunc_error),
-                    ), new_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
-                        new_tensors,
-                        new_unitcell,
-                        expectation_func,
-                        convert_to_unitcell_func,
-                        additional_input,
-                    )
-                else:
-                    (
-                        new_value,
-                        (new_unitcell, max_trunc_error),
-                    ), new_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
-                        new_tensors,
-                        new_unitcell,
-                        expectation_func,
-                        convert_to_unitcell_func,
-                        additional_input,
-                        calc_preconverged=True,
-                    )
+                (
+                    new_value,
+                    (new_unitcell, max_trunc_error),
+                ), new_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
+                    new_tensors,
+                    new_unitcell,
+                    expectation_func,
+                    convert_to_unitcell_func,
+                    additional_input,
+                )
                 new_gradient = [elem.conj() for elem in new_gradient_seq]
                 if not (
                     bool(jnp.isfinite(new_value))
@@ -621,29 +593,16 @@ def line_search(
                             new_unitcell[0, 0][0][0].chi,
                         )
 
-                        if varipeps_config.ad_use_custom_vjp:
-                            (
-                                current_value,
-                                (unitcell, max_trunc_error),
-                            ), tmp_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
-                                input_tensors,
-                                unitcell,
-                                expectation_func,
-                                convert_to_unitcell_func,
-                                additional_input,
-                            )
-                        else:
-                            (
-                                current_value,
-                                (unitcell, max_trunc_error),
-                            ), tmp_gradient_seq = calc_preconverged_ctmrg_value_and_grad(
-                                input_tensors,
-                                unitcell,
-                                expectation_func,
-                                convert_to_unitcell_func,
-                                additional_input,
-                                calc_preconverged=True,
-                            )
+                        (
+                            current_value,
+                            (unitcell, max_trunc_error),
+                        ), tmp_gradient_seq = calc_ctmrg_expectation_custom_value_and_grad(
+                            input_tensors,
+                            unitcell,
+                            expectation_func,
+                            convert_to_unitcell_func,
+                            additional_input,
+                        )
                         gradient = [elem.conj() for elem in tmp_gradient_seq]
                         if varipeps_config.optimizer_use_norm_preserving_retraction:
                             gradient = project_to_tangent_space(
