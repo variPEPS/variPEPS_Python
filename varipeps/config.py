@@ -196,6 +196,11 @@ class VariPEPS_Config:
       optimizer_precond_gmres_maxiter (:obj:`int`):
         Maximal number of outer iterations inside the GMRES method for the
         inversion of the preconditioner.
+      optimizer_use_norm_preserving_retraction (:obj:`bool`):
+        Restrict each optimized tensor to the manifold of tensors with fixed
+        norm. Steps are performed by a norm-preserving retraction and the
+        tangent vectors of previous steps (CG, (L-)BFGS) are transported to
+        the new point on the manifold.
       line_search_method (:obj:`Line_Search_Methods`):
         Method used for the line search routine.
       line_search_initial_step_size (:obj:`float`):
@@ -317,6 +322,7 @@ class VariPEPS_Config:
     optimizer_use_preconditioning: bool = True
     optimizer_precond_gmres_krylov_subspace_size: int = 30
     optimizer_precond_gmres_maxiter: int = 3
+    optimizer_use_norm_preserving_retraction: bool = True
 
     # Line search
     line_search_method: Line_Search_Methods = Line_Search_Methods.HAGERZHANG

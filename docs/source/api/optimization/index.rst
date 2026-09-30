@@ -14,6 +14,7 @@ Variational optimizer for the PEPS network (:mod:`varipeps.optimization`)
    inner_function
    line_search
    optimizer
+   retraction
 
 .. automodule:: varipeps.optimization
    :members:

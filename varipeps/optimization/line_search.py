@@ -20,6 +20,7 @@ from .inner_function import (
     calc_preconverged_ctmrg_value_and_grad,
     calc_ctmrg_expectation_custom_value_and_grad,
 )
+from .retraction import norm_preserving_retract, project_to_tangent_space
 
 from typing import Sequence, Tuple, List, Union, Optional, Dict
 
@@ -41,6 +42,18 @@ def _scalar_descent_grad(descent_dir, gradient):
 @jit
 def _line_search_new_tensors(peps_tensors, descent_dir, alpha):
     return [peps_tensors[i] + alpha * descent_dir[i] for i in range(len(peps_tensors))]
+
+
+def _line_search_retract(peps_tensors, descent_dir, alpha, spiral_indices):
+    if varipeps_config.optimizer_use_norm_preserving_retraction:
+        return norm_preserving_retract(
+            peps_tensors,
+            descent_dir,
+            alpha,
+            tuple(spiral_indices) if spiral_indices is not None else (),
+        )
+
+    return _line_search_new_tensors(peps_tensors, descent_dir, alpha), descent_dir
 
 
 def _get_new_unitcell(
@@ -105,6 +118,7 @@ def _wolfe_value(
     current_val,
     descent_dir,
     gradient,
+    new_descent_dir,
     new_gradient,
     alpha,
     armijo_const_factor,
@@ -112,6 +126,7 @@ def _wolfe_value(
 ):
     descent_dir_real, _ = ravel_pytree(descent_dir)
     gradient_real, _ = ravel_pytree(gradient)
+    new_descent_dir_real, _ = ravel_pytree(new_descent_dir)
     new_gradient_real, _ = ravel_pytree(new_gradient)
 
     if jnp.iscomplexobj(descent_dir_real):
@@ -121,6 +136,9 @@ def _wolfe_value(
         gradient_real = jnp.concatenate(
             (jnp.real(gradient_real), jnp.imag(gradient_real))
         )
+        new_descent_dir_real = jnp.concatenate(
+            (jnp.real(new_descent_dir_real), jnp.imag(new_descent_dir_real))
+        )
         new_gradient_real = jnp.concatenate(
             (jnp.real(new_gradient_real), jnp.imag(new_gradient_real))
         )
@@ -129,7 +147,7 @@ def _wolfe_value(
 
     cmp_value = current_val + armijo_const_factor * alpha * scalar_descent_grad
 
-    scalar_descent_new_grad = jnp.sum(descent_dir_real * new_gradient_real)
+    scalar_descent_new_grad = jnp.sum(new_descent_dir_real * new_gradient_real)
     strong_wolfe_left_side = -scalar_descent_new_grad
     strong_wolfe_right_side = -wolfe_const_factor * scalar_descent_grad
 
@@ -243,7 +261,9 @@ def _hager_zhang_initial_quad_step(
 ):
     alpha = varipeps_config.line_search_hager_zhang_psi_1 * old_alpha
 
-    new_tensors = _line_search_new_tensors(input_tensors, descent_direction, alpha)
+    new_tensors, _ = _line_search_retract(
+        input_tensors, descent_direction, alpha, spiral_indices
+    )
     new_tensors, new_unitcell = _get_new_unitcell(
         new_tensors,
         unitcell,
@@ -438,7 +458,9 @@ def line_search(
 
     count = 0
     while count < varipeps_config.line_search_max_steps:
-        new_tensors = _line_search_new_tensors(input_tensors, descent_direction, alpha)
+        new_tensors, new_descent_direction = _line_search_retract(
+            input_tensors, descent_direction, alpha, spiral_indices
+        )
 
         new_tensors, new_unitcell = _get_new_unitcell(
             new_tensors,
@@ -511,6 +533,16 @@ def line_search(
                                 calc_preconverged=True,
                             )
                         gradient = [elem.conj() for elem in tmp_gradient_seq]
+                        if varipeps_config.optimizer_use_norm_preserving_retraction:
+                            gradient = project_to_tangent_space(
+                                gradient,
+                                input_tensors,
+                                (
+                                    tuple(spiral_indices)
+                                    if spiral_indices is not None
+                                    else ()
+                                ),
+                            )
                         descent_direction = [-elem for elem in gradient]
 
                         cache_original_unitcell[new_unitcell[0, 0][0][0].chi] = (
@@ -610,6 +642,16 @@ def line_search(
                                 calc_preconverged=True,
                             )
                         gradient = [elem.conj() for elem in tmp_gradient_seq]
+                        if varipeps_config.optimizer_use_norm_preserving_retraction:
+                            gradient = project_to_tangent_space(
+                                gradient,
+                                input_tensors,
+                                (
+                                    tuple(spiral_indices)
+                                    if spiral_indices is not None
+                                    else ()
+                                ),
+                            )
                         descent_direction = [-elem for elem in gradient]
 
                         cache_original_unitcell[new_unitcell[0, 0][0][0].chi] = (
@@ -627,7 +669,7 @@ def line_search(
             raise ValueError("Unknown line search method.")
 
         if varipeps_config.line_search_method is Line_Search_Methods.HAGERZHANG:
-            descent_new_grad = _scalar_descent_grad(descent_direction, new_gradient)
+            descent_new_grad = _scalar_descent_grad(new_descent_direction, new_gradient)
 
             hz_wolfe_1_left = (
                 varipeps_config.line_search_hager_zhang_delta * hager_zhang_descent_grad
@@ -809,6 +851,7 @@ def line_search(
                 current_value,
                 descent_direction,
                 gradient,
+                new_descent_direction,
                 new_gradient,
                 alpha,
                 varipeps_config.line_search_armijo_const,
@@ -934,7 +977,7 @@ def line_search(
                     hager_zhang_upper_bound_value = new_value
                     hager_zhang_upper_bound_grad = new_gradient
                     hager_zhang_upper_bound_des_grad = _scalar_descent_grad(
-                        descent_direction, new_gradient
+                        new_descent_direction, new_gradient
                     )
                     alpha = (
                         (1 - varipeps_config.line_search_hager_zhang_theta)
@@ -1000,7 +1043,7 @@ def line_search(
                     hager_zhang_upper_bound_value = new_value
                     hager_zhang_upper_bound_grad = new_gradient
                     hager_zhang_upper_bound_des_grad = _scalar_descent_grad(
-                        descent_direction, new_gradient
+                        new_descent_direction, new_gradient
                     )
                     alpha = (
                         (1 - varipeps_config.line_search_hager_zhang_theta)

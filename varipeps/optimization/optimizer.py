@@ -41,6 +41,7 @@ from .inner_function import (
     calc_ctmrg_expectation_custom_value_and_grad,
 )
 from .line_search import line_search, NoSuitableStepSizeError, _scalar_descent_grad
+from .retraction import norm_preserving_transport, project_to_tangent_space
 
 from typing import List, Union, Tuple, cast, Sequence, Callable, Optional, Dict, Any
 
@@ -284,6 +285,44 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple, t_objs, config):
     if iscomplex:
         z_result = z_result[:gradient_len] + 1j * z_result[gradient_len:]
     return gradient_unravel(z_result)
+
+
+def _l_bfgs_transport_cache(
+    x_cache,
+    grad_cache,
+    new_tensors,
+    transported_step,
+    transported_gradient,
+    transport_func,
+):
+    # The L-BFGS workhorse only uses the differences of consecutive cache
+    # entries. Rebuild the caches such that these differences are the
+    # transported vectors (tangent at the new point) and the next difference
+    # is s = alpha * xi (transported step) and y = g_new - T(g_old).
+    x_elem = [t - s for t, s in zip(new_tensors, transported_step, strict=True)]
+    grad_elem = list(transported_gradient)
+
+    new_x_cache = [tuple(x_elem)]
+    new_grad_cache = [tuple(grad_elem)]
+
+    for i in range(len(x_cache) - 1):
+        s_elem = transport_func(
+            [a - b for a, b in zip(x_cache[i], x_cache[i + 1], strict=True)]
+        )
+        y_elem = transport_func(
+            [a - b for a, b in zip(grad_cache[i], grad_cache[i + 1], strict=True)]
+        )
+
+        x_elem = [x - s for x, s in zip(x_elem, s_elem, strict=True)]
+        grad_elem = [g - y for g, y in zip(grad_elem, y_elem, strict=True)]
+
+        new_x_cache.append(tuple(x_elem))
+        new_grad_cache.append(tuple(grad_elem))
+
+    return (
+        deque(new_x_cache, maxlen=x_cache.maxlen),
+        deque(new_grad_cache, maxlen=grad_cache.maxlen),
+    )
 
 
 def autosave_function(
@@ -649,6 +688,10 @@ def optimize_peps_network(
         else:
             raise NotImplementedError("Only support spiral PEPS for unitcell input yet")
 
+    retraction_skip_indices = (
+        tuple(spiral_indices) if spiral_indices is not None else ()
+    )
+
     if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
         bfgs_prefactor = restart_state.get(
             "bfgs_prefactor",
@@ -808,6 +851,11 @@ def optimize_peps_network(
             else:
                 working_gradient = [elem.conj() for elem in working_gradient_seq]
 
+            if varipeps_config.optimizer_use_norm_preserving_retraction:
+                working_gradient = project_to_tangent_space(
+                    working_gradient, working_tensors, retraction_skip_indices
+                )
+
             if signal_reset_descent_dir:
                 if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
                     bfgs_prefactor = (
@@ -927,6 +975,11 @@ def optimize_peps_network(
             else:
                 raise ValueError("Unknown optimization method.")
 
+            if varipeps_config.optimizer_use_norm_preserving_retraction:
+                descent_dir = project_to_tangent_space(
+                    descent_dir, working_tensors, retraction_skip_indices
+                )
+
             signal_reset_descent_dir = False
 
             slope = _scalar_descent_grad(descent_dir, working_gradient)
@@ -943,6 +996,8 @@ def optimize_peps_network(
             if jnp.isinf(conv) or jnp.isnan(conv):
                 conv = 0
             step_conv[random_noise_retries].append(conv)
+
+            previous_working_tensors = working_tensors
 
             try:
                 (
@@ -1190,8 +1245,36 @@ def optimize_peps_network(
 
                 break
 
-            old_descent_dir = descent_dir
-            old_gradient = working_gradient
+            if (
+                varipeps_config.optimizer_use_norm_preserving_retraction
+                and descent_dir is not None
+                and not signal_reset_descent_dir
+            ):
+
+                def transport_func(v):
+                    return norm_preserving_transport(
+                        v,
+                        previous_working_tensors,
+                        descent_dir,
+                        linesearch_step,
+                        retraction_skip_indices,
+                    )
+
+                old_descent_dir = transport_func(descent_dir)
+                old_gradient = transport_func(working_gradient)
+
+                if varipeps_config.optimizer_method is Optimizing_Methods.L_BFGS:
+                    l_bfgs_x_cache, l_bfgs_grad_cache = _l_bfgs_transport_cache(
+                        l_bfgs_x_cache,
+                        l_bfgs_grad_cache,
+                        working_tensors,
+                        [linesearch_step * elem for elem in old_descent_dir],
+                        old_gradient,
+                        transport_func,
+                    )
+            else:
+                old_descent_dir = descent_dir
+                old_gradient = working_gradient
 
             count += 1
 
