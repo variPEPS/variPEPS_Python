@@ -543,7 +543,10 @@ def line_search(
                                     else ()
                                 ),
                             )
-                        descent_direction = [-elem for elem in gradient]
+                        # Keep descent_direction: the trial points lie on
+                        # the curve along it, so the sufficient-decrease and
+                        # curvature tests need <descent_direction, gradient>
+                        # evaluated with the gradient at the higher chi.
 
                         cache_original_unitcell[new_unitcell[0, 0][0][0].chi] = (
                             unitcell,
@@ -652,7 +655,10 @@ def line_search(
                                     else ()
                                 ),
                             )
-                        descent_direction = [-elem for elem in gradient]
+                        # Keep descent_direction: the trial points lie on
+                        # the curve along it, so the sufficient-decrease and
+                        # curvature tests need <descent_direction, gradient>
+                        # evaluated with the gradient at the higher chi.
 
                         cache_original_unitcell[new_unitcell[0, 0][0][0].chi] = (
                             unitcell,
@@ -665,6 +671,10 @@ def line_search(
             except (CTMRGNotConvergedError, CTMRGGradientNotConvergedError):
                 new_value = jnp.inf
                 new_gradient = gradient
+                # With the retraction <xi(alpha), g(0)> = cos(theta) * slope
+                # can be positive for large steps, which would mark a failed
+                # trial as having found the upper bracket. Use the slope at 0.
+                new_descent_direction = descent_direction
         else:
             raise ValueError("Unknown line search method.")
 

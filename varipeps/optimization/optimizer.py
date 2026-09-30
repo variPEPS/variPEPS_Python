@@ -696,6 +696,7 @@ def optimize_peps_network(
         tuple(spiral_indices) if spiral_indices is not None else ()
     )
 
+    tensors_renormalized = False
     if varipeps_config.optimizer_use_norm_preserving_retraction:
         # The retraction keeps the norm of each tensor fixed, so start from
         # normalized tensors to avoid a badly conditioned optimization
@@ -724,6 +725,7 @@ def optimize_peps_network(
             # Restart data (gradient, descent direction, (L-)BFGS history)
             # refers to the unnormalized tensors
             signal_reset_descent_dir = True
+            tensors_renormalized = True
 
     if varipeps_config.optimizer_method is Optimizing_Methods.BFGS:
         bfgs_prefactor = restart_state.get(
@@ -748,6 +750,10 @@ def optimize_peps_network(
     linesearch_step: Optional[Union[float, jnp.ndarray]] = restart_state.get(
         "linesearch_step"
     )
+    if tensors_renormalized:
+        # The step size scales with the squared tensor norm, so a stored step
+        # size is no useful starting guess anymore
+        linesearch_step = None
     working_value: Union[float, jnp.ndarray]
     max_trunc_error_list = restart_state.get(
         "max_trunc_error_list", {random_noise_retries: []}
@@ -843,6 +849,10 @@ def optimize_peps_network(
                         )
 
                         working_tensors = [random_noise(i) for i in working_tensors]
+                        if varipeps_config.optimizer_use_norm_preserving_retraction:
+                            working_tensors = normalize_tensors(
+                                working_tensors, retraction_skip_indices
+                            )
 
                         working_tensors_obj = [
                             e.replace_tensor(working_tensors[i])
@@ -854,6 +864,10 @@ def optimize_peps_network(
                         )
                     else:
                         working_tensors = [random_noise(i) for i in best_tensors]
+                        if varipeps_config.optimizer_use_norm_preserving_retraction:
+                            working_tensors = normalize_tensors(
+                                working_tensors, retraction_skip_indices
+                            )
                         working_unitcell = None
 
                     descent_dir = None
@@ -1119,6 +1133,10 @@ def optimize_peps_network(
                             )
 
                             working_tensors = [random_noise(i) for i in working_tensors]
+                            if varipeps_config.optimizer_use_norm_preserving_retraction:
+                                working_tensors = normalize_tensors(
+                                    working_tensors, retraction_skip_indices
+                                )
 
                             working_tensors_obj = [
                                 e.replace_tensor(working_tensors[i])
@@ -1132,6 +1150,10 @@ def optimize_peps_network(
                             )
                         else:
                             working_tensors = [random_noise(i) for i in best_tensors]
+                            if varipeps_config.optimizer_use_norm_preserving_retraction:
+                                working_tensors = normalize_tensors(
+                                    working_tensors, retraction_skip_indices
+                                )
                             working_unitcell = None
 
                         descent_dir = None
