@@ -9,7 +9,7 @@ from varipeps.contractions import apply_contraction, apply_contraction_jitted
 from varipeps import varipeps_config
 from varipeps.utils.func_cache import Checkpointing_Cache
 from varipeps.utils.svd import gauge_fixed_svd
-from varipeps.utils.qr import thin_qr
+from varipeps.utils.qr import thin_qr, qr_subspace_iteration
 from varipeps.utils.projector_dict import (
     Left_Projectors,
     Right_Projectors,
@@ -555,7 +555,7 @@ def _vertical_cut_split_transfer(
     )
 
 
-@partial(jit, static_argnums=(6, 7), inline=True)
+@partial(jit, static_argnums=(6, 7, 8), inline=True)
 def _left_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -565,6 +565,7 @@ def _left_projectors_workhorse(
     truncation_eps: float,
     projector_method: Projector_Method,
     chi: int,
+    qr_power_iterations: int = 1,
 ) -> Left_Projectors:
     if projector_method is Projector_Method.FULL:
         top_matrix, bottom_matrix = _horizontal_cut(
@@ -603,53 +604,22 @@ def _left_projectors_workhorse(
         qr_left = peps_tensor_objs[1][1].qr_right_traced_top
         qr_right = peps_tensor_objs[0][1].qr_right_traced_bottom
 
-        new_qr_left = (
-            qr_left
-            @ bottom_right_matrix
-            @ bottom_left_matrix
-            @ top_left_matrix
-            @ top_right_matrix
-            @ top_right_matrix.T.conj()
-            @ top_left_matrix.T.conj()
-            @ bottom_left_matrix.T.conj()
-            @ bottom_right_matrix.T.conj()
+        new_qr_left, new_qr_right, mq_right = qr_subspace_iteration(
+            (
+                bottom_right_matrix,
+                bottom_left_matrix,
+                top_left_matrix,
+                top_right_matrix,
+            ),
+            qr_left,
+            qr_right,
+            qr_power_iterations,
         )
-        new_qr_left /= jnp.linalg.norm(new_qr_left)
-
-        new_qr_left, _ = thin_qr(new_qr_left.T.conj())
-        new_qr_left = new_qr_left.T.conj()
-
-        new_qr_right = top_right_matrix.T.conj() @ (
-            top_left_matrix.T.conj()
-            @ (
-                bottom_left_matrix.T.conj()
-                @ (
-                    bottom_right_matrix.T.conj()
-                    @ (
-                        bottom_right_matrix
-                        @ (
-                            bottom_left_matrix
-                            @ (top_left_matrix @ (top_right_matrix @ qr_right))
-                        )
-                    )
-                )
-            )
-        )
-        new_qr_right /= jnp.linalg.norm(new_qr_right)
-
-        new_qr_right, _ = thin_qr(new_qr_right)
     else:
         raise ValueError("Invalid projector method!")
 
     if projector_method is Projector_Method.FULL_QR:
-        product_matrix = (
-            new_qr_left
-            @ bottom_right_matrix
-            @ bottom_left_matrix
-            @ top_left_matrix
-            @ top_right_matrix
-            @ new_qr_right
-        )
+        product_matrix = new_qr_left @ mq_right
     else:
         product_matrix = jnp.dot(bottom_matrix, top_matrix)
 
@@ -738,7 +708,7 @@ def calc_left_projectors(
     )
 
     if config.checkpointing_projectors:
-        f = checkpoint(_left_projectors_workhorse, static_argnums=(6, 7))
+        f = checkpoint(_left_projectors_workhorse, static_argnums=(6, 7, 8))
     else:
         f = _left_projectors_workhorse
 
@@ -759,10 +729,11 @@ def calc_left_projectors(
             else state.ctmrg_projector_method
         ),
         chi,
+        config.ctmrg_qr_power_iterations,
     )
 
 
-@partial(jit, static_argnums=(6, 7), inline=True)
+@partial(jit, static_argnums=(6, 7, 8), inline=True)
 def _right_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -772,6 +743,7 @@ def _right_projectors_workhorse(
     truncation_eps: float,
     projector_method: Projector_Method,
     chi: int,
+    qr_power_iterations: int = 1,
 ) -> Right_Projectors:
     if projector_method is Projector_Method.FULL:
         top_matrix, bottom_matrix = _horizontal_cut(
@@ -810,53 +782,22 @@ def _right_projectors_workhorse(
         qr_left = peps_tensor_objs[0][0].qr_left_traced_bottom
         qr_right = peps_tensor_objs[1][0].qr_left_traced_top
 
-        new_qr_left = (
-            qr_left
-            @ top_left_matrix
-            @ top_right_matrix
-            @ bottom_right_matrix
-            @ bottom_left_matrix
-            @ bottom_left_matrix.T.conj()
-            @ bottom_right_matrix.T.conj()
-            @ top_right_matrix.T.conj()
-            @ top_left_matrix.T.conj()
+        new_qr_left, new_qr_right, mq_right = qr_subspace_iteration(
+            (
+                top_left_matrix,
+                top_right_matrix,
+                bottom_right_matrix,
+                bottom_left_matrix,
+            ),
+            qr_left,
+            qr_right,
+            qr_power_iterations,
         )
-        new_qr_left /= jnp.linalg.norm(new_qr_left)
-
-        new_qr_left, _ = thin_qr(new_qr_left.T.conj())
-        new_qr_left = new_qr_left.T.conj()
-
-        new_qr_right = bottom_left_matrix.T.conj() @ (
-            bottom_right_matrix.T.conj()
-            @ (
-                top_right_matrix.T.conj()
-                @ (
-                    top_left_matrix.T.conj()
-                    @ (
-                        top_left_matrix
-                        @ (
-                            top_right_matrix
-                            @ (bottom_right_matrix @ (bottom_left_matrix @ qr_right))
-                        )
-                    )
-                )
-            )
-        )
-        new_qr_right /= jnp.linalg.norm(new_qr_right)
-
-        new_qr_right, _ = thin_qr(new_qr_right)
     else:
         raise ValueError("Invalid projector method!")
 
     if projector_method is Projector_Method.FULL_QR:
-        product_matrix = (
-            new_qr_left
-            @ top_left_matrix
-            @ top_right_matrix
-            @ bottom_right_matrix
-            @ bottom_left_matrix
-            @ new_qr_right
-        )
+        product_matrix = new_qr_left @ mq_right
     else:
         product_matrix = jnp.dot(top_matrix, bottom_matrix)
 
@@ -945,7 +886,7 @@ def calc_right_projectors(
     )
 
     if config.checkpointing_projectors:
-        f = checkpoint(_right_projectors_workhorse, static_argnums=(6, 7))
+        f = checkpoint(_right_projectors_workhorse, static_argnums=(6, 7, 8))
     else:
         f = _right_projectors_workhorse
 
@@ -966,10 +907,11 @@ def calc_right_projectors(
             else state.ctmrg_projector_method
         ),
         chi,
+        config.ctmrg_qr_power_iterations,
     )
 
 
-@partial(jit, static_argnums=(6, 7), inline=True)
+@partial(jit, static_argnums=(6, 7, 8), inline=True)
 def _top_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -979,6 +921,7 @@ def _top_projectors_workhorse(
     truncation_eps: float,
     projector_method: Projector_Method,
     chi: int,
+    qr_power_iterations: int = 1,
 ) -> Top_Projectors:
     if projector_method is Projector_Method.FULL:
         left_matrix, right_matrix = _vertical_cut(
@@ -1017,53 +960,22 @@ def _top_projectors_workhorse(
         qr_left = peps_tensor_objs[1][0].qr_bottom_traced_right
         qr_right = peps_tensor_objs[1][1].qr_bottom_traced_left
 
-        new_qr_left = (
-            qr_left
-            @ bottom_left_matrix
-            @ top_left_matrix
-            @ top_right_matrix
-            @ bottom_right_matrix
-            @ bottom_right_matrix.T.conj()
-            @ top_right_matrix.T.conj()
-            @ top_left_matrix.T.conj()
-            @ bottom_left_matrix.T.conj()
+        new_qr_left, new_qr_right, mq_right = qr_subspace_iteration(
+            (
+                bottom_left_matrix,
+                top_left_matrix,
+                top_right_matrix,
+                bottom_right_matrix,
+            ),
+            qr_left,
+            qr_right,
+            qr_power_iterations,
         )
-        new_qr_left /= jnp.linalg.norm(new_qr_left)
-
-        new_qr_left, _ = thin_qr(new_qr_left.T.conj())
-        new_qr_left = new_qr_left.T.conj()
-
-        new_qr_right = bottom_right_matrix.T.conj() @ (
-            top_right_matrix.T.conj()
-            @ (
-                top_left_matrix.T.conj()
-                @ (
-                    bottom_left_matrix.T.conj()
-                    @ (
-                        bottom_left_matrix
-                        @ (
-                            top_left_matrix
-                            @ (top_right_matrix @ (bottom_right_matrix @ qr_right))
-                        )
-                    )
-                )
-            )
-        )
-        new_qr_right /= jnp.linalg.norm(new_qr_right)
-
-        new_qr_right, _ = thin_qr(new_qr_right)
     else:
         raise ValueError("Invalid projector method!")
 
     if projector_method is Projector_Method.FULL_QR:
-        product_matrix = (
-            new_qr_left
-            @ bottom_left_matrix
-            @ top_left_matrix
-            @ top_right_matrix
-            @ bottom_right_matrix
-            @ new_qr_right
-        )
+        product_matrix = new_qr_left @ mq_right
     else:
         product_matrix = jnp.dot(left_matrix, right_matrix)
 
@@ -1152,7 +1064,7 @@ def calc_top_projectors(
     )
 
     if config.checkpointing_projectors:
-        f = checkpoint(_top_projectors_workhorse, static_argnums=(6, 7))
+        f = checkpoint(_top_projectors_workhorse, static_argnums=(6, 7, 8))
     else:
         f = _top_projectors_workhorse
 
@@ -1173,10 +1085,11 @@ def calc_top_projectors(
             else state.ctmrg_projector_method
         ),
         chi,
+        config.ctmrg_qr_power_iterations,
     )
 
 
-@partial(jit, static_argnums=(6, 7), inline=True)
+@partial(jit, static_argnums=(6, 7, 8), inline=True)
 def _bottom_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -1186,6 +1099,7 @@ def _bottom_projectors_workhorse(
     truncation_eps: float,
     projector_method: Projector_Method,
     chi: int,
+    qr_power_iterations: int = 1,
 ) -> Bottom_Projectors:
     if projector_method is Projector_Method.FULL:
         left_matrix, right_matrix = _vertical_cut(
@@ -1224,53 +1138,22 @@ def _bottom_projectors_workhorse(
         qr_left = peps_tensor_objs[0][1].qr_top_traced_left
         qr_right = peps_tensor_objs[0][0].qr_top_traced_right
 
-        new_qr_left = (
-            qr_left
-            @ top_right_matrix
-            @ bottom_right_matrix
-            @ bottom_left_matrix
-            @ top_left_matrix
-            @ top_left_matrix.T.conj()
-            @ bottom_left_matrix.T.conj()
-            @ bottom_right_matrix.T.conj()
-            @ top_right_matrix.T.conj()
+        new_qr_left, new_qr_right, mq_right = qr_subspace_iteration(
+            (
+                top_right_matrix,
+                bottom_right_matrix,
+                bottom_left_matrix,
+                top_left_matrix,
+            ),
+            qr_left,
+            qr_right,
+            qr_power_iterations,
         )
-        new_qr_left /= jnp.linalg.norm(new_qr_left)
-
-        new_qr_left, _ = thin_qr(new_qr_left.T.conj())
-        new_qr_left = new_qr_left.T.conj()
-
-        new_qr_right = top_left_matrix.T.conj() @ (
-            bottom_left_matrix.T.conj()
-            @ (
-                bottom_right_matrix.T.conj()
-                @ (
-                    top_right_matrix.T.conj()
-                    @ (
-                        top_right_matrix
-                        @ (
-                            bottom_right_matrix
-                            @ (bottom_left_matrix @ (top_left_matrix @ qr_right))
-                        )
-                    )
-                )
-            )
-        )
-        new_qr_right /= jnp.linalg.norm(new_qr_right)
-
-        new_qr_right, _ = thin_qr(new_qr_right)
     else:
         raise ValueError("Invalid projector method!")
 
     if projector_method is Projector_Method.FULL_QR:
-        product_matrix = (
-            new_qr_left
-            @ top_right_matrix
-            @ bottom_right_matrix
-            @ bottom_left_matrix
-            @ top_left_matrix
-            @ new_qr_right
-        )
+        product_matrix = new_qr_left @ mq_right
     else:
         product_matrix = jnp.dot(right_matrix, left_matrix)
 
@@ -1359,7 +1242,7 @@ def calc_bottom_projectors(
     )
 
     if config.checkpointing_projectors:
-        f = checkpoint(_bottom_projectors_workhorse, static_argnums=(6, 7))
+        f = checkpoint(_bottom_projectors_workhorse, static_argnums=(6, 7, 8))
     else:
         f = _bottom_projectors_workhorse
 
@@ -1380,6 +1263,7 @@ def calc_bottom_projectors(
             else state.ctmrg_projector_method
         ),
         chi,
+        config.ctmrg_qr_power_iterations,
     )
 
 

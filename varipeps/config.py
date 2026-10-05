@@ -152,6 +152,18 @@ class VariPEPS_Config:
         the projector calculation of the last absorption step.
       ctmrg_heuristic_decrease_chi_step_size (:obj:`int`):
         Step size for the heuristic environment bond dimension decrease.
+      ctmrg_qr_power_iterations (:obj:`int`):
+        Number of subspace iterations per projector and CTMRG step for
+        :obj:`~varipeps.config.Projector_Method.FULL_QR`. One iteration applies
+        the network matrix M and M^dagger once each (alternating
+        orthonormalization).
+      ctmrg_qr_oversampling_factor (:obj:`float`):
+        Relative oversampling of the FULL_QR isometries: they have
+        ``max(ceil(chi * (1 + factor)), chi + ctmrg_qr_min_oversampling)``
+        columns. Larger values help if the spectrum is flat or degenerate
+        (symmetric states) around the truncation.
+      ctmrg_qr_min_oversampling (:obj:`int`):
+        Minimal absolute oversampling of the FULL_QR isometries.
       triangular_ctmrg_use_split (:obj:`bool`):
         Flag if the split projector method should be used in the
         triangular CTMRG.
@@ -308,6 +320,9 @@ class VariPEPS_Config:
     ctmrg_heuristic_increase_chi_step_size: int = 2
     ctmrg_heuristic_decrease_chi: bool = True
     ctmrg_heuristic_decrease_chi_step_size: int = 1
+    ctmrg_qr_power_iterations: int = 2
+    ctmrg_qr_oversampling_factor: float = 0.2
+    ctmrg_qr_min_oversampling: int = 10
 
     # Triangular CTMRG routine
     triangular_ctmrg_use_split: bool = False

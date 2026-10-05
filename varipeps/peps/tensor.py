@@ -18,6 +18,7 @@ from varipeps import varipeps_config
 from varipeps.config import Projector_Method
 from varipeps.utils.random import PEPS_Random_Number_Generator
 from varipeps.utils.svd import gauge_fixed_svd
+from varipeps.utils.qr import qr_oversampled_dim
 
 import typing
 from typing import TypeVar, Type, Union, Optional, Sequence, Tuple, Any
@@ -153,7 +154,9 @@ class PEPS_Tensor:
     def _random_initialize_qr(self):
         rng = PEPS_Random_Number_Generator.get_generator(backend="jax")
 
-        qr_chi = self.chi + self.chi // 7 + 1
+        qr_chi = qr_oversampled_dim(
+            self.chi, *(self.chi * self.D[i] * self.D[i] for i in range(4))
+        )
 
         self.qr_left_traced_top = rng.normal(
             (self.chi * self.D[3] * self.D[3], qr_chi), 1, self.tensor.dtype, True
