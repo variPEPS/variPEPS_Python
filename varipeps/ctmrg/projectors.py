@@ -3,7 +3,6 @@ from functools import partial
 
 import jax.numpy as jnp
 from jax import jit, checkpoint
-from jax.lax import scan, cond
 
 from varipeps.peps import PEPS_Tensor
 from varipeps.contractions import apply_contraction, apply_contraction_jitted
@@ -123,26 +122,10 @@ def _truncated_SVD(
     Vh = full_Vh[:chi, :]
 
     if len_S > chi:
-
-        def fix_multiplets(carry, x):
-            S_elem, gap = x
-            (already_found,) = carry
-
-            trunc_cond = gap > truncation_eps
-            already_found = jnp.logical_or(trunc_cond, already_found)
-
-            result = cond(
-                already_found, lambda x: x, lambda x: jnp.zeros_like(x), S_elem
-            )
-
-            return (already_found,), result
-
-        _, S = scan(
-            fix_multiplets,
-            (jnp.zeros((), dtype=bool),),
-            (S, gaps),
-            reverse=True,
-        )
+        # Keep only singular values with a relevant gap at or behind their
+        # position to not cut through a multiplet.
+        keep_S = jnp.cumsum((gaps > truncation_eps)[::-1])[::-1] > 0
+        S = jnp.where(keep_S, S, 0)
 
     relevant_S_values = (S / S[0]) > truncation_eps
     S_inv_sqrt = jnp.where(

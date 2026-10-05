@@ -3,7 +3,6 @@ from functools import partial
 import numpy as np
 import jax
 import jax.numpy as jnp
-from jax.lax import scan
 from jax.lax.linalg import svd as lax_svd
 from jax import jit, custom_jvp, lax
 
@@ -365,25 +364,13 @@ def gauge_fixed_svd(
     max_per_vector = jnp.max(abs_gauge_unitary, axis=0)
     normalized_gauge_unitary = abs_gauge_unitary / max_per_vector[jnp.newaxis, :]
 
-    def phase_f(carry, x):
-        x_row, normalized_x_row = x
-
-        already_found, last_step_result = carry
-
-        cond = normalized_x_row >= varipeps_config.svd_sign_fix_eps
-
-        result = jnp.where(
-            already_found, last_step_result, jnp.where(cond, x_row, last_step_result)
-        )
-
-        return (jnp.logical_or(already_found, cond), result), None
-
-    phases, _ = scan(
-        phase_f,
-        (jnp.zeros(gauge_unitary.shape[1], dtype=bool), gauge_unitary[0, :]),
-        (gauge_unitary, normalized_gauge_unitary),
+    # Select for each singular vector the first element above the threshold.
+    phases_index = jnp.argmax(
+        normalized_gauge_unitary >= varipeps_config.svd_sign_fix_eps, axis=0
     )
-    phases = phases[1]
+    phases = jnp.take_along_axis(
+        gauge_unitary, phases_index[jnp.newaxis, :], axis=0
+    )[0]
     phases /= jnp.abs(phases)
 
     if only_u_or_vh is None or only_u_or_vh == "U":
