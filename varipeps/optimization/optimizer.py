@@ -836,6 +836,14 @@ def optimize_peps_network(
                         maxlen=varipeps_config.optimizer_l_bfgs_maxlen + 1
                     )
 
+            # Remember if the search direction is the (preconditioned) gradient,
+            # so that a failed line search can be retried once with it.
+            descent_dir_is_gradient = (
+                count == 0
+                or signal_reset_descent_dir
+                or varipeps_config.optimizer_method is Optimizing_Methods.STEEPEST
+            )
+
             if varipeps_config.optimizer_method is Optimizing_Methods.STEEPEST:
                 descent_dir = [-elem for elem in working_gradient]
             elif varipeps_config.optimizer_method is Optimizing_Methods.CG:
@@ -941,6 +949,7 @@ def optimize_peps_network(
                 tqdm.write("Invalid descent direction. Reset to negative gradient!")
                 descent_dir = [-elem for elem in working_gradient]
                 signal_reset_descent_dir = True
+                descent_dir_is_gradient = True
 
             conv = jnp.linalg.norm(ravel_pytree(working_gradient)[0])
             if jnp.isinf(conv) or jnp.isnan(conv):
@@ -978,6 +987,18 @@ def optimize_peps_network(
 
                 if varipeps_config.optimizer_fail_if_no_step_size_found:
                     raise
+                elif not descent_dir_is_gradient:
+                    # The CG / L-BFGS history can produce directions the noisy
+                    # line search cannot handle. Retry once from the same point
+                    # with the gradient before giving up or adding noise.
+                    tqdm.write(
+                        "Line search failed. Retry with reset descent direction."
+                    )
+                    step_conv[random_noise_retries].pop()
+                    signal_reset_descent_dir = True
+                    linesearch_step = None
+                    linesearch_gradient = working_gradient
+                    continue
                 else:
                     if (
                         (
