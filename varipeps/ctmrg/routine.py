@@ -1064,42 +1064,21 @@ def _ctmrg_rev_while_body(carry):
 @jit
 def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, state):
     if new_unitcell.is_triangular_peps():
-        _, vjp_peps_tensors = vjp(
-            lambda t: do_absorption_step_triangular(t, new_unitcell, config, state),
-            peps_tensors,
-        )
-
-        vjp_env = tree_util.Partial(
-            vjp(
-                lambda u: do_absorption_step_triangular(peps_tensors, u, config, state),
-                new_unitcell,
-            )[1]
-        )
+        absorption_func = do_absorption_step_triangular
     elif new_unitcell.is_split_transfer():
-        _, vjp_peps_tensors = vjp(
-            lambda t: do_absorption_step_split_transfer(t, new_unitcell, config, state),
-            peps_tensors,
-        )
-
-        vjp_env = tree_util.Partial(
-            vjp(
-                lambda u: do_absorption_step_split_transfer(
-                    peps_tensors, u, config, state
-                ),
-                new_unitcell,
-            )[1]
-        )
+        absorption_func = do_absorption_step_split_transfer
     else:
-        _, vjp_peps_tensors = vjp(
-            lambda t: do_absorption_step(t, new_unitcell, config, state), peps_tensors
-        )
+        absorption_func = do_absorption_step
 
-        vjp_env = tree_util.Partial(
-            vjp(
-                lambda u: do_absorption_step(peps_tensors, u, config, state),
-                new_unitcell,
-            )[1]
-        )
+    # Linearize the absorption step only once w.r.t. both the PEPS tensors and
+    # the environment instead of tracing it twice. This reduces the compile
+    # time. The unused cotangents are removed by the dead code elimination of
+    # XLA.
+    _, vjp_absorption = vjp(
+        lambda t, u: absorption_func(t, u, config, state), peps_tensors, new_unitcell
+    )
+
+    vjp_env = tree_util.Partial(lambda c: vjp_absorption(c)[1:])
 
     if config.ad_custom_fixed_point_method is Grad_Fixed_Point_Method.ITERATIVE:
 
@@ -1298,7 +1277,7 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
             converged,
         )
 
-    (t_bar,) = vjp_peps_tensors((env_fixed_point, jnp.array(0, dtype=jnp.float64)))
+    t_bar, _ = vjp_absorption((env_fixed_point, jnp.array(0, dtype=jnp.float64)))
 
     return t_bar, converged, end_count
 
