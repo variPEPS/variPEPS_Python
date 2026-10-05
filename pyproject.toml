@@ -51,7 +51,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling", "scikit-build-core>=0.11.0", "nanobind>=2.7.0", "jaxlib>=0.10.1,<0.11.0"]
+requires = ["hatchling", "scikit-build-core[hatchling]>=1.0.0", "nanobind>=2.7.0", "jaxlib>=0.10.1,<0.11.0"]
 build-backend = "hatchling.build"
 
 [tool.scikit-build]
@@ -64,7 +64,6 @@ build-dir = "build/{wheel_tag}"
 build-type = "Release"
 
 [tool.hatch.build.targets.wheel.hooks.scikit-build]
-experimental = true
 
 [tool.cibuildwheel]
 # Disable building PyPy, musllinux and thread-freethreading on Mac and Windows wheels

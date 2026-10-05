@@ -1,5 +1,5 @@
 # Set the minimum CMake version and policies for highest tested version
-cmake_minimum_required(VERSION 3.15...3.27)
+cmake_minimum_required(VERSION 3.19...3.27)
 
 # Set default build type in CMake if skbuild is set
 message(STATUS "CMAKE_BUILD_TYPE set to '${CMAKE_BUILD_TYPE}'")
@@ -8,27 +8,22 @@ message(STATUS "CMAKE_BUILD_TYPE set to '${CMAKE_BUILD_TYPE}'")
 project(varipeps_extensions LANGUAGES CXX)
 
 # Try to import all Python components potentially needed by nanobind
-find_package(Python 3.11
+find_package(Python 3.13
   REQUIRED COMPONENTS Interpreter Development.Module
   OPTIONAL_COMPONENTS Development.SABIModule)
 
 # Import nanobind through CMake's find_package mechanism
 execute_process(
-  COMMAND /usr/bin/env python3 -m nanobind --cmake_dir
-  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT
+  COMMAND_ERROR_IS_FATAL ANY)
 find_package(nanobind CONFIG REQUIRED)
 
 # Find jaxlib include dir
-IF (WIN32)
-  execute_process(
-    COMMAND python -c "import inspect; import jaxlib; import pathlib; p = pathlib.Path(inspect.getfile(jaxlib)); print(p.parent / 'include')"
-    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE jaxlib_INCLUDE_DIR)
-ELSE()
-  execute_process(
-    COMMAND /usr/bin/env python3 -c "import inspect; import jaxlib; import pathlib; p = pathlib.Path(inspect.getfile(jaxlib)); print(p.parent / 'include')"
-    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE jaxlib_INCLUDE_DIR)
-ENDIF()
-
+execute_process(
+  COMMAND "${Python_EXECUTABLE}" -c "import inspect; import jaxlib; import pathlib; p = pathlib.Path(inspect.getfile(jaxlib)); print(p.parent / 'include')"
+  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE jaxlib_INCLUDE_DIR
+  COMMAND_ERROR_IS_FATAL ANY)
 
 # We are now ready to compile the actual extension module
 nanobind_add_module(
