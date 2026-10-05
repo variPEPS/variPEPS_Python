@@ -43,6 +43,12 @@ nanobind_add_module(
   # reusing a shared libnanobind across libraries
   NB_STATIC
 
+  # Declare the extension safe to run without the GIL on
+  # free-threaded Python (3.13t, 3.14t, ...). Without this,
+  # importing it re-enables the GIL for the whole process.
+  # Has no effect on regular builds
+  FREE_THREADED
+
   # Source code goes here
   varipeps/utils/extensions/svd_ffi.cpp
 )
