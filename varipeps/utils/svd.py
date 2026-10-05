@@ -368,9 +368,7 @@ def gauge_fixed_svd(
     phases_index = jnp.argmax(
         normalized_gauge_unitary >= varipeps_config.svd_sign_fix_eps, axis=0
     )
-    phases = jnp.take_along_axis(
-        gauge_unitary, phases_index[jnp.newaxis, :], axis=0
-    )[0]
+    phases = jnp.take_along_axis(gauge_unitary, phases_index[jnp.newaxis, :], axis=0)[0]
     phases /= jnp.abs(phases)
 
     if only_u_or_vh is None or only_u_or_vh == "U":

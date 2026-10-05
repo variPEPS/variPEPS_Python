@@ -47,7 +47,7 @@ static ffi::Error SvdOnlyUVtImpl(
   FnSig* fn = nullptr;
 
   try {
-    PyGILState_STATE state = PyGILState_Ensure();
+    nb::gil_scoped_acquire gil;
 
     nb::module_ cython_lapack = nb::module_::import_("scipy.linalg.cython_lapack");
 
@@ -69,8 +69,6 @@ static ffi::Error SvdOnlyUVtImpl(
     if constexpr (dtype == ffi::DataType::C128) {
       fn = reinterpret_cast<FnSig*>(get_lapack_ptr("zgesdd"));
     }
-
-    PyGILState_Release(state);
   } catch (const nb::python_error &e) {
     std::cerr << e.what() << std::endl;
     throw;
@@ -224,7 +222,7 @@ static ffi::Error SvdOnlyUVtQRImpl(
   FnSig* fn = nullptr;
 
   try {
-    PyGILState_STATE state = PyGILState_Ensure();
+    nb::gil_scoped_acquire gil;
     
     nb::module_ cython_lapack = nb::module_::import_("scipy.linalg.cython_lapack");
 
@@ -246,8 +244,6 @@ static ffi::Error SvdOnlyUVtQRImpl(
     if constexpr (dtype == ffi::DataType::C128) {
       fn = reinterpret_cast<FnSig*>(get_lapack_ptr("zgesvd"));
     }
-
-    PyGILState_Release(state);
   } catch (const nb::python_error &e) {
     std::cerr << e.what() << std::endl;
     throw;
