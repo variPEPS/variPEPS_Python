@@ -133,7 +133,7 @@ def calc_triangular_two_sites_diagonal(
     )
 
 
-@dataclass
+@dataclass(eq=False)
 class Triangular_Two_Sites_Expectation_Value(Expectation_Model):
     horizontal_gates: Sequence[jnp.ndarray]
     vertical_gates: Sequence[jnp.ndarray]
@@ -169,6 +169,17 @@ class Triangular_Two_Sites_Expectation_Value(Expectation_Model):
                 self.spiral_unitary_operator
             )
 
+        self._result_type = (
+            jnp.float64
+            if all(jnp.allclose(g, g.T.conj()) for g in self.horizontal_gates)
+            and all(jnp.allclose(g, g.T.conj()) for g in self.vertical_gates)
+            and all(jnp.allclose(g, g.T.conj()) for g in self.diagonal_gates)
+            else jnp.complex128
+        )
+
+    @partial(
+        jit, static_argnums=(0,), static_argnames=("normalize_by_size", "only_unique")
+    )
     def __call__(
         self,
         peps_tensors: Sequence[jnp.ndarray],
@@ -178,15 +189,9 @@ class Triangular_Two_Sites_Expectation_Value(Expectation_Model):
         normalize_by_size: bool = True,
         only_unique: bool = True,
     ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
-        result_type = (
-            jnp.float64
-            if all(jnp.allclose(g, g.T.conj()) for g in self.horizontal_gates)
-            and all(jnp.allclose(g, g.T.conj()) for g in self.vertical_gates)
-            and all(jnp.allclose(g, g.T.conj()) for g in self.diagonal_gates)
-            else jnp.complex128
-        )
         result = [
-            jnp.array(0, dtype=result_type) for _ in range(len(self.horizontal_gates))
+            jnp.array(0, dtype=self._result_type)
+            for _ in range(len(self.horizontal_gates))
         ]
 
         if self.is_spiral_peps:
@@ -249,7 +254,7 @@ class Triangular_Two_Sites_Expectation_Value(Expectation_Model):
                     horizontal_tensors,
                     horizontal_tensor_objs,
                     working_h_gates,
-                    result_type == jnp.float64,
+                    self._result_type == jnp.float64,
                 )
 
                 vertical_tensors_i = view.get_indices((slice(0, 2, None), 0))
@@ -263,7 +268,7 @@ class Triangular_Two_Sites_Expectation_Value(Expectation_Model):
                     vertical_tensors,
                     vertical_tensor_objs,
                     working_v_gates,
-                    result_type == jnp.float64,
+                    self._result_type == jnp.float64,
                 )
 
                 diagonal_tensors_i = view.get_indices(
@@ -279,7 +284,7 @@ class Triangular_Two_Sites_Expectation_Value(Expectation_Model):
                     diagonal_tensors,
                     diagonal_tensor_objs,
                     working_d_gates,
-                    result_type == jnp.float64,
+                    self._result_type == jnp.float64,
                 )
 
                 for sr_i, (sr_h, sr_v, sr_d) in enumerate(

@@ -10,7 +10,7 @@ from varipeps.peps import PEPS_Unit_Cell
 from typing import Sequence, Union, List, Optional
 
 
-@dataclass
+@dataclass(eq=False)
 class Expectation_Model(ABC):
     """
     Abstract model of an general expectation value calculated for the complete

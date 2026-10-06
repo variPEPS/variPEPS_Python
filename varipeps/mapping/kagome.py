@@ -1210,7 +1210,7 @@ def _calc_kagome_onsite_gate(
     return result, single_gates
 
 
-@dataclass
+@dataclass(eq=False)
 class Kagome_Triangular_CTMRG_Expectation_Value(Expectation_Model):
     """
     Class to calculate expectation values for a mapped Kagome
@@ -1274,6 +1274,15 @@ class Kagome_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                 self.spiral_unitary_operator
             )
 
+    @partial(
+        jit,
+        static_argnums=(0,),
+        static_argnames=(
+            "normalize_by_size",
+            "only_unique",
+            "return_single_gate_results",
+        ),
+    )
     def __call__(
         self,
         peps_tensors: Sequence[jnp.ndarray],
@@ -1412,12 +1421,14 @@ class Kagome_Triangular_CTMRG_Expectation_Value(Expectation_Model):
                             onsite_tensor,
                             onsite_tensor_obj,
                             self._full_onsite_tuple + working_onsite_gates,
+                            real_result=self._result_type is jnp.float64,
                         )
                     else:
                         step_result_onsite = calc_triangular_one_site(
                             onsite_tensor,
                             onsite_tensor_obj,
                             self._full_onsite_tuple,
+                            real_result=self._result_type is jnp.float64,
                         )
 
                     horizontal_tensors_i = view.get_indices((0, slice(0, 2, None)))

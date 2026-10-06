@@ -38,12 +38,14 @@ def calc_triangular_one_site(
     peps_tensors,
     peps_tensor_objs,
     gates,
+    real_result=None,
 ):
     if isinstance(peps_tensors, jnp.ndarray):
         peps_tensors = (peps_tensors,)
         peps_tensor_objs = (peps_tensor_objs,)
 
-    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
+    if real_result is None:
+        real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _one_site_workhorse(
         peps_tensors, peps_tensor_objs, tuple(gates), real_result

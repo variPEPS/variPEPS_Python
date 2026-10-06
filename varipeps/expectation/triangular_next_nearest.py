@@ -258,7 +258,7 @@ def calc_triangular_next_nearest_2_pos_x_pos_y(
         ]
 
 
-@dataclass
+@dataclass(eq=False)
 class Triangular_Next_Nearest_Neighbor_Expectation_Value(Expectation_Model):
     nearest_horizontal_gates: Sequence[jnp.ndarray]
     nearest_vertical_gates: Sequence[jnp.ndarray]
@@ -316,16 +316,7 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value(Expectation_Model):
                 self.spiral_unitary_operator
             )
 
-    def __call__(
-        self,
-        peps_tensors: Sequence[jnp.ndarray],
-        unitcell: PEPS_Unit_Cell,
-        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
-        *,
-        normalize_by_size: bool = True,
-        only_unique: bool = True,
-    ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
-        result_type = (
+        self._result_type = (
             jnp.float64
             if all(jnp.allclose(g, g.T.conj()) for g in self.nearest_horizontal_gates)
             and all(jnp.allclose(g, g.T.conj()) for g in self.nearest_vertical_gates)
@@ -343,8 +334,21 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value(Expectation_Model):
             )
             else jnp.complex128
         )
+
+    @partial(
+        jit, static_argnums=(0,), static_argnames=("normalize_by_size", "only_unique")
+    )
+    def __call__(
+        self,
+        peps_tensors: Sequence[jnp.ndarray],
+        unitcell: PEPS_Unit_Cell,
+        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
+        *,
+        normalize_by_size: bool = True,
+        only_unique: bool = True,
+    ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
         result = [
-            jnp.array(0, dtype=result_type)
+            jnp.array(0, dtype=self._result_type)
             for _ in range(len(self.nearest_horizontal_gates))
         ]
 
@@ -453,7 +457,7 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value(Expectation_Model):
                     horizontal_tensors,
                     horizontal_tensor_objs,
                     working_h_gates,
-                    result_type == jnp.float64,
+                    self._result_type == jnp.float64,
                 )
 
                 vertical_tensors_i = view.get_indices((slice(0, 2, None), 0))
@@ -467,7 +471,7 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value(Expectation_Model):
                     vertical_tensors,
                     vertical_tensor_objs,
                     working_v_gates,
-                    result_type == jnp.float64,
+                    self._result_type == jnp.float64,
                 )
 
                 diagonal_tensors_i = view.get_indices(
@@ -483,7 +487,7 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value(Expectation_Model):
                     diagonal_tensors,
                     diagonal_tensor_objs,
                     working_d_gates,
-                    result_type == jnp.float64,
+                    self._result_type == jnp.float64,
                 )
 
                 nn_neg_pos_tensors_i = view.get_indices(
@@ -498,7 +502,7 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value(Expectation_Model):
                     nn_neg_pos_tensors,
                     nn_neg_pos_tensor_objs,
                     working_nn_neg_pos_gates,
-                    result_type == jnp.float64,
+                    self._result_type == jnp.float64,
                 )
 
                 nn_pos_2pos_tensors_i = view.get_indices(
@@ -517,7 +521,7 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value(Expectation_Model):
                     nn_pos_2pos_tensors,
                     nn_pos_2pos_tensor_objs,
                     working_nn_pos_2pos_gates,
-                    result_type == jnp.float64,
+                    self._result_type == jnp.float64,
                 )
 
                 nn_2pos_pos_tensors_i = view.get_indices(
@@ -542,7 +546,7 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value(Expectation_Model):
                     nn_2pos_pos_tensors,
                     nn_2pos_pos_tensor_objs,
                     working_nn_2pos_pos_gates,
-                    result_type == jnp.float64,
+                    self._result_type == jnp.float64,
                 )
 
                 for sr_i, (sr_h, sr_v, sr_d, sr_np, sr_p2p, sr_2pp) in enumerate(
@@ -1242,7 +1246,7 @@ def calc_triangular_next_nearest_2_pos_x_pos_y_new(
         ]
 
 
-@dataclass
+@dataclass(eq=False)
 class Triangular_Next_Nearest_Neighbor_Expectation_Value_2(Expectation_Model):
     nearest_horizontal_gates: Sequence[jnp.ndarray]
     nearest_vertical_gates: Sequence[jnp.ndarray]
@@ -1336,16 +1340,7 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value_2(Expectation_Model):
             tmp_result[0]
         ), tuple(tmp_result[1])
 
-    def __call__(
-        self,
-        peps_tensors: Sequence[jnp.ndarray],
-        unitcell: PEPS_Unit_Cell,
-        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
-        *,
-        normalize_by_size: bool = True,
-        only_unique: bool = True,
-    ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
-        result_type = (
+        self._result_type = (
             jnp.float64
             if all(jnp.allclose(g, g.T.conj()) for g in self.nearest_horizontal_gates)
             and all(jnp.allclose(g, g.T.conj()) for g in self.nearest_vertical_gates)
@@ -1363,8 +1358,21 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value_2(Expectation_Model):
             )
             else jnp.complex128
         )
+
+    @partial(
+        jit, static_argnums=(0,), static_argnames=("normalize_by_size", "only_unique")
+    )
+    def __call__(
+        self,
+        peps_tensors: Sequence[jnp.ndarray],
+        unitcell: PEPS_Unit_Cell,
+        spiral_vectors: Optional[Union[jnp.ndarray, Sequence[jnp.ndarray]]] = None,
+        *,
+        normalize_by_size: bool = True,
+        only_unique: bool = True,
+    ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
         result = [
-            jnp.array(0, dtype=result_type)
+            jnp.array(0, dtype=self._result_type)
             for _ in range(len(self.nearest_horizontal_gates))
         ]
 
@@ -1522,7 +1530,7 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value_2(Expectation_Model):
                     nn_neg_pos_tensors,
                     nn_neg_pos_tensor_objs,
                     working_nn_neg_pos_gates,
-                    result_type == jnp.float64,
+                    self._result_type == jnp.float64,
                 )
 
                 nn_pos_2pos_tensors_i = view.get_indices(
@@ -1542,7 +1550,7 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value_2(Expectation_Model):
                         nn_pos_2pos_tensors,
                         nn_pos_2pos_tensor_objs,
                         working_nn_pos_2pos_gates,
-                        result_type == jnp.float64,
+                        self._result_type == jnp.float64,
                     )
                 )
 
@@ -1569,7 +1577,7 @@ class Triangular_Next_Nearest_Neighbor_Expectation_Value_2(Expectation_Model):
                         nn_2pos_pos_tensors,
                         nn_2pos_pos_tensor_objs,
                         working_nn_2pos_pos_gates,
-                        result_type == jnp.float64,
+                        self._result_type == jnp.float64,
                     )
                 )
 
