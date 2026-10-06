@@ -204,7 +204,7 @@ def _is_element_wise_converged(
         verbose_data.append((ti, CTM_Enum.C2, jnp.amax(diff)))
 
         old_shape = old_peps_tensors[ti].C3.shape
-        new_shape = new_peps_tensors[ti].C4.shape
+        new_shape = new_peps_tensors[ti].C3.shape
         diff = jnp.abs(
             new_peps_tensors[ti].C3[: old_shape[0], : old_shape[1]]
             - old_peps_tensors[ti].C3[: new_shape[0], : new_shape[1]]

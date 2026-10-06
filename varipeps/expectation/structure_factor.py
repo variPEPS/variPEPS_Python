@@ -92,7 +92,7 @@ def calc_structure_factor_expectation(
 
     norm = jnp.trace(density_matrix)
 
-    result = jnp.tensordot(density_matrix, alpha_beta_gate, ((0, 1), (0, 1))) / norm
+    result = jnp.tensordot(density_matrix, alpha_beta_gate, ((0, 1), (1, 0))) / norm
 
     density_matrix = apply_contraction_jitted(
         "density_matrix_one_site_C1_phase",
@@ -102,7 +102,7 @@ def calc_structure_factor_expectation(
     )
 
     for g in full_alpha_gate:
-        result += jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm
+        result += jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm
 
     density_matrix = apply_contraction_jitted(
         "density_matrix_one_site_C2_phase",
@@ -112,7 +112,7 @@ def calc_structure_factor_expectation(
     )
 
     for g in full_alpha_gate:
-        result += jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm
+        result += jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm
 
     density_matrix = apply_contraction_jitted(
         "density_matrix_one_site_C3_phase",
@@ -122,7 +122,7 @@ def calc_structure_factor_expectation(
     )
 
     for g in full_alpha_gate:
-        result += jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm
+        result += jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm
 
     density_matrix = apply_contraction_jitted(
         "density_matrix_one_site_C4_phase",
@@ -132,7 +132,7 @@ def calc_structure_factor_expectation(
     )
 
     for g in full_alpha_gate:
-        result += jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm
+        result += jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm
 
     density_matrix = apply_contraction_jitted(
         "density_matrix_one_site_T1_phase",
@@ -142,7 +142,7 @@ def calc_structure_factor_expectation(
     )
 
     for g in full_alpha_gate:
-        result += jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm
+        result += jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm
 
     density_matrix = apply_contraction_jitted(
         "density_matrix_one_site_T2_phase",
@@ -152,7 +152,7 @@ def calc_structure_factor_expectation(
     )
 
     for g in full_alpha_gate:
-        result += jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm
+        result += jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm
 
     density_matrix = apply_contraction_jitted(
         "density_matrix_one_site_T3_phase",
@@ -162,7 +162,7 @@ def calc_structure_factor_expectation(
     )
 
     for g in full_alpha_gate:
-        result += jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm
+        result += jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm
 
     density_matrix = apply_contraction_jitted(
         "density_matrix_one_site_T4_phase",
@@ -172,6 +172,6 @@ def calc_structure_factor_expectation(
     )
 
     for g in full_alpha_gate:
-        result += jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm
+        result += jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm
 
     return result

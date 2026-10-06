@@ -1888,7 +1888,7 @@ class Definitions:
             ],
             (1, 4, 7, -4),  # projector_left_top
             (-1, 8, 9, 10),  # projector_left_bottom
-            (2, 3),  # structure_factor_gate
+            (3, 2),  # structure_factor_gate
         ],
     }
 
@@ -2100,7 +2100,7 @@ class Definitions:
             ],
             (-4, 1, 6, 4),  # projector_right_top
             (8, 10, 9, -3),  # projector_right_bottom
-            (2, 3),  # structure_factor_gate
+            (3, 2),  # structure_factor_gate
         ],
     }
 
@@ -2312,7 +2312,7 @@ class Definitions:
             ],
             (-1, 1, 5, 7),  # projector_top_left
             (8, 9, 10, -4),  # projector_top_right
-            (2, 3),  # structure_factor_gate
+            (3, 2),  # structure_factor_gate
         ],
     }
 
@@ -2524,7 +2524,7 @@ class Definitions:
             ],
             (1, 7, 5, -1),  # projector_bottom_left
             (-2, 8, 10, 9),  # projector_bottom_right
-            (2, 3),  # structure_factor_gate
+            (3, 2),  # structure_factor_gate
         ],
     }
 

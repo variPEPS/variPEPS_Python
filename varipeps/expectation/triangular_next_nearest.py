@@ -93,12 +93,12 @@ def calc_triangular_next_nearest_neg_x_pos_y(
 
     if real_result:
         return [
-            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
+            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm)
             for g in gates
         ]
     else:
         return [
-            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
+            jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm for g in gates
         ]
 
 
@@ -172,12 +172,12 @@ def calc_triangular_next_nearest_pos_x_2_pos_y(
 
     if real_result:
         return [
-            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
+            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm)
             for g in gates
         ]
     else:
         return [
-            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
+            jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm for g in gates
         ]
 
 
@@ -249,12 +249,12 @@ def calc_triangular_next_nearest_2_pos_x_pos_y(
 
     if real_result:
         return [
-            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
+            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm)
             for g in gates
         ]
     else:
         return [
-            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
+            jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm for g in gates
         ]
 
 
@@ -1069,12 +1069,12 @@ def calc_triangular_next_nearest_neg_x_pos_y_new(
 
     if real_result:
         return [
-            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
+            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm)
             for g in gates
         ]
     else:
         return [
-            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
+            jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm for g in gates
         ]
 
 
@@ -1154,12 +1154,12 @@ def calc_triangular_next_nearest_pos_x_2_pos_y_new(
 
     if real_result:
         return [
-            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
+            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm)
             for g in gates
         ]
     else:
         return [
-            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
+            jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm for g in gates
         ]
 
 
@@ -1237,12 +1237,12 @@ def calc_triangular_next_nearest_2_pos_x_pos_y_new(
 
     if real_result:
         return [
-            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
+            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm)
             for g in gates
         ]
     else:
         return [
-            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
+            jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm for g in gates
         ]
 
 

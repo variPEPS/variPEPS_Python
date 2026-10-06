@@ -41,12 +41,12 @@ def _two_site_workhorse(
 
     if real_result:
         return [
-            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
+            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm)
             for g in gates
         ]
     else:
         return [
-            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
+            jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm for g in gates
         ]
 
 
@@ -80,12 +80,12 @@ def _two_site_diagonal_workhorse(
 
     if real_result:
         return [
-            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
+            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm)
             for g in gates
         ]
     else:
         return [
-            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
+            jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm for g in gates
         ]
 
 
@@ -104,12 +104,12 @@ def _two_site_full_density_workhorse(
 
     if real_result:
         return [
-            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
+            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm)
             for g in gates
         ]
     else:
         return [
-            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
+            jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm for g in gates
         ]
 
 
@@ -592,7 +592,7 @@ class Two_Sites_Expectation_Value(Expectation_Model):
 
         if (
             len(self.horizontal_gates) > 0
-            and len(self.horizontal_gates) > 0
+            and len(self.vertical_gates) > 0
             and len(self.horizontal_gates) != len(self.vertical_gates)
         ):
             raise ValueError("Length of horizontal and vertical gates mismatch.")
@@ -707,16 +707,19 @@ class Two_Sites_Expectation_Value(Expectation_Model):
         grp.attrs["class"] = f"{cls.__module__}.{cls.__qualname__}"
 
         grp_gates = grp.create_group("gates", track_order=True)
-        grp_gates.attrs["len"] = len(self.gates)
-        for i, (h_g, v_g) in enumerate(
-            zip(self.horizontal_gates, self.vertical_gates, strict=True)
-        ):
+        grp_gates.attrs["len"] = max(
+            len(self.horizontal_gates), len(self.vertical_gates)
+        )
+        grp_gates.attrs["len_horizontal"] = len(self.horizontal_gates)
+        grp_gates.attrs["len_vertical"] = len(self.vertical_gates)
+        for i, h_g in enumerate(self.horizontal_gates):
             grp_gates.create_dataset(
                 f"horizontal_gate_{i:d}",
                 data=h_g,
                 compression="gzip",
                 compression_opts=6,
             )
+        for i, v_g in enumerate(self.vertical_gates):
             grp_gates.create_dataset(
                 f"vertical_gate_{i:d}", data=v_g, compression="gzip", compression_opts=6
             )
@@ -738,13 +741,16 @@ class Two_Sites_Expectation_Value(Expectation_Model):
                 "The HDF5 group suggests that this is not the right class to load data from it."
             )
 
+        grp_gates = grp["gates"]
         horizontal_gates = tuple(
-            jnp.asarray(grp["gates"][f"horizontal_gate_{i:d}"])
-            for i in range(grp["gates"].attrs["len"])
+            jnp.asarray(grp_gates[f"horizontal_gate_{i:d}"])
+            for i in range(
+                grp_gates.attrs.get("len_horizontal", grp_gates.attrs["len"])
+            )
         )
         vertical_gates = tuple(
-            jnp.asarray(grp["gates"][f"vertical_gate_{i:d}"])
-            for i in range(grp["gates"].attrs["len"])
+            jnp.asarray(grp_gates[f"vertical_gate_{i:d}"])
+            for i in range(grp_gates.attrs.get("len_vertical", grp_gates.attrs["len"]))
         )
 
         is_spiral_peps = grp.attrs["is_spiral_peps"]

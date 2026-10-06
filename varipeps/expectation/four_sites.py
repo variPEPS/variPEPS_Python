@@ -42,12 +42,12 @@ def _four_sites_quadrat_workhorse(
 
     if real_result:
         return [
-            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm)
+            jnp.real(jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm)
             for g in gates
         ]
     else:
         return [
-            jnp.tensordot(density_matrix, g, ((0, 1), (0, 1))) / norm for g in gates
+            jnp.tensordot(density_matrix, g, ((0, 1), (1, 0))) / norm for g in gates
         ]
 
 
