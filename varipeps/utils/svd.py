@@ -23,6 +23,34 @@ def _H(x):
     return jnp.conj(_T(x))
 
 
+def _is_gpu_backend() -> bool:
+    return any(d.platform == "gpu" for d in jax.devices())
+
+
+def _svd_algorithm():
+    """
+    SVD algorithm selected by :obj:`~varipeps.config.VariPEPS_Config.svd_algorithm`.
+    ``'default'`` means the QR algorithm if a GPU is used and JAX's default
+    (divide and conquer) otherwise.
+    """
+    if varipeps_config.svd_algorithm == "default" and _is_gpu_backend():
+        return lax.linalg.SvdAlgorithm.QR
+    return lax.linalg.SvdAlgorithm[varipeps_config.svd_algorithm.upper()]
+
+
+def _use_svd_nan_fallback() -> bool:
+    """
+    Check if the NaN check with the QR-based SVD as fallback should be staged
+    out after each SVD. On GPU the :obj:`jax.lax.cond` of the check requires a
+    device-to-host synchronization for every SVD and doubles the number of
+    compiled SVD kernels, so it is disabled there by default. See
+    :obj:`~varipeps.config.VariPEPS_Config.svd_gpu_nan_fallback`.
+    """
+    return _svd_algorithm() is not lax.linalg.SvdAlgorithm.QR and (
+        not _is_gpu_backend() or varipeps_config.svd_gpu_nan_fallback
+    )
+
+
 @partial(custom_jvp, nondiff_argnums=(1,))
 def svd_wrapper(a, use_qr=False):
     check_arraylike("jnp.linalg.svd", a)
@@ -40,23 +68,52 @@ def svd_wrapper(a, use_qr=False):
             a,
             full_matrices=False,
             compute_uv=True,
-            algorithm=lax.linalg.SvdAlgorithm[varipeps_config.svd_algorithm.upper()],
+            algorithm=_svd_algorithm(),
         )
 
-        result = lax.cond(
-            jnp.isnan(jnp.sum(result[1])),
-            lambda matrix, _: lax_svd(
-                matrix,
-                full_matrices=False,
-                compute_uv=True,
-                algorithm=lax.linalg.SvdAlgorithm.QR,
-            ),
-            lambda _, res: res,
-            a,
-            result,
-        )
+        if _use_svd_nan_fallback():
+            result = _svd_nan_fallback(a, result)
 
     return result
+
+
+@jax.custom_batching.custom_vmap
+def _svd_nan_fallback(a, result):
+    """
+    Recalculate the SVD of ``a`` with the QR-based algorithm if ``result``
+    contains NaNs. Under :obj:`jax.vmap` the check is done once for the whole
+    batch (see :obj:`_svd_nan_fallback_vmap`), so it stays a real
+    :obj:`jax.lax.cond` and is not converted into a select which would
+    calculate the QR-based SVD always.
+    """
+    return lax.cond(
+        jnp.isnan(jnp.sum(result[1])),
+        lambda matrix, _: lax_svd(
+            matrix,
+            full_matrices=False,
+            compute_uv=True,
+            algorithm=lax.linalg.SvdAlgorithm.QR,
+        ),
+        lambda _, res: res,
+        a,
+        result,
+    )
+
+
+@_svd_nan_fallback.def_vmap
+def _svd_nan_fallback_vmap(axis_size, in_batched, a, result):
+    a_batched, result_batched = in_batched
+
+    if not a_batched:
+        a = jnp.broadcast_to(a, (axis_size,) + a.shape)
+    result = tuple(
+        e if e_batched else jnp.broadcast_to(e, (axis_size,) + e.shape)
+        for e, e_batched in zip(result, result_batched, strict=True)
+    )
+
+    # The unbatched rule works on stacked arrays as well: if any SVD of the
+    # batch failed, the whole batch is recalculated with the QR-based SVD.
+    return _svd_nan_fallback.fun(a, result), (True, True, True)
 
 
 def _svd_jvp_rule_impl(primals, tangents, only_u_or_vt=None, use_qr=False):
@@ -341,7 +398,7 @@ def gauge_fixed_svd(
       :obj:`tuple`\\ (:obj:`jnp.ndarray`, :obj:`jnp.ndarray`, :obj:`jnp.ndarray`):
         Tuple with sign-fixed U, S and Vh of the SVD.
     """
-    if any(d.platform == "gpu" for d in jax.devices()):
+    if _is_gpu_backend():
         U, S, Vh = svd_wrapper(matrix, use_qr=use_qr)
         if only_u_or_vh is None:
             gauge_unitary = U

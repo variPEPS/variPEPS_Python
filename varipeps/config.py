@@ -146,11 +146,12 @@ class VariPEPS_Config:
         Flag if the split projector method should be used in the
         triangular CTMRG.
       svd_algorithm (:obj:`str`):
-        Algorithm of :obj:`jax.lax.linalg.svd` for the full SVDs: ``'default'``
-        (JAX's choice), ``'qr'``, ``'divide_and_conquer'``, ``'jacobi'`` or
-        ``'polar'``. Jacobi and polar are not implemented on CPU. On GPU the
-        Jacobi SVD can be much faster than the QR based one. If the SVD returns
-        NaNs, the calculation is repeated with the QR algorithm.
+        Algorithm of :obj:`jax.lax.linalg.svd` for the full SVDs: ``'default'``,
+        ``'qr'``, ``'divide_and_conquer'``, ``'jacobi'`` or ``'polar'``.
+        ``'default'`` uses the QR algorithm on GPU (JAX's own default there is
+        the Jacobi SVD for matrices up to 1024x1024) and JAX's default (divide
+        and conquer) on CPU. Jacobi and polar are not implemented on CPU. If the
+        SVD returns NaNs, the calculation is repeated with the QR algorithm.
       svd_sign_fix_eps (:obj:`float`):
         Value for numerical stability threshold in sign-fixed SVD.
       svd_ad_use_lorentz_broadening (:obj:`bool`):
@@ -158,6 +159,12 @@ class VariPEPS_Config:
       svd_ad_lorentz_broadening_eps (:obj:`float`):
         Numerical stabilization constant in the Lorentz broadening in the
         AD rule for the SVD.
+      svd_gpu_nan_fallback (:obj:`bool`):
+        Check on GPU after each SVD if the result contains NaNs and recalculate
+        it with the QR-based algorithm in this case. Each check is a
+        :obj:`jax.lax.cond` which synchronizes device and host and prevents
+        batching of the decompositions, so it is disabled by default. On CPU
+        the check is always active.
       optimizer_method (:obj:`Optimizing_Methods`):
         Method used for variational optimization of the PEPS network.
       optimizer_max_steps (:obj:`int`):
@@ -297,6 +304,7 @@ class VariPEPS_Config:
     svd_sign_fix_eps: float = 1e-1
     svd_ad_use_lorentz_broadening: bool = False
     svd_ad_lorentz_broadening_eps: float = 1e-13
+    svd_gpu_nan_fallback: bool = False
 
     # Optimizer
     optimizer_method: Optimizing_Methods = Optimizing_Methods.L_BFGS
