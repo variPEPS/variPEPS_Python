@@ -1315,6 +1315,16 @@ class PEPS_Unit_Cell:
                 config_dict["slurm_restart_mode"] = varipeps.config.Slurm_Restart_Mode(
                     config_dict["slurm_restart_mode"]
                 )
+            if config_dict.get("ad_custom_fixed_point_method"):
+                config_dict["ad_custom_fixed_point_method"] = (
+                    varipeps.config.Grad_Fixed_Point_Method(
+                        config_dict["ad_custom_fixed_point_method"]
+                    )
+                )
+            if config_dict.get("svd_algorithm"):
+                config_dict["svd_algorithm"] = varipeps.config.SVD_Algorithm(
+                    config_dict["svd_algorithm"]
+                )
 
             if return_unitcell:
                 return cls(

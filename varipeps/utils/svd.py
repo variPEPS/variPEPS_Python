@@ -9,6 +9,7 @@ from jax import jit, custom_jvp, lax
 from jax._src.numpy.util import promote_dtypes_inexact, check_arraylike
 
 from varipeps import varipeps_config
+from varipeps.config import SVD_Algorithm
 
 from .extensions import _svd_only_u_vt as _svd_only_u_vt_lib
 
@@ -27,15 +28,15 @@ def _is_gpu_backend() -> bool:
     return any(d.platform == "gpu" for d in jax.devices())
 
 
-def _svd_algorithm():
+def _svd_algorithm() -> lax.linalg.SvdAlgorithm:
     """
-    SVD algorithm selected by :obj:`~varipeps.config.VariPEPS_Config.svd_algorithm`.
-    ``'default'`` means the QR algorithm if a GPU is used and JAX's default
-    (divide and conquer) otherwise.
+    Algorithm for :obj:`jax.lax.linalg.svd` selected by
+    :obj:`~varipeps.config.VariPEPS_Config.svd_algorithm`. The default is the
+    QR algorithm on GPU and JAX's default (divide and conquer) on CPU.
     """
-    if varipeps_config.svd_algorithm == "default" and _is_gpu_backend():
+    if varipeps_config.svd_algorithm is SVD_Algorithm.DEFAULT and _is_gpu_backend():
         return lax.linalg.SvdAlgorithm.QR
-    return lax.linalg.SvdAlgorithm[varipeps_config.svd_algorithm.upper()]
+    return lax.linalg.SvdAlgorithm[varipeps_config.svd_algorithm.name]
 
 
 def _use_svd_nan_fallback() -> bool:

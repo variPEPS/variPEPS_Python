@@ -3,6 +3,7 @@ from enum import Enum, IntEnum, auto, unique
 
 import numpy as np
 
+import jax
 from jax.tree_util import register_pytree_node_class
 
 from typing import TypeVar, Tuple, Any, Type, NoReturn
@@ -66,6 +67,15 @@ class Slurm_Restart_Mode(IntEnum):
         auto()
     )  #: Write slurm restart script but do not submit new slurm job
     AUTOMATIC_RESTART = auto()  #: Write restart script and start new slurm job with it
+
+
+@unique
+class SVD_Algorithm(IntEnum):
+    DEFAULT = auto()  #: QR on GPU, divide and conquer on CPU
+    QR = auto()  #: QR algorithm (gesvd)
+    DIVIDE_AND_CONQUER = auto()  #: Divide and conquer (gesdd), CPU and ROCm only
+    JACOBI = auto()  #: Jacobi algorithm (gesvdj), GPU only
+    POLAR = auto()  #: Polar decomposition based algorithm (gesvdp), GPU only
 
 
 @dataclass
@@ -145,13 +155,13 @@ class VariPEPS_Config:
       triangular_ctmrg_use_split (:obj:`bool`):
         Flag if the split projector method should be used in the
         triangular CTMRG.
-      svd_algorithm (:obj:`str`):
-        Algorithm of :obj:`jax.lax.linalg.svd` for the full SVDs: ``'default'``,
-        ``'qr'``, ``'divide_and_conquer'``, ``'jacobi'`` or ``'polar'``.
-        ``'default'`` uses the QR algorithm on GPU (JAX's own default there is
-        the Jacobi SVD for matrices up to 1024x1024) and JAX's default (divide
-        and conquer) on CPU. Jacobi and polar are not implemented on CPU. If the
-        SVD returns NaNs, the calculation is repeated with the QR algorithm.
+      svd_algorithm (:obj:`SVD_Algorithm`):
+        Algorithm of :obj:`jax.lax.linalg.svd` for the full SVDs. The default
+        is the QR algorithm on GPU and divide and conquer on CPU. Divide and
+        conquer is not available on CUDA, Jacobi and polar not on CPU. If the
+        NaN check is active (always on CPU, see :obj:`svd_gpu_nan_fallback`
+        for GPU) and the algorithm is not QR, a failed SVD is repeated with the
+        QR algorithm.
       svd_sign_fix_eps (:obj:`float`):
         Value for numerical stability threshold in sign-fixed SVD.
       svd_ad_use_lorentz_broadening (:obj:`bool`):
@@ -162,9 +172,9 @@ class VariPEPS_Config:
       svd_gpu_nan_fallback (:obj:`bool`):
         Check on GPU after each SVD if the result contains NaNs and recalculate
         it with the QR-based algorithm in this case. Each check is a
-        :obj:`jax.lax.cond` which synchronizes device and host and prevents
-        batching of the decompositions, so it is disabled by default. On CPU
-        the check is always active.
+        :obj:`jax.lax.cond` which synchronizes device and host, so it is
+        disabled by default. For batched decompositions, the check is done
+        once for the whole batch. On CPU the check is always active.
       optimizer_method (:obj:`Optimizing_Methods`):
         Method used for variational optimization of the PEPS network.
       optimizer_max_steps (:obj:`int`):
@@ -300,7 +310,7 @@ class VariPEPS_Config:
     triangular_ctmrg_use_split: bool = False
 
     # SVD
-    svd_algorithm: str = "default"
+    svd_algorithm: SVD_Algorithm = SVD_Algorithm.DEFAULT
     svd_sign_fix_eps: float = 1e-1
     svd_ad_use_lorentz_broadening: bool = False
     svd_ad_lorentz_broadening_eps: float = 1e-13
@@ -402,7 +412,16 @@ class VariPEPS_Config:
                     f"Type mismatch for option '{name}', got '{type(value)}', expected '{field.type}'."
                 )
 
+        changed = name in self.__dict__ and self.__dict__[name] != value
+
         super().__setattr__(name, value)
+
+        # Many functions read the global config at trace time, but their JAX
+        # caches do not depend on it. Clear the caches if an option of the
+        # global config is changed, so the new value is not silently ignored
+        # for functions which were traced before.
+        if changed and self is globals().get("config"):
+            jax.clear_caches()
 
     def update_from_config_dict(self, new_config):
         for k in self.__dataclass_fields__:
@@ -443,6 +462,7 @@ class ConfigModuleWrapper:
         "Wavevector_Type",
         "Grad_Fixed_Point_Method",
         "Slurm_Restart_Mode",
+        "SVD_Algorithm",
         "VariPEPS_Config",
         "config",
     }
