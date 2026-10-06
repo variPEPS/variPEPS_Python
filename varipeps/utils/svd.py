@@ -36,7 +36,12 @@ def svd_wrapper(a, use_qr=False):
             algorithm=lax.linalg.SvdAlgorithm.QR,
         )
     else:
-        result = lax_svd(a, full_matrices=False, compute_uv=True)
+        result = lax_svd(
+            a,
+            full_matrices=False,
+            compute_uv=True,
+            algorithm=lax.linalg.SvdAlgorithm[varipeps_config.svd_algorithm.upper()],
+        )
 
         result = lax.cond(
             jnp.isnan(jnp.sum(result[1])),

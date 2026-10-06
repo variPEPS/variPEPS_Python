@@ -145,6 +145,12 @@ class VariPEPS_Config:
       triangular_ctmrg_use_split (:obj:`bool`):
         Flag if the split projector method should be used in the
         triangular CTMRG.
+      svd_algorithm (:obj:`str`):
+        Algorithm of :obj:`jax.lax.linalg.svd` for the full SVDs: ``'default'``
+        (JAX's choice), ``'qr'``, ``'divide_and_conquer'``, ``'jacobi'`` or
+        ``'polar'``. Jacobi and polar are not implemented on CPU. On GPU the
+        Jacobi SVD can be much faster than the QR based one. If the SVD returns
+        NaNs, the calculation is repeated with the QR algorithm.
       svd_sign_fix_eps (:obj:`float`):
         Value for numerical stability threshold in sign-fixed SVD.
       svd_ad_use_lorentz_broadening (:obj:`bool`):
@@ -287,6 +293,7 @@ class VariPEPS_Config:
     triangular_ctmrg_use_split: bool = False
 
     # SVD
+    svd_algorithm: str = "default"
     svd_sign_fix_eps: float = 1e-1
     svd_ad_use_lorentz_broadening: bool = False
     svd_ad_lorentz_broadening_eps: float = 1e-13
