@@ -101,6 +101,7 @@ def _post_process_CTM_tensors(
 
     if a_old.shape == a.shape:
         phase = jnp.sum(a.conj() * a_old)
+        phase = jnp.where(phase == 0, 1, phase)
         phase = phase / jnp.abs(phase)
     else:
         phase = 1

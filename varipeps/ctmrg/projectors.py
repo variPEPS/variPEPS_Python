@@ -111,6 +111,7 @@ def _truncated_SVD(
     return_full_U_Vh: bool = False,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     full_U, S, full_Vh = gauge_fixed_svd(matrix)
+    full_S = S
 
     len_S = len(S)
     if len_S > chi:
@@ -132,9 +133,8 @@ def _truncated_SVD(
         relevant_S_values, 1 / jnp.sqrt(jnp.where(relevant_S_values, S, 1)), 0
     )
 
-    matrix_norm = jnp.sum(jnp.abs(matrix) ** 2)
-    S_norm = jnp.sum(S**2)
-    trunc_error = 1 - S_norm / matrix_norm
+    discarded_S_norm = jnp.sum(full_S[chi:] ** 2) + jnp.sum((full_S[:chi] - S) ** 2)
+    trunc_error = discarded_S_norm / jnp.sum(full_S**2)
     trunc_error = jnp.where(
         trunc_error < truncation_eps**2,
         0,
