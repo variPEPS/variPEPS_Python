@@ -555,7 +555,7 @@ def _vertical_cut_split_transfer(
     )
 
 
-@partial(jit, static_argnums=(5, 6, 7), inline=True)
+@partial(jit, static_argnums=(6, 7), inline=True)
 def _left_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -738,7 +738,7 @@ def calc_left_projectors(
     )
 
     if config.checkpointing_projectors:
-        f = checkpoint(_left_projectors_workhorse, static_argnums=(5, 6, 7))
+        f = checkpoint(_left_projectors_workhorse, static_argnums=(6, 7))
     else:
         f = _left_projectors_workhorse
 
@@ -762,7 +762,7 @@ def calc_left_projectors(
     )
 
 
-@partial(jit, static_argnums=(5, 6, 7), inline=True)
+@partial(jit, static_argnums=(6, 7), inline=True)
 def _right_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -945,7 +945,7 @@ def calc_right_projectors(
     )
 
     if config.checkpointing_projectors:
-        f = checkpoint(_right_projectors_workhorse, static_argnums=(5, 6, 7))
+        f = checkpoint(_right_projectors_workhorse, static_argnums=(6, 7))
     else:
         f = _right_projectors_workhorse
 
@@ -969,7 +969,7 @@ def calc_right_projectors(
     )
 
 
-@partial(jit, static_argnums=(5, 6, 7), inline=True)
+@partial(jit, static_argnums=(6, 7), inline=True)
 def _top_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -1152,7 +1152,7 @@ def calc_top_projectors(
     )
 
     if config.checkpointing_projectors:
-        f = checkpoint(_top_projectors_workhorse, static_argnums=(5, 6, 7))
+        f = checkpoint(_top_projectors_workhorse, static_argnums=(6, 7))
     else:
         f = _top_projectors_workhorse
 
@@ -1176,7 +1176,7 @@ def calc_top_projectors(
     )
 
 
-@partial(jit, static_argnums=(5, 6, 7), inline=True)
+@partial(jit, static_argnums=(6, 7), inline=True)
 def _bottom_projectors_workhorse(
     top_left: jnp.ndarray,
     top_right: jnp.ndarray,
@@ -1359,7 +1359,7 @@ def calc_bottom_projectors(
     )
 
     if config.checkpointing_projectors:
-        f = checkpoint(_bottom_projectors_workhorse, static_argnums=(5, 6, 7))
+        f = checkpoint(_bottom_projectors_workhorse, static_argnums=(6, 7))
     else:
         f = _bottom_projectors_workhorse
 

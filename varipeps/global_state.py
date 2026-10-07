@@ -23,11 +23,21 @@ class VariPEPS_Global_State:
     ctmrg_projector_method: Optional[Projector_Method] = None
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
+        # The effective truncation eps is a dynamic value. Otherwise every
+        # increase of it in the CTMRG routine would trigger a recompilation of
+        # the CTMRG step and of the custom VJP. Only the switch between None and
+        # a value changes the tree structure.
+        data = (self.ctmrg_effective_truncation_eps,)
+
         aux_data = (
-            {name: getattr(self, name) for name in self.__dataclass_fields__.keys()},
+            {
+                name: getattr(self, name)
+                for name in self.__dataclass_fields__.keys()
+                if name != "ctmrg_effective_truncation_eps"
+            },
         )
 
-        return ((), aux_data)
+        return (data, aux_data)
 
     @classmethod
     def tree_unflatten(
@@ -35,9 +45,13 @@ class VariPEPS_Global_State:
         aux_data: Tuple[Any, ...],
         children: Tuple[Any, ...],
     ) -> T_VariPEPS_Global_State:
+        (ctmrg_effective_truncation_eps,) = children
         (data_dict,) = aux_data
 
-        return cls(**data_dict)
+        return cls(
+            ctmrg_effective_truncation_eps=ctmrg_effective_truncation_eps,
+            **data_dict,
+        )
 
 
 global_state = VariPEPS_Global_State()
