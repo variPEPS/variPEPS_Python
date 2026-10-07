@@ -1239,45 +1239,64 @@ def _ctmrg_rev_workhorse(peps_tensors, new_unitcell, new_unitcell_bar, config, s
                 maxiter=config.ad_custom_max_steps,
             )
 
-            applied = f_gmres(v)
-            residual = jax.tree.map(lambda ax, b: ax - b, applied, v0)
-            residual_norm = jnp.linalg.norm(ravel_pytree(residual)[0])
-            rhs_norm = jnp.linalg.norm(ravel_pytree(v0)[0])
-            threshold = jnp.maximum(
-                config.ad_custom_convergence_eps,
-                config.ad_custom_gmres_relative_eps * rhs_norm,
-            )
-            solved = (
-                jnp.all(jnp.isfinite(ravel_pytree(v)[0]))
-                & jnp.isfinite(rhs_norm)
-                & jnp.isfinite(residual_norm)
-                & (residual_norm <= threshold)
-            )
-
-            if config.ad_custom_verbose_output:
-                debug_print(
-                    "AD GMRES: residual {}, rhs norm {}, threshold {}, accepted {}",
-                    residual_norm,
-                    rhs_norm,
-                    threshold,
-                    solved,
-                )
-
             if not real:
                 v = jax.tree.map(lambda x, y: x + 1j * y, v[0], v[1])
 
-            return v, e, solved
+            return v, e
 
-        env_fixed_point, end_count, converged = jax.lax.cond(
-            jnp.logical_and(converged, jnp.logical_not(arnoldi_worked)),
-            lambda x, ec, c: run_gmres(x, ec),
-            lambda x, ec, c: (x, ec, c),
+        use_gmres = jnp.logical_and(converged, jnp.logical_not(arnoldi_worked))
+
+        env_fixed_point, end_count = jax.lax.cond(
+            use_gmres,
+            lambda x, ec: run_gmres(x, ec),
+            lambda x, ec: (x, ec),
             env_fixed_point,
             end_count,
-            converged,
         )
 
-    t_bar, _ = vjp_absorption((env_fixed_point, jnp.array(0, dtype=jnp.float64)))
+    # Every application of vjp_absorption is a full copy of the transposed
+    # absorption step in the compiled program. Therefore, calculate the
+    # gradient w.r.t. the PEPS tensors and the image of the environment fixed
+    # point needed for the GMRES residual check with one application.
+    t_bar, new_env_bar = vjp_absorption(
+        (env_fixed_point, jnp.array(0, dtype=jnp.float64))
+    )
+
+    if config.ad_custom_fixed_point_method is not Grad_Fixed_Point_Method.ITERATIVE:
+        applied = env_fixed_point.replace_unique_tensors(
+            [
+                t_old.__sub__(t_new, checks=False)
+                for t_old, t_new in zip(
+                    env_fixed_point.get_unique_tensors(),
+                    new_env_bar.get_unique_tensors(),
+                    strict=True,
+                )
+            ]
+        )
+        residual = jax.tree.map(lambda ax, b: ax - b, applied, new_unitcell_bar)
+        residual_norm = jnp.linalg.norm(ravel_pytree(residual)[0])
+        rhs_norm = jnp.linalg.norm(ravel_pytree(new_unitcell_bar)[0])
+        threshold = jnp.maximum(
+            config.ad_custom_convergence_eps,
+            config.ad_custom_gmres_relative_eps * rhs_norm,
+        )
+        solved = (
+            jnp.all(jnp.isfinite(ravel_pytree(env_fixed_point)[0]))
+            & jnp.isfinite(rhs_norm)
+            & jnp.isfinite(residual_norm)
+            & (residual_norm <= threshold)
+        )
+
+        if config.ad_custom_verbose_output:
+            debug_print(
+                "AD GMRES: residual {}, rhs norm {}, threshold {}, accepted {}",
+                residual_norm,
+                rhs_norm,
+                threshold,
+                solved,
+            )
+
+        converged = jnp.where(use_gmres, solved, converged)
 
     return t_bar, converged, end_count
 
