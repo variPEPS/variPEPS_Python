@@ -1,8 +1,10 @@
+import collections.abc
 from dataclasses import dataclass
 from functools import partial
 from os import PathLike
 
 import h5py
+import numpy as np
 
 import jax.numpy as jnp
 from jax import jit

@@ -1,3 +1,4 @@
+import collections.abc
 from dataclasses import dataclass
 from functools import partial
 from os import PathLike
@@ -7,6 +8,7 @@ import jax.numpy as jnp
 from jax import jit
 
 import h5py
+import numpy as np
 
 from varipeps import varipeps_config
 import varipeps.config
