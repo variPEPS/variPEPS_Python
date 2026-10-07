@@ -1299,7 +1299,7 @@ class Kagome_Triangular_CTMRG_Expectation_Value(Expectation_Model):
         ]
 
         if return_single_gate_results:
-            single_gates_result = [dict()] * len(self.up_nearest_gates)
+            single_gates_result = [dict() for _ in self.up_nearest_gates]
 
         working_onsite_gates = tuple(o for e in self._onsite_single_gates for o in e)
 

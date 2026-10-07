@@ -576,7 +576,7 @@ class Maple_Leaf_Expectation_Value(Expectation_Model):
         ]
 
         if return_single_gate_results:
-            single_gates_result = [dict()] * len(self.green_gates)
+            single_gates_result = [dict() for _ in self.green_gates]
 
         working_onsite_gates = tuple(o for e in self._onsite_single_gates for o in e)
 
@@ -1534,7 +1534,7 @@ class Maple_Leaf_Triangular_CTMRG_Expectation_Value(Expectation_Model):
         ]
 
         if return_single_gate_results:
-            single_gates_result = [dict()] * len(self.green_gates)
+            single_gates_result = [dict() for _ in self.green_gates]
 
         working_onsite_gates = tuple(o for e in self._onsite_single_gates for o in e)
 
@@ -2051,7 +2051,7 @@ class Maple_Leaf_Hexagon_Triangular_CTMRG_Expectation_Value(Expectation_Model):
         ]
 
         if return_single_gate_results:
-            single_gates_result = [dict()] * len(self.green_gates)
+            single_gates_result = [dict() for _ in self.green_gates]
 
         working_onsite_gates = tuple(o for e in self._onsite_single_gates for o in e)
 

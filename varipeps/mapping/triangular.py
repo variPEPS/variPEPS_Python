@@ -812,7 +812,7 @@ class Triangular_Next_Nearest_Expectation_Value(Expectation_Model):
         ]
 
         if return_single_gate_results:
-            single_gates_result = [dict()] * len(self.nearest_neighbor_gates)
+            single_gates_result = [dict() for _ in self.nearest_neighbor_gates]
 
         if self.is_spiral_peps:
             if (
@@ -1104,7 +1104,7 @@ class Triangular_Next_Nearest_Expectation_Value(Expectation_Model):
 
         return cls(
             nearest_neighbor_gates=nearest_neighbor_gates,
-            vertical_gates=vertical_gates,
+            next_nearest_neighbor_gates=next_nearest_neighbor_gates,
             real_d=grp.attrs["real_d"],
             normalization_factor=grp.attrs["normalization_factor"],
             is_spiral_peps=is_spiral_peps,
