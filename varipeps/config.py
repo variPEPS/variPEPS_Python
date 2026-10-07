@@ -271,8 +271,11 @@ class VariPEPS_Config:
       slurm_restart_mode (:obj:`Slurm_Restart_Mode`):
         Mode of operation to restart slurm job if maximal runtime is reached.
       jax_compilation_cache_memory_factor (:obj:`float`):
-        Limit the jax compilation cache to maximal this factor times the total
-        available memory.
+        Deprecated and without effect. It limited the size of the directory of
+        the persistent jax compilation cache, not the memory used by compiled
+        functions. The persistent cache can be enabled by the environment
+        variable ``JAX_COMPILATION_CACHE_DIR``. The in-memory caches are cleared
+        by the optimizer if the environment dimensions change.
     """
 
     # AD config
