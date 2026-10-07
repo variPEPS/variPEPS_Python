@@ -44,7 +44,7 @@ class Overlap_Four_Sites_Square:
             np.prod(bottom_right.shape[:3]), np.prod(bottom_right.shape[3:])
         )
 
-        norm_with_sites = jnp.trace(top_left @ top_right @ bottom_left @ bottom_right)
+        norm_with_sites = jnp.trace(top_left @ top_right @ bottom_right @ bottom_left)
 
         norm_corners = apply_contraction_jitted(
             "overlap_four_sites_square_only_corners",
