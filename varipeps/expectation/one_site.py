@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import partial
 
 import h5py
 
@@ -9,7 +10,7 @@ from varipeps.peps import PEPS_Tensor, PEPS_Unit_Cell
 from varipeps.contractions import apply_contraction
 from .model import Expectation_Model
 
-from typing import Sequence, List, Tuple, Union
+from typing import Sequence, List, Tuple, Union, Optional
 
 
 def _one_site_workhorse_body(
@@ -34,7 +35,10 @@ _one_site_workhorse = jit(_one_site_workhorse_body, static_argnums=(2,))
 
 
 def calc_one_site_multi_gates(
-    peps_tensor: jnp.ndarray, peps_tensor_obj: PEPS_Tensor, gates: Sequence[jnp.ndarray]
+    peps_tensor: jnp.ndarray,
+    peps_tensor_obj: PEPS_Tensor,
+    gates: Sequence[jnp.ndarray],
+    real_result: Optional[bool] = None,
 ) -> List[jnp.ndarray]:
     """
     Calculate the one site expectation values for a PEPS tensor and its
@@ -48,6 +52,9 @@ def calc_one_site_multi_gates(
         PEPS tensor object.
       gates (:term:`sequence` of :obj:`jax.numpy.ndarray`):
         Sequence with the gates which should be applied to the PEPS tensor.
+      real_result (:obj:`bool`, optional):
+        Whether to return real expectation values. If None, infer from gate
+        Hermiticity. Pass a static bool when calling under JIT.
     Returns:
       :obj:`list` of :obj:`jax.numpy.ndarray`:
         List with the calculated expectation values of each gate.
@@ -56,7 +63,8 @@ def calc_one_site_multi_gates(
         "density_matrix_one_site", [peps_tensor], [peps_tensor_obj], []
     )
 
-    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
+    if real_result is None:
+        real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _one_site_workhorse(density_matrix, tuple(gates), real_result)
 
@@ -131,10 +139,20 @@ def calc_one_site_single_gate_obj(
     )
 
 
-@dataclass
+@dataclass(eq=False)
 class One_Site_Expectation_Value(Expectation_Model):
     gates: Sequence[jnp.ndarray]
 
+    def __post_init__(self) -> None:
+        self._result_type = (
+            jnp.float64
+            if all(jnp.allclose(g, g.T.conj()) for g in self.gates)
+            else jnp.complex128
+        )
+
+    @partial(
+        jit, static_argnums=(0,), static_argnames=("normalize_by_size", "only_unique")
+    )
     def __call__(
         self,
         peps_tensors: Sequence[jnp.ndarray],
@@ -143,12 +161,7 @@ class One_Site_Expectation_Value(Expectation_Model):
         normalize_by_size: bool = True,
         only_unique: bool = True,
     ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
-        result_type = (
-            jnp.float64
-            if all(jnp.allclose(g, jnp.real(g)) for g in self.gates)
-            else jnp.complex128
-        )
-        result = [jnp.array(0, dtype=result_type) for _ in range(len(self.gates))]
+        result = [jnp.array(0, dtype=self._result_type) for _ in range(len(self.gates))]
 
         for x, iter_rows in unitcell.iter_all_rows(only_unique=only_unique):
             for y, view in iter_rows:
@@ -156,7 +169,10 @@ class One_Site_Expectation_Value(Expectation_Model):
                 working_tensor_obj = view[0, 0][0][0]
 
                 step_result = calc_one_site_multi_gates(
-                    working_tensor, working_tensor_obj, self.gates
+                    working_tensor,
+                    working_tensor_obj,
+                    self.gates,
+                    self._result_type == jnp.float64,
                 )
 
                 for sr_i, sr in enumerate(step_result):

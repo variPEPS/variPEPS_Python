@@ -117,6 +117,7 @@ def calc_two_sites_horizontal_multiple_gates(
     peps_tensors: Sequence[jnp.ndarray],
     peps_tensor_objs: Sequence[PEPS_Tensor],
     gates: Sequence[jnp.ndarray],
+    real_result: Optional[bool] = None,
 ) -> List[jnp.ndarray]:
     """
     Calculate the two site expectation values for two horizontal ordered PEPS
@@ -132,6 +133,9 @@ def calc_two_sites_horizontal_multiple_gates(
         Sequence with the gates which should be applied to the PEPS tensors.
         Gates are expected to be a matrix with first axis corresponding to
         the Hilbert space and the second axis corresponding to the dual room.
+      real_result (:obj:`bool`, optional):
+        Whether to return real expectation values. If None, infer from gate
+        Hermiticity. Pass a static bool when calling under JIT.
     Returns:
       :obj:`list` of :obj:`jax.numpy.ndarray`:
         List with the calculated expectation values of each gate.
@@ -144,7 +148,8 @@ def calc_two_sites_horizontal_multiple_gates(
         "density_matrix_two_sites_right", [peps_tensors[1]], [peps_tensor_objs[1]], []
     )
 
-    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
+    if real_result is None:
+        real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _two_site_workhorse(
         density_matrix_1, density_matrix_2, tuple(gates), real_result
@@ -185,6 +190,7 @@ def calc_two_sites_vertical_multiple_gates(
     peps_tensors: Sequence[jnp.ndarray],
     peps_tensor_objs: Sequence[PEPS_Tensor],
     gates: Sequence[jnp.ndarray],
+    real_result: Optional[bool] = None,
 ) -> List[jnp.ndarray]:
     """
     Calculate the two site expectation values for two vertical ordered PEPS
@@ -200,6 +206,9 @@ def calc_two_sites_vertical_multiple_gates(
         Sequence with the gates which should be applied to the PEPS tensors.
         Gates are expected to be a matrix with first axis corresponding to
         the Hilbert space and the second axis corresponding to the dual room.
+      real_result (:obj:`bool`, optional):
+        Whether to return real expectation values. If None, infer from gate
+        Hermiticity. Pass a static bool when calling under JIT.
     Returns:
       :obj:`list` of :obj:`jax.numpy.ndarray`:
         List with the calculated expectation values of each gate.
@@ -212,7 +221,8 @@ def calc_two_sites_vertical_multiple_gates(
         "density_matrix_two_sites_bottom", [peps_tensors[1]], [peps_tensor_objs[1]], []
     )
 
-    real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
+    if real_result is None:
+        real_result = all(jnp.allclose(g, g.T.conj()) for g in gates)
 
     return _two_site_workhorse(
         density_matrix_1, density_matrix_2, tuple(gates), real_result
@@ -575,7 +585,7 @@ def calc_two_sites_diagonal_vertical_rectangle_multiple_gates(
     )
 
 
-@dataclass
+@dataclass(eq=False)
 class Two_Sites_Expectation_Value(Expectation_Model):
     horizontal_gates: Sequence[jnp.ndarray]
     vertical_gates: Sequence[jnp.ndarray]
@@ -602,6 +612,16 @@ class Two_Sites_Expectation_Value(Expectation_Model):
                 self.spiral_unitary_operator
             )
 
+        self._result_type = (
+            jnp.float64
+            if all(jnp.allclose(g, g.T.conj()) for g in self.horizontal_gates)
+            and all(jnp.allclose(g, g.T.conj()) for g in self.vertical_gates)
+            else jnp.complex128
+        )
+
+    @partial(
+        jit, static_argnums=(0,), static_argnames=("normalize_by_size", "only_unique")
+    )
     def __call__(
         self,
         peps_tensors: Sequence[jnp.ndarray],
@@ -611,14 +631,8 @@ class Two_Sites_Expectation_Value(Expectation_Model):
         normalize_by_size: bool = True,
         only_unique: bool = True,
     ) -> Union[jnp.ndarray, List[jnp.ndarray]]:
-        result_type = (
-            jnp.float64
-            if all(jnp.allclose(g, g.T.conj()) for g in self.horizontal_gates)
-            and all(jnp.allclose(g, g.T.conj()) for g in self.vertical_gates)
-            else jnp.complex128
-        )
         result = [
-            jnp.array(0, dtype=result_type)
+            jnp.array(0, dtype=self._result_type)
             for _ in range(max(len(self.horizontal_gates), len(self.vertical_gates)))
         ]
 
@@ -670,6 +684,7 @@ class Two_Sites_Expectation_Value(Expectation_Model):
                         horizontal_tensors,
                         horizontal_tensor_objs,
                         working_h_gates,
+                        self._result_type == jnp.float64,
                     )
 
                     for sr_i, sr in enumerate(step_result_horizontal):
@@ -684,7 +699,10 @@ class Two_Sites_Expectation_Value(Expectation_Model):
                     vertical_tensor_objs = [view[0, 0][0][0], view[1, 0][0][0]]
 
                     step_result_vertical = calc_two_sites_vertical_multiple_gates(
-                        vertical_tensors, vertical_tensor_objs, working_v_gates
+                        vertical_tensors,
+                        vertical_tensor_objs,
+                        working_v_gates,
+                        self._result_type == jnp.float64,
                     )
 
                     for sr_i, sr in enumerate(step_result_vertical):
