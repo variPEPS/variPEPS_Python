@@ -7,7 +7,7 @@ import h5py
 import jax.numpy as jnp
 from jax import jit
 
-import varipeps.config
+from varipeps import varipeps_config
 from varipeps.peps import PEPS_Tensor, PEPS_Unit_Cell
 from varipeps.contractions import apply_contraction, Definitions
 from varipeps.expectation.model import Expectation_Model
@@ -16,6 +16,7 @@ from varipeps.expectation.two_sites import (
     _two_site_workhorse,
     _two_site_diagonal_workhorse,
 )
+from varipeps.expectation.spiral_helpers import apply_unitary
 from varipeps.expectation.helpers import (
     partially_traced_four_site_density_matrices,
     partially_traced_horizontal_two_site_density_matrices,
@@ -377,7 +378,7 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                     None,
                     spiral_vectors[0],
                 )
-            if len(spiral_vectors) == 4:
+            if len(spiral_vectors) == 3:
                 spiral_vectors = (
                     spiral_vectors[0],
                     spiral_vectors[1],
@@ -556,7 +557,7 @@ class Florett_Pentagon_Expectation_Value(Expectation_Model):
                     (
                         density_matrix_top,
                         density_matrix_bottom,
-                    ) = partially_traced_vertical_two_site_density_matrice(
+                    ) = partially_traced_vertical_two_site_density_matrices(
                         vertical_tensors,
                         vertical_tensor_objs,
                         self.real_d,
