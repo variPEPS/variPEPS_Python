@@ -16,6 +16,8 @@ def calculate_periodic_indices(
       key (:obj:`tuple` of 2 :obj:`int` or :obj:`slice` elements):
         x and y coordinates to select. Can be either integers or slices.
         Negative numbers as selectors are supported.
+        An omitted stop uses the bounds of one unit cell. Explicit bounds
+        can span multiple periods.
       structure (2d :obj:`jax.numpy.ndarray`):
         Two dimensional array modeling the structure of the unit cell. For
         details see the description of :obj:`~varipeps.peps.PEPS_Unit_Cell`.
@@ -42,6 +44,11 @@ def calculate_periodic_indices(
 
     unit_cell_len_x = len(structure)
     unit_cell_len_y = len(structure[0])
+
+    if x.stop is None or (x.start is None and x.step is not None and x.step < 0):
+        x = slice(*x.indices(unit_cell_len_x))
+    if y.stop is None or (y.start is None and y.step is not None and y.step < 0):
+        y = slice(*y.indices(unit_cell_len_y))
 
     if x.start is not None and x.start < 0:
         shift = (-x.start // unit_cell_len_x + 1) * unit_cell_len_x
