@@ -466,6 +466,21 @@ def line_search(
 
     count = 0
     while count < varipeps_config.line_search_max_steps:
+        # First order estimate of the decrease is an upper bound for the
+        # decrease within the bracket if the cost function is convex along
+        # the search direction
+        if (
+            varipeps_config.line_search_method is Line_Search_Methods.HAGERZHANG
+            and varipeps_config.line_search_hager_zhang_stop_below_eps
+            and hager_zhang_upper_bound_value is not None
+            and hager_zhang_upper_bound * jnp.abs(initial_slope) <= hager_zhang_eps
+        ):
+            if hager_zhang_best_trial is not None:
+                return hager_zhang_best_trial
+            raise NoSuitableStepSizeError(
+                f"Possible decrease below eps (Count {count}, Last alpha {alpha})"
+            )
+
         new_tensors, new_descent_direction = _line_search_retract(
             input_tensors, descent_direction, alpha, spiral_indices
         )

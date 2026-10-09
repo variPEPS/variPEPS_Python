@@ -250,6 +250,11 @@ class VariPEPS_Config:
       line_search_hager_zhang_quad_step (:obj:`bool`):
         Use QuadStep method in Hager-Zhang line search to find initial
         step size.
+      line_search_hager_zhang_quasi_newton_initial_step (:obj:`bool`):
+        Start the Hager-Zhang line search with step size 1 if the descent
+        direction is a L-BFGS direction. This skips the QuadStep estimate and
+        saves one evaluation per step. Directions reset to the gradient use
+        the usual initial step size.
       line_search_hager_zhang_delta (:obj:`float`):
         Constant used in Hager-Zhang line search method.
       line_search_hager_zhang_sigma (:obj:`float`):
@@ -285,6 +290,11 @@ class VariPEPS_Config:
         lowers the cost function by more than eps instead of failing. The
         descent direction is reset afterwards since the curvature condition
         may be violated.
+      line_search_hager_zhang_stop_below_eps (:obj:`bool`):
+        Stop the Hager-Zhang line search without a step as soon as the upper
+        bound of the step size interval is so small that no trial step can
+        decrease the cost function by more than eps. Only sensible if eps is of
+        the order of the noise of the cost function.
       spiral_wavevector_type (:obj:`Wavevector_Type`):
         Type of wavevector to be used (only positive/symmetric interval/...).
       slurm_restart_mode (:obj:`Slurm_Restart_Mode`):
@@ -311,7 +321,7 @@ class VariPEPS_Config:
     checkpointing_projectors: bool = False
 
     # CTMRG routine
-    ctmrg_convergence_eps: float = 1e-8
+    ctmrg_convergence_eps: float = 1e-7
     ctmrg_enforce_elementwise_convergence: bool = True
     ctmrg_max_steps: int = 75
     ctmrg_print_steps: bool = False
@@ -363,24 +373,26 @@ class VariPEPS_Config:
     line_search_method: Line_Search_Methods = Line_Search_Methods.HAGERZHANG
     line_search_initial_step_size: float = 1.0
     line_search_reduction_factor: float = 0.5
-    line_search_max_steps: int = 40
+    line_search_max_steps: int = 15
     line_search_armijo_const: float = 1e-4
     line_search_wolfe_const: float = 0.9
     line_search_use_last_step_size: bool = False
 
     line_search_hager_zhang_quad_step: bool = True
+    line_search_hager_zhang_quasi_newton_initial_step: bool = False
     line_search_hager_zhang_delta: float = 0.1
     line_search_hager_zhang_sigma: float = 0.9
     line_search_hager_zhang_psi_0: float = 0.01
     line_search_hager_zhang_psi_1: float = 0.1
     line_search_hager_zhang_psi_2: float = 2.0
-    line_search_hager_zhang_eps: float = 1e-6
+    line_search_hager_zhang_eps: float = 1e-7
     line_search_hager_zhang_theta: float = 0.5
     line_search_hager_zhang_gamma: float = 0.66
     line_search_hager_zhang_rho: float = 5
     line_search_hager_zhang_eps_use_grad_norm: bool = True
     line_search_hager_zhang_eps_grad_norm_factor: float = 1e-2
     line_search_hager_zhang_return_best_trial: bool = True
+    line_search_hager_zhang_stop_below_eps: bool = False
 
     # Spiral PEPS
     spiral_wavevector_type: Wavevector_Type = Wavevector_Type.TWO_PI_POSITIVE_ONLY
