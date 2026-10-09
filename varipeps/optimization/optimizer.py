@@ -980,6 +980,14 @@ def optimize_peps_network(
                     spiral_indices,
                     additional_input,
                     conv > varipeps_config.optimizer_reuse_env_eps,
+                    initial_step_size=(
+                        1.0
+                        if varipeps_config.line_search_hager_zhang_quasi_newton_initial_step
+                        and varipeps_config.optimizer_method
+                        is Optimizing_Methods.L_BFGS
+                        and not descent_dir_is_gradient
+                        else None
+                    ),
                 )
             except NoSuitableStepSizeError:
                 runtime = time.perf_counter() - runtime_start

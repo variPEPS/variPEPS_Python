@@ -309,6 +309,7 @@ def line_search(
     spiral_indices: Optional[Sequence[int]] = None,
     additional_input: Dict[str, jnp.ndarray] = {},
     reinitialize_env_as_identities: bool = True,
+    initial_step_size: Optional[Union[float, jnp.ndarray]] = None,
 ) -> Tuple[
     List[jnp.ndarray],
     PEPS_Unit_Cell,
@@ -351,6 +352,9 @@ def line_search(
         calculation of the expectation value.
       reinitialize_env_as_identities (:obj:`bool`):
         Flag if the env tensors should be reinitialized with identities.
+      initial_step_size (:obj:`float` or :obj:`jax.numpy.ndarray`, optional):
+        Step size of the first trial in the Hager-Zhang method. Overrides the
+        guess based on `last_step_size`.
     Returns:
       :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`, :obj:`float`, :obj:`float`):
         Tuple with the optimized tensors, the new unitcell, the reduced
@@ -382,7 +386,9 @@ def line_search(
     enforce_elementwise_convergence = True
 
     if varipeps_config.line_search_method is Line_Search_Methods.HAGERZHANG:
-        if last_step_size is None or last_step_size <= 0:
+        if initial_step_size is not None:
+            alpha = initial_step_size
+        elif last_step_size is None or last_step_size <= 0:
             alpha = _hager_zhang_initial_zero(input_tensors, gradient, varipeps_config)
         elif varipeps_config.line_search_hager_zhang_quad_step:
             try:
