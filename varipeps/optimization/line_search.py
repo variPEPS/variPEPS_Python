@@ -454,6 +454,10 @@ def line_search(
 
     max_trunc_error = jnp.nan
 
+    # Fallback if no step fulfills the Wolfe conditions, e.g. at a
+    # discontinuity of the cost function due to the truncation
+    hager_zhang_best_trial = None
+
     count = 0
     while count < varipeps_config.line_search_max_steps:
         new_tensors, new_descent_direction = _line_search_retract(
@@ -648,6 +652,25 @@ def line_search(
             hz_wolfe_2_right = (
                 varipeps_config.line_search_hager_zhang_sigma * hager_zhang_descent_grad
             )
+
+            if (
+                varipeps_config.line_search_hager_zhang_return_best_trial
+                and hz_wolfe_1_left >= hz_wolfe_1_right
+                and new_value < current_value - hager_zhang_eps
+                and (
+                    hager_zhang_best_trial is None
+                    or new_value < hager_zhang_best_trial[2]
+                )
+            ):
+                hager_zhang_best_trial = (
+                    new_tensors,
+                    new_unitcell,
+                    new_value,
+                    alpha,
+                    True,
+                    max_trunc_error,
+                    new_gradient,
+                )
 
             if descent_new_grad >= hz_wolfe_2_right:
                 if hz_wolfe_1_left >= hz_wolfe_1_right and new_value <= (
@@ -1171,6 +1194,9 @@ def line_search(
         jax.clear_caches()
 
     if count == varipeps_config.line_search_max_steps:
+        if hager_zhang_best_trial is not None:
+            tqdm.write("Line search budget exhausted. Use best trial step.")
+            return hager_zhang_best_trial
         raise NoSuitableStepSizeError(f"Count {count}, Last alpha {alpha}")
 
     return (

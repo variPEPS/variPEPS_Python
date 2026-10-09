@@ -278,6 +278,13 @@ class VariPEPS_Config:
         Factor used for gradient based eps calculation. See parameter
         :obj:`VariPEPS_Config.line_search_hager_zhang_eps_use_grad_norm`
         for details.
+      line_search_hager_zhang_return_best_trial (:obj:`bool`):
+        If the Hager-Zhang line search ends without a step fulfilling the
+        (approximate) Wolfe conditions, return the trial step with the lowest
+        cost function which fulfills the sufficient decrease condition and
+        lowers the cost function by more than eps instead of failing. The
+        descent direction is reset afterwards since the curvature condition
+        may be violated.
       spiral_wavevector_type (:obj:`Wavevector_Type`):
         Type of wavevector to be used (only positive/symmetric interval/...).
       slurm_restart_mode (:obj:`Slurm_Restart_Mode`):
@@ -373,6 +380,7 @@ class VariPEPS_Config:
     line_search_hager_zhang_rho: float = 5
     line_search_hager_zhang_eps_use_grad_norm: bool = True
     line_search_hager_zhang_eps_grad_norm_factor: float = 1e-2
+    line_search_hager_zhang_return_best_trial: bool = True
 
     # Spiral PEPS
     spiral_wavevector_type: Wavevector_Type = Wavevector_Type.TWO_PI_POSITIVE_ONLY
