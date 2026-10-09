@@ -711,6 +711,13 @@ def optimize_peps_network(
     else:
         varipeps_global_state.ctmrg_projector_method = None
 
+    # Running average of the absolute cost function (CG_DESCENT, Hager-Zhang)
+    hz_average_weight = 0.0
+    hz_average_value = 0.0
+    use_approximate_wolfe = (
+        not varipeps_config.line_search_hager_zhang_approx_wolfe_switch
+    )
+
     slurm_restart_written = False
     slurm_new_job_id = None
 
@@ -957,6 +964,7 @@ def optimize_peps_network(
             step_conv[random_noise_retries].append(conv)
 
             previous_working_tensors = working_tensors
+            previous_working_value = working_value
 
             try:
                 (
@@ -988,6 +996,7 @@ def optimize_peps_network(
                         and not descent_dir_is_gradient
                         else None
                     ),
+                    use_approximate_wolfe=use_approximate_wolfe,
                 )
             except NoSuitableStepSizeError:
                 runtime = time.perf_counter() - runtime_start
@@ -995,6 +1004,18 @@ def optimize_peps_network(
 
                 if varipeps_config.optimizer_fail_if_no_step_size_found:
                     raise
+                elif not use_approximate_wolfe:
+                    # Close to the noise floor the standard Wolfe conditions
+                    # can fail. Retry once with the approximate ones.
+                    tqdm.write(
+                        "Line search failed. Retry with approximate Wolfe conditions."
+                    )
+                    use_approximate_wolfe = True
+                    step_conv[random_noise_retries].pop()
+                    signal_reset_descent_dir = True
+                    linesearch_step = None
+                    linesearch_gradient = working_gradient
+                    continue
                 elif not descent_dir_is_gradient:
                     # The CG / L-BFGS history can produce directions the noisy
                     # line search cannot handle. Retry once from the same point
@@ -1156,6 +1177,22 @@ def optimize_peps_network(
                         conv = 0
             else:
                 runtime = time.perf_counter() - runtime_start
+
+                if not use_approximate_wolfe:
+                    hz_average_weight = (
+                        1
+                        + varipeps_config.line_search_hager_zhang_average_decay
+                        * hz_average_weight
+                    )
+                    hz_average_value += (
+                        jnp.abs(working_value) - hz_average_value
+                    ) / hz_average_weight
+                    use_approximate_wolfe = bool(
+                        jnp.abs(working_value - previous_working_value)
+                        <= varipeps_config.line_search_hager_zhang_omega
+                        * hz_average_value
+                    )
+
                 step_runtime[random_noise_retries].append(runtime)
                 max_trunc_error_list[random_noise_retries].append(max_trunc_error)
                 step_energies[random_noise_retries].append(working_value)

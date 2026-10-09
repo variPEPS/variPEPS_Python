@@ -310,6 +310,7 @@ def line_search(
     additional_input: Dict[str, jnp.ndarray] = {},
     reinitialize_env_as_identities: bool = True,
     initial_step_size: Optional[Union[float, jnp.ndarray]] = None,
+    use_approximate_wolfe: bool = True,
 ) -> Tuple[
     List[jnp.ndarray],
     PEPS_Unit_Cell,
@@ -355,6 +356,9 @@ def line_search(
       initial_step_size (:obj:`float` or :obj:`jax.numpy.ndarray`, optional):
         Step size of the first trial in the Hager-Zhang method. Overrides the
         guess based on `last_step_size`.
+      use_approximate_wolfe (:obj:`bool`):
+        Accept steps by the approximate Wolfe conditions in the Hager-Zhang
+        method.
     Returns:
       :obj:`tuple`\ (:obj:`list`\ (:obj:`jax.numpy.ndarray`), :obj:`~varipeps.peps.PEPS_Unit_Cell`, :obj:`float`, :obj:`float`):
         Tuple with the optimized tensors, the new unitcell, the reduced
@@ -703,8 +707,10 @@ def line_search(
                     2 * varipeps_config.line_search_hager_zhang_delta - 1
                 ) * hager_zhang_descent_grad
 
-                if hz_approx_wolfe_left >= descent_new_grad and new_value <= (
-                    current_value + hager_zhang_eps
+                if (
+                    use_approximate_wolfe
+                    and hz_approx_wolfe_left >= descent_new_grad
+                    and new_value <= (current_value + hager_zhang_eps)
                 ):
                     break
 

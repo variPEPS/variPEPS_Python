@@ -290,6 +290,19 @@ class VariPEPS_Config:
         lowers the cost function by more than eps instead of failing. The
         descent direction is reset afterwards since the curvature condition
         may be violated.
+      line_search_hager_zhang_approx_wolfe_switch (:obj:`bool`):
+        Accept steps by the approximate Wolfe conditions of the Hager-Zhang
+        method only after the change of the cost function in an optimizer
+        step dropped below
+        :obj:`VariPEPS_Config.line_search_hager_zhang_omega` times a running
+        average of the absolute cost function, or after a line search with the
+        standard Wolfe conditions failed. Before, steps have to decrease the
+        cost function.
+      line_search_hager_zhang_omega (:obj:`float`):
+        Relative change of the cost function to switch to the approximate
+        Wolfe conditions.
+      line_search_hager_zhang_average_decay (:obj:`float`):
+        Decay factor of the running average of the absolute cost function.
       line_search_hager_zhang_stop_below_eps (:obj:`bool`):
         Stop the Hager-Zhang line search without a step as soon as the upper
         bound of the step size interval is so small that no trial step can
@@ -392,6 +405,9 @@ class VariPEPS_Config:
     line_search_hager_zhang_eps_use_grad_norm: bool = True
     line_search_hager_zhang_eps_grad_norm_factor: float = 1e-2
     line_search_hager_zhang_return_best_trial: bool = True
+    line_search_hager_zhang_approx_wolfe_switch: bool = False
+    line_search_hager_zhang_omega: float = 1e-3
+    line_search_hager_zhang_average_decay: float = 0.7
     line_search_hager_zhang_stop_below_eps: bool = False
 
     # Spiral PEPS
