@@ -104,6 +104,20 @@ def _calc_ctmrg_quarters(
     return top_left, top_right, bottom_left, bottom_right
 
 
+def _fix_qr_phases(new_qr_left, new_qr_right):
+    abs_left = jnp.abs(new_qr_left)
+    normalized = abs_left / jnp.max(abs_left, axis=1, keepdims=True)
+    phases_index = jnp.argmax(normalized >= varipeps_config.svd_sign_fix_eps, axis=1)
+    phases = jnp.take_along_axis(new_qr_left, phases_index[:, jnp.newaxis], axis=1)[
+        :, 0
+    ]
+    phases /= jnp.abs(phases)
+    return (
+        new_qr_left * phases.conj()[:, jnp.newaxis],
+        new_qr_right * phases[jnp.newaxis, :],
+    )
+
+
 def _truncated_SVD(
     matrix: jnp.ndarray,
     chi: int,
@@ -632,6 +646,7 @@ def _left_projectors_workhorse(
     if projector_method is Projector_Method.FULL_QR:
         new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
         new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
+        new_qr_left, new_qr_right = _fix_qr_phases(new_qr_left, new_qr_right)
 
         projector_left_top = jnp.dot(
             top_left_matrix,
@@ -810,6 +825,7 @@ def _right_projectors_workhorse(
     if projector_method is Projector_Method.FULL_QR:
         new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
         new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
+        new_qr_left, new_qr_right = _fix_qr_phases(new_qr_left, new_qr_right)
 
         projector_right_top = jnp.dot(
             jnp.dot(S_inv_sqrt[:, jnp.newaxis] * new_qr_left[:chi, :], top_left_matrix),
@@ -988,6 +1004,7 @@ def _top_projectors_workhorse(
     if projector_method is Projector_Method.FULL_QR:
         new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
         new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
+        new_qr_left, new_qr_right = _fix_qr_phases(new_qr_left, new_qr_right)
 
         projector_top_left = jnp.dot(
             jnp.dot(
@@ -1166,6 +1183,7 @@ def _bottom_projectors_workhorse(
     if projector_method is Projector_Method.FULL_QR:
         new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
         new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
+        new_qr_left, new_qr_right = _fix_qr_phases(new_qr_left, new_qr_right)
 
         projector_bottom_left = jnp.dot(
             bottom_left_matrix,
