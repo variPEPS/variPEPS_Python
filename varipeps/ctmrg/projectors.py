@@ -118,6 +118,27 @@ def _fix_qr_phases(new_qr_left, new_qr_right):
     )
 
 
+def _truncate_singular_values(
+    S: jnp.ndarray,
+    chi: int,
+    truncation_eps: float,
+) -> jnp.ndarray:
+    """Truncate a descending spectrum without keeping a partial multiplet."""
+    len_S = len(S)
+    if len_S > chi:
+        gaps = (S[:chi] - S[1 : chi + 1]) / S[0]
+
+    S = S[:chi]
+
+    if len_S > chi:
+        # Keep only singular values with a relevant gap at or behind their
+        # position to not cut through a multiplet.
+        keep_S = jnp.cumsum((gaps > truncation_eps)[::-1])[::-1] > 0
+        S = jnp.where(keep_S, S, 0)
+
+    return S
+
+
 def _truncated_SVD(
     matrix: jnp.ndarray,
     chi: int,
@@ -127,20 +148,9 @@ def _truncated_SVD(
     full_U, S, full_Vh = gauge_fixed_svd(matrix)
     full_S = S
 
-    len_S = len(S)
-    if len_S > chi:
-        gaps = (S[:chi] - S[1 : chi + 1]) / S[0]
-
-    # Truncate the singular values
-    S = S[:chi]
+    S = _truncate_singular_values(S, chi, truncation_eps)
     U = full_U[:, :chi]
     Vh = full_Vh[:chi, :]
-
-    if len_S > chi:
-        # Keep only singular values with a relevant gap at or behind their
-        # position to not cut through a multiplet.
-        keep_S = jnp.cumsum((gaps > truncation_eps)[::-1])[::-1] > 0
-        S = jnp.where(keep_S, S, 0)
 
     relevant_S_values = (S / S[0]) > truncation_eps
     S_inv_sqrt = jnp.where(

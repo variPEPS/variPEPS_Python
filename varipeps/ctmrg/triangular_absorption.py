@@ -9,6 +9,7 @@ from varipeps.config import VariPEPS_Config
 from varipeps.global_state import VariPEPS_Global_State
 
 from .absorption import _tensor_list_from_indices, _post_process_CTM_tensors
+from .projectors import _truncate_singular_values
 from .triangular_projectors import (
     calc_corner_projectors,
     calc_T_30_150_270_truncated,
@@ -43,22 +44,31 @@ def decompose_new_T(new_T, chi, truncation_eps, config, only_trunc=False):
         new_T.shape[3] * new_T.shape[4] * new_T.shape[5],
     )
     new_T_U, new_T_S, new_T_Vh = gauge_fixed_svd(new_T_matrix)
-    new_T_S = jnp.where(
-        new_T_S / new_T_S[0] >= truncation_eps,
-        jnp.sqrt(jnp.where(new_T_S / new_T_S[0] >= truncation_eps, new_T_S, 1)),
+    new_T_S_trunc = _truncate_singular_values(new_T_S, chi, truncation_eps)
+    relevant_S_trunc = (new_T_S_trunc > 0) & (
+        new_T_S_trunc / new_T_S[0] >= truncation_eps
+    )
+    new_T_S_trunc = jnp.where(
+        relevant_S_trunc,
+        jnp.sqrt(jnp.where(relevant_S_trunc, new_T_S_trunc, 1)),
         0,
     )
 
-    new_Ta_trunc = new_T_S[:chi, jnp.newaxis] * new_T_Vh[:chi, :]
+    new_Ta_trunc = new_T_S_trunc[:, jnp.newaxis] * new_T_Vh[:chi, :]
     new_Ta_trunc = new_Ta_trunc.reshape(
         new_Ta_trunc.shape[0], new_T.shape[3], new_T.shape[4], new_T.shape[5]
     )
-    new_Tb_trunc = new_T_U[:, :chi] * new_T_S[jnp.newaxis, :chi]
+    new_Tb_trunc = new_T_U[:, :chi] * new_T_S_trunc[jnp.newaxis, :]
     new_Tb_trunc = new_Tb_trunc.reshape(
         new_T.shape[0], new_T.shape[1], new_T.shape[2], new_Tb_trunc.shape[-1]
     )
 
     if not only_trunc:
+        new_T_S = jnp.where(
+            new_T_S / new_T_S[0] >= truncation_eps,
+            jnp.sqrt(jnp.where(new_T_S / new_T_S[0] >= truncation_eps, new_T_S, 1)),
+            0,
+        )
         new_Ta = new_T_S[:, jnp.newaxis] * new_T_Vh
         new_Ta = new_Ta.reshape(
             new_Ta.shape[0], new_T.shape[3], new_T.shape[4], new_T.shape[5]
