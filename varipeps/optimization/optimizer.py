@@ -117,6 +117,22 @@ def _apply_local_preconditioner_metric(tensor_obj, perturbation):
     )
 
 
+def _precond_metric_phases(tensor_objs):
+    """
+    Global phase of the norm-environment metric for each tensor. The CTMRG
+    environment is only fixed up to a scalar factor, so the metric is a phase
+    (e.g. -1 for the split transfer environment or any complex phase for complex
+    tensors) times a Hermitian positive semi-definite operator. The phase is
+    determined from <A, N A> at the current tensor.
+    """
+    result = []
+    for t_obj in tensor_objs:
+        t = t_obj.tensor
+        norm = jnp.vdot(t, _apply_local_preconditioner_metric(t_obj, t))
+        result.append(norm / jnp.abs(norm))
+    return result
+
+
 def _precond_regularization(tensor_objs, regularization, config):
     """
     Regularization of the local preconditioner for each tensor. The value is
@@ -130,7 +146,7 @@ def _precond_regularization(tensor_objs, regularization, config):
     result = []
     for t_obj in tensor_objs:
         t = t_obj.tensor
-        metric_scale = jnp.real(
+        metric_scale = jnp.abs(
             jnp.vdot(t, _apply_local_preconditioner_metric(t_obj, t))
         ) / jnp.real(jnp.vdot(t, t))
         result.append(jnp.maximum(regularization, relative_floor * metric_scale))
@@ -211,13 +227,16 @@ def _l_bfgs_workhorse(value_tuple, gradient_tuple, t_objs, config):
             x = x[:gradient_len] + 1j * x[gradient_len:]
         x = gradient_unravel(x)
         x = [
-            _apply_local_preconditioner_metric(te, xe) + re * xe
-            for te, xe, re in zip(t_objs, x[: len(t_objs)], regularization, strict=True)
+            _apply_local_preconditioner_metric(te, xe) / pe + re * xe
+            for te, xe, pe, re in zip(
+                t_objs, x[: len(t_objs)], phases, regularization, strict=True
+            )
         ] + list(x[len(t_objs) :])
 
         return _make_1d(x)
 
     if config.optimizer_use_preconditioning:
+        phases = _precond_metric_phases(t_objs)
         regularization = _precond_regularization(t_objs, norm_grad_square, config)
 
         y_precond, _ = jax.scipy.sparse.linalg.gmres(
@@ -926,11 +945,14 @@ def optimize_peps_network(
                         )
 
                         precond_funcs = [
-                            lambda x, te=te, re=re: (
-                                _apply_local_preconditioner_metric(te, x) + re * x
+                            lambda x, te=te, pe=pe, re=re: (
+                                _apply_local_preconditioner_metric(te, x) / pe + re * x
                             )
-                            for te, re in zip(
+                            for te, pe, re in zip(
                                 working_unitcell.get_unique_tensors(),
+                                _precond_metric_phases(
+                                    working_unitcell.get_unique_tensors()
+                                ),
                                 _precond_regularization(
                                     working_unitcell.get_unique_tensors(),
                                     grad_norm_squared,
