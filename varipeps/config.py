@@ -113,6 +113,34 @@ class VariPEPS_Config:
         convergence of the singular values of the corners.
       ctmrg_max_steps (:obj:`int`):
         Maximal number of steps for fix-pointer iteration of the CTMRG routine.
+      ctmrg_early_stop (:obj:`bool`):
+        Stop the forward CTMRG early if it cannot reach the convergence
+        threshold within the remaining steps up to
+        :obj:`VariPEPS_Config.ctmrg_max_steps`. The stop is treated like
+        reaching the maximal number of steps (e.g. the truncation threshold is
+        increased), so only steps are saved which would not lead to
+        convergence. Only two cases are detected: A convergence measure which
+        does not change any more (e.g. a fixed point up to a gauge
+        transformation) and a smooth geometric convergence which is too slow.
+        Non-monotonic or jumping convergence is never stopped. Disabled by
+        default.
+      ctmrg_early_stop_window (:obj:`int`):
+        Number of the last steps used to determine the trend of the
+        convergence measure.
+      ctmrg_early_stop_frozen_tolerance (:obj:`float`):
+        The measure counts as not changing any more if the maximal difference
+        of its decadic logarithm within the window is below this value.
+      ctmrg_early_stop_fit_tolerance (:obj:`float`):
+        The convergence counts as smooth geometric convergence if the decadic
+        logarithm of the measure deviates from a linear fit within the window
+        by less than this value.
+      ctmrg_early_stop_max_measure (:obj:`float`):
+        The rate of a smooth geometric convergence is only used for the
+        decision below this value of the convergence measure. Above, smooth
+        phases can still be transients before a faster convergence.
+      ctmrg_early_stop_safety_factor (:obj:`float`):
+        Stop a smooth geometric convergence only if the number of steps needed
+        at the current rate exceeds the remaining steps by this factor.
       ctmrg_print_steps (:obj:`bool`):
         Print steps of fix-point iteration in CTMRG routine.
       ctmrg_verbose_output (:obj:`bool`):
@@ -337,6 +365,12 @@ class VariPEPS_Config:
     ctmrg_convergence_eps: float = 1e-7
     ctmrg_enforce_elementwise_convergence: bool = True
     ctmrg_max_steps: int = 75
+    ctmrg_early_stop: bool = False
+    ctmrg_early_stop_window: int = 10
+    ctmrg_early_stop_frozen_tolerance: float = 1e-3
+    ctmrg_early_stop_fit_tolerance: float = 5e-2
+    ctmrg_early_stop_max_measure: float = 1e-3
+    ctmrg_early_stop_safety_factor: float = 2.0
     ctmrg_print_steps: bool = False
     ctmrg_verbose_output: bool = False
     ctmrg_truncation_eps: float = 1e-12

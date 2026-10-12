@@ -13,7 +13,7 @@ import jax.debug as jdebug
 from jax.flatten_util import ravel_pytree
 
 from varipeps import varipeps_config, varipeps_global_state
-from varipeps.config import Grad_Fixed_Point_Method, Projector_Method
+from varipeps.config import Grad_Fixed_Point_Method, Projector_Method, VariPEPS_Config
 from varipeps.peps import PEPS_Tensor, PEPS_Tensor_Split_Transfer, PEPS_Unit_Cell
 from varipeps.utils.debug_print import debug_print
 from .absorption import do_absorption_step, do_absorption_step_split_transfer
@@ -491,8 +491,8 @@ def print_verbose(verbose_data, *, ad=False):
         )
 
 
-@jit
-def _ctmrg_body_func(carry):
+@partial(jit, static_argnames=("return_measure",))
+def _ctmrg_body_func(carry, *, return_measure=False):
     (
         w_tensors,
         w_unitcell_last_step,
@@ -590,7 +590,7 @@ def _ctmrg_body_func(carry):
 
     count += 1
 
-    return (
+    result = (
         w_tensors,
         w_unitcell,
         converged,
@@ -603,12 +603,138 @@ def _ctmrg_body_func(carry):
         config,
     )
 
+    if return_measure:
+        # Monitor the same entry-wise differences as the convergence test.
+        # Magnitude-only convergence does not imply an AD fixed point.
+        measure = jnp.where(
+            elementwise_conv,
+            jnp.max(jnp.asarray([diff for _, _, diff in verbose_data])),
+            measure,
+        )
+        return result, measure
+
+    return result
+
+
+def _ctmrg_cannot_converge(
+    log_measures: jnp.ndarray,
+    count: jnp.ndarray,
+    eps: float,
+    config: VariPEPS_Config,
+) -> jnp.ndarray:
+    """
+    Decide from the convergence measures of the last CTMRG steps if the
+    routine can still reach the convergence threshold ``eps`` within the
+    remaining steps up to
+    :obj:`~varipeps.config.VariPEPS_Config.ctmrg_max_steps`.
+
+    Two cases are detected:
+
+    * The measure does not change any more (e.g. a fixed point up to a gauge
+      transformation which is repeated in every step).
+    * The measure decreases smoothly (geometric convergence, i.e. a straight
+      line in the logarithm), but the rate is too slow to reach ``eps`` in the
+      remaining steps. This is only used below
+      :obj:`~varipeps.config.VariPEPS_Config.ctmrg_early_stop_max_measure`,
+      since smooth phases with a larger measure can be transients before a
+      faster convergence.
+
+    Jumping or non-monotonic phases (e.g. before the projectors lock in) are
+    never classified as not converging.
+
+    Args:
+      log_measures (:obj:`jax.numpy.ndarray`):
+        Decadic logarithm of the convergence measure of the last steps, the
+        latest step last.
+      count (:obj:`jax.numpy.ndarray`):
+        Number of CTMRG steps done so far.
+      eps (:obj:`float`):
+        Convergence threshold of the measure.
+      config (:obj:`~varipeps.config.VariPEPS_Config`):
+        Global configuration object of the variPEPS library.
+    Returns:
+      :obj:`jax.numpy.ndarray`:
+        Flag if the CTMRG cannot converge within the remaining steps.
+    """
+    window = log_measures.shape[0]
+    current_log_measure = log_measures[-1]
+
+    # Least squares fit log10(measure) = offset + rate * step. With the step
+    # index centered in the window (sum of steps = 0) the normal equations give
+    # rate = sum(steps * log_measures) / sum(steps**2) and offset = mean of
+    # log_measures, so no separate fit of the offset is needed.
+    steps = jnp.arange(window, dtype=jnp.float64) - (window - 1) / 2
+    rate = jnp.sum(steps * log_measures) / jnp.sum(steps**2)
+    fit_deviation = jnp.max(
+        jnp.abs(log_measures - jnp.mean(log_measures) - rate * steps)
+    )
+
+    measure_frozen = (
+        jnp.max(log_measures) - jnp.min(log_measures)
+        < config.ctmrg_early_stop_frozen_tolerance
+    )
+
+    remaining_steps = config.ctmrg_max_steps - count
+    needed_steps = jnp.where(
+        rate < 0, (current_log_measure - jnp.log10(eps)) / -rate, jnp.inf
+    )
+    too_slow = (
+        (fit_deviation < config.ctmrg_early_stop_fit_tolerance)
+        & (rate < 0)
+        & (current_log_measure < jnp.log10(config.ctmrg_early_stop_max_measure))
+        & (needed_steps > config.ctmrg_early_stop_safety_factor * remaining_steps)
+    )
+
+    return measure_frozen | too_slow
+
 
 @jit
 def _ctmrg_while_wrapper(start_carry):
     def cond_func(carry):
         _, _, converged, _, _, count, _, _, _, config = carry
         return jnp.logical_not(converged) & (count < config.ctmrg_max_steps)
+
+    config = start_carry[-1]
+    _, _, _, _, eps, start_count, _, _, _, config = start_carry
+
+    stopped_early = False
+    if config.ctmrg_early_stop:
+        window = config.ctmrg_early_stop_window
+
+        def early_stop_cond_func(carry):
+            ctmrg_carry, _, stopped_early = carry
+            return cond_func(ctmrg_carry) & jnp.logical_not(stopped_early)
+
+        def early_stop_body_func(carry):
+            ctmrg_carry, log_measures, _ = carry
+
+            ctmrg_carry, measure = _ctmrg_body_func(ctmrg_carry, return_measure=True)
+            _, _, converged, _, _, count, _, _, _, _ = ctmrg_carry
+
+            # Decadic logarithm of the measure of the last steps
+            log_measures = jnp.append(
+                log_measures[1:], jnp.log10(jnp.maximum(measure, 1e-300))
+            )
+            window_filled = count - start_count >= window
+
+            # A non-finite measure cannot converge any more. Otherwise stop
+            # only if the routine cannot converge within the remaining steps,
+            # so the stop just anticipates the failure at ctmrg_max_steps.
+            stopped_early = jnp.logical_not(jnp.isfinite(measure)) | (
+                jnp.logical_not(converged)
+                & window_filled
+                & _ctmrg_cannot_converge(log_measures, count, eps, config)
+            )
+
+            return ctmrg_carry, log_measures, stopped_early
+
+        result, _, stopped_early = while_loop(
+            early_stop_cond_func,
+            early_stop_body_func,
+            (start_carry, jnp.zeros(window), False),
+        )
+    else:
+        result = while_loop(cond_func, _ctmrg_body_func, start_carry)
 
     (
         _,
@@ -621,9 +747,9 @@ def _ctmrg_while_wrapper(start_carry):
         norm_smallest_S,
         _,
         _,
-    ) = while_loop(cond_func, _ctmrg_body_func, start_carry)
+    ) = result
 
-    return working_unitcell, converged, end_count, norm_smallest_S
+    return working_unitcell, converged, end_count, norm_smallest_S, stopped_early
 
 
 def calc_ctmrg_env(
@@ -662,6 +788,18 @@ def calc_ctmrg_env(
         else varipeps_config.ctmrg_enforce_elementwise_convergence
     )
     init_corner_singular_vals = None
+
+    if varipeps_config.ctmrg_early_stop:
+        if varipeps_config.ctmrg_early_stop_window < 3:
+            raise ValueError("ctmrg_early_stop_window must be at least 3.")
+        for name in (
+            "frozen_tolerance",
+            "fit_tolerance",
+            "max_measure",
+            "safety_factor",
+        ):
+            if not getattr(varipeps_config, "ctmrg_early_stop_" + name) > 0:
+                raise ValueError("ctmrg_early_stop_" + name + " must be positive.")
 
     if enforce_elementwise_convergence:
         last_step_tensors = unitcell.get_unique_tensors()
@@ -702,6 +840,7 @@ def calc_ctmrg_env(
     while True:
         tmp_count = 0
         corner_singular_vals = None
+        stopped_early = False
 
         while tmp_count < varipeps_config.ctmrg_max_steps and (
             (
@@ -756,18 +895,7 @@ def calc_ctmrg_env(
                 varipeps_global_state.ctmrg_projector_method = Projector_Method.FULL
                 reset_qr = True
 
-            (
-                _,
-                working_unitcell,
-                _,
-                corner_singular_vals,
-                _,
-                tmp_count,
-                _,
-                norm_smallest_S,
-                _,
-                _,
-            ) = _ctmrg_body_func(
+            step_result = _ctmrg_body_func(
                 (
                     peps_tensors,
                     working_unitcell,
@@ -779,15 +907,37 @@ def calc_ctmrg_env(
                     jnp.inf,
                     varipeps_global_state,
                     varipeps_config,
-                )
+                ),
+                return_measure=varipeps_config.ctmrg_early_stop,
             )
+
+            if varipeps_config.ctmrg_early_stop:
+                step_result, measure = step_result
+                # A non-finite measure cannot converge any more.
+                stopped_early = not bool(jnp.isfinite(measure))
+
+            (
+                _,
+                working_unitcell,
+                _,
+                corner_singular_vals,
+                _,
+                tmp_count,
+                _,
+                norm_smallest_S,
+                _,
+                _,
+            ) = step_result
+
+            if stopped_early:
+                break
 
         if reset_qr:
             varipeps_global_state.ctmrg_projector_method = None
             reset_qr = False
 
-        if tmp_count < varipeps_config.ctmrg_max_steps:
-            working_unitcell, converged, end_count, norm_smallest_S = (
+        if tmp_count < varipeps_config.ctmrg_max_steps and not stopped_early:
+            working_unitcell, converged, end_count, norm_smallest_S, stopped_early = (
                 _ctmrg_while_wrapper(
                     (
                         peps_tensors,
@@ -810,6 +960,13 @@ def calc_ctmrg_env(
         else:
             converged = False
             end_count = tmp_count
+
+        if stopped_early and varipeps_config.ctmrg_print_steps:
+            debug_print(
+                "CTMRG: Stopped after {} steps since convergence within "
+                "ctmrg_max_steps is not possible.",
+                end_count,
+            )
 
         if converged and (
             working_unitcell[0, 0][0][0].chi > best_chi or best_result is None
@@ -914,7 +1071,7 @@ def calc_ctmrg_env(
 
         if (
             varipeps_config.ctmrg_increase_truncation_eps
-            and end_count == varipeps_config.ctmrg_max_steps
+            and (end_count == varipeps_config.ctmrg_max_steps or stopped_early)
             and not converged
         ):
             new_truncation_eps = (
@@ -950,12 +1107,11 @@ def calc_ctmrg_env(
         converged = True
         last_truncation_eps = best_truncation_eps
 
-    if (
-        varipeps_config.ctmrg_fail_if_not_converged
-        and end_count == varipeps_config.ctmrg_max_steps
-        and not converged
-    ):
-        raise CTMRGNotConvergedError
+    if varipeps_config.ctmrg_fail_if_not_converged and not converged:
+        raise CTMRGNotConvergedError(
+            f"CTMRG did not converge after {int(end_count)} steps"
+            + (" (early stop)." if stopped_early else ".")
+        )
 
     if _return_truncation_eps:
         return working_unitcell, last_truncation_eps, norm_smallest_S
