@@ -48,6 +48,22 @@ def decompose_new_T(new_T, chi, truncation_eps, config, only_trunc=False):
     relevant_S_trunc = (new_T_S_trunc > 0) & (
         new_T_S_trunc / new_T_S[0] >= truncation_eps
     )
+
+    def check_truncation(has_relevant_S):
+        if not has_relevant_S:
+            raise ValueError(
+                f"No singular values remain after Ta/Tb multiplet truncation at chi={chi}. "
+                "Increase chi to retain a complete leading multiplet."
+            )
+
+    has_relevant_S = jnp.any(relevant_S_trunc)
+    jax.lax.cond(
+        has_relevant_S,
+        lambda _: None,
+        lambda keep: jax.debug.callback(check_truncation, keep),
+        has_relevant_S,
+    )
+
     new_T_S_trunc = jnp.where(
         relevant_S_trunc,
         jnp.sqrt(jnp.where(relevant_S_trunc, new_T_S_trunc, 1)),
