@@ -144,7 +144,18 @@ class VariPEPS_Config:
       ctmrg_print_steps (:obj:`bool`):
         Print steps of fix-point iteration in CTMRG routine.
       ctmrg_verbose_output (:obj:`bool`):
-        Print verbose output in CTMRG routine.
+        Print verbose output in CTMRG routine. This includes the change of the
+        singular values of the corner tensors in each step, which is invariant
+        under gauge transformations of the environment.
+      ctmrg_save_not_converged_state (:obj:`bool`):
+        Save the input unit cell of every not converged CTMRG run to a HDF5
+        file ctmrg_not_converged_<timestamp>.hdf5 in the directory
+        :obj:`ctmrg_save_not_converged_state_dir`. Useful to reproduce failed
+        runs, e.g. during line search.
+      ctmrg_save_not_converged_state_dir (:obj:`str`):
+        Directory for the files of :obj:`ctmrg_save_not_converged_state`.
+        Relative paths are relative to the current working directory. The
+        directory is created if it does not exist.
       ctmrg_truncation_eps (:obj:`float`):
         Value for cut off of the singular values compared to the
         biggest one. Used in the calculation of the CTMRG projectors.
@@ -391,6 +402,8 @@ class VariPEPS_Config:
     ctmrg_early_stop_safety_factor: float = 2.0
     ctmrg_print_steps: bool = False
     ctmrg_verbose_output: bool = False
+    ctmrg_save_not_converged_state: bool = False
+    ctmrg_save_not_converged_state_dir: str = "ctmrg_not_converged"
     ctmrg_truncation_eps: float = 1e-12
     ctmrg_fail_if_not_converged: bool = True
     ctmrg_full_projector_method: Projector_Method = Projector_Method.FISHMAN

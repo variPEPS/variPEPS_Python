@@ -1,5 +1,7 @@
 from functools import partial
+import datetime
 import enum
+import pathlib
 
 import numpy as np
 from scipy.sparse.linalg import LinearOperator, eigs
@@ -477,6 +479,28 @@ def _is_element_wise_converged_triangular(
     return result == 0, jnp.linalg.norm(measure), verbose_data
 
 
+def _corner_spectrum_change(old_peps_tensors, new_peps_tensors, purity):
+    """
+    Largest change of the singular values of the corner tensors. They are
+    invariant under gauge transformations of the environment, so a small value
+    together with a large elementwise change indicates a gauge problem.
+    """
+    names = ("C1", "C2", "C3", "C4")
+    if purity:
+        names = tuple("renyi_" + n for n in names)
+
+    result = jnp.array(0.0)
+    for old_t, new_t in zip(old_peps_tensors, new_peps_tensors, strict=True):
+        for n in names:
+            old_svd = jnp.linalg.svd(getattr(old_t, n), compute_uv=False)
+            new_svd = jnp.linalg.svd(getattr(new_t, n), compute_uv=False)
+            size = min(old_svd.shape[0], new_svd.shape[0])
+            result = jnp.maximum(
+                result, jnp.max(jnp.abs(new_svd[:size] - old_svd[:size]))
+            )
+    return result
+
+
 def print_verbose(verbose_data, *, ad=False):
     if ad:
         message = "Custom VJP: Verbose: ti {}, CTM tensor {}, Diff {}"
@@ -587,6 +611,15 @@ def _ctmrg_body_func(carry, *, return_measure=False):
         debug_print("CTMRG: {}: {}", count, measure)
         if config.ctmrg_verbose_output:
             jax.debug.callback(print_verbose, verbose_data, ordered=True)
+            if not w_unitcell_last_step.is_triangular_peps():
+                debug_print(
+                    "CTMRG: Verbose: Corner spectrum change {}",
+                    _corner_spectrum_change(
+                        w_unitcell_last_step.get_unique_tensors(),
+                        w_unitcell.get_unique_tensors(),
+                        w_unitcell_last_step.is_thermal_pepo(),
+                    ),
+                )
 
     count += 1
 
@@ -1105,6 +1138,16 @@ def calc_ctmrg_env(
         norm_smallest_S = best_norm_smallest_S
         converged = True
         last_truncation_eps = best_truncation_eps
+
+    if varipeps_config.ctmrg_save_not_converged_state and not converged:
+        save_dir = pathlib.Path(varipeps_config.ctmrg_save_not_converged_state_dir)
+        save_dir.mkdir(parents=True, exist_ok=True)
+        path = (
+            save_dir
+            / f"ctmrg_not_converged_{datetime.datetime.now():%Y%m%d_%H%M%S_%f}.hdf5"
+        )
+        unitcell.save_to_file(path)
+        debug_print("CTMRG: Saved input of the not converged run to {}", path)
 
     if varipeps_config.ctmrg_fail_if_not_converged and not converged:
         raise CTMRGNotConvergedError(
