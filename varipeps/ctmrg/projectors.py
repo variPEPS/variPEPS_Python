@@ -111,6 +111,8 @@ def _fix_qr_phases(new_qr_left, new_qr_right):
     phases = jnp.take_along_axis(new_qr_left, phases_index[:, jnp.newaxis], axis=1)[
         :, 0
     ]
+    # Rows which are exactly zero (rank deficient environment) have no phase
+    phases = jnp.where(phases == 0, 1, phases)
     phases /= jnp.abs(phases)
     return (
         new_qr_left * phases.conj()[:, jnp.newaxis],
