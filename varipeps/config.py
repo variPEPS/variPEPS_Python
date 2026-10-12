@@ -253,13 +253,31 @@ class VariPEPS_Config:
         of the preconditioner.
       optimizer_precond_gmres_maxiter (:obj:`int`):
         Maximal number of outer iterations inside the GMRES method for the
-        inversion of the preconditioner.
+        inversion of the preconditioner. One iteration (rough solution) is
+        usually sufficient, see https://arxiv.org/abs/2511.09546.
+      optimizer_precond_regularization_relative_floor (:obj:`float`):
+        Lower bound for the regularization term in the preconditioner relative
+        to the size of the metric at the current tensor ``<A, N A> / <A, A>``.
+        This bounds the condition number of the preconditioner to about the
+        inverse of this value and makes the regularization independent of the
+        normalization of the environment. Zero disables the bound.
+      optimizer_precond_max_relative_residual (:obj:`float`):
+        Maximal relative residual ``|P x - b| / |b|`` of the GMRES solution of
+        the preconditioner. JAX does not report the convergence of GMRES, so
+        the residual is checked explicitly and the unpreconditioned direction
+        is used above this value. A rough solution is intended (see
+        https://arxiv.org/abs/2511.09546), so the default only rejects
+        solutions which are not better than no solution at all.
       optimizer_use_norm_preserving_retraction (:obj:`bool`):
         Restrict each optimized tensor to the manifold of tensors with fixed
         norm 1. The tensors are normalized at the start of the optimization,
         steps are performed by a norm-preserving retraction and the tangent
         vectors of previous steps (CG, L-BFGS) are transported to the new
         point on the manifold.
+      optimizer_precond_regularization_factor (:obj:`float`):
+        Prefactor for regularization term in the preconditioner.
+      optimizer_precond_regularization_floor (:obj:`float`):
+        Floor for regularization term in the preconditioner.
       line_search_method (:obj:`Line_Search_Methods`):
         Method used for the line search routine.
       line_search_initial_step_size (:obj:`float`):
@@ -413,8 +431,12 @@ class VariPEPS_Config:
     optimizer_reuse_env_eps: float = 1e-3
     optimizer_use_preconditioning: bool = True
     optimizer_precond_gmres_krylov_subspace_size: int = 30
-    optimizer_precond_gmres_maxiter: int = 3
+    optimizer_precond_gmres_maxiter: int = 1
+    optimizer_precond_regularization_relative_floor: float = 0.0
+    optimizer_precond_max_relative_residual: float = 1.0
     optimizer_use_norm_preserving_retraction: bool = True
+    optimizer_precond_regularization_factor: float = 1e-2
+    optimizer_precond_regularization_floor: float = 1e-12
 
     # Line search
     line_search_method: Line_Search_Methods = Line_Search_Methods.HAGERZHANG
