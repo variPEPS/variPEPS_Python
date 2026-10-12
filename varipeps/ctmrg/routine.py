@@ -694,7 +694,6 @@ def _ctmrg_while_wrapper(start_carry):
         _, _, converged, _, _, count, _, _, _, config = carry
         return jnp.logical_not(converged) & (count < config.ctmrg_max_steps)
 
-    config = start_carry[-1]
     _, _, _, _, eps, start_count, _, _, _, config = start_carry
 
     stopped_early = False
