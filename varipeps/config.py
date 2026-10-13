@@ -107,6 +107,7 @@ _NO_CACHE_CLEAR_OPTIONS = frozenset(
         "ctmrg_save_not_converged_state",
         "ctmrg_save_not_converged_state_dir",
         "ctmrg_truncation_eps",
+        "ctmrg_multiplet_eps",
         "ctmrg_verbose_output",
         "jax_compilation_cache_memory_factor",
         "triangular_ctmrg_use_split",
@@ -145,6 +146,7 @@ class _CTMRG_Inner_Config:
     ctmrg_print_steps: bool
     ctmrg_verbose_output: bool
     ctmrg_truncation_eps: float
+    ctmrg_multiplet_eps: float
     ctmrg_full_projector_method: Projector_Method
     ctmrg_qr_power_iterations: int
 
@@ -166,6 +168,7 @@ class _CTMRG_Inner_Config:
         "ctmrg_early_stop_safety_factor",
         "ctmrg_max_steps",
         "ctmrg_truncation_eps",
+        "ctmrg_multiplet_eps",
         "svd_ad_lorentz_broadening_eps",
         "svd_sign_fix_eps",
     )
@@ -276,6 +279,11 @@ class VariPEPS_Config:
       ctmrg_truncation_eps (:obj:`float`):
         Value for cut off of the singular values compared to the
         biggest one. Used in the calculation of the CTMRG projectors.
+      ctmrg_multiplet_eps (:obj:`float`):
+        Neighboring singular values of the projector calculation belong to the
+        same multiplet if their difference relative to the larger value is
+        below this threshold. The truncation to the bond dimension never cuts
+        through a multiplet; a multiplet at the cut is discarded completely.
       ctmrg_fail_if_not_converged (:obj:`bool`):
         Flag if the CTMRG routine should fail with an error if no convergence
         can be reached within the maximal number of steps.
@@ -522,6 +530,7 @@ class VariPEPS_Config:
     ctmrg_save_not_converged_state: bool = False
     ctmrg_save_not_converged_state_dir: str = "ctmrg_not_converged"
     ctmrg_truncation_eps: float = 1e-12
+    ctmrg_multiplet_eps: float = 1e-4
     ctmrg_fail_if_not_converged: bool = True
     ctmrg_full_projector_method: Projector_Method = Projector_Method.FISHMAN
     ctmrg_increase_truncation_eps: bool = True
