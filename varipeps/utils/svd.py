@@ -136,6 +136,9 @@ def _svd_jvp_rule_impl(primals, tangents, only_u_or_vt=None, use_qr=False):
     s_sums = s_dim + _T(s_dim)
     s_sums = jnp.where(s_sums > 0, s_sums, 1)
     s_diffs = s_dim - _T(s_dim)
+    degenerate_pairs = (jnp.abs(s_diffs / s[0]) < 1e-12) | jnp.eye(
+        s.shape[-1], dtype=bool
+    )
 
     if config.svd_ad_use_lorentz_broadening:
         F = s_diffs / (s_diffs**2 + config.svd_ad_lorentz_broadening_eps)
@@ -154,7 +157,10 @@ def _svd_jvp_rule_impl(primals, tangents, only_u_or_vt=None, use_qr=False):
 
     s_zeros = (s == 0).astype(s.dtype)
     s_inv = 1 / (s + s_zeros) - s_zeros
-    s_inv_mat = jnp.vectorize(jnp.diag, signature="(k)->(k,k)")(s_inv)
+    # The antihermitian part of dS determines the phases of the singular
+    # vectors (diagonal) and the relative rotation of the left and right
+    # singular vectors inside a multiplet of degenerate singular values.
+    s_inv_mat = s_inv[..., :, jnp.newaxis] * degenerate_pairs
     dUdV_diag = 0.5 * (dS - _H(dS)) * s_inv_mat.astype(A.dtype)
 
     if only_u_or_vt is None:
