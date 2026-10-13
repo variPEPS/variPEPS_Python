@@ -6,8 +6,6 @@ from jax import jit, checkpoint
 
 from varipeps.peps import PEPS_Tensor
 from varipeps.contractions import apply_contraction, apply_contraction_jitted
-from varipeps import varipeps_config
-from varipeps.utils.func_cache import Checkpointing_Cache
 from varipeps.utils.svd import gauge_fixed_svd
 from varipeps.utils.qr import thin_qr, qr_subspace_iteration
 from varipeps.utils.projector_dict import (
@@ -27,21 +25,6 @@ from typing import Sequence, Tuple, TypeVar, Optional
 
 from varipeps.utils.debug_print import debug_print
 import jax.debug
-
-
-class _Projectors_Func_Cache:
-    _left = None
-    _right = None
-    _top = None
-    _bottom = None
-
-    def __class_getitem__(cls, name: str) -> Checkpointing_Cache:
-        name = f"_{name}"
-        obj = getattr(cls, name)
-        if obj is None:
-            obj = Checkpointing_Cache(varipeps_config.checkpointing_projectors)
-            setattr(cls, name, obj)
-        return obj
 
 
 def _check_chi(peps_tensor_objs: Sequence[Sequence[PEPS_Tensor]]) -> int:
@@ -104,10 +87,10 @@ def _calc_ctmrg_quarters(
     return top_left, top_right, bottom_left, bottom_right
 
 
-def _fix_qr_phases(new_qr_left, new_qr_right):
+def _fix_qr_phases(new_qr_left, new_qr_right, *, config):
     abs_left = jnp.abs(new_qr_left)
     normalized = abs_left / jnp.max(abs_left, axis=1, keepdims=True)
-    phases_index = jnp.argmax(normalized >= varipeps_config.svd_sign_fix_eps, axis=1)
+    phases_index = jnp.argmax(normalized >= config.svd_sign_fix_eps, axis=1)
     phases = jnp.take_along_axis(new_qr_left, phases_index[:, jnp.newaxis], axis=1)[
         :, 0
     ]
@@ -146,8 +129,10 @@ def _truncated_SVD(
     chi: int,
     truncation_eps: float,
     return_full_U_Vh: bool = False,
+    *,
+    config,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    full_U, S, full_Vh = gauge_fixed_svd(matrix)
+    full_U, S, full_Vh = gauge_fixed_svd(matrix, config=config)
     full_S = S
 
     S = _truncate_singular_values(S, chi, truncation_eps)
@@ -248,6 +233,8 @@ def _fishman_horizontal_cut(
     bottom_right: jnp.ndarray,
     truncation_eps: float,
     partial_unitary_mode=None,
+    *,
+    config,
 ) -> Tuple[
     jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray
 ]:
@@ -262,12 +249,12 @@ def _fishman_horizontal_cut(
     bottom_matrix = jnp.dot(bottom_right_matrix, bottom_left_matrix)
 
     if partial_unitary_mode is None:
-        top_U, top_S, top_Vh = gauge_fixed_svd(top_matrix)
+        top_U, top_S, top_Vh = gauge_fixed_svd(top_matrix, config=config)
     elif partial_unitary_mode == "top_U_bottom_Vh":
-        top_U, top_S = gauge_fixed_svd(top_matrix, only_u_or_vh="U")
+        top_U, top_S = gauge_fixed_svd(top_matrix, only_u_or_vh="U", config=config)
         top_Vh = None
     elif partial_unitary_mode == "top_Vh_bottom_U":
-        top_S, top_Vh = gauge_fixed_svd(top_matrix, only_u_or_vh="Vh")
+        top_S, top_Vh = gauge_fixed_svd(top_matrix, only_u_or_vh="Vh", config=config)
         top_U = None
     else:
         raise ValueError("Illegal argument for 'partial_unitary_mode'.")
@@ -275,12 +262,16 @@ def _fishman_horizontal_cut(
     top_S = jnp.where((top_S / top_S[0]) >= truncation_eps, top_S, 0)
 
     if partial_unitary_mode is None:
-        bottom_U, bottom_S, bottom_Vh = gauge_fixed_svd(bottom_matrix)
+        bottom_U, bottom_S, bottom_Vh = gauge_fixed_svd(bottom_matrix, config=config)
     elif partial_unitary_mode == "top_U_bottom_Vh":
-        bottom_S, bottom_Vh = gauge_fixed_svd(bottom_matrix, only_u_or_vh="Vh")
+        bottom_S, bottom_Vh = gauge_fixed_svd(
+            bottom_matrix, only_u_or_vh="Vh", config=config
+        )
         bottom_U = None
     elif partial_unitary_mode == "top_Vh_bottom_U":
-        bottom_U, bottom_S = gauge_fixed_svd(bottom_matrix, only_u_or_vh="U")
+        bottom_U, bottom_S = gauge_fixed_svd(
+            bottom_matrix, only_u_or_vh="U", config=config
+        )
         bottom_Vh = None
 
     bottom_S = jnp.where((bottom_S / bottom_S[0]) >= truncation_eps, bottom_S, 0)
@@ -295,6 +286,8 @@ def _fishman_vertical_cut(
     bottom_right: jnp.ndarray,
     truncation_eps: float,
     partial_unitary_mode=None,
+    *,
+    config,
 ) -> Tuple[
     jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray
 ]:
@@ -309,12 +302,12 @@ def _fishman_vertical_cut(
     right_matrix = jnp.dot(top_right_matrix, bottom_right_matrix)
 
     if partial_unitary_mode is None:
-        left_U, left_S, left_Vh = gauge_fixed_svd(left_matrix)
+        left_U, left_S, left_Vh = gauge_fixed_svd(left_matrix, config=config)
     elif partial_unitary_mode == "left_U_right_Vh":
-        left_U, left_S = gauge_fixed_svd(left_matrix, only_u_or_vh="U")
+        left_U, left_S = gauge_fixed_svd(left_matrix, only_u_or_vh="U", config=config)
         left_Vh = None
     elif partial_unitary_mode == "left_Vh_right_U":
-        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh")
+        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh", config=config)
         left_U = None
     else:
         raise ValueError("Illegal argument for 'partial_unitary_mode'.")
@@ -322,12 +315,16 @@ def _fishman_vertical_cut(
     left_S = jnp.where((left_S / left_S[0]) >= truncation_eps, left_S, 0)
 
     if partial_unitary_mode is None:
-        right_U, right_S, right_Vh = gauge_fixed_svd(right_matrix)
+        right_U, right_S, right_Vh = gauge_fixed_svd(right_matrix, config=config)
     elif partial_unitary_mode == "left_U_right_Vh":
-        right_S, right_Vh = gauge_fixed_svd(right_matrix, only_u_or_vh="Vh")
+        right_S, right_Vh = gauge_fixed_svd(
+            right_matrix, only_u_or_vh="Vh", config=config
+        )
         right_U = None
     elif partial_unitary_mode == "left_Vh_right_U":
-        right_U, right_S = gauge_fixed_svd(right_matrix, only_u_or_vh="U")
+        right_U, right_S = gauge_fixed_svd(
+            right_matrix, only_u_or_vh="U", config=config
+        )
         right_Vh = None
 
     right_S = jnp.where((right_S / right_S[0]) >= truncation_eps, right_S, 0)
@@ -336,7 +333,7 @@ def _fishman_vertical_cut(
 
 
 def _split_transfer_fishman(
-    first_tensor, second_tensor, truncation_eps, partial_unitary_mode=None
+    first_tensor, second_tensor, truncation_eps, partial_unitary_mode=None, *, config
 ):
     if first_tensor.ndim == 5:
         first_tensor_ketbra = first_tensor.reshape(
@@ -371,16 +368,16 @@ def _split_transfer_fishman(
 
     if partial_unitary_mode is None:
         first_ketbra_U, first_ketbra_S, first_ketbra_Vh = gauge_fixed_svd(
-            first_tensor_ketbra
+            first_tensor_ketbra, config=config
         )
     elif partial_unitary_mode == "U_Vh":
         first_ketbra_U, first_ketbra_S = gauge_fixed_svd(
-            first_tensor_ketbra, only_u_or_vh="U"
+            first_tensor_ketbra, only_u_or_vh="U", config=config
         )
         first_ketbra_Vh = None
     elif partial_unitary_mode == "Vh_U":
         first_ketbra_S, first_ketbra_Vh = gauge_fixed_svd(
-            first_tensor_ketbra, only_u_or_vh="Vh"
+            first_tensor_ketbra, only_u_or_vh="Vh", config=config
         )
         first_ketbra_U = None
     else:
@@ -434,16 +431,16 @@ def _split_transfer_fishman(
 
     if partial_unitary_mode is None:
         second_ketbra_U, second_ketbra_S, second_ketbra_Vh = gauge_fixed_svd(
-            second_tensor_ketbra
+            second_tensor_ketbra, config=config
         )
     elif partial_unitary_mode == "U_Vh":
         second_ketbra_S, second_ketbra_Vh = gauge_fixed_svd(
-            second_tensor_ketbra, only_u_or_vh="Vh"
+            second_tensor_ketbra, only_u_or_vh="Vh", config=config
         )
         second_ketbra_U = None
     elif partial_unitary_mode == "Vh_U":
         second_ketbra_U, second_ketbra_S = gauge_fixed_svd(
-            second_tensor_ketbra, only_u_or_vh="U"
+            second_tensor_ketbra, only_u_or_vh="U", config=config
         )
         second_ketbra_Vh = None
 
@@ -516,6 +513,8 @@ def _horizontal_cut_split_transfer(
     truncation_eps: Optional[float] = None,
     offset: int = 0,
     partial_unitary_mode=None,
+    *,
+    config,
 ):
     top_tensor = apply_contraction_jitted(
         "ctmrg_split_transfer_top",
@@ -536,7 +535,11 @@ def _horizontal_cut_split_transfer(
 
     if fishman:
         return _split_transfer_fishman(
-            top_tensor, bottom_tensor, truncation_eps, partial_unitary_mode
+            top_tensor,
+            bottom_tensor,
+            truncation_eps,
+            partial_unitary_mode,
+            config=config,
         )
 
     return (
@@ -552,6 +555,8 @@ def _vertical_cut_split_transfer(
     truncation_eps: Optional[float] = None,
     offset: int = 0,
     partial_unitary_mode=None,
+    *,
+    config,
 ):
     left_tensor = apply_contraction_jitted(
         "ctmrg_split_transfer_left",
@@ -572,7 +577,11 @@ def _vertical_cut_split_transfer(
 
     if fishman:
         return _split_transfer_fishman(
-            left_tensor, right_tensor, truncation_eps, partial_unitary_mode
+            left_tensor,
+            right_tensor,
+            truncation_eps,
+            partial_unitary_mode,
+            config=config,
         )
 
     return (
@@ -592,6 +601,8 @@ def _left_projectors_workhorse(
     projector_method: Projector_Method,
     chi: int,
     qr_power_iterations: int = 1,
+    *,
+    config,
 ) -> Left_Projectors:
     if projector_method is Projector_Method.FULL:
         top_matrix, bottom_matrix = _horizontal_cut(
@@ -614,6 +625,7 @@ def _left_projectors_workhorse(
             bottom_right,
             truncation_eps,
             "top_U_bottom_Vh",
+            config=config,
         )
         top_matrix = top_U * jnp.sqrt(top_S)[jnp.newaxis, :]
         bottom_matrix = jnp.sqrt(bottom_S)[:, jnp.newaxis] * bottom_Vh
@@ -652,13 +664,15 @@ def _left_projectors_workhorse(
     product_matrix /= jnp.linalg.norm(product_matrix)
 
     S_inv_sqrt, U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
-        product_matrix, chi, truncation_eps, return_full_U_Vh=True
+        product_matrix, chi, truncation_eps, return_full_U_Vh=True, config=config
     )
 
     if projector_method is Projector_Method.FULL_QR:
         new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
         new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
-        new_qr_left, new_qr_right = _fix_qr_phases(new_qr_left, new_qr_right)
+        new_qr_left, new_qr_right = _fix_qr_phases(
+            new_qr_left, new_qr_right, config=config
+        )
 
         projector_left_top = jnp.dot(
             top_left_matrix,
@@ -757,6 +771,7 @@ def calc_left_projectors(
         ),
         chi,
         config.ctmrg_qr_power_iterations,
+        config=config,
     )
 
 
@@ -771,6 +786,8 @@ def _right_projectors_workhorse(
     projector_method: Projector_Method,
     chi: int,
     qr_power_iterations: int = 1,
+    *,
+    config,
 ) -> Right_Projectors:
     if projector_method is Projector_Method.FULL:
         top_matrix, bottom_matrix = _horizontal_cut(
@@ -793,6 +810,7 @@ def _right_projectors_workhorse(
             bottom_right,
             truncation_eps,
             "top_Vh_bottom_U",
+            config=config,
         )
         top_matrix = jnp.sqrt(top_S)[:, jnp.newaxis] * top_Vh
         bottom_matrix = bottom_U * jnp.sqrt(bottom_S)[jnp.newaxis, :]
@@ -831,13 +849,15 @@ def _right_projectors_workhorse(
     product_matrix /= jnp.linalg.norm(product_matrix)
 
     S_inv_sqrt, U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
-        product_matrix, chi, truncation_eps, return_full_U_Vh=True
+        product_matrix, chi, truncation_eps, return_full_U_Vh=True, config=config
     )
 
     if projector_method is Projector_Method.FULL_QR:
         new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
         new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
-        new_qr_left, new_qr_right = _fix_qr_phases(new_qr_left, new_qr_right)
+        new_qr_left, new_qr_right = _fix_qr_phases(
+            new_qr_left, new_qr_right, config=config
+        )
 
         projector_right_top = jnp.dot(
             jnp.dot(S_inv_sqrt[:, jnp.newaxis] * new_qr_left[:chi, :], top_left_matrix),
@@ -936,6 +956,7 @@ def calc_right_projectors(
         ),
         chi,
         config.ctmrg_qr_power_iterations,
+        config=config,
     )
 
 
@@ -950,6 +971,8 @@ def _top_projectors_workhorse(
     projector_method: Projector_Method,
     chi: int,
     qr_power_iterations: int = 1,
+    *,
+    config,
 ) -> Top_Projectors:
     if projector_method is Projector_Method.FULL:
         left_matrix, right_matrix = _vertical_cut(
@@ -972,6 +995,7 @@ def _top_projectors_workhorse(
             bottom_right,
             truncation_eps,
             "left_Vh_right_U",
+            config=config,
         )
         left_matrix = jnp.sqrt(left_S)[:, jnp.newaxis] * left_Vh
         right_matrix = right_U * jnp.sqrt(right_S)[jnp.newaxis, :]
@@ -1010,13 +1034,15 @@ def _top_projectors_workhorse(
     product_matrix /= jnp.linalg.norm(product_matrix)
 
     S_inv_sqrt, U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
-        product_matrix, chi, truncation_eps, return_full_U_Vh=True
+        product_matrix, chi, truncation_eps, return_full_U_Vh=True, config=config
     )
 
     if projector_method is Projector_Method.FULL_QR:
         new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
         new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
-        new_qr_left, new_qr_right = _fix_qr_phases(new_qr_left, new_qr_right)
+        new_qr_left, new_qr_right = _fix_qr_phases(
+            new_qr_left, new_qr_right, config=config
+        )
 
         projector_top_left = jnp.dot(
             jnp.dot(
@@ -1115,6 +1141,7 @@ def calc_top_projectors(
         ),
         chi,
         config.ctmrg_qr_power_iterations,
+        config=config,
     )
 
 
@@ -1129,6 +1156,8 @@ def _bottom_projectors_workhorse(
     projector_method: Projector_Method,
     chi: int,
     qr_power_iterations: int = 1,
+    *,
+    config,
 ) -> Bottom_Projectors:
     if projector_method is Projector_Method.FULL:
         left_matrix, right_matrix = _vertical_cut(
@@ -1151,6 +1180,7 @@ def _bottom_projectors_workhorse(
             bottom_right,
             truncation_eps,
             "left_U_right_Vh",
+            config=config,
         )
         left_matrix = left_U * jnp.sqrt(left_S)[jnp.newaxis, :]
         right_matrix = jnp.sqrt(right_S)[:, jnp.newaxis] * right_Vh
@@ -1189,13 +1219,15 @@ def _bottom_projectors_workhorse(
     product_matrix /= jnp.linalg.norm(product_matrix)
 
     S_inv_sqrt, U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
-        product_matrix, chi, truncation_eps, return_full_U_Vh=True
+        product_matrix, chi, truncation_eps, return_full_U_Vh=True, config=config
     )
 
     if projector_method is Projector_Method.FULL_QR:
         new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
         new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
-        new_qr_left, new_qr_right = _fix_qr_phases(new_qr_left, new_qr_right)
+        new_qr_left, new_qr_right = _fix_qr_phases(
+            new_qr_left, new_qr_right, config=config
+        )
 
         projector_bottom_left = jnp.dot(
             bottom_left_matrix,
@@ -1294,6 +1326,7 @@ def calc_bottom_projectors(
         ),
         chi,
         config.ctmrg_qr_power_iterations,
+        config=config,
     )
 
 
@@ -1303,6 +1336,8 @@ def _split_transfer_workhorse(
     chi: int,
     truncation_eps: float,
     fishman_input: bool = False,
+    *,
+    config,
 ):
     if fishman_input and first_ketbra.ndim == 4:
         first_ketbra_matrix = first_ketbra.reshape(
@@ -1357,7 +1392,7 @@ def _split_transfer_workhorse(
 
     product_matrix_ketbra = jnp.dot(first_ketbra_matrix, second_ketbra_matrix)
     S_inv_sqrt_ketbra, U_ketbra, Vh_ketbra, smallest_S_ketbra = _truncated_SVD(
-        product_matrix_ketbra, chi, truncation_eps
+        product_matrix_ketbra, chi, truncation_eps, config=config
     )
 
     projector_first_ketbra = jnp.dot(
@@ -1471,27 +1506,35 @@ def calc_left_projectors_split_transfer(
         (
             top_tensor_ketbra_left,
             bottom_tensor_ketbra_left,
-        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs)
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, config=config
+        )
 
         (
             top_tensor_ketbra_right,
             bottom_tensor_ketbra_right,
-        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, offset=1, config=config
+        )
     elif projector_method is Projector_Method.HALF:
         (
             top_tensor_ketbra_left,
             bottom_tensor_ketbra_left,
-        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs)
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, config=config
+        )
 
         (
             left_tensor_ketbra_top,
             right_tensor_ketbra_top,
-        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs)
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, config=config)
 
         (
             left_tensor_ketbra_bottom,
             right_tensor_ketbra_bottom,
-        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+        ) = _vertical_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, offset=1, config=config
+        )
     elif projector_method is Projector_Method.FISHMAN:
         (
             top_ketbra_U,
@@ -1506,6 +1549,7 @@ def calc_left_projectors_split_transfer(
             True,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
 
         top_tensor_ketbra_left = (
@@ -1529,6 +1573,7 @@ def calc_left_projectors_split_transfer(
             truncation_eps,
             offset=1,
             partial_unitary_mode="Vh_U",
+            config=config,
         )
         top_tensor_ketbra_right = (
             top_ketbra_S[:, jnp.newaxis, jnp.newaxis] * top_ketbra_Vh
@@ -1548,6 +1593,7 @@ def calc_left_projectors_split_transfer(
         top_tensor_ketbra_left,
         chi,
         truncation_eps,
+        config=config,
     )
 
     if (
@@ -1563,6 +1609,7 @@ def calc_left_projectors_split_transfer(
             bottom_tensor_ketbra_right,
             chi,
             truncation_eps,
+            config=config,
         )
 
         top_tensor_bra_left = apply_contraction_jitted(
@@ -1591,6 +1638,7 @@ def calc_left_projectors_split_transfer(
             right_tensor_ketbra_top,
             chi,
             truncation_eps,
+            config=config,
         )
 
         (
@@ -1602,6 +1650,7 @@ def calc_left_projectors_split_transfer(
             left_tensor_ketbra_bottom,
             chi,
             truncation_eps,
+            config=config,
         )
 
         top_tensor_bra_left = apply_contraction_jitted(
@@ -1634,6 +1683,7 @@ def calc_left_projectors_split_transfer(
             bottom_tensor_bra_left,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
 
         top_tensor_bra_left = top_bra_U * top_bra_S[jnp.newaxis, jnp.newaxis, :]
@@ -1650,6 +1700,7 @@ def calc_left_projectors_split_transfer(
         top_tensor_bra_left,
         chi,
         truncation_eps,
+        config=config,
     )
 
     top_tensor_phys_ket_left = apply_contraction_jitted(
@@ -1701,6 +1752,7 @@ def calc_left_projectors_split_transfer(
             bottom_tensor_phys_ket_left,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
 
         top_tensor_phys_ket_left = (
@@ -1722,6 +1774,7 @@ def calc_left_projectors_split_transfer(
             top_tensor_phys_bra_right,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
         top_tensor_phys_bra_right = (
             top_phys_bra_S[:, jnp.newaxis, jnp.newaxis] * top_phys_bra_Vh
@@ -1739,6 +1792,7 @@ def calc_left_projectors_split_transfer(
         top_tensor_phys_ket_left,
         peps_tensor_objs[0][0].interlayer_chi,
         truncation_eps,
+        config=config,
     )
 
     (
@@ -1750,6 +1804,7 @@ def calc_left_projectors_split_transfer(
         bottom_tensor_phys_bra_right,
         peps_tensor_objs[0][1].interlayer_chi,
         truncation_eps,
+        config=config,
     )
 
     top_tensor_phys_bra_left = apply_contraction_jitted(
@@ -1780,6 +1835,7 @@ def calc_left_projectors_split_transfer(
             bottom_tensor_phys_bra_left,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
 
         top_tensor_phys_bra_left = (
@@ -1800,6 +1856,7 @@ def calc_left_projectors_split_transfer(
         peps_tensor_objs[0][0].interlayer_chi,
         truncation_eps,
         fishman_input=projector_method is Projector_Method.FISHMAN,
+        config=config,
     )
 
     return (
@@ -1862,27 +1919,35 @@ def calc_right_projectors_split_transfer(
         (
             top_tensor_ketbra_left,
             bottom_tensor_ketbra_left,
-        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs)
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, config=config
+        )
 
         (
             top_tensor_ketbra_right,
             bottom_tensor_ketbra_right,
-        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, offset=1, config=config
+        )
     elif projector_method is Projector_Method.HALF:
         (
             top_tensor_ketbra_right,
             bottom_tensor_ketbra_right,
-        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, offset=1, config=config
+        )
 
         (
             left_tensor_ketbra_top,
             right_tensor_ketbra_top,
-        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs)
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, config=config)
 
         (
             left_tensor_ketbra_bottom,
             right_tensor_ketbra_bottom,
-        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+        ) = _vertical_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, offset=1, config=config
+        )
     elif projector_method is Projector_Method.FISHMAN:
         (
             top_ketbra_U,
@@ -1897,6 +1962,7 @@ def calc_right_projectors_split_transfer(
             True,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
 
         top_tensor_ketbra_left = (
@@ -1920,6 +1986,7 @@ def calc_right_projectors_split_transfer(
             truncation_eps,
             offset=1,
             partial_unitary_mode="Vh_U",
+            config=config,
         )
         top_tensor_ketbra_right = (
             top_ketbra_S[:, jnp.newaxis, jnp.newaxis] * top_ketbra_Vh
@@ -1939,6 +2006,7 @@ def calc_right_projectors_split_transfer(
         bottom_tensor_ketbra_right,
         chi,
         truncation_eps,
+        config=config,
     )
 
     if (
@@ -1954,6 +2022,7 @@ def calc_right_projectors_split_transfer(
             top_tensor_ketbra_left,
             chi,
             truncation_eps,
+            config=config,
         )
 
         top_tensor_ket_right = apply_contraction_jitted(
@@ -1982,6 +2051,7 @@ def calc_right_projectors_split_transfer(
             right_tensor_ketbra_top,
             chi,
             truncation_eps,
+            config=config,
         )
 
         (
@@ -1993,6 +2063,7 @@ def calc_right_projectors_split_transfer(
             left_tensor_ketbra_bottom,
             chi,
             truncation_eps,
+            config=config,
         )
 
         top_tensor_ket_right = apply_contraction_jitted(
@@ -2025,6 +2096,7 @@ def calc_right_projectors_split_transfer(
             bottom_tensor_ket_right,
             truncation_eps,
             partial_unitary_mode="Vh_U",
+            config=config,
         )
 
         top_tensor_ket_right = top_ket_S[:, jnp.newaxis, jnp.newaxis] * top_ket_Vh
@@ -2041,6 +2113,7 @@ def calc_right_projectors_split_transfer(
         bottom_tensor_ket_right,
         chi,
         truncation_eps,
+        config=config,
     )
 
     top_tensor_phys_ket_left = apply_contraction_jitted(
@@ -2092,6 +2165,7 @@ def calc_right_projectors_split_transfer(
             bottom_tensor_phys_ket_left,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
 
         top_tensor_phys_ket_left = (
@@ -2113,6 +2187,7 @@ def calc_right_projectors_split_transfer(
             top_tensor_phys_bra_right,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
         top_tensor_phys_bra_right = (
             top_phys_bra_S[:, jnp.newaxis, jnp.newaxis] * top_phys_bra_Vh
@@ -2130,6 +2205,7 @@ def calc_right_projectors_split_transfer(
         top_tensor_phys_ket_left,
         peps_tensor_objs[0][0].interlayer_chi,
         truncation_eps,
+        config=config,
     )
 
     (
@@ -2141,6 +2217,7 @@ def calc_right_projectors_split_transfer(
         bottom_tensor_phys_bra_right,
         peps_tensor_objs[0][1].interlayer_chi,
         truncation_eps,
+        config=config,
     )
 
     top_tensor_phys_ket_right = apply_contraction_jitted(
@@ -2171,6 +2248,7 @@ def calc_right_projectors_split_transfer(
             top_tensor_phys_ket_right,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
 
         top_tensor_phys_ket_right = (
@@ -2191,6 +2269,7 @@ def calc_right_projectors_split_transfer(
         peps_tensor_objs[0][1].interlayer_chi,
         truncation_eps,
         fishman_input=projector_method is Projector_Method.FISHMAN,
+        config=config,
     )
 
     return (
@@ -2253,27 +2332,33 @@ def calc_top_projectors_split_transfer(
         (
             left_tensor_ketbra_top,
             right_tensor_ketbra_top,
-        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs)
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, config=config)
 
         (
             left_tensor_ketbra_bottom,
             right_tensor_ketbra_bottom,
-        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+        ) = _vertical_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, offset=1, config=config
+        )
     elif projector_method is Projector_Method.HALF:
         (
             left_tensor_ketbra_top,
             right_tensor_ketbra_top,
-        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs)
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, config=config)
 
         (
             top_tensor_ketbra_left,
             bottom_tensor_ketbra_left,
-        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs)
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, config=config
+        )
 
         (
             top_tensor_ketbra_right,
             bottom_tensor_ketbra_right,
-        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, offset=1, config=config
+        )
     elif projector_method is Projector_Method.FISHMAN:
         (
             _,
@@ -2288,6 +2373,7 @@ def calc_top_projectors_split_transfer(
             True,
             truncation_eps,
             partial_unitary_mode="Vh_U",
+            config=config,
         )
 
         left_tensor_ketbra_top = (
@@ -2311,6 +2397,7 @@ def calc_top_projectors_split_transfer(
             truncation_eps,
             offset=1,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
         left_tensor_ketbra_bottom = (
             left_ketbra_U * left_ketbra_S[jnp.newaxis, jnp.newaxis, :]
@@ -2330,6 +2417,7 @@ def calc_top_projectors_split_transfer(
         right_tensor_ketbra_top,
         chi,
         truncation_eps,
+        config=config,
     )
 
     if (
@@ -2345,6 +2433,7 @@ def calc_top_projectors_split_transfer(
             left_tensor_ketbra_bottom,
             chi,
             truncation_eps,
+            config=config,
         )
 
         left_tensor_bra_top = apply_contraction_jitted(
@@ -2373,6 +2462,7 @@ def calc_top_projectors_split_transfer(
             top_tensor_ketbra_left,
             chi,
             truncation_eps,
+            config=config,
         )
 
         (
@@ -2384,6 +2474,7 @@ def calc_top_projectors_split_transfer(
             bottom_tensor_ketbra_right,
             chi,
             truncation_eps,
+            config=config,
         )
 
         left_tensor_bra_top = apply_contraction_jitted(
@@ -2416,6 +2507,7 @@ def calc_top_projectors_split_transfer(
             right_tensor_bra_top,
             truncation_eps,
             partial_unitary_mode="Vh_U",
+            config=config,
         )
 
         left_tensor_bra_top = left_bra_S[:, jnp.newaxis, jnp.newaxis] * left_bra_Vh
@@ -2430,6 +2522,7 @@ def calc_top_projectors_split_transfer(
         right_tensor_bra_top,
         chi,
         truncation_eps,
+        config=config,
     )
 
     left_tensor_phys_ket_top = apply_contraction_jitted(
@@ -2481,6 +2574,7 @@ def calc_top_projectors_split_transfer(
             left_tensor_phys_ket_top,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
 
         right_tensor_phys_ket_top = (
@@ -2502,6 +2596,7 @@ def calc_top_projectors_split_transfer(
             right_tensor_phys_bra_bottom,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
         left_tensor_phys_bra_bottom = (
             left_phys_bra_U * left_phys_bra_S[jnp.newaxis, jnp.newaxis, :]
@@ -2519,6 +2614,7 @@ def calc_top_projectors_split_transfer(
         right_tensor_phys_ket_top,
         peps_tensor_objs[0][0].interlayer_chi,
         truncation_eps,
+        config=config,
     )
 
     (
@@ -2530,6 +2626,7 @@ def calc_top_projectors_split_transfer(
         left_tensor_phys_bra_bottom,
         peps_tensor_objs[1][0].interlayer_chi,
         truncation_eps,
+        config=config,
     )
 
     left_tensor_phys_bra_top = apply_contraction_jitted(
@@ -2560,6 +2657,7 @@ def calc_top_projectors_split_transfer(
             left_tensor_phys_bra_top,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
 
         right_tensor_phys_bra_top = (
@@ -2580,6 +2678,7 @@ def calc_top_projectors_split_transfer(
         peps_tensor_objs[0][0].interlayer_chi,
         truncation_eps,
         fishman_input=projector_method is Projector_Method.FISHMAN,
+        config=config,
     )
 
     return (
@@ -2637,27 +2736,35 @@ def calc_bottom_projectors_split_transfer(
         (
             left_tensor_ketbra_top,
             right_tensor_ketbra_top,
-        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs)
+        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, config=config)
 
         (
             left_tensor_ketbra_bottom,
             right_tensor_ketbra_bottom,
-        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+        ) = _vertical_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, offset=1, config=config
+        )
     elif projector_method is Projector_Method.HALF:
         (
             left_tensor_ketbra_bottom,
             right_tensor_ketbra_bottom,
-        ) = _vertical_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+        ) = _vertical_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, offset=1, config=config
+        )
 
         (
             top_tensor_ketbra_left,
             bottom_tensor_ketbra_left,
-        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs)
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, config=config
+        )
 
         (
             top_tensor_ketbra_right,
             bottom_tensor_ketbra_right,
-        ) = _horizontal_cut_split_transfer(peps_tensors, peps_tensor_objs, offset=1)
+        ) = _horizontal_cut_split_transfer(
+            peps_tensors, peps_tensor_objs, offset=1, config=config
+        )
     elif projector_method is Projector_Method.FISHMAN:
         (
             _,
@@ -2672,6 +2779,7 @@ def calc_bottom_projectors_split_transfer(
             True,
             truncation_eps,
             partial_unitary_mode="Vh_U",
+            config=config,
         )
 
         left_tensor_ketbra_top = (
@@ -2695,6 +2803,7 @@ def calc_bottom_projectors_split_transfer(
             truncation_eps,
             offset=1,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
         left_tensor_ketbra_bottom = (
             left_ketbra_U * left_ketbra_S[jnp.newaxis, jnp.newaxis, :]
@@ -2714,6 +2823,7 @@ def calc_bottom_projectors_split_transfer(
         left_tensor_ketbra_bottom,
         chi,
         truncation_eps,
+        config=config,
     )
 
     if (
@@ -2729,6 +2839,7 @@ def calc_bottom_projectors_split_transfer(
             right_tensor_ketbra_top,
             chi,
             truncation_eps,
+            config=config,
         )
 
         left_tensor_ket_bottom = apply_contraction_jitted(
@@ -2757,6 +2868,7 @@ def calc_bottom_projectors_split_transfer(
             top_tensor_ketbra_left,
             chi,
             truncation_eps,
+            config=config,
         )
 
         (
@@ -2768,6 +2880,7 @@ def calc_bottom_projectors_split_transfer(
             bottom_tensor_ketbra_right,
             chi,
             truncation_eps,
+            config=config,
         )
 
         left_tensor_ket_bottom = apply_contraction_jitted(
@@ -2800,6 +2913,7 @@ def calc_bottom_projectors_split_transfer(
             right_tensor_ket_bottom,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
 
         left_tensor_ket_bottom = left_ket_U * left_ket_S[jnp.newaxis, jnp.newaxis, :]
@@ -2816,6 +2930,7 @@ def calc_bottom_projectors_split_transfer(
         left_tensor_ket_bottom,
         chi,
         truncation_eps,
+        config=config,
     )
 
     left_tensor_phys_ket_top = apply_contraction_jitted(
@@ -2867,6 +2982,7 @@ def calc_bottom_projectors_split_transfer(
             left_tensor_phys_ket_top,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
 
         right_tensor_phys_ket_top = (
@@ -2888,6 +3004,7 @@ def calc_bottom_projectors_split_transfer(
             right_tensor_phys_bra_bottom,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
         left_tensor_phys_bra_bottom = (
             left_phys_bra_U * left_phys_bra_S[jnp.newaxis, jnp.newaxis, :]
@@ -2905,6 +3022,7 @@ def calc_bottom_projectors_split_transfer(
         right_tensor_phys_ket_top,
         peps_tensor_objs[0][0].interlayer_chi,
         truncation_eps,
+        config=config,
     )
 
     (
@@ -2916,6 +3034,7 @@ def calc_bottom_projectors_split_transfer(
         left_tensor_phys_bra_bottom,
         peps_tensor_objs[1][0].interlayer_chi,
         truncation_eps,
+        config=config,
     )
 
     left_tensor_phys_ket_bottom = apply_contraction_jitted(
@@ -2946,6 +3065,7 @@ def calc_bottom_projectors_split_transfer(
             right_tensor_phys_ket_bottom,
             truncation_eps,
             partial_unitary_mode="U_Vh",
+            config=config,
         )
 
         left_tensor_phys_ket_bottom = (
@@ -2966,6 +3086,7 @@ def calc_bottom_projectors_split_transfer(
         peps_tensor_objs[1][0].interlayer_chi,
         truncation_eps,
         fishman_input=projector_method is Projector_Method.FISHMAN,
+        config=config,
     )
 
     return (

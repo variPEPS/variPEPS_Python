@@ -2660,7 +2660,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
     def _split_up_T1(self, T1):
         tmp_T1 = T1.reshape(T1.shape[0] * T1.shape[1], T1.shape[2] * T1.shape[3])
 
-        self.T1_ket, T1_S, self.T1_bra = gauge_fixed_svd(tmp_T1)
+        self.T1_ket, T1_S, self.T1_bra = gauge_fixed_svd(tmp_T1, config=varipeps_config)
 
         self.T1_ket = self.T1_ket[:, : self.interlayer_chi]
         T1_S = jnp.sqrt(T1_S[: self.interlayer_chi])
@@ -2682,7 +2682,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             tmp_T2.shape[0] * tmp_T2.shape[1], tmp_T2.shape[2] * tmp_T2.shape[3]
         )
 
-        self.T2_bra, T2_S, self.T2_ket = gauge_fixed_svd(tmp_T2)
+        self.T2_bra, T2_S, self.T2_ket = gauge_fixed_svd(tmp_T2, config=varipeps_config)
 
         self.T2_bra = self.T2_bra[:, : self.interlayer_chi]
         T2_S = jnp.sqrt(T2_S[: self.interlayer_chi])
@@ -2704,7 +2704,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
             tmp_T3.shape[0] * tmp_T3.shape[1], tmp_T3.shape[2] * tmp_T3.shape[3]
         )
 
-        self.T3_ket, T3_S, self.T3_bra = gauge_fixed_svd(tmp_T3)
+        self.T3_ket, T3_S, self.T3_bra = gauge_fixed_svd(tmp_T3, config=varipeps_config)
 
         self.T3_ket = self.T3_ket[:, : self.interlayer_chi]
         T3_S = jnp.sqrt(T3_S[: self.interlayer_chi])
@@ -2723,7 +2723,7 @@ class PEPS_Tensor_Split_Transfer(PEPS_Tensor):
     def _split_up_T4(self, T4):
         tmp_T4 = T4.reshape(T4.shape[0] * T4.shape[1], T4.shape[2] * T4.shape[3])
 
-        self.T4_bra, T4_S, self.T4_ket = gauge_fixed_svd(tmp_T4)
+        self.T4_bra, T4_S, self.T4_ket = gauge_fixed_svd(tmp_T4, config=varipeps_config)
 
         self.T4_bra = self.T4_bra[:, : self.interlayer_chi]
         T4_S = jnp.sqrt(T4_S[: self.interlayer_chi])

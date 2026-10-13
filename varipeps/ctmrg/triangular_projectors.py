@@ -19,6 +19,8 @@ def _corner_workhorse(
     chi: int,
     truncation_eps: float,
     fishman: bool,
+    *,
+    config,
 ):
     if tensor_left_1 is not None:
         if tensor_left_1.ndim == 6:
@@ -38,7 +40,7 @@ def _corner_workhorse(
 
         left_matrix_1 /= jnp.linalg.norm(left_matrix_1)
 
-        third_U, third_S, third_Vh = gauge_fixed_svd(left_matrix_1)
+        third_U, third_S, third_Vh = gauge_fixed_svd(left_matrix_1, config=config)
 
         third_S = jnp.where(
             third_S / third_S[0] < truncation_eps,
@@ -78,7 +80,7 @@ def _corner_workhorse(
         left_matrix = left_matrix_2
 
     if fishman:
-        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh")
+        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh", config=config)
         left_S = jnp.where(
             left_S / left_S[0] < truncation_eps,
             0,
@@ -86,7 +88,9 @@ def _corner_workhorse(
         )
         left_matrix = left_S[:, jnp.newaxis] * left_Vh
 
-        right_U, right_S = gauge_fixed_svd(right_matrix, only_u_or_vh="U")
+        right_U, right_S = gauge_fixed_svd(
+            right_matrix, only_u_or_vh="U", config=config
+        )
         right_S = jnp.where(
             right_S / right_S[0] < truncation_eps,
             0,
@@ -100,7 +104,9 @@ def _corner_workhorse(
     product_matrix = left_matrix @ right_matrix
     product_matrix /= jnp.linalg.norm(product_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
+    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(
+        product_matrix, chi, truncation_eps, config=config
+    )
 
     projector_left = jnp.dot(
         S_inv_sqrt[:, jnp.newaxis] * U.transpose().conj(),
@@ -225,6 +231,7 @@ def calc_corner_projectors(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     projector_150_left, projector_150_right, smallest_S_150 = _corner_workhorse(
@@ -240,6 +247,7 @@ def calc_corner_projectors(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     projector_270_left, projector_270_right, smallest_S_270 = _corner_workhorse(
@@ -255,6 +263,7 @@ def calc_corner_projectors(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     projector_90_left, projector_90_right, smallest_S_90 = _corner_workhorse(
@@ -270,6 +279,7 @@ def calc_corner_projectors(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     projector_210_left, projector_210_right, smallest_S_210 = _corner_workhorse(
@@ -285,6 +295,7 @@ def calc_corner_projectors(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     projector_330_left, projector_330_right, smallest_S_330 = _corner_workhorse(
@@ -300,6 +311,7 @@ def calc_corner_projectors(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     return (
@@ -326,6 +338,8 @@ def _T_workhorse(
     chi: int,
     truncation_eps: float,
     fishman: bool,
+    *,
+    config,
 ):
     left_matrix = tensor_left.reshape(
         tensor_left.shape[0] * tensor_left.shape[1] * tensor_left.shape[2],
@@ -338,7 +352,7 @@ def _T_workhorse(
     )
 
     if fishman:
-        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh")
+        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh", config=config)
         left_S = jnp.where(
             left_S / left_S[0] < truncation_eps,
             0,
@@ -346,7 +360,9 @@ def _T_workhorse(
         )
         left_matrix = left_S[:, jnp.newaxis] * left_Vh
 
-        right_U, right_S = gauge_fixed_svd(right_matrix, only_u_or_vh="U")
+        right_U, right_S = gauge_fixed_svd(
+            right_matrix, only_u_or_vh="U", config=config
+        )
         right_S = jnp.where(
             right_S / right_S[0] < truncation_eps,
             0,
@@ -360,7 +376,9 @@ def _T_workhorse(
     product_matrix = left_matrix @ right_matrix
     product_matrix /= jnp.linalg.norm(product_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
+    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(
+        product_matrix, chi, truncation_eps, config=config
+    )
 
     projector_left = jnp.dot(
         S_inv_sqrt[:, jnp.newaxis] * U.transpose().conj(),
@@ -457,6 +475,7 @@ def calc_T_30_150_270_projectors(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     projector_T_150_left, projector_T_150_right, smallest_S_150 = _T_workhorse(
@@ -466,6 +485,7 @@ def calc_T_30_150_270_projectors(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     projector_T_270_left, projector_T_270_right, smallest_S_270 = _T_workhorse(
@@ -475,6 +495,7 @@ def calc_T_30_150_270_projectors(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     return (
@@ -555,6 +576,7 @@ def calc_T_90_210_330_projectors(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     projector_T_210_left, projector_T_210_right, smallest_S_210 = _T_workhorse(
@@ -564,6 +586,7 @@ def calc_T_90_210_330_projectors(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     projector_T_330_left, projector_T_330_right, smallest_S_330 = _T_workhorse(
@@ -573,6 +596,7 @@ def calc_T_90_210_330_projectors(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     return (
@@ -590,6 +614,8 @@ def _T_truncated_workhorse(
     chi: int,
     truncation_eps: float,
     fishman: bool,
+    *,
+    config,
 ):
     left_matrix = tensor_left.reshape(
         np.prod(tensor_left.shape[:3]), np.prod(tensor_left.shape[3:6])
@@ -607,7 +633,7 @@ def _T_truncated_workhorse(
     right_matrix /= jnp.linalg.norm(right_matrix)
 
     if fishman:
-        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh")
+        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh", config=config)
         left_S = jnp.where(
             left_S / left_S[0] < truncation_eps,
             0,
@@ -615,7 +641,9 @@ def _T_truncated_workhorse(
         )
         left_matrix = left_S[:, jnp.newaxis] * left_Vh
 
-        right_U, right_S = gauge_fixed_svd(right_matrix, only_u_or_vh="U")
+        right_U, right_S = gauge_fixed_svd(
+            right_matrix, only_u_or_vh="U", config=config
+        )
         right_S = jnp.where(
             right_S / right_S[0] < truncation_eps,
             0,
@@ -626,7 +654,9 @@ def _T_truncated_workhorse(
     product_matrix = left_matrix @ full_T_matrix @ right_matrix
     product_matrix /= jnp.linalg.norm(product_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
+    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(
+        product_matrix, chi, truncation_eps, config=config
+    )
 
     Ta = jnp.dot(
         jnp.dot(
@@ -726,6 +756,7 @@ def calc_T_90_210_330_truncated(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     T3a, T3b, smallest_S_330 = _T_truncated_workhorse(
@@ -736,6 +767,7 @@ def calc_T_90_210_330_truncated(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     T5a, T5b, smallest_S_210 = _T_truncated_workhorse(
@@ -746,6 +778,7 @@ def calc_T_90_210_330_truncated(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     return (
@@ -827,6 +860,7 @@ def calc_T_30_150_270_truncated(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     T4a, T4b, smallest_S_270 = _T_truncated_workhorse(
@@ -837,6 +871,7 @@ def calc_T_30_150_270_truncated(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     T6a, T6b, smallest_S_150 = _T_truncated_workhorse(
@@ -847,6 +882,7 @@ def calc_T_30_150_270_truncated(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     return (
@@ -863,6 +899,8 @@ def _split_projectors_phase_1_workhorse(
     chi: int,
     truncation_eps: float,
     fishman: bool,
+    *,
+    config,
 ):
     left_matrix = tensor_left.reshape(
         tensor_left.shape[0] * tensor_left.shape[1],
@@ -878,7 +916,7 @@ def _split_projectors_phase_1_workhorse(
     right_matrix /= jnp.linalg.norm(right_matrix)
 
     if fishman:
-        left_U, left_S, left_Vh = gauge_fixed_svd(left_matrix)
+        left_U, left_S, left_Vh = gauge_fixed_svd(left_matrix, config=config)
         left_S = jnp.where(
             left_S / left_S[0] < truncation_eps,
             0,
@@ -887,7 +925,7 @@ def _split_projectors_phase_1_workhorse(
         left_matrix = left_S[:, jnp.newaxis] * left_Vh
         right_matrix_2 = left_U * left_S[jnp.newaxis, :]
 
-        right_U, right_S, right_Vh = gauge_fixed_svd(right_matrix)
+        right_U, right_S, right_Vh = gauge_fixed_svd(right_matrix, config=config)
         right_S = jnp.where(
             right_S / right_S[0] < truncation_eps,
             0,
@@ -902,7 +940,9 @@ def _split_projectors_phase_1_workhorse(
     product_matrix = left_matrix @ right_matrix
     product_matrix /= jnp.linalg.norm(product_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(product_matrix, chi, truncation_eps)
+    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(
+        product_matrix, chi, truncation_eps, config=config
+    )
 
     projector_left = jnp.dot(
         S_inv_sqrt[:, jnp.newaxis] * U.transpose().conj(),
@@ -929,7 +969,7 @@ def _split_projectors_phase_1_workhorse(
     product_matrix_2 /= jnp.linalg.norm(product_matrix_2)
 
     S_inv_sqrt_2, U_2, Vh_2, smallest_S_2 = _truncated_SVD(
-        product_matrix_2, chi, truncation_eps
+        product_matrix_2, chi, truncation_eps, config=config
     )
 
     projector_left_2 = jnp.dot(
@@ -1043,6 +1083,7 @@ def calc_split_projectors_phase_1(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     (
@@ -1059,6 +1100,7 @@ def calc_split_projectors_phase_1(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     (
@@ -1075,6 +1117,7 @@ def calc_split_projectors_phase_1(
         truncation_eps,
         projector_method is Projector_Method.FISHMAN
         or projector_method is Projector_Method.HALF_FISHMAN,
+        config=config,
     )
 
     return (
@@ -1187,6 +1230,7 @@ def calc_split_projectors_phase_2(
             truncation_eps,
             projector_method is Projector_Method.FISHMAN
             or projector_method is Projector_Method.HALF_FISHMAN,
+            config=config,
         )
     )
 
@@ -1204,6 +1248,7 @@ def calc_split_projectors_phase_2(
             truncation_eps,
             projector_method is Projector_Method.FISHMAN
             or projector_method is Projector_Method.HALF_FISHMAN,
+            config=config,
         )
     )
 
@@ -1221,6 +1266,7 @@ def calc_split_projectors_phase_2(
             truncation_eps,
             projector_method is Projector_Method.FISHMAN
             or projector_method is Projector_Method.HALF_FISHMAN,
+            config=config,
         )
     )
 
@@ -1238,6 +1284,7 @@ def calc_split_projectors_phase_2(
             truncation_eps,
             projector_method is Projector_Method.FISHMAN
             or projector_method is Projector_Method.HALF_FISHMAN,
+            config=config,
         )
     )
 
@@ -1255,6 +1302,7 @@ def calc_split_projectors_phase_2(
             truncation_eps,
             projector_method is Projector_Method.FISHMAN
             or projector_method is Projector_Method.HALF_FISHMAN,
+            config=config,
         )
     )
 
@@ -1272,6 +1320,7 @@ def calc_split_projectors_phase_2(
             truncation_eps,
             projector_method is Projector_Method.FISHMAN
             or projector_method is Projector_Method.HALF_FISHMAN,
+            config=config,
         )
     )
 

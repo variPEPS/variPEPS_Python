@@ -631,7 +631,7 @@ def do_bottom_absorption(
 
 
 def gauge_fix_ctmrg_tensors(
-    peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell
+    peps_tensors: Sequence[jnp.ndarray], unitcell: PEPS_Unit_Cell, *, config
 ) -> PEPS_Unit_Cell:
     left_unitaries = []
     right_unitaries = []
@@ -641,8 +641,8 @@ def gauge_fix_ctmrg_tensors(
     working_unitcell = unitcell.copy()
 
     for ti, working_tensor_obj in enumerate(working_unitcell.get_unique_tensors()):
-        C1_U, C1_S, C1_Vh = gauge_fixed_svd(working_tensor_obj.C1)
-        C3_U, C3_S, C3_Vh = gauge_fixed_svd(working_tensor_obj.C3)
+        C1_U, C1_S, C1_Vh = gauge_fixed_svd(working_tensor_obj.C1, config=config)
+        C3_U, C3_S, C3_Vh = gauge_fixed_svd(working_tensor_obj.C3, config=config)
 
         left_unitaries.append(C1_U)
         top_unitaries.append(C1_Vh)

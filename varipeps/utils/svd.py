@@ -8,7 +8,6 @@ from jax import jit, custom_jvp, lax
 
 from jax._src.numpy.util import promote_dtypes_inexact, check_arraylike
 
-from varipeps import varipeps_config
 from varipeps.config import SVD_Algorithm
 
 from .extensions import _svd_only_u_vt as _svd_only_u_vt_lib
@@ -28,18 +27,18 @@ def _is_gpu_backend() -> bool:
     return any(d.platform == "gpu" for d in jax.devices())
 
 
-def _svd_algorithm() -> lax.linalg.SvdAlgorithm:
+def _svd_algorithm(config) -> lax.linalg.SvdAlgorithm:
     """
     Algorithm for :obj:`jax.lax.linalg.svd` selected by
     :obj:`~varipeps.config.VariPEPS_Config.svd_algorithm`. The default is the
     QR algorithm on GPU and JAX's default (divide and conquer) on CPU.
     """
-    if varipeps_config.svd_algorithm is SVD_Algorithm.DEFAULT and _is_gpu_backend():
+    if config.svd_algorithm is SVD_Algorithm.DEFAULT and _is_gpu_backend():
         return lax.linalg.SvdAlgorithm.QR
-    return lax.linalg.SvdAlgorithm[varipeps_config.svd_algorithm.name]
+    return lax.linalg.SvdAlgorithm[config.svd_algorithm.name]
 
 
-def _use_svd_nan_fallback() -> bool:
+def _use_svd_nan_fallback(config) -> bool:
     """
     Check if the NaN check with the QR-based SVD as fallback should be staged
     out after each SVD. On GPU the :obj:`jax.lax.cond` of the check requires a
@@ -47,13 +46,16 @@ def _use_svd_nan_fallback() -> bool:
     compiled SVD kernels, so it is disabled there by default. See
     :obj:`~varipeps.config.VariPEPS_Config.svd_gpu_nan_fallback`.
     """
-    return _svd_algorithm() is not lax.linalg.SvdAlgorithm.QR and (
-        not _is_gpu_backend() or varipeps_config.svd_gpu_nan_fallback
+    return _svd_algorithm(config) is not lax.linalg.SvdAlgorithm.QR and (
+        not _is_gpu_backend() or config.svd_gpu_nan_fallback
     )
 
 
-@partial(custom_jvp, nondiff_argnums=(1,))
-def svd_wrapper(a, use_qr=False):
+# The config is passed as normal argument and not as non-differentiable one,
+# since the config subset of the jitted CTMRG routines contains traced values.
+# Its tangents are ignored in the JVP rules.
+@partial(custom_jvp, nondiff_argnums=(2,))
+def svd_wrapper(a, config, use_qr=False):
     check_arraylike("jnp.linalg.svd", a)
     (a,) = promote_dtypes_inexact(jnp.asarray(a))
 
@@ -69,10 +71,10 @@ def svd_wrapper(a, use_qr=False):
             a,
             full_matrices=False,
             compute_uv=True,
-            algorithm=_svd_algorithm(),
+            algorithm=_svd_algorithm(config),
         )
 
-        if _use_svd_nan_fallback():
+        if _use_svd_nan_fallback(config):
             result = _svd_nan_fallback(a, result)
 
     return result
@@ -118,13 +120,13 @@ def _svd_nan_fallback_vmap(axis_size, in_batched, a, result):
 
 
 def _svd_jvp_rule_impl(primals, tangents, only_u_or_vt=None, use_qr=False):
-    (A,) = primals
-    (dA,) = tangents
+    A, config = primals
+    dA, _ = tangents
 
     if use_qr and only_u_or_vt is not None:
         U, s, Vt = _svd_only_u_vt_impl(A, u_or_vt=2, use_qr=True)
     else:
-        U, s, Vt = svd_wrapper(A, use_qr=use_qr)
+        U, s, Vt = svd_wrapper(A, config, use_qr=use_qr)
 
     Ut, V = _H(U), _H(Vt)
     s_dim = s[..., None, :]
@@ -135,8 +137,8 @@ def _svd_jvp_rule_impl(primals, tangents, only_u_or_vt=None, use_qr=False):
     s_sums = jnp.where(s_sums > 0, s_sums, 1)
     s_diffs = s_dim - _T(s_dim)
 
-    if varipeps_config.svd_ad_use_lorentz_broadening:
-        F = s_diffs / (s_diffs**2 + varipeps_config.svd_ad_lorentz_broadening_eps)
+    if config.svd_ad_use_lorentz_broadening:
+        F = s_diffs / (s_diffs**2 + config.svd_ad_lorentz_broadening_eps)
     else:
         s_diffs = jnp.where(jnp.abs(s_diffs / s[0]) >= 1e-12, s_diffs, 0)
         s_diffs_zeros = jnp.ones((), dtype=A.dtype) * (
@@ -332,8 +334,8 @@ def _svd_only_u_vt_impl(a, u_or_vt, use_qr=True):
     return S, result
 
 
-@partial(custom_jvp, nondiff_argnums=(1,))
-def svd_only_u(a, use_qr=True):
+@partial(custom_jvp, nondiff_argnums=(2,))
+def svd_only_u(a, config, use_qr=True):
     S, U = _svd_only_u_vt_impl(a, 0, use_qr)
 
     if not use_qr:
@@ -354,8 +356,8 @@ def _svd_only_u_jvp_rule(use_qr, primals, tangents):
     return _svd_jvp_rule_impl(primals, tangents, only_u_or_vt="U", use_qr=use_qr)
 
 
-@partial(custom_jvp, nondiff_argnums=(1,))
-def svd_only_vt(a, use_qr=True):
+@partial(custom_jvp, nondiff_argnums=(2,))
+def svd_only_vt(a, config, use_qr=True):
     S, Vt = _svd_only_u_vt_impl(a, 1, use_qr)
 
     if not use_qr:
@@ -381,6 +383,8 @@ def gauge_fixed_svd(
     matrix: jnp.ndarray,
     only_u_or_vh=None,
     use_qr=False,
+    *,
+    config,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """
     Calculate the gauge-fixed (also called sign-fixed) SVD. To this end, each
@@ -395,12 +399,15 @@ def gauge_fixed_svd(
       only_u_or_vh (:obj:`str`):
         Flag if only U or Uh should be calculated. If `None` (default), calculate
         the full SVD, if `'U'` only calculate U, if `'Vh'` only calculate Vh.
+      config (:obj:`~varipeps.config.VariPEPS_Config`):
+        Config with the SVD options. Inside the jitted CTMRG routines the
+        subset of the config passed there, outside the global config.
     Returns:
       :obj:`tuple`\\ (:obj:`jnp.ndarray`, :obj:`jnp.ndarray`, :obj:`jnp.ndarray`):
         Tuple with sign-fixed U, S and Vh of the SVD.
     """
     if _is_gpu_backend():
-        U, S, Vh = svd_wrapper(matrix, use_qr=use_qr)
+        U, S, Vh = svd_wrapper(matrix, config, use_qr=use_qr)
         if only_u_or_vh is None:
             gauge_unitary = U
         elif only_u_or_vh == "U":
@@ -411,13 +418,13 @@ def gauge_fixed_svd(
             raise ValueError("Invalid value for parameter 'only_u_or_vh'.")
     else:
         if only_u_or_vh is None:
-            U, S, Vh = svd_wrapper(matrix, use_qr=use_qr)
+            U, S, Vh = svd_wrapper(matrix, config, use_qr=use_qr)
             gauge_unitary = U
         elif only_u_or_vh == "U":
-            U, S = svd_only_u(matrix, use_qr=use_qr)
+            U, S = svd_only_u(matrix, config, use_qr=use_qr)
             gauge_unitary = U
         elif only_u_or_vh == "Vh":
-            S, Vh = svd_only_vt(matrix, use_qr=use_qr)
+            S, Vh = svd_only_vt(matrix, config, use_qr=use_qr)
             gauge_unitary = Vh.T.conj()
         else:
             raise ValueError("Invalid value for parameter 'only_u_or_vh'.")
@@ -429,7 +436,7 @@ def gauge_fixed_svd(
 
     # Select for each singular vector the first element above the threshold.
     phases_index = jnp.argmax(
-        normalized_gauge_unitary >= varipeps_config.svd_sign_fix_eps, axis=0
+        normalized_gauge_unitary >= config.svd_sign_fix_eps, axis=0
     )
     phases = jnp.take_along_axis(gauge_unitary, phases_index[jnp.newaxis, :], axis=0)[0]
     phases /= jnp.abs(phases)

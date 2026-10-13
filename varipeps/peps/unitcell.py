@@ -699,7 +699,9 @@ class PEPS_Unit_Cell:
                     rho_bottom.shape[1] * rho_bottom.shape[2] * rho_bottom.shape[3],
                 )
 
-                U, S, Vh = svd_wrapper(rho_left_matrix @ rho_right_matrix)
+                U, S, Vh = svd_wrapper(
+                    rho_left_matrix @ rho_right_matrix, varipeps_config
+                )
                 # Truncate the singular values
                 S = S[:new_D]
                 U = U[:, :new_D]
@@ -723,7 +725,9 @@ class PEPS_Unit_Cell:
                     rho_right_matrix, Vh.transpose().conj() * S_inv_sqrt
                 )
 
-                U, S, Vh = svd_wrapper(rho_top_matrix @ rho_bottom_matrix)
+                U, S, Vh = svd_wrapper(
+                    rho_top_matrix @ rho_bottom_matrix, varipeps_config
+                )
                 # Truncate the singular values
                 S = S[:new_D]
                 U = U[:, :new_D]

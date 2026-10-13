@@ -9,6 +9,7 @@ from jax.tree_util import register_pytree_node_class
 from typing import TypeVar, Tuple, Any, Type, NoReturn
 
 T_VariPEPS_Config = TypeVar("T_VariPEPS_Config", bound="VariPEPS_Config")
+T_CTMRG_Inner_Config = TypeVar("T_CTMRG_Inner_Config", bound="_CTMRG_Inner_Config")
 
 
 @unique
@@ -76,6 +77,122 @@ class SVD_Algorithm(IntEnum):
     DIVIDE_AND_CONQUER = auto()  #: Divide and conquer (gesdd), CPU and ROCm only
     JACOBI = auto()  #: Jacobi algorithm (gesvdj), GPU only
     POLAR = auto()  #: Polar decomposition based algorithm (gesvdp), GPU only
+
+
+#: Options which are not read from the global config inside traced code, but
+#: only outside of it or passed explicitly to the jitted functions (e.g. by
+#: :obj:`VariPEPS_Config.make_ctmrg_config`). A change of them does not need to
+#: clear the JAX caches. Options with these prefixes must never be read from
+#: the global config inside traced code.
+_NO_CACHE_CLEAR_PREFIXES = (
+    "ad_custom_",
+    "ctmrg_early_stop",
+    "ctmrg_heuristic_",
+    "ctmrg_increase_truncation_eps",
+    "line_search_",
+    "optimizer_",
+    "slurm_",
+    "svd_",
+)
+_NO_CACHE_CLEAR_OPTIONS = frozenset(
+    {
+        "checkpointing_ncon",
+        "checkpointing_projectors",
+        "ctmrg_convergence_eps",
+        "ctmrg_enforce_elementwise_convergence",
+        "ctmrg_fail_if_not_converged",
+        "ctmrg_max_steps",
+        "ctmrg_print_steps",
+        "ctmrg_qr_power_iterations",
+        "ctmrg_save_not_converged_state",
+        "ctmrg_save_not_converged_state_dir",
+        "ctmrg_truncation_eps",
+        "ctmrg_verbose_output",
+        "jax_compilation_cache_memory_factor",
+        "triangular_ctmrg_use_split",
+    }
+)
+
+
+@dataclass
+@register_pytree_node_class
+class _CTMRG_Inner_Config:
+    """
+    Subset of the config used inside the jitted CTMRG routines (see
+    :obj:`VariPEPS_Config.make_ctmrg_config`), so that changes of other
+    options do not trigger a retracing. The options in ``_DATA_KEYS`` are
+    passed as data and can change without retracing, all others are static.
+    """
+
+    ad_custom_print_steps: bool
+    ad_custom_verbose_output: bool
+    ad_custom_gmres_relative_eps: float
+    ad_custom_gmres_krylov_subspace_size: int
+    ad_custom_convergence_eps: float
+    ad_custom_max_steps: int
+    ad_custom_fixed_point_method: Grad_Fixed_Point_Method
+
+    checkpointing_ncon: bool
+    checkpointing_projectors: bool
+
+    ctmrg_max_steps: int
+    ctmrg_early_stop: bool
+    ctmrg_early_stop_window: int
+    ctmrg_early_stop_frozen_tolerance: float
+    ctmrg_early_stop_fit_tolerance: float
+    ctmrg_early_stop_max_measure: float
+    ctmrg_early_stop_safety_factor: float
+    ctmrg_print_steps: bool
+    ctmrg_verbose_output: bool
+    ctmrg_truncation_eps: float
+    ctmrg_full_projector_method: Projector_Method
+    ctmrg_qr_power_iterations: int
+
+    triangular_ctmrg_use_split: bool
+
+    svd_algorithm: SVD_Algorithm
+    svd_gpu_nan_fallback: bool
+    svd_ad_use_lorentz_broadening: bool
+    svd_ad_lorentz_broadening_eps: float
+    svd_sign_fix_eps: float
+
+    _DATA_KEYS = (
+        "ad_custom_convergence_eps",
+        "ad_custom_gmres_relative_eps",
+        "ad_custom_max_steps",
+        "ctmrg_early_stop_frozen_tolerance",
+        "ctmrg_early_stop_fit_tolerance",
+        "ctmrg_early_stop_max_measure",
+        "ctmrg_early_stop_safety_factor",
+        "ctmrg_max_steps",
+        "ctmrg_truncation_eps",
+        "svd_ad_lorentz_broadening_eps",
+        "svd_sign_fix_eps",
+    )
+
+    def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
+        data = ({name: getattr(self, name) for name in self._DATA_KEYS},)
+
+        aux_data = (
+            {
+                name: getattr(self, name)
+                for name in self.__dataclass_fields__.keys()
+                if name not in self._DATA_KEYS
+            },
+        )
+
+        return (data, aux_data)
+
+    @classmethod
+    def tree_unflatten(
+        cls: Type[T_CTMRG_Inner_Config],
+        aux_data: Tuple[Any, ...],
+        children: Tuple[Any, ...],
+    ) -> T_CTMRG_Inner_Config:
+        (aux_dict,) = aux_data
+        (data_dict,) = children
+
+        return cls(**aux_dict, **data_dict)
 
 
 @dataclass
@@ -542,8 +659,14 @@ class VariPEPS_Config:
         # Many functions read the global config at trace time, but their JAX
         # caches do not depend on it. Clear the caches if an option of the
         # global config is changed, so the new value is not silently ignored
-        # for functions which were traced before.
-        if changed and self is globals().get("config"):
+        # for functions which were traced before. This is not needed for
+        # options which are never read from the global config in traced code.
+        if (
+            changed
+            and self is globals().get("config")
+            and name not in _NO_CACHE_CLEAR_OPTIONS
+            and not name.startswith(_NO_CACHE_CLEAR_PREFIXES)
+        ):
             jax.clear_caches()
 
     def update_from_config_dict(self, new_config):
@@ -555,6 +678,14 @@ class VariPEPS_Config:
             setattr(
                 self, k, getattr(new_config, k, self.__dataclass_fields__[k].default)
             )
+
+    def make_ctmrg_config(self) -> _CTMRG_Inner_Config:
+        """
+        Subset of the config used inside the jitted CTMRG routines.
+        """
+        data = {k: getattr(self, k) for k in _CTMRG_Inner_Config.__dataclass_fields__}
+
+        return _CTMRG_Inner_Config(**data)
 
     def tree_flatten(self) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
         aux_data = (
@@ -587,6 +718,7 @@ class ConfigModuleWrapper:
         "Slurm_Restart_Mode",
         "SVD_Algorithm",
         "VariPEPS_Config",
+        "_CTMRG_Inner_Config",
         "config",
     }
 

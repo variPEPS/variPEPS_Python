@@ -43,7 +43,7 @@ def decompose_new_T(new_T, chi, truncation_eps, config, only_trunc=False):
         new_T.shape[0] * new_T.shape[1] * new_T.shape[2],
         new_T.shape[3] * new_T.shape[4] * new_T.shape[5],
     )
-    new_T_U, new_T_S, new_T_Vh = gauge_fixed_svd(new_T_matrix)
+    new_T_U, new_T_S, new_T_Vh = gauge_fixed_svd(new_T_matrix, config=config)
     new_T_S_trunc = _truncate_singular_values(new_T_S, chi, truncation_eps)
     relevant_S_trunc = (new_T_S_trunc > 0) & (
         new_T_S_trunc / new_T_S[0] >= truncation_eps

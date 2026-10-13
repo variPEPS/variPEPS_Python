@@ -938,7 +938,7 @@ def calc_ctmrg_env(
                     enforce_elementwise_convergence,
                     jnp.inf,
                     varipeps_global_state,
-                    varipeps_config,
+                    varipeps_config.make_ctmrg_config(),
                 ),
                 return_measure=varipeps_config.ctmrg_early_stop,
             )
@@ -985,7 +985,7 @@ def calc_ctmrg_env(
                         enforce_elementwise_convergence,
                         jnp.inf,
                         varipeps_global_state,
-                        varipeps_config,
+                        varipeps_config.make_ctmrg_config(),
                     )
                 )
             )
@@ -1513,7 +1513,11 @@ def calc_ctmrg_env_rev(
     varipeps_global_state.ctmrg_effective_truncation_eps = last_truncation_eps
 
     t_bar, converged, end_count = _ctmrg_rev_workhorse(
-        peps_tensors, new_unitcell, unitcell_bar, varipeps_config, varipeps_global_state
+        peps_tensors,
+        new_unitcell,
+        unitcell_bar,
+        varipeps_config.make_ctmrg_config(),
+        varipeps_global_state,
     )
 
     varipeps_global_state.ctmrg_effective_truncation_eps = None
