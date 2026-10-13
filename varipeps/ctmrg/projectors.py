@@ -103,23 +103,23 @@ def _fix_qr_phases(new_qr_left, new_qr_right, *, config):
     )
 
 
-def _truncate_singular_values(S: jnp.ndarray, chi: int, *, config) -> jnp.ndarray:
-    """Truncate a descending spectrum without keeping a partial multiplet."""
+def _truncate_singular_values(
+    S: jnp.ndarray, chi: int, truncation_eps: float, *, config
+) -> jnp.ndarray:
+    """Truncate at chi and the magnitude cutoff without keeping partial multiplets."""
     len_S = len(S)
-    if len_S > chi:
-        relative_gaps = (S[:chi] - S[1 : chi + 1]) / jnp.where(S[:chi] > 0, S[:chi], 1)
+    S = S[: chi + 1]
+    relative_gaps = (S[:-1] - S[1:]) / jnp.where(S[:-1] > 0, S[:-1], 1)
+    multiplet_ends = relative_gaps > config.ctmrg_multiplet_eps
+    if len_S <= chi:
+        multiplet_ends = jnp.append(multiplet_ends, True)
 
     S = S[:chi]
+    relevant_S = (S > 0) & (S / S[0] > truncation_eps)
 
-    if len_S > chi:
-        # Keep only singular values with a relevant gap at or behind their
-        # position to not cut through a multiplet.
-        keep_S = (
-            jnp.cumsum((relative_gaps > config.ctmrg_multiplet_eps)[::-1])[::-1] > 0
-        )
-        S = jnp.where(keep_S, S, 0)
-
-    return S
+    # Keep only complete multiplets above the magnitude cutoff and within chi.
+    keep_S = jnp.cumsum((multiplet_ends & relevant_S)[::-1])[::-1] > 0
+    return jnp.where(keep_S, S, 0)
 
 
 def _truncated_SVD(
@@ -133,11 +133,11 @@ def _truncated_SVD(
     full_U, S, full_Vh = gauge_fixed_svd(matrix, config=config)
     full_S = S
 
-    S = _truncate_singular_values(S, chi, config=config)
+    S = _truncate_singular_values(S, chi, truncation_eps, config=config)
     U = full_U[:, :chi]
     Vh = full_Vh[:chi, :]
 
-    relevant_S_values = (S / S[0]) > truncation_eps
+    relevant_S_values = S > 0
     S_inv_sqrt = jnp.where(
         relevant_S_values, 1 / jnp.sqrt(jnp.where(relevant_S_values, S, 1)), 0
     )

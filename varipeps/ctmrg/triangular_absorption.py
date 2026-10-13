@@ -44,10 +44,10 @@ def decompose_new_T(new_T, chi, truncation_eps, config, only_trunc=False):
         new_T.shape[3] * new_T.shape[4] * new_T.shape[5],
     )
     new_T_U, new_T_S, new_T_Vh = gauge_fixed_svd(new_T_matrix, config=config)
-    new_T_S_trunc = _truncate_singular_values(new_T_S, chi, config=config)
-    relevant_S_trunc = (new_T_S_trunc > 0) & (
-        new_T_S_trunc / new_T_S[0] >= truncation_eps
+    new_T_S_trunc = _truncate_singular_values(
+        new_T_S, chi, truncation_eps, config=config
     )
+    relevant_S_trunc = new_T_S_trunc > 0
 
     def check_truncation(has_relevant_S):
         if not has_relevant_S:
@@ -80,9 +80,12 @@ def decompose_new_T(new_T, chi, truncation_eps, config, only_trunc=False):
     )
 
     if not only_trunc:
+        new_T_S = _truncate_singular_values(
+            new_T_S, len(new_T_S), truncation_eps, config=config
+        )
         new_T_S = jnp.where(
-            new_T_S / new_T_S[0] >= truncation_eps,
-            jnp.sqrt(jnp.where(new_T_S / new_T_S[0] >= truncation_eps, new_T_S, 1)),
+            new_T_S > 0,
+            jnp.sqrt(jnp.where(new_T_S > 0, new_T_S, 1)),
             0,
         )
         new_Ta = new_T_S[:, jnp.newaxis] * new_T_Vh
