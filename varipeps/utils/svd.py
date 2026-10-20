@@ -384,13 +384,106 @@ def _svd_only_vt_jvp_rule(use_qr, primals, tangents):
     return _svd_jvp_rule_impl(primals, tangents, only_u_or_vt="Vt", use_qr=use_qr)
 
 
-@partial(jit, inline=True, static_argnums=(1, 2))
+@partial(custom_jvp, nondiff_argnums=(2,))
+def _svd_block_wrapper(a, config, use_qr=False):
+    (a,) = promote_dtypes_inexact(jnp.asarray(a))
+    U, S, Vh = svd_wrapper(a, config, use_qr=use_qr)
+    return U, jnp.diag(S).astype(a.dtype), Vh
+
+
+@_svd_block_wrapper.defjvp
+def _svd_block_jvp_rule(use_qr, primals, tangents):
+    A, config = primals
+    dA, _ = tangents
+    U, s, Vh = svd_wrapper(A, config, use_qr=use_qr)
+    V = _H(Vh)
+    E = _H(U) @ dA @ V
+    hermitian = (E + _H(E)) / 2
+    antihermitian = (E - _H(E)) / 2
+
+    s_row = s[jnp.newaxis, :]
+    sums = s_row + s_row.T
+
+    # Choose the common left/right rotation to be zero. The Hermitian part
+    # belongs to the full singular-value matrix, rather than to rotations
+    # divided by singular-value gaps. Only the relative rotation is needed.
+    relative_rotation = antihermitian / jnp.where(sums > 0, sums, 1)
+    dU = U @ relative_rotation
+    dV = -V @ relative_rotation
+    dS = hermitian
+
+    s_inv = jnp.where(s > 0, 1 / jnp.where(s > 0, s, 1), 0)
+    m, n = A.shape
+    if m > n:
+        dAV = dA @ V
+        dU += (dAV - U @ (_H(U) @ dAV)) * s_inv
+    if n > m:
+        dAHU = _H(dA) @ U
+        dV += (dAHU - V @ (Vh @ dAHU)) * s_inv
+
+    return (U, jnp.diag(s).astype(A.dtype), Vh), (dU, dS, _H(dV))
+
+
+@partial(custom_jvp, nondiff_argnums=(2,))
+def svd_singular_value_power(S, keep, power):
+    """
+    Square root or inverse square root of a truncated SVD block matrix.
+
+    The primal S is diagonal, but its tangent need not be. The cutoff mask
+    must keep complete multiplets and stay fixed locally. Zero singular values
+    are excluded; this does not define a derivative across a rank change.
+    """
+    if power not in (0.5, -0.5):
+        raise ValueError("Only powers 0.5 and -0.5 are supported.")
+    s = jnp.real(jnp.diag(S))
+    keep = keep & (s > 0)
+    values = jnp.where(keep, jnp.where(keep, s, 1) ** power, 0)
+    return jnp.diag(values).astype(S.dtype)
+
+
+@svd_singular_value_power.defjvp
+def _svd_singular_value_power_jvp(power, primals, tangents):
+    S, keep = primals
+    dS, _ = tangents
+    result = svd_singular_value_power(S, keep, power)
+    s = jnp.real(jnp.diag(S))
+    keep = keep & (s > 0)
+    roots = jnp.sqrt(jnp.where(keep, s, 1))
+    root_sums = roots[:, jnp.newaxis] + roots[jnp.newaxis, :]
+    if power == 0.5:
+        divided_difference = 1 / root_sums
+    else:
+        divided_difference = -1 / (
+            roots[:, jnp.newaxis] * roots[jnp.newaxis, :] * root_sums
+        )
+
+    # Across the cutoff the spectral function is zero on one side. Within
+    # retained multiplets the expressions above remain regular at equal s.
+    both_kept = keep[:, jnp.newaxis] & keep[jnp.newaxis, :]
+    mixed = keep[:, jnp.newaxis] ^ keep[jnp.newaxis, :]
+    differences = s[:, jnp.newaxis] - s[jnp.newaxis, :]
+    values = jnp.real(jnp.diag(result))
+    mixed_difference = (values[:, jnp.newaxis] - values[jnp.newaxis, :]) / (
+        jnp.where(mixed & (differences != 0), differences, 1)
+    )
+    divided_difference = jnp.where(
+        both_kept, divided_difference, jnp.where(mixed, mixed_difference, 0)
+    )
+    return result, divided_difference * dS
+
+
+@partial(
+    jit,
+    inline=True,
+    static_argnames=("only_u_or_vh", "use_qr", "return_s_matrix"),
+)
 def gauge_fixed_svd(
     matrix: jnp.ndarray,
     only_u_or_vh=None,
     use_qr=False,
     *,
     config,
+    return_s_matrix: bool = False,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """
     Calculate the gauge-fixed (also called sign-fixed) SVD. To this end, each
@@ -405,6 +498,14 @@ def gauge_fixed_svd(
       only_u_or_vh (:obj:`str`):
         Flag if only U or Uh should be calculated. If `None` (default), calculate
         the full SVD, if `'U'` only calculate U, if `'Vh'` only calculate Vh.
+      return_s_matrix (:obj:`bool`):
+        Return S as a diagonal matrix with a possibly non-diagonal tangent.
+        This keeps the full Hermitian variation, including inside degenerate
+        multiplets, without inverse singular-value gaps or broadening. Use
+        :obj:`svd_singular_value_power` for its square root or inverse square
+        root. Lorentz broadening is not used in this matrix mode.
+        Individual singular vectors and a vector of sorted singular
+        values have no general derivative at a degeneracy.
       config (:obj:`~varipeps.config.VariPEPS_Config`):
         Config with the SVD options. Inside the jitted CTMRG routines the
         subset of the config passed there, outside the global config.
@@ -412,8 +513,9 @@ def gauge_fixed_svd(
       :obj:`tuple`\\ (:obj:`jnp.ndarray`, :obj:`jnp.ndarray`, :obj:`jnp.ndarray`):
         Tuple with sign-fixed U, S and Vh of the SVD.
     """
-    if _is_gpu_backend():
-        U, S, Vh = svd_wrapper(matrix, config, use_qr=use_qr)
+    if return_s_matrix or _is_gpu_backend():
+        svd_func = _svd_block_wrapper if return_s_matrix else svd_wrapper
+        U, S, Vh = svd_func(matrix, config, use_qr=use_qr)
         if only_u_or_vh is None:
             gauge_unitary = U
         elif only_u_or_vh == "U":
@@ -451,6 +553,9 @@ def gauge_fixed_svd(
         U = U * phases.conj()[jnp.newaxis, :]
     if only_u_or_vh is None or only_u_or_vh == "Vh":
         Vh = Vh * phases[:, jnp.newaxis]
+
+    if return_s_matrix:
+        S = phases[:, jnp.newaxis] * S * phases.conj()[jnp.newaxis, :]
 
     if only_u_or_vh == "U":
         return U, S
