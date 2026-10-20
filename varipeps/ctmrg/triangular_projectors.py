@@ -104,18 +104,16 @@ def _corner_workhorse(
     product_matrix = left_matrix @ right_matrix
     product_matrix /= jnp.linalg.norm(product_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(
+    U, Vh, smallest_S = _truncated_SVD(
         product_matrix, chi, truncation_eps, config=config
     )
 
     projector_left = jnp.dot(
-        S_inv_sqrt[:, jnp.newaxis] * U.transpose().conj(),
+        U.transpose().conj(),
         left_matrix,
     )
 
-    projector_right = jnp.dot(
-        right_matrix, Vh.transpose().conj() * S_inv_sqrt[jnp.newaxis, :]
-    )
+    projector_right = jnp.dot(right_matrix, Vh.transpose().conj())
 
     if tensor_left_2.ndim == 6:
         projector_left = projector_left.reshape(
@@ -376,18 +374,16 @@ def _T_workhorse(
     product_matrix = left_matrix @ right_matrix
     product_matrix /= jnp.linalg.norm(product_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(
+    U, Vh, smallest_S = _truncated_SVD(
         product_matrix, chi, truncation_eps, config=config
     )
 
     projector_left = jnp.dot(
-        S_inv_sqrt[:, jnp.newaxis] * U.transpose().conj(),
+        U.transpose().conj(),
         left_matrix,
     )
 
-    projector_right = jnp.dot(
-        right_matrix, Vh.transpose().conj() * S_inv_sqrt[jnp.newaxis, :]
-    )
+    projector_right = jnp.dot(right_matrix, Vh.transpose().conj())
 
     projector_left = projector_left.reshape(
         projector_left.shape[0],
@@ -654,13 +650,13 @@ def _T_truncated_workhorse(
     product_matrix = left_matrix @ full_T_matrix @ right_matrix
     product_matrix /= jnp.linalg.norm(product_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(
+    U, Vh, smallest_S = _truncated_SVD(
         product_matrix, chi, truncation_eps, config=config
     )
 
     Ta = jnp.dot(
         jnp.dot(
-            S_inv_sqrt[:, jnp.newaxis] * U.transpose().conj(),
+            U.transpose().conj(),
             left_matrix,
         ),
         full_T_matrix,
@@ -668,7 +664,7 @@ def _T_truncated_workhorse(
 
     Tb = jnp.dot(
         full_T_matrix,
-        jnp.dot(right_matrix, Vh.transpose().conj() * S_inv_sqrt[jnp.newaxis, :]),
+        jnp.dot(right_matrix, Vh.transpose().conj()),
     )
 
     Ta = Ta.reshape(
@@ -940,18 +936,16 @@ def _split_projectors_phase_1_workhorse(
     product_matrix = left_matrix @ right_matrix
     product_matrix /= jnp.linalg.norm(product_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S = _truncated_SVD(
+    U, Vh, smallest_S = _truncated_SVD(
         product_matrix, chi, truncation_eps, config=config
     )
 
     projector_left = jnp.dot(
-        S_inv_sqrt[:, jnp.newaxis] * U.transpose().conj(),
+        U.transpose().conj(),
         left_matrix,
     )
 
-    projector_right = jnp.dot(
-        right_matrix, Vh.transpose().conj() * S_inv_sqrt[jnp.newaxis, :]
-    )
+    projector_right = jnp.dot(right_matrix, Vh.transpose().conj())
 
     projector_left = projector_left.reshape(
         projector_left.shape[0],
@@ -968,18 +962,16 @@ def _split_projectors_phase_1_workhorse(
     product_matrix_2 = left_matrix_2 @ right_matrix_2
     product_matrix_2 /= jnp.linalg.norm(product_matrix_2)
 
-    S_inv_sqrt_2, U_2, Vh_2, smallest_S_2 = _truncated_SVD(
+    U_2, Vh_2, smallest_S_2 = _truncated_SVD(
         product_matrix_2, chi, truncation_eps, config=config
     )
 
     projector_left_2 = jnp.dot(
-        S_inv_sqrt_2[:, jnp.newaxis] * U_2.transpose().conj(),
+        U_2.transpose().conj(),
         left_matrix_2,
     )
 
-    projector_right_2 = jnp.dot(
-        right_matrix_2, Vh_2.transpose().conj() * S_inv_sqrt_2[jnp.newaxis, :]
-    )
+    projector_right_2 = jnp.dot(right_matrix_2, Vh_2.transpose().conj())
 
     projector_left_2 = projector_left_2.reshape(
         projector_left_2.shape[0],

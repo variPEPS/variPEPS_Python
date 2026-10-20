@@ -6,7 +6,7 @@ from jax import jit, checkpoint
 
 from varipeps.peps import PEPS_Tensor
 from varipeps.contractions import apply_contraction, apply_contraction_jitted
-from varipeps.utils.svd import gauge_fixed_svd
+from varipeps.utils.svd import gauge_fixed_svd, svd_singular_value_power
 from varipeps.utils.qr import thin_qr, qr_subspace_iteration
 from varipeps.utils.projector_dict import (
     Left_Projectors,
@@ -87,7 +87,7 @@ def _calc_ctmrg_quarters(
     return top_left, top_right, bottom_left, bottom_right
 
 
-def _fix_qr_phases(new_qr_left, new_qr_right, *, config):
+def _fix_qr_phases(new_qr_left, new_qr_right, *, config, return_phases=False):
     abs_left = jnp.abs(new_qr_left)
     normalized = abs_left / jnp.max(abs_left, axis=1, keepdims=True)
     phases_index = jnp.argmax(normalized >= config.svd_sign_fix_eps, axis=1)
@@ -97,10 +97,13 @@ def _fix_qr_phases(new_qr_left, new_qr_right, *, config):
     # Rows which are exactly zero (rank deficient environment) have no phase
     phases = jnp.where(phases == 0, 1, phases)
     phases /= jnp.abs(phases)
-    return (
+    result = (
         new_qr_left * phases.conj()[:, jnp.newaxis],
         new_qr_right * phases[jnp.newaxis, :],
     )
+    if return_phases:
+        return *result, phases
+    return result
 
 
 def _truncate_singular_values(
@@ -129,18 +132,21 @@ def _truncated_SVD(
     return_full_U_Vh: bool = False,
     *,
     config,
-) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    full_U, S, full_Vh = gauge_fixed_svd(matrix, config=config)
-    full_S = S
-
-    S = _truncate_singular_values(S, chi, truncation_eps, config=config)
-    U = full_U[:, :chi]
-    Vh = full_Vh[:chi, :]
-
-    relevant_S_values = S > 0
-    S_inv_sqrt = jnp.where(
-        relevant_S_values, 1 / jnp.sqrt(jnp.where(relevant_S_values, S, 1)), 0
+) -> Tuple[jnp.ndarray, ...]:
+    """Return inverse-square-root weighted SVD factors and truncation error."""
+    full_U, S_matrix, full_Vh = gauge_fixed_svd(
+        matrix, config=config, return_s_matrix=True
     )
+    full_S = jnp.real(jnp.diag(S_matrix))
+    S = _truncate_singular_values(full_S, chi, truncation_eps, config=config)
+    keep = jnp.arange(len(full_S)) < len(S)
+    keep = keep.at[: len(S)].set(S > 0)
+    S_inv_sqrt = svd_singular_value_power(S_matrix, keep, -0.5)
+
+    # Form the weighted factors before slicing. Their tangents also include
+    # rotations between the retained and discarded singular subspaces.
+    U = (full_U @ S_inv_sqrt)[:, :chi]
+    Vh = (S_inv_sqrt @ full_Vh)[:chi, :]
 
     discarded_S_norm = jnp.sum(full_S[chi:] ** 2) + jnp.sum((full_S[:chi] - S) ** 2)
     trunc_error = discarded_S_norm / jnp.sum(full_S**2)
@@ -151,9 +157,9 @@ def _truncated_SVD(
     )
 
     if return_full_U_Vh:
-        return S_inv_sqrt, U, Vh, trunc_error, full_U, full_Vh
+        return U, Vh, trunc_error, full_U, full_Vh
 
-    return S_inv_sqrt, U, Vh, trunc_error
+    return U, Vh, trunc_error
 
 
 def _quarter_tensors_to_matrix(
@@ -661,32 +667,32 @@ def _left_projectors_workhorse(
 
     product_matrix /= jnp.linalg.norm(product_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
+    U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
         product_matrix, chi, truncation_eps, return_full_U_Vh=True, config=config
     )
 
     if projector_method is Projector_Method.FULL_QR:
+        projector_qr_left = U.transpose().conj() @ new_qr_left
+        projector_qr_right = new_qr_right @ Vh.transpose().conj()
         new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
         new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
-        new_qr_left, new_qr_right = _fix_qr_phases(
-            new_qr_left, new_qr_right, config=config
+        new_qr_left, new_qr_right, phases = _fix_qr_phases(
+            new_qr_left, new_qr_right, config=config, return_phases=True
         )
+        projector_qr_left *= phases[: U.shape[1]].conj()[:, jnp.newaxis]
+        projector_qr_right *= phases[: U.shape[1]][jnp.newaxis, :]
 
         projector_left_top = jnp.dot(
             top_left_matrix,
-            jnp.dot(top_right_matrix, new_qr_right[:, :chi] * S_inv_sqrt),
+            jnp.dot(top_right_matrix, projector_qr_right),
         )
         projector_left_bottom = jnp.dot(
-            jnp.dot(
-                S_inv_sqrt[:, jnp.newaxis] * new_qr_left[:chi, :], bottom_right_matrix
-            ),
+            jnp.dot(projector_qr_left, bottom_right_matrix),
             bottom_left_matrix,
         )
     else:
-        projector_left_top = jnp.dot(top_matrix, Vh.transpose().conj() * S_inv_sqrt)
-        projector_left_bottom = jnp.dot(
-            U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], bottom_matrix
-        )
+        projector_left_top = jnp.dot(top_matrix, Vh.transpose().conj())
+        projector_left_bottom = jnp.dot(U.transpose().conj(), bottom_matrix)
 
     projector_left_top = projector_left_top.reshape(
         top_left.shape[0],
@@ -846,32 +852,32 @@ def _right_projectors_workhorse(
 
     product_matrix /= jnp.linalg.norm(product_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
+    U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
         product_matrix, chi, truncation_eps, return_full_U_Vh=True, config=config
     )
 
     if projector_method is Projector_Method.FULL_QR:
+        projector_qr_left = U.transpose().conj() @ new_qr_left
+        projector_qr_right = new_qr_right @ Vh.transpose().conj()
         new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
         new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
-        new_qr_left, new_qr_right = _fix_qr_phases(
-            new_qr_left, new_qr_right, config=config
+        new_qr_left, new_qr_right, phases = _fix_qr_phases(
+            new_qr_left, new_qr_right, config=config, return_phases=True
         )
+        projector_qr_left *= phases[: U.shape[1]].conj()[:, jnp.newaxis]
+        projector_qr_right *= phases[: U.shape[1]][jnp.newaxis, :]
 
         projector_right_top = jnp.dot(
-            jnp.dot(S_inv_sqrt[:, jnp.newaxis] * new_qr_left[:chi, :], top_left_matrix),
+            jnp.dot(projector_qr_left, top_left_matrix),
             top_right_matrix,
         )
         projector_right_bottom = jnp.dot(
             bottom_right_matrix,
-            jnp.dot(bottom_left_matrix, new_qr_right[:, :chi] * S_inv_sqrt),
+            jnp.dot(bottom_left_matrix, projector_qr_right),
         )
     else:
-        projector_right_top = jnp.dot(
-            U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], top_matrix
-        )
-        projector_right_bottom = jnp.dot(
-            bottom_matrix, Vh.transpose().conj() * S_inv_sqrt
-        )
+        projector_right_top = jnp.dot(U.transpose().conj(), top_matrix)
+        projector_right_bottom = jnp.dot(bottom_matrix, Vh.transpose().conj())
 
     projector_right_top = projector_right_top.reshape(
         projector_right_top.shape[0],
@@ -1031,32 +1037,32 @@ def _top_projectors_workhorse(
 
     product_matrix /= jnp.linalg.norm(product_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
+    U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
         product_matrix, chi, truncation_eps, return_full_U_Vh=True, config=config
     )
 
     if projector_method is Projector_Method.FULL_QR:
+        projector_qr_left = U.transpose().conj() @ new_qr_left
+        projector_qr_right = new_qr_right @ Vh.transpose().conj()
         new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
         new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
-        new_qr_left, new_qr_right = _fix_qr_phases(
-            new_qr_left, new_qr_right, config=config
+        new_qr_left, new_qr_right, phases = _fix_qr_phases(
+            new_qr_left, new_qr_right, config=config, return_phases=True
         )
+        projector_qr_left *= phases[: U.shape[1]].conj()[:, jnp.newaxis]
+        projector_qr_right *= phases[: U.shape[1]][jnp.newaxis, :]
 
         projector_top_left = jnp.dot(
-            jnp.dot(
-                S_inv_sqrt[:, jnp.newaxis] * new_qr_left[:chi, :], bottom_left_matrix
-            ),
+            jnp.dot(projector_qr_left, bottom_left_matrix),
             top_left_matrix,
         )
         projector_top_right = jnp.dot(
             top_right_matrix,
-            jnp.dot(bottom_right_matrix, new_qr_right[:, :chi] * S_inv_sqrt),
+            jnp.dot(bottom_right_matrix, projector_qr_right),
         )
     else:
-        projector_top_left = jnp.dot(
-            U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], left_matrix
-        )
-        projector_top_right = jnp.dot(right_matrix, Vh.transpose().conj() * S_inv_sqrt)
+        projector_top_left = jnp.dot(U.transpose().conj(), left_matrix)
+        projector_top_right = jnp.dot(right_matrix, Vh.transpose().conj())
 
     projector_top_left = projector_top_left.reshape(
         projector_top_left.shape[0],
@@ -1216,32 +1222,32 @@ def _bottom_projectors_workhorse(
 
     product_matrix /= jnp.linalg.norm(product_matrix)
 
-    S_inv_sqrt, U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
+    U, Vh, smallest_S, full_U, full_Vh = _truncated_SVD(
         product_matrix, chi, truncation_eps, return_full_U_Vh=True, config=config
     )
 
     if projector_method is Projector_Method.FULL_QR:
+        projector_qr_left = U.transpose().conj() @ new_qr_left
+        projector_qr_right = new_qr_right @ Vh.transpose().conj()
         new_qr_left = jnp.dot(full_U.transpose().conj(), new_qr_left)
         new_qr_right = jnp.dot(new_qr_right, full_Vh.transpose().conj())
-        new_qr_left, new_qr_right = _fix_qr_phases(
-            new_qr_left, new_qr_right, config=config
+        new_qr_left, new_qr_right, phases = _fix_qr_phases(
+            new_qr_left, new_qr_right, config=config, return_phases=True
         )
+        projector_qr_left *= phases[: U.shape[1]].conj()[:, jnp.newaxis]
+        projector_qr_right *= phases[: U.shape[1]][jnp.newaxis, :]
 
         projector_bottom_left = jnp.dot(
             bottom_left_matrix,
-            jnp.dot(top_left_matrix, new_qr_right[:, :chi] * S_inv_sqrt),
+            jnp.dot(top_left_matrix, projector_qr_right),
         )
         projector_bottom_right = jnp.dot(
-            jnp.dot(
-                S_inv_sqrt[:, jnp.newaxis] * new_qr_left[:chi, :], top_right_matrix
-            ),
+            jnp.dot(projector_qr_left, top_right_matrix),
             bottom_right_matrix,
         )
     else:
-        projector_bottom_left = jnp.dot(left_matrix, Vh.transpose().conj() * S_inv_sqrt)
-        projector_bottom_right = jnp.dot(
-            U.transpose().conj() * S_inv_sqrt[:, jnp.newaxis], right_matrix
-        )
+        projector_bottom_left = jnp.dot(left_matrix, Vh.transpose().conj())
+        projector_bottom_right = jnp.dot(U.transpose().conj(), right_matrix)
 
     projector_bottom_left = projector_bottom_left.reshape(
         bottom_left.shape[0],
@@ -1389,16 +1395,16 @@ def _split_transfer_workhorse(
         raise ValueError("Invalid dimension of the input tensor")
 
     product_matrix_ketbra = jnp.dot(first_ketbra_matrix, second_ketbra_matrix)
-    S_inv_sqrt_ketbra, U_ketbra, Vh_ketbra, smallest_S_ketbra = _truncated_SVD(
+    U_ketbra, Vh_ketbra, smallest_S_ketbra = _truncated_SVD(
         product_matrix_ketbra, chi, truncation_eps, config=config
     )
 
     projector_first_ketbra = jnp.dot(
-        U_ketbra.transpose().conj() * S_inv_sqrt_ketbra[:, jnp.newaxis],
+        U_ketbra.transpose().conj(),
         first_ketbra_matrix,
     )
     projector_second_ketbra = jnp.dot(
-        second_ketbra_matrix, Vh_ketbra.transpose().conj() * S_inv_sqrt_ketbra
+        second_ketbra_matrix, Vh_ketbra.transpose().conj()
     )
 
     if first_ketbra.ndim == 6:
