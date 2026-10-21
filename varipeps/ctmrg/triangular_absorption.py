@@ -3,7 +3,7 @@ import jax.numpy as jnp
 
 from varipeps.peps import PEPS_Tensor_Triangular, PEPS_Unit_Cell
 from varipeps.contractions import apply_contraction_jitted
-from varipeps.utils.svd import gauge_fixed_svd
+from varipeps.utils.svd import gauge_fixed_svd, svd_singular_value_power
 from varipeps.utils.projector_dict import Projector_Dict_Triangular
 from varipeps.config import VariPEPS_Config
 from varipeps.global_state import VariPEPS_Global_State
@@ -43,7 +43,10 @@ def decompose_new_T(new_T, chi, truncation_eps, config, only_trunc=False):
         new_T.shape[0] * new_T.shape[1] * new_T.shape[2],
         new_T.shape[3] * new_T.shape[4] * new_T.shape[5],
     )
-    new_T_U, new_T_S, new_T_Vh = gauge_fixed_svd(new_T_matrix, config=config)
+    new_T_U, new_T_S_matrix, new_T_Vh = gauge_fixed_svd(
+        new_T_matrix, config=config, return_s_matrix=True
+    )
+    new_T_S = jnp.real(jnp.diag(new_T_S_matrix))
     new_T_S_trunc = _truncate_singular_values(
         new_T_S, chi, truncation_eps, config=config
     )
@@ -64,17 +67,16 @@ def decompose_new_T(new_T, chi, truncation_eps, config, only_trunc=False):
         has_relevant_S,
     )
 
-    new_T_S_trunc = jnp.where(
-        relevant_S_trunc,
-        jnp.sqrt(jnp.where(relevant_S_trunc, new_T_S_trunc, 1)),
-        0,
-    )
+    keep = jnp.arange(len(new_T_S)) < len(new_T_S_trunc)
+    keep = keep.at[: len(new_T_S_trunc)].set(relevant_S_trunc)
+    new_T_S_trunc = svd_singular_value_power(new_T_S_matrix, keep, 0.5)
 
-    new_Ta_trunc = new_T_S_trunc[:, jnp.newaxis] * new_T_Vh[:chi, :]
+    # Absorb the full block before slicing to retain subspace rotations.
+    new_Ta_trunc = (new_T_S_trunc @ new_T_Vh)[:chi, :]
     new_Ta_trunc = new_Ta_trunc.reshape(
         new_Ta_trunc.shape[0], new_T.shape[3], new_T.shape[4], new_T.shape[5]
     )
-    new_Tb_trunc = new_T_U[:, :chi] * new_T_S_trunc[jnp.newaxis, :]
+    new_Tb_trunc = (new_T_U @ new_T_S_trunc)[:, :chi]
     new_Tb_trunc = new_Tb_trunc.reshape(
         new_T.shape[0], new_T.shape[1], new_T.shape[2], new_Tb_trunc.shape[-1]
     )
@@ -83,16 +85,12 @@ def decompose_new_T(new_T, chi, truncation_eps, config, only_trunc=False):
         new_T_S = _truncate_singular_values(
             new_T_S, len(new_T_S), truncation_eps, config=config
         )
-        new_T_S = jnp.where(
-            new_T_S > 0,
-            jnp.sqrt(jnp.where(new_T_S > 0, new_T_S, 1)),
-            0,
-        )
-        new_Ta = new_T_S[:, jnp.newaxis] * new_T_Vh
+        new_T_S = svd_singular_value_power(new_T_S_matrix, new_T_S > 0, 0.5)
+        new_Ta = new_T_S @ new_T_Vh
         new_Ta = new_Ta.reshape(
             new_Ta.shape[0], new_T.shape[3], new_T.shape[4], new_T.shape[5]
         )
-        new_Tb = new_T_U * new_T_S[jnp.newaxis, :]
+        new_Tb = new_T_U @ new_T_S
         new_Tb = new_Tb.reshape(
             new_T.shape[0], new_T.shape[1], new_T.shape[2], new_Tb.shape[-1]
         )

@@ -4,10 +4,9 @@ import jax.numpy as jnp
 
 from varipeps.peps import PEPS_Tensor_Triangular
 from varipeps.contractions import apply_contraction_jitted
-from varipeps.utils.svd import gauge_fixed_svd
 from varipeps.config import Projector_Method, VariPEPS_Config
 from varipeps.global_state import VariPEPS_Global_State
-from .projectors import _check_chi, _truncated_SVD
+from .projectors import _check_chi, _fishman_svd, _truncated_SVD
 
 from typing import Sequence
 
@@ -40,16 +39,9 @@ def _corner_workhorse(
 
         left_matrix_1 /= jnp.linalg.norm(left_matrix_1)
 
-        third_U, third_S, third_Vh = gauge_fixed_svd(left_matrix_1, config=config)
-
-        third_S = jnp.where(
-            third_S / third_S[0] < truncation_eps,
-            0,
-            jnp.sqrt(jnp.where(third_S / third_S[0] < truncation_eps, 1, third_S)),
+        third_right, _, third_left = _fishman_svd(
+            left_matrix_1, config=config, truncation_eps=truncation_eps
         )
-
-        third_left = third_S[:, jnp.newaxis] * third_Vh
-        third_right = third_U * third_S[jnp.newaxis, :]
 
     if tensor_left_2.ndim == 6:
         left_matrix_2 = tensor_left_2.reshape(
@@ -80,23 +72,12 @@ def _corner_workhorse(
         left_matrix = left_matrix_2
 
     if fishman:
-        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh", config=config)
-        left_S = jnp.where(
-            left_S / left_S[0] < truncation_eps,
-            0,
-            jnp.sqrt(jnp.where(left_S / left_S[0] < truncation_eps, 1, left_S)),
+        _, left_matrix = _fishman_svd(
+            left_matrix, only_u_or_vh="Vh", config=config, truncation_eps=truncation_eps
         )
-        left_matrix = left_S[:, jnp.newaxis] * left_Vh
-
-        right_U, right_S = gauge_fixed_svd(
-            right_matrix, only_u_or_vh="U", config=config
+        right_matrix, _ = _fishman_svd(
+            right_matrix, only_u_or_vh="U", config=config, truncation_eps=truncation_eps
         )
-        right_S = jnp.where(
-            right_S / right_S[0] < truncation_eps,
-            0,
-            jnp.sqrt(jnp.where(right_S / right_S[0] < truncation_eps, 1, right_S)),
-        )
-        right_matrix = right_U * right_S[jnp.newaxis, :]
 
     left_matrix /= jnp.linalg.norm(left_matrix)
     right_matrix /= jnp.linalg.norm(right_matrix)
@@ -350,23 +331,12 @@ def _T_workhorse(
     )
 
     if fishman:
-        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh", config=config)
-        left_S = jnp.where(
-            left_S / left_S[0] < truncation_eps,
-            0,
-            jnp.sqrt(jnp.where(left_S / left_S[0] < truncation_eps, 1, left_S)),
+        _, left_matrix = _fishman_svd(
+            left_matrix, only_u_or_vh="Vh", config=config, truncation_eps=truncation_eps
         )
-        left_matrix = left_S[:, jnp.newaxis] * left_Vh
-
-        right_U, right_S = gauge_fixed_svd(
-            right_matrix, only_u_or_vh="U", config=config
+        right_matrix, _ = _fishman_svd(
+            right_matrix, only_u_or_vh="U", config=config, truncation_eps=truncation_eps
         )
-        right_S = jnp.where(
-            right_S / right_S[0] < truncation_eps,
-            0,
-            jnp.sqrt(jnp.where(right_S / right_S[0] < truncation_eps, 1, right_S)),
-        )
-        right_matrix = right_U * right_S[jnp.newaxis, :]
 
     left_matrix /= jnp.linalg.norm(left_matrix)
     right_matrix /= jnp.linalg.norm(right_matrix)
@@ -629,23 +599,12 @@ def _T_truncated_workhorse(
     right_matrix /= jnp.linalg.norm(right_matrix)
 
     if fishman:
-        left_S, left_Vh = gauge_fixed_svd(left_matrix, only_u_or_vh="Vh", config=config)
-        left_S = jnp.where(
-            left_S / left_S[0] < truncation_eps,
-            0,
-            jnp.sqrt(jnp.where(left_S / left_S[0] < truncation_eps, 1, left_S)),
+        _, left_matrix = _fishman_svd(
+            left_matrix, only_u_or_vh="Vh", config=config, truncation_eps=truncation_eps
         )
-        left_matrix = left_S[:, jnp.newaxis] * left_Vh
-
-        right_U, right_S = gauge_fixed_svd(
-            right_matrix, only_u_or_vh="U", config=config
+        right_matrix, _ = _fishman_svd(
+            right_matrix, only_u_or_vh="U", config=config, truncation_eps=truncation_eps
         )
-        right_S = jnp.where(
-            right_S / right_S[0] < truncation_eps,
-            0,
-            jnp.sqrt(jnp.where(right_S / right_S[0] < truncation_eps, 1, right_S)),
-        )
-        right_matrix = right_U * right_S[jnp.newaxis, :]
 
     product_matrix = left_matrix @ full_T_matrix @ right_matrix
     product_matrix /= jnp.linalg.norm(product_matrix)
@@ -912,23 +871,12 @@ def _split_projectors_phase_1_workhorse(
     right_matrix /= jnp.linalg.norm(right_matrix)
 
     if fishman:
-        left_U, left_S, left_Vh = gauge_fixed_svd(left_matrix, config=config)
-        left_S = jnp.where(
-            left_S / left_S[0] < truncation_eps,
-            0,
-            jnp.sqrt(jnp.where(left_S / left_S[0] < truncation_eps, 1, left_S)),
+        right_matrix_2, _, left_matrix = _fishman_svd(
+            left_matrix, config=config, truncation_eps=truncation_eps
         )
-        left_matrix = left_S[:, jnp.newaxis] * left_Vh
-        right_matrix_2 = left_U * left_S[jnp.newaxis, :]
-
-        right_U, right_S, right_Vh = gauge_fixed_svd(right_matrix, config=config)
-        right_S = jnp.where(
-            right_S / right_S[0] < truncation_eps,
-            0,
-            jnp.sqrt(jnp.where(right_S / right_S[0] < truncation_eps, 1, right_S)),
+        right_matrix, _, left_matrix_2 = _fishman_svd(
+            right_matrix, config=config, truncation_eps=truncation_eps
         )
-        right_matrix = right_U * right_S[jnp.newaxis, :]
-        left_matrix_2 = right_S[:, jnp.newaxis] * right_Vh
     else:
         left_matrix_2 = right_matrix
         right_matrix_2 = left_matrix
