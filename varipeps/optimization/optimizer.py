@@ -165,7 +165,7 @@ def _precond_solved(apply_func, solution, rhs, config):
     return (
         jnp.all(jnp.isfinite(solution))
         & jnp.isfinite(residual_norm)
-        & (residual_norm < threshold)
+        & ((residual_norm == 0) | (residual_norm < threshold))
     )
 
 
@@ -989,7 +989,7 @@ def optimize_peps_network(
                         ):
                             tqdm.write("Warning: Preconditioner GMRES not converged")
                         elif all(
-                            jnp.sum(xe * x2e.conj()) >= 0
+                            jnp.real(jnp.vdot(xe, x2e)) >= 0
                             for xe, x2e in zip(
                                 descent_dir, tmp_descent_dir, strict=True
                             )
