@@ -192,21 +192,21 @@ def _wolfe_new_alpha(
 
 
 @jit
-def _hager_zhang_initial_zero(input_tensors, gradient, config):
+def _hager_zhang_initial_zero(input_tensors, descent_direction, config):
     input_tensors_real, _ = ravel_pytree(input_tensors)
-    gradient_real, _ = ravel_pytree(gradient)
+    descent_direction_real, _ = ravel_pytree(descent_direction)
 
     if jnp.iscomplexobj(input_tensors_real):
         input_tensors_real = jnp.concatenate(
             (jnp.real(input_tensors_real), jnp.imag(input_tensors_real))
         )
-        gradient_real = jnp.concatenate(
-            (jnp.real(gradient_real), jnp.imag(gradient_real))
+        descent_direction_real = jnp.concatenate(
+            (jnp.real(descent_direction_real), jnp.imag(descent_direction_real))
         )
 
     result = config.line_search_hager_zhang_psi_0
     result *= jnp.linalg.norm(input_tensors_real, ord=jnp.inf)
-    result /= jnp.linalg.norm(gradient_real, ord=jnp.inf)
+    result /= jnp.linalg.norm(descent_direction_real, ord=jnp.inf)
 
     result = jnp.where(result == 0, config.line_search_initial_step_size, result)
 
@@ -393,7 +393,9 @@ def line_search(
         if initial_step_size is not None:
             alpha = initial_step_size
         elif last_step_size is None or last_step_size <= 0:
-            alpha = _hager_zhang_initial_zero(input_tensors, gradient, varipeps_config)
+            alpha = _hager_zhang_initial_zero(
+                input_tensors, descent_direction, varipeps_config
+            )
         elif varipeps_config.line_search_hager_zhang_quad_step:
             try:
                 alpha = _hager_zhang_initial_quad_step(

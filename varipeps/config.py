@@ -393,10 +393,8 @@ class VariPEPS_Config:
         usually sufficient, see https://arxiv.org/abs/2511.09546.
       optimizer_precond_regularization_relative_floor (:obj:`float`):
         Lower bound for the regularization term in the preconditioner relative
-        to the size of the metric at the current tensor ``<A, N A> / <A, A>``.
-        This bounds the condition number of the preconditioner to about the
-        inverse of this value and makes the regularization independent of the
-        normalization of the environment. Zero disables the bound.
+        to the Rayleigh quotient of the normalized metric at the current
+        tensor ``1 / <A, A>``. Zero disables the bound.
       optimizer_precond_max_relative_residual (:obj:`float`):
         Maximal relative residual ``|P x - b| / |b|`` of the GMRES solution of
         the preconditioner. JAX does not report the convergence of GMRES, so
@@ -574,7 +572,7 @@ class VariPEPS_Config:
     optimizer_precond_regularization_relative_floor: float = 0.0
     optimizer_precond_max_relative_residual: float = 1.0
     optimizer_use_norm_preserving_retraction: bool = True
-    optimizer_precond_regularization_factor: float = 1e-2
+    optimizer_precond_regularization_factor: float = 1e-1
     optimizer_precond_regularization_floor: float = 1e-12
 
     # Line search
