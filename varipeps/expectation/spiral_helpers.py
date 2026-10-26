@@ -76,7 +76,7 @@ def apply_unitary(
         if wavevector_type is Wavevector_Type.TWO_PI_POSITIVE_ONLY:
             w_q = w_q % 2
         elif wavevector_type is Wavevector_Type.TWO_PI_SYMMETRIC:
-            w_q = w_q % 4 - 2
+            w_q = (w_q + 2) % 4 - 2
         else:
             raise ValueError("Unknown wavevector type!")
 
