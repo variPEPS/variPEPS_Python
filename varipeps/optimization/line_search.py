@@ -1199,6 +1199,10 @@ def line_search(
                 continue
             hz_secant_lower = None
 
+            if not hager_zhang_lower_bound < alpha < hager_zhang_upper_bound:
+                alpha = (hager_zhang_lower_bound + hager_zhang_upper_bound) / 2
+                hager_zhang_state = _Hager_Zhang_State.UPDATE
+
         if tmp_value is not None:
             current_value, unitcell, gradient, descent_direction = (
                 tmp_value,
