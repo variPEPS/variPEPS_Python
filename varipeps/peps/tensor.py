@@ -1828,16 +1828,6 @@ class PEPS_Tensor_Structure_Factor(PEPS_Tensor):
             T2 = jnp.eye(D[2], dtype=dtype).reshape(D[2], D[2], 1, 1)
             T3 = jnp.eye(D[1], dtype=dtype).reshape(1, 1, D[1], D[1])
             T4 = jnp.eye(D[0], dtype=dtype).reshape(1, D[0], D[0], 1)
-
-            C1_phase = jnp.ones((1, 1), dtype=dtype)
-            C2_phase = jnp.ones((1, 1), dtype=dtype)
-            C3_phase = jnp.ones((1, 1), dtype=dtype)
-            C4_phase = jnp.ones((1, 1), dtype=dtype)
-
-            T1_phase = jnp.eye(D[3], dtype=dtype).reshape(1, D[3], D[3], 1)
-            T2_phase = jnp.eye(D[2], dtype=dtype).reshape(D[2], D[2], 1, 1)
-            T3_phase = jnp.eye(D[1], dtype=dtype).reshape(1, 1, D[1], D[1])
-            T4_phase = jnp.eye(D[0], dtype=dtype).reshape(1, D[0], D[0], 1)
         else:
             rng = PEPS_Random_Number_Generator.get_generator(seed, backend=backend)
 
@@ -1851,15 +1841,15 @@ class PEPS_Tensor_Structure_Factor(PEPS_Tensor):
             T3 = rng.block((chi, chi, D[1], D[1]), dtype, normalize=normalize)
             T4 = rng.block((chi, D[0], D[0], chi), dtype, normalize=normalize)
 
-            C1_phase = rng.block((chi, chi), dtype, normalize=normalize)
-            C2_phase = rng.block((chi, chi), dtype, normalize=normalize)
-            C3_phase = rng.block((chi, chi), dtype, normalize=normalize)
-            C4_phase = rng.block((chi, chi), dtype, normalize=normalize)
-
-            T1_phase = rng.block((chi, D[3], D[3], chi), dtype, normalize=normalize)
-            T2_phase = rng.block((D[2], D[2], chi, chi), dtype, normalize=normalize)
-            T3_phase = rng.block((chi, chi, D[1], D[1]), dtype, normalize=normalize)
-            T4_phase = rng.block((chi, D[0], D[0], chi), dtype, normalize=normalize)
+        phase_dtype = jnp.result_type(dtype, 1j)
+        C1_phase = jnp.zeros_like(C1, dtype=phase_dtype)
+        C2_phase = jnp.zeros_like(C2, dtype=phase_dtype)
+        C3_phase = jnp.zeros_like(C3, dtype=phase_dtype)
+        C4_phase = jnp.zeros_like(C4, dtype=phase_dtype)
+        T1_phase = jnp.zeros_like(T1, dtype=phase_dtype)
+        T2_phase = jnp.zeros_like(T2, dtype=phase_dtype)
+        T3_phase = jnp.zeros_like(T3, dtype=phase_dtype)
+        T4_phase = jnp.zeros_like(T4, dtype=phase_dtype)
 
         return cls(
             tensor=tensor,
@@ -1880,7 +1870,7 @@ class PEPS_Tensor_Structure_Factor(PEPS_Tensor):
             T3_phase=T3_phase,
             T4_phase=T4_phase,
             d=d,
-            D=D,  # type: ignore
+            D=D,
             chi=chi,
             max_chi=max_chi,
         )
@@ -1933,21 +1923,21 @@ class PEPS_Tensor_Structure_Factor(PEPS_Tensor):
                 T4=jnp.eye(self.D[0], dtype=self.T4.dtype).reshape(
                     1, self.D[0], self.D[0], 1
                 ),
-                C1_phase=jnp.ones((1, 1), dtype=self.C1_phase.dtype),
-                C2_phase=jnp.ones((1, 1), dtype=self.C2_phase.dtype),
-                C3_phase=jnp.ones((1, 1), dtype=self.C3_phase.dtype),
-                C4_phase=jnp.ones((1, 1), dtype=self.C4_phase.dtype),
-                T1_phase=jnp.eye(self.D[3], dtype=self.T1_phase.dtype).reshape(
-                    1, self.D[3], self.D[3], 1
+                C1_phase=jnp.zeros((1, 1), dtype=self.C1_phase.dtype),
+                C2_phase=jnp.zeros((1, 1), dtype=self.C2_phase.dtype),
+                C3_phase=jnp.zeros((1, 1), dtype=self.C3_phase.dtype),
+                C4_phase=jnp.zeros((1, 1), dtype=self.C4_phase.dtype),
+                T1_phase=jnp.zeros(
+                    (1, self.D[3], self.D[3], 1), dtype=self.T1_phase.dtype
                 ),
-                T2_phase=jnp.eye(self.D[2], dtype=self.T2_phase.dtype).reshape(
-                    self.D[2], self.D[2], 1, 1
+                T2_phase=jnp.zeros(
+                    (self.D[2], self.D[2], 1, 1), dtype=self.T2_phase.dtype
                 ),
-                T3_phase=jnp.eye(self.D[1], dtype=self.T3_phase.dtype).reshape(
-                    1, 1, self.D[1], self.D[1]
+                T3_phase=jnp.zeros(
+                    (1, 1, self.D[1], self.D[1]), dtype=self.T3_phase.dtype
                 ),
-                T4_phase=jnp.eye(self.D[0], dtype=self.T4_phase.dtype).reshape(
-                    1, self.D[0], self.D[0], 1
+                T4_phase=jnp.zeros(
+                    (1, self.D[0], self.D[0], 1), dtype=self.T4_phase.dtype
                 ),
                 d=self.d,
                 D=self.D,

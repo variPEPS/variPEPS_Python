@@ -6,85 +6,50 @@ from jax import jit
 from varipeps.peps import PEPS_Tensor, PEPS_Unit_Cell
 from varipeps.contractions import apply_contraction_jitted
 
-from typing import Sequence
+from typing import Optional, Sequence
 
 
 @partial(jit, static_argnums=(4, 5))
 def calc_structure_factor_expectation(
     peps_tensor_obj: PEPS_Tensor,
     alpha_gate: jnp.ndarray,
-    beta_gate: jnp.array,
-    structure_factor_inner_factors: Sequence[float],
+    beta_gate: jnp.ndarray,
+    structure_factor_inner_factors: Optional[Sequence[complex]],
     real_d: int,
     num_sites: int,
 ):
-    if num_sites > 1:
-        Id = jnp.eye(real_d ** (num_sites - 1))
+    """
+    Contract a structure factor with alpha_gate at the reference site and
+    beta_gate in the phase environments. The latter must have been built with
+    beta_gate embedded on each basis site and the same inner factors.
 
-        full_alpha_gate = [jnp.kron(alpha_gate, Id)]
+    For a basis of num_sites spins, use inner factors exp(1j * q @ b_m).
+    This returns the sum over all reference and target basis sites, including
+    coincident spins. Divide by num_sites for normalization per physical spin.
+    For one spin per site, None or an empty sequence means a unit inner factor.
+    """
+    if num_sites < 1 or peps_tensor_obj.d != real_d**num_sites:
+        raise ValueError("Physical dimension does not match the basis sites.")
+    if (
+        structure_factor_inner_factors is None
+        or len(structure_factor_inner_factors) == 0
+    ):
+        structure_factor_inner_factors = (1,) * num_sites
+    if len(structure_factor_inner_factors) != num_sites:
+        raise ValueError("Length mismatch for inner factor list.")
 
-        alpha_gate_tmp = full_alpha_gate[0].reshape((real_d,) * 2 * num_sites)
-        for i in range(1, num_sites):
-            trans_order = list(range(1, num_sites)) + list(
-                range(num_sites + 1, 2 * num_sites)
-            )
-            trans_order.insert(i, 0)
-            trans_order.insert(num_sites + i, num_sites)
+    full_alpha_gate = []
+    full_beta_gate = []
+    for i, factor in enumerate(structure_factor_inner_factors):
+        left_id = jnp.eye(real_d**i)
+        right_id = jnp.eye(real_d ** (num_sites - i - 1))
+        full_alpha_gate.append(
+            jnp.kron(left_id, jnp.kron(alpha_gate, right_id)) * jnp.conj(factor)
+        )
+        full_beta_gate.append(jnp.kron(left_id, jnp.kron(beta_gate, right_id)) * factor)
 
-            tmp_gate = alpha_gate_tmp.transpose(trans_order).reshape(
-                real_d**num_sites, real_d**num_sites
-            )
-
-            full_alpha_gate.append(tmp_gate * structure_factor_inner_factors[i].conj())
-
-        alpha_beta_gate = 0
-        # alpha_beta_gate_tmp_1 = alpha_beta_gate.reshape((real_d,) * 2 * num_sites)
-        alpha_beta_gate_tmp_2 = jnp.kron(
-            jnp.kron(alpha_gate, beta_gate), jnp.eye(real_d ** (num_sites - 2))
-        ).reshape((real_d,) * 2 * num_sites)
-
-        for i in range(num_sites):
-            for j in range(num_sites):
-                if i == j:
-                    continue
-
-                # if i == j:
-                #     trans_order = list(range(1, num_sites)) + list(
-                #         range(num_sites + 1, 2 * num_sites)
-                #     )
-                #     trans_order.insert(i, 0)
-                #     trans_order.insert(num_sites + i, num_sites)
-                #
-                #     tmp_gate = alpha_beta_gate_tmp_1.transpose(trans_order)
-                #     tmp_gate = tmp_gate.reshape(real_d**num_sites, real_d**num_sites)
-                #
-                #     alpha_beta_gate += tmp_gate
-                # else:
-                trans_order = list(range(2, num_sites)) + list(
-                    range(num_sites + 2, 2 * num_sites)
-                )
-                if i <= j:
-                    trans_order.insert(i, 0)
-                    trans_order.insert(j, 1)
-                    trans_order.insert(num_sites + i, num_sites)
-                    trans_order.insert(num_sites + j, num_sites + 1)
-                else:
-                    trans_order.insert(j, 1)
-                    trans_order.insert(i, 0)
-                    trans_order.insert(num_sites + j, num_sites + 1)
-                    trans_order.insert(num_sites + i, num_sites)
-
-                tmp_gate = alpha_beta_gate_tmp_2.transpose(trans_order)
-                tmp_gate = tmp_gate.reshape(real_d**num_sites, real_d**num_sites)
-
-                alpha_beta_gate += (
-                    tmp_gate
-                    * structure_factor_inner_factors[i].conj()
-                    * structure_factor_inner_factors[j]
-                )
-    else:
-        full_alpha_gate = [alpha_gate]
-        alpha_beta_gate = alpha_gate @ beta_gate
+    # The product includes all num_sites**2 local correlations, also i == j.
+    alpha_beta_gate = sum(full_alpha_gate) @ sum(full_beta_gate)
 
     density_matrix = apply_contraction_jitted(
         "density_matrix_one_site", [peps_tensor_obj.tensor], [peps_tensor_obj], []

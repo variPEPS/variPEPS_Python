@@ -22,7 +22,7 @@ from varipeps.config import VariPEPS_Config
 from varipeps.global_state import VariPEPS_Global_State
 
 
-from typing import Sequence, Tuple, List, Dict, Literal
+from typing import Sequence, Tuple, List, Dict, Literal, Optional
 
 CTMRG_Orientation = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
 
@@ -65,8 +65,8 @@ def do_left_absorption_structure_factor(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
     structure_factor_gates: Sequence[jnp.ndarray],
-    structure_factor_outer_factor: float,
-    structure_factor_inner_factors: Sequence[float],
+    structure_factor_outer_factor: complex,
+    structure_factor_inner_factors: Optional[Sequence[complex]],
     config: VariPEPS_Config,
     state: VariPEPS_Global_State,
 ) -> PEPS_Unit_Cell:
@@ -85,16 +85,18 @@ def do_left_absorption_structure_factor(
         containing the phase for the structure factor calculation. Expected to
         be a sequence where the gate is already multiplied with identities to
         match the physical dimension of the coarse-grained tensor
-      structure_factor_outer_factor (:obj:`float`):
+      structure_factor_outer_factor (:obj:`complex`):
         The factor used to calculate the new tensors by shifting one site in
         the square lattice to the left. Likely something like
-        ``jnp.exp(- 1j * q_vector @ r_vector)``.
-      structure_factor_inner_factors (:term:`sequence` of :obj:`float`):
+        ``jnp.exp(1j * q_vector @ r_vector)``, where r_vector is the
+        displacement in the absorption direction.
+      structure_factor_inner_factors (:term:`sequence` of :obj:`complex`):
         For coarse-grained systems the sequence with the factors used to
         calculate the phase by shifting one site inside one coarse-grained
         square site. Set it to None, [] or [1] if system has
-        no coarsed-grained structure. If used likely something like
-        ``jnp.exp(- 1j * q_vector @ r_vector)``.
+        no coarse-grained structure. Otherwise use
+        ``jnp.exp(1j * q_vector @ basis_vector)`` for each basis site,
+        in the same order as structure_factor_gates.
       config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
@@ -118,14 +120,22 @@ def do_left_absorption_structure_factor(
         structure_factor_inner_factors is None
         or len(structure_factor_inner_factors) == 0
     ):
-        structure_factor_inner_factors = (1,)
+        structure_factor_inner_factors = (1,) * len(structure_factor_gates)
+    if len(structure_factor_gates) == 0 or len(structure_factor_inner_factors) != len(
+        structure_factor_gates
+    ):
+        raise ValueError(
+            "Length mismatch for structure factor gates and inner factors."
+        )
 
     for y, iter_columns in working_unitcell.iter_all_columns(only_unique=True):
         column_views = [view for view in iter_columns]
 
         for x, view in column_views:
             left_proj, smallest_S = calc_left_projectors(
-                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"), config, state
+                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"),
+                config,
+                state,
             )
             left_projectors[(x, y)] = left_proj
             smallest_S_list.append(smallest_S)
@@ -165,7 +175,7 @@ def do_left_absorption_structure_factor(
             ) * structure_factor_outer_factor
             new_C1_tmp_norm = jnp.linalg.norm(new_C1_tmp)
             new_C1.append(new_C1_tmp / new_C1_tmp_norm)
-            new_C1_phase.append(new_C1_phase_tmp / new_C1_tmp_norm / 2)
+            new_C1_phase.append(new_C1_phase_tmp / new_C1_tmp_norm)
 
             T4_projector_top = left_projectors.get_projector(x, y, -1, 0).top
             T4_projector_bottom = left_projectors.get_projector(x, y, 0, 0).bottom
@@ -200,11 +210,7 @@ def do_left_absorption_structure_factor(
             new_T4_phase_tmp = new_T4_phase_tmp * structure_factor_outer_factor
             new_T4_tmp_norm = jnp.linalg.norm(new_T4_tmp)
             new_T4.append(new_T4_tmp / new_T4_tmp_norm)
-            new_T4_phase.append(
-                new_T4_phase_tmp
-                / new_T4_tmp_norm
-                / (1 + len(structure_factor_inner_factors))
-            )
+            new_T4_phase.append(new_T4_phase_tmp / new_T4_tmp_norm)
 
             C4_projector = left_projectors.get_projector(x, y, 0, 0).top
             new_C4_tmp = apply_contraction_jitted(
@@ -230,7 +236,7 @@ def do_left_absorption_structure_factor(
             ) * structure_factor_outer_factor
             new_C4_tmp_norm = jnp.linalg.norm(new_C4_tmp)
             new_C4.append(new_C4_tmp / new_C4_tmp_norm)
-            new_C4_phase.append(new_C4_phase_tmp / new_C4_tmp_norm / 2)
+            new_C4_phase.append(new_C4_phase_tmp / new_C4_tmp_norm)
 
         for x, view in column_views:
             view[0, 1] = view[0, 1][0][0].replace_left_env_tensors(
@@ -249,8 +255,8 @@ def do_right_absorption_structure_factor(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
     structure_factor_gates: Sequence[jnp.ndarray],
-    structure_factor_outer_factor: float,
-    structure_factor_inner_factors: Sequence[float],
+    structure_factor_outer_factor: complex,
+    structure_factor_inner_factors: Optional[Sequence[complex]],
     config: VariPEPS_Config,
     state: VariPEPS_Global_State,
 ) -> PEPS_Unit_Cell:
@@ -269,16 +275,18 @@ def do_right_absorption_structure_factor(
         containing the phase for the structure factor calculation. Expected to
         be a sequence where the gate is already multiplied with identities to
         match the physical dimension of the coarse-grained tensor
-      structure_factor_outer_factor (:obj:`float`):
+      structure_factor_outer_factor (:obj:`complex`):
         The factor used to calculate the new tensors by shifting one site in
         the square lattice to the right. Likely something like
-        ``jnp.exp(- 1j * q_vector @ r_vector)``.
-      structure_factor_inner_factors (:term:`sequence` of :obj:`float`):
+        ``jnp.exp(1j * q_vector @ r_vector)``, where r_vector is the
+        displacement in the absorption direction.
+      structure_factor_inner_factors (:term:`sequence` of :obj:`complex`):
         For coarse-grained systems the sequence with the factors used to
         calculate the phase by shifting one site inside one coarse-grained
         square site. Set it to None, [] or [1] if system has
-        no coarsed-grained structure. If used likely something like
-        ``jnp.exp(- 1j * q_vector @ r_vector)``.
+        no coarse-grained structure. Otherwise use
+        ``jnp.exp(1j * q_vector @ basis_vector)`` for each basis site,
+        in the same order as structure_factor_gates.
       config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
@@ -302,7 +310,13 @@ def do_right_absorption_structure_factor(
         structure_factor_inner_factors is None
         or len(structure_factor_inner_factors) == 0
     ):
-        structure_factor_inner_factors = (1,)
+        structure_factor_inner_factors = (1,) * len(structure_factor_gates)
+    if len(structure_factor_gates) == 0 or len(structure_factor_inner_factors) != len(
+        structure_factor_gates
+    ):
+        raise ValueError(
+            "Length mismatch for structure factor gates and inner factors."
+        )
 
     for y, iter_columns in working_unitcell.iter_all_columns(
         reverse=True, only_unique=True
@@ -353,7 +367,7 @@ def do_right_absorption_structure_factor(
             ) * structure_factor_outer_factor
             new_C2_tmp_norm = jnp.linalg.norm(new_C2_tmp)
             new_C2.append(new_C2_tmp / new_C2_tmp_norm)
-            new_C2_phase.append(new_C2_phase_tmp / new_C2_tmp_norm / 2)
+            new_C2_phase.append(new_C2_phase_tmp / new_C2_tmp_norm)
 
             T2_projector_top = right_projectors.get_projector(x, y, -1, 0).top
             T2_projector_bottom = right_projectors.get_projector(x, y, 0, 0).bottom
@@ -388,11 +402,7 @@ def do_right_absorption_structure_factor(
             new_T2_phase_tmp = new_T2_phase_tmp * structure_factor_outer_factor
             new_T2_tmp_norm = jnp.linalg.norm(new_T2_tmp)
             new_T2.append(new_T2_tmp / new_T2_tmp_norm)
-            new_T2_phase.append(
-                new_T2_phase_tmp
-                / new_T2_tmp_norm
-                / (1 + len(structure_factor_inner_factors))
-            )
+            new_T2_phase.append(new_T2_phase_tmp / new_T2_tmp_norm)
 
             C3_projector = right_projectors.get_projector(x, y, 0, 0).top
             new_C3_tmp = apply_contraction_jitted(
@@ -418,7 +428,7 @@ def do_right_absorption_structure_factor(
             ) * structure_factor_outer_factor
             new_C3_tmp_norm = jnp.linalg.norm(new_C3_tmp)
             new_C3.append(new_C3_tmp / new_C3_tmp_norm)
-            new_C3_phase.append(new_C3_phase_tmp / new_C3_tmp_norm / 2)
+            new_C3_phase.append(new_C3_phase_tmp / new_C3_tmp_norm)
 
         for x, view in column_views:
             view[0, -1] = view[0, -1][0][0].replace_right_env_tensors(
@@ -437,8 +447,8 @@ def do_top_absorption_structure_factor(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
     structure_factor_gates: Sequence[jnp.ndarray],
-    structure_factor_outer_factor: float,
-    structure_factor_inner_factors: Sequence[float],
+    structure_factor_outer_factor: complex,
+    structure_factor_inner_factors: Optional[Sequence[complex]],
     config: VariPEPS_Config,
     state: VariPEPS_Global_State,
 ) -> PEPS_Unit_Cell:
@@ -457,16 +467,18 @@ def do_top_absorption_structure_factor(
         containing the phase for the structure factor calculation. Expected to
         be a sequence where the gate is already multiplied with identities to
         match the physical dimension of the coarse-grained tensor
-      structure_factor_outer_factor (:obj:`float`):
+      structure_factor_outer_factor (:obj:`complex`):
         The factor used to calculate the new tensors by shifting one site in
         the square lattice to the top. Likely something like
-        ``jnp.exp(- 1j * q_vector @ r_vector)``.
-      structure_factor_inner_factors (:term:`sequence` of :obj:`float`):
+        ``jnp.exp(1j * q_vector @ r_vector)``, where r_vector is the
+        displacement in the absorption direction.
+      structure_factor_inner_factors (:term:`sequence` of :obj:`complex`):
         For coarse-grained systems the sequence with the factors used to
         calculate the phase by shifting one site inside one coarse-grained
         square site. Set it to None, [] or [1] if system has
-        no coarsed-grained structure. If used likely something like
-        ``jnp.exp(- 1j * q_vector @ r_vector)``.
+        no coarse-grained structure. Otherwise use
+        ``jnp.exp(1j * q_vector @ basis_vector)`` for each basis site,
+        in the same order as structure_factor_gates.
       config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
@@ -490,14 +502,22 @@ def do_top_absorption_structure_factor(
         structure_factor_inner_factors is None
         or len(structure_factor_inner_factors) == 0
     ):
-        structure_factor_inner_factors = (1,)
+        structure_factor_inner_factors = (1,) * len(structure_factor_gates)
+    if len(structure_factor_gates) == 0 or len(structure_factor_inner_factors) != len(
+        structure_factor_gates
+    ):
+        raise ValueError(
+            "Length mismatch for structure factor gates and inner factors."
+        )
 
     for x, iter_rows in working_unitcell.iter_all_rows(only_unique=True):
         row_views = [view for view in iter_rows]
 
         for y, view in row_views:
             top_proj, smallest_S = calc_top_projectors(
-                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"), config, state
+                *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"),
+                config,
+                state,
             )
             top_projectors[(x, y)] = top_proj
             smallest_S_list.append(smallest_S)
@@ -537,7 +557,7 @@ def do_top_absorption_structure_factor(
             ) * structure_factor_outer_factor
             new_C1_tmp_norm = jnp.linalg.norm(new_C1_tmp)
             new_C1.append(new_C1_tmp / new_C1_tmp_norm)
-            new_C1_phase.append(new_C1_phase_tmp / new_C1_tmp_norm / 2)
+            new_C1_phase.append(new_C1_phase_tmp / new_C1_tmp_norm)
 
             T1_projector_left = top_projectors.get_projector(x, y, 0, -1).left  # type: ignore
             T1_projector_right = top_projectors.get_projector(x, y, 0, 0).right  # type: ignore
@@ -572,11 +592,7 @@ def do_top_absorption_structure_factor(
             new_T1_phase_tmp = new_T1_phase_tmp * structure_factor_outer_factor
             new_T1_tmp_norm = jnp.linalg.norm(new_T1_tmp)
             new_T1.append(new_T1_tmp / new_T1_tmp_norm)
-            new_T1_phase.append(
-                new_T1_phase_tmp
-                / new_T1_tmp_norm
-                / (1 + len(structure_factor_inner_factors))
-            )
+            new_T1_phase.append(new_T1_phase_tmp / new_T1_tmp_norm)
 
             C2_projector = top_projectors.get_projector(x, y, 0, 0).left  # type: ignore
             new_C2_tmp = apply_contraction_jitted(
@@ -602,7 +618,7 @@ def do_top_absorption_structure_factor(
             ) * structure_factor_outer_factor
             new_C2_tmp_norm = jnp.linalg.norm(new_C2_tmp)
             new_C2.append(new_C2_tmp / new_C2_tmp_norm)
-            new_C2_phase.append(new_C2_phase_tmp / new_C2_tmp_norm / 2)
+            new_C2_phase.append(new_C2_phase_tmp / new_C2_tmp_norm)
 
         for y, view in row_views:
             view[1, 0] = view[1, 0][0][0].replace_top_env_tensors(
@@ -621,8 +637,8 @@ def do_bottom_absorption_structure_factor(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
     structure_factor_gates: Sequence[jnp.ndarray],
-    structure_factor_outer_factor: float,
-    structure_factor_inner_factors: Sequence[float],
+    structure_factor_outer_factor: complex,
+    structure_factor_inner_factors: Optional[Sequence[complex]],
     config: VariPEPS_Config,
     state: VariPEPS_Global_State,
 ) -> PEPS_Unit_Cell:
@@ -641,16 +657,18 @@ def do_bottom_absorption_structure_factor(
         containing the phase for the structure factor calculation. Expected to
         be a sequence where the gate is already multiplied with identities to
         match the physical dimension of the coarse-grained tensor
-      structure_factor_outer_factor (:obj:`float`):
+      structure_factor_outer_factor (:obj:`complex`):
         The factor used to calculate the new tensors by shifting one site in
         the square lattice to the bottom. Likely something like
-        ``jnp.exp(- 1j * q_vector @ r_vector)``.
-      structure_factor_inner_factors (:term:`sequence` of :obj:`float`):
+        ``jnp.exp(1j * q_vector @ r_vector)``, where r_vector is the
+        displacement in the absorption direction.
+      structure_factor_inner_factors (:term:`sequence` of :obj:`complex`):
         For coarse-grained systems the sequence with the factors used to
         calculate the phase by shifting one site inside one coarse-grained
         square site. Set it to None, [] or [1] if system has
-        no coarsed-grained structure. If used likely something like
-        ``jnp.exp(- 1j * q_vector @ r_vector)``.
+        no coarse-grained structure. Otherwise use
+        ``jnp.exp(1j * q_vector @ basis_vector)`` for each basis site,
+        in the same order as structure_factor_gates.
       config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
@@ -674,7 +692,13 @@ def do_bottom_absorption_structure_factor(
         structure_factor_inner_factors is None
         or len(structure_factor_inner_factors) == 0
     ):
-        structure_factor_inner_factors = (1,)
+        structure_factor_inner_factors = (1,) * len(structure_factor_gates)
+    if len(structure_factor_gates) == 0 or len(structure_factor_inner_factors) != len(
+        structure_factor_gates
+    ):
+        raise ValueError(
+            "Length mismatch for structure factor gates and inner factors."
+        )
 
     for x, iter_rows in working_unitcell.iter_all_rows(reverse=True, only_unique=True):
         row_views = [view for view in iter_rows]
@@ -723,7 +747,7 @@ def do_bottom_absorption_structure_factor(
             ) * structure_factor_outer_factor
             new_C4_tmp_norm = jnp.linalg.norm(new_C4_tmp)
             new_C4.append(new_C4_tmp / new_C4_tmp_norm)
-            new_C4_phase.append(new_C4_phase_tmp / new_C4_tmp_norm / 2)
+            new_C4_phase.append(new_C4_phase_tmp / new_C4_tmp_norm)
 
             T3_projector_left = bottom_projectors.get_projector(x, y, 0, -1).left  # type: ignore
             T3_projector_right = bottom_projectors.get_projector(x, y, 0, 0).right  # type: ignore
@@ -758,11 +782,7 @@ def do_bottom_absorption_structure_factor(
             new_T3_phase_tmp = new_T3_phase_tmp * structure_factor_outer_factor
             new_T3_tmp_norm = jnp.linalg.norm(new_T3_tmp)
             new_T3.append(new_T3_tmp / new_T3_tmp_norm)
-            new_T3_phase.append(
-                new_T3_phase_tmp
-                / new_T3_tmp_norm
-                / (1 + len(structure_factor_inner_factors))
-            )
+            new_T3_phase.append(new_T3_phase_tmp / new_T3_tmp_norm)
 
             C3_projector = bottom_projectors.get_projector(x, y, 0, 0).left  # type: ignore
             new_C3_tmp = apply_contraction_jitted(
@@ -788,7 +808,7 @@ def do_bottom_absorption_structure_factor(
             ) * structure_factor_outer_factor
             new_C3_tmp_norm = jnp.linalg.norm(new_C3_tmp)
             new_C3.append(new_C3_tmp / new_C3_tmp_norm)
-            new_C3_phase.append(new_C3_phase_tmp / new_C3_tmp_norm / 2)
+            new_C3_phase.append(new_C3_phase_tmp / new_C3_tmp_norm)
 
         for y, view in row_views:
             view[-1, 0] = view[-1, 0][0][0].replace_bottom_env_tensors(
@@ -807,8 +827,8 @@ def do_absorption_step_structure_factor(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
     structure_factor_gates: Sequence[jnp.ndarray],
-    structure_factor_outer_factors: Sequence[float],
-    structure_factor_inner_factors: Sequence[float],
+    structure_factor_outer_factors: Sequence[complex],
+    structure_factor_inner_factors: Optional[Sequence[complex]],
     config: VariPEPS_Config,
     state: VariPEPS_Global_State,
 ) -> PEPS_Unit_Cell:
@@ -827,20 +847,22 @@ def do_absorption_step_structure_factor(
         containing the phase for the structure factor calculation. Expected to
         be a sequence where the gate is already multiplied with identities to
         match the physical dimension of the coarse-grained tensor
-      structure_factor_outer_factors (:obj:`float`):
+      structure_factor_outer_factors (:term:`sequence` of :obj:`complex`):
         The sequence with factors used to calculate the new tensors by shifting
         one site in the square lattice. Likely something like
-        ``jnp.exp(- 1j * q_vector @ r_vector)``. If length two, the first
+        ``jnp.exp(1j * q_vector @ r_vector)``, where r_vector is the
+        displacement in the absorption direction. If length two, the first
         argument will be used for bottom absorption and its complex conjugate for
         top and the second one for right and its complex conjugate for left
         absorption. If length four, it will be used in the order
         (top, bottom, left, right).
-      structure_factor_inner_factors (:term:`sequence` of :obj:`float`):
+      structure_factor_inner_factors (:term:`sequence` of :obj:`complex`):
         For coarse-grained systems the sequence with the factors used to
         calculate the phase by shifting one site inside one coarse-grained
         square site. Set it to None, [] or [1] if system has
-        no coarsed-grained structure. If used likely something like
-        ``jnp.exp(- 1j * q_vector @ r_vector)``.
+        no coarse-grained structure. Otherwise use
+        ``jnp.exp(1j * q_vector @ basis_vector)`` for each basis site,
+        in the same order as structure_factor_gates.
       config (:obj:`~varipeps.config.VariPEPS_Config`):
         Global configuration object of the variPEPS library. Please see its
         class definition for details.
@@ -856,9 +878,9 @@ def do_absorption_step_structure_factor(
 
     if len(structure_factor_outer_factors) == 2:
         structure_factor_outer_factors = (
-            structure_factor_outer_factors[0].conj(),
+            jnp.conj(structure_factor_outer_factors[0]),
             structure_factor_outer_factors[0],
-            structure_factor_outer_factors[1].conj(),
+            jnp.conj(structure_factor_outer_factors[1]),
             structure_factor_outer_factors[1],
         )
     if len(structure_factor_outer_factors) != 4:

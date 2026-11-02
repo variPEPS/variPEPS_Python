@@ -29,6 +29,10 @@ class CTM_Enum_Structure_Factor(enum.IntEnum):
     T2 = enum.auto()
     T3 = enum.auto()
     T4 = enum.auto()
+    T1_Phase = enum.auto()
+    T2_Phase = enum.auto()
+    T3_Phase = enum.auto()
+    T4_Phase = enum.auto()
 
 
 @partial(jit, static_argnums=(2,), inline=True)
@@ -123,6 +127,30 @@ def _ctmrg_body_func_structure_factor(carry):
             w_unitcell.get_unique_tensors(), last_corner_svd, None
         )
         measure = jnp.linalg.norm(corner_svd - last_corner_svd)
+        # Singular values alone cannot detect rotating phases or changes in
+        # the transfer tensors. Check all operator environments as well.
+        for ti, (old, new) in enumerate(
+            zip(
+                w_unitcell_last_step.get_unique_tensors(),
+                w_unitcell.get_unique_tensors(),
+            )
+        ):
+            for name in ("C1", "C2", "C3", "C4", "T1", "T2", "T3", "T4"):
+                old_phase = getattr(old, name + "_phase")
+                new_phase = getattr(new, name + "_phase")
+                if old_phase.shape != new_phase.shape:
+                    diff = jnp.inf
+                else:
+                    # Remove only the common scalar gauge of the norm tensor.
+                    overlap = jnp.vdot(getattr(new, name), getattr(old, name))
+                    gauge = jnp.where(jnp.abs(overlap) > 0, overlap, 1)
+                    gauge = gauge / jnp.abs(gauge)
+                    diff = jnp.linalg.norm(new_phase * gauge - old_phase)
+                measure = jnp.maximum(measure, diff)
+                if config.ctmrg_verbose_output:
+                    verbose_data.append(
+                        (ti, CTM_Enum_Structure_Factor[name + "_Phase"], diff)
+                    )
         converged = measure < eps
 
     if config.ctmrg_print_steps:
@@ -132,7 +160,7 @@ def _ctmrg_body_func_structure_factor(carry):
                 debug_print(
                     "CTMRG: Verbose: ti {}, CTM tensor {}, Diff {}",
                     ti,
-                    CTM_Enum(ctm_enum_i).name,
+                    CTM_Enum_Structure_Factor(ctm_enum_i).name,
                     diff,
                 )
 
@@ -182,8 +210,8 @@ def calc_ctmrg_env_structure_factor(
     peps_tensors: Sequence[jnp.ndarray],
     unitcell: PEPS_Unit_Cell,
     structure_factor_gates: Sequence[jnp.ndarray],
-    structure_factor_outer_factors: Sequence[float],
-    structure_factor_inner_factors: Sequence[float],
+    structure_factor_outer_factors: Sequence[complex],
+    structure_factor_inner_factors: Optional[Sequence[complex]],
     *,
     eps: Optional[float] = None,
     _return_truncation_eps: bool = False,
@@ -193,6 +221,8 @@ def calc_ctmrg_env_structure_factor(
     updates the environment all iPEPS tensors in the unit cell according to the
     periodic structure. This routine also calculates the tensors including
     the phase factor for a structure factor calculation.
+    This is the unconnected structure factor; non-decaying correlations can
+    prevent the sum from converging.
 
     Args:
       peps_tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
@@ -204,20 +234,23 @@ def calc_ctmrg_env_structure_factor(
         containing the phase for the structure factor calculation. Expected to
         be a sequence where the gate is already multiplied with identities to
         match the physical dimension of the coarse-grained tensor
-      structure_factor_outer_factors (:obj:`float`):
+      structure_factor_outer_factors (:term:`sequence` of :obj:`complex`):
         The sequence with factors used to calculate the new tensors by shifting
         one site in the square lattice. Likely something like
-        ``jnp.exp(- 1j * q_vector @ r_vector)``. If length two, the first
+        ``jnp.exp(1j * q_vector @ r_vector)``. If length two, the first
         argument will be used for bottom absorption and its complex conjugate for
         top and the second one for right and its complex conjugate for left
         absorption. If length four, it will be used in the order
         (top, bottom, left, right).
-      structure_factor_inner_factors (:term:`sequence` of :obj:`float`):
+      structure_factor_inner_factors (:term:`sequence` of :obj:`complex`):
         For coarse-grained systems the sequence with the factors used to
         calculate the phase by shifting one site inside one coarse-grained
         square site. Set it to None, [] or [1] if system has
-        no coarsed-grained structure. If used likely something like
-        ``jnp.exp(- 1j * q_vector @ r_vector)``.
+        no coarse-grained structure. Otherwise use
+        ``jnp.exp(1j * q_vector @ basis_vector)`` for each basis site.
+        For the maple-leaf lattice the two outer factors correspond to a1
+        (bottom) and a2 (right), and the six inner factors to b1 through b6
+        in arXiv:2407.07145, Eqs. (6), (8), and (14).
     Keyword args:
       eps (:obj:`float`):
         The convergence criterion.
@@ -228,15 +261,6 @@ def calc_ctmrg_env_structure_factor(
     """
     eps = eps if eps is not None else varipeps_config.ctmrg_convergence_eps
 
-    shape_corner_svd = (
-        unitcell.get_len_unique_tensors(),
-        8,
-        unitcell[0, 0][0][0].chi,
-    )
-    init_corner_singular_vals = _calc_corner_svds_structure_factor(
-        unitcell.get_unique_tensors(), None, shape_corner_svd
-    )
-
     initial_unitcell = unitcell
     working_unitcell = unitcell
     varipeps_global_state.ctmrg_effective_truncation_eps = None
@@ -245,20 +269,40 @@ def calc_ctmrg_env_structure_factor(
     already_tried_chi = {working_unitcell[0, 0][0][0].chi}
 
     while True:
+        shape_corner_svd = (
+            working_unitcell.get_len_unique_tensors(),
+            8,
+            working_unitcell[0, 0][0][0].chi,
+        )
+        init_corner_singular_vals = _calc_corner_svds_structure_factor(
+            working_unitcell.get_unique_tensors(), None, shape_corner_svd
+        )
+
         tmp_count = 0
         corner_singular_vals = None
+        converged = False
 
-        while any(
-            i.C1.shape[0] != i.chi for i in working_unitcell.get_unique_tensors()
+        while tmp_count < varipeps_config.ctmrg_max_steps and (
+            tmp_count == 0
+            or any(
+                getattr(i, name).shape != (i.chi, i.chi)
+                for i in working_unitcell.get_unique_tensors()
+                for name in ("C1", "C2", "C3", "C4")
+            )
         ):
+            old_shapes = [
+                getattr(t, name).shape
+                for t in working_unitcell.get_unique_tensors()
+                for name in ("C1", "C2", "C3", "C4", "T1", "T2", "T3", "T4")
+            ]
             (
                 _,
                 working_unitcell,
-                _,
+                converged,
                 corner_singular_vals,
                 _,
                 tmp_count,
-                _,
+                norm_smallest_S,
                 _,
                 _,
                 _,
@@ -269,10 +313,14 @@ def calc_ctmrg_env_structure_factor(
                     peps_tensors,
                     working_unitcell,
                     False,
-                    init_corner_singular_vals,
+                    (
+                        init_corner_singular_vals
+                        if corner_singular_vals is None
+                        else corner_singular_vals
+                    ),
                     eps,
                     tmp_count,
-                    jnp.inf,
+                    norm_smallest_S,
                     structure_factor_gates,
                     structure_factor_outer_factors,
                     structure_factor_inner_factors,
@@ -280,13 +328,21 @@ def calc_ctmrg_env_structure_factor(
                     varipeps_config,
                 )
             )
+            new_shapes = [
+                getattr(t, name).shape
+                for t in working_unitcell.get_unique_tensors()
+                for name in ("C1", "C2", "C3", "C4", "T1", "T2", "T3", "T4")
+            ]
+            
+            if old_shapes == new_shapes:
+                break
 
         working_unitcell, converged, end_count, norm_smallest_S = (
             _ctmrg_while_wrapper_structure_factor(
                 (
                     peps_tensors,
                     working_unitcell,
-                    False,
+                    converged,
                     (
                         corner_singular_vals
                         if corner_singular_vals is not None
@@ -294,7 +350,7 @@ def calc_ctmrg_env_structure_factor(
                     ),
                     eps,
                     tmp_count,
-                    jnp.inf,
+                    norm_smallest_S,
                     structure_factor_gates,
                     structure_factor_outer_factors,
                     structure_factor_inner_factors,
