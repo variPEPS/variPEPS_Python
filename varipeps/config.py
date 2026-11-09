@@ -226,6 +226,15 @@ class VariPEPS_Config:
         Enable AD checkpointing for the ncon calls.
       checkpointing_projectors (:obj:`bool`):
         Enable AD checkpointing for the the calculation of the proejctors.
+      contraction_slicing_max_bytes (:obj:`int`):
+        Target size in bytes for the largest intermediate of
+        :func:`~varipeps.contractions.apply_contraction`. If no one-bond split
+        examined meets the target, use the smallest peak found, including
+        the unsliced contraction. ``0`` disables slicing. Read at trace time.
+      contraction_slicing_checkpoint (:obj:`bool`):
+        Recompute the intermediates of the chunks of a sliced contraction in
+        reverse-mode AD instead of storing them. Read when a contraction is
+        traced.
       ctmrg_convergence_eps (:obj:`float`):
         Convergence criterion for the CTMRG routine.
       ctmrg_enforce_elementwise_convergence (:obj:`bool`):
@@ -512,6 +521,8 @@ class VariPEPS_Config:
     )
     checkpointing_ncon: bool = False
     checkpointing_projectors: bool = False
+    contraction_slicing_max_bytes: int = 2**27
+    contraction_slicing_checkpoint: bool = False
 
     # CTMRG routine
     ctmrg_convergence_eps: float = 1e-7

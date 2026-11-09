@@ -2,16 +2,171 @@
 Helpers to apply contractions.
 """
 
-from functools import partial
+from functools import lru_cache, partial
+import math
 
 import jax
 import jax.numpy as jnp
+import opt_einsum
 
+from varipeps import varipeps_config
 from varipeps.peps import PEPS_Tensor
 
 from .definitions import Definitions, Definition
 
 from typing import Sequence, List, Tuple, Dict, Union, Optional
+
+
+def _path(network, shapes):
+    return opt_einsum.contract_path(
+        network,
+        *shapes,
+        shapes=True,
+        optimize="optimal" if len(shapes) < 10 else "dp",
+    )
+
+
+@lru_cache(maxsize=None)
+def _slicing_plan(network, shapes, itemsize, max_bytes):
+    """
+    Bond and number of chunks for a contraction whose largest intermediate
+    exceeds ``max_bytes``.
+
+    The candidates are the bonds that connect exactly two input tensors. For
+    each, the number of chunks is increased by one until every intermediate stays
+    within ``max_bytes``. This includes the intermediates that do not depend
+    on the bond: they are the same for all chunks, so XLA moves them out of
+    the loop and computes them once in full. Among the plans examined, choose
+    the lowest flop count that fits. If none fits, minimize the largest
+    intermediate and break ties by flop count.
+
+    Args:
+      network (:obj:`str`):
+        The einsum network.
+      shapes (:obj:`tuple` of :obj:`tuple` of :obj:`int`):
+        Shapes of the input tensors.
+      itemsize (:obj:`int`):
+        Bytes per entry.
+      max_bytes (:obj:`int`):
+        Largest size of an intermediate without slicing.
+    Returns:
+      :obj:`tuple` or :obj:`None`:
+        Bond, number of chunks and contraction path of a chunk, or
+        :obj:`None` if the contraction is not sliced.
+    """
+    if max_bytes <= 0:
+        return None
+    lhs, output = network.split("->")
+    inputs = lhs.split(",")
+    _, info = _path(network, shapes)
+    largest = itemsize * int(info.largest_intermediate)
+    if largest <= max_bytes:
+        return None
+
+    sizes = info.size_dict
+    fitting = None
+    smallest = None
+    for bond in sorted(set(lhs) - set(output) - {","}):
+        owners = tuple(
+            (idx, s) for idx, s in zip(inputs, shapes, strict=True) if bond in idx
+        )
+        if any(idx.count(bond) != 1 for idx, _ in owners):
+            continue
+        dim, other_dim = (s[idx.index(bond)] for idx, s in owners)
+        if dim != other_dim or dim <= 1:
+            continue
+        chunks = min(dim, math.ceil(largest / max_bytes))
+        while True:
+            width = -(-dim // chunks)
+            chunk_shapes = tuple(
+                tuple(width if i == bond else d for i, d in zip(idx, s, strict=True))
+                for idx, s in zip(inputs, shapes, strict=True)
+            )
+            path, info = _path(network, chunk_shapes)
+            peak = itemsize * int(info.largest_intermediate)
+            plan = (chunks * float(info.opt_cost), peak, bond, width, tuple(path))
+            if peak <= max_bytes:
+                fitting = min(fitting or plan, plan, key=lambda p: p[:2] + (-p[3],))
+                break
+            smallest = min(smallest or plan, plan, key=lambda p: (p[1], p[0]))
+            if chunks == dim:
+                break
+            chunks = min(dim, chunks + 1)
+
+    plan = fitting or smallest
+    if plan is None or plan[1] >= largest:
+        return None
+    return plan[2:]
+
+
+def _einsum(network, tensors, max_bytes, checkpoint):
+    """
+    Contract an einsum network, as a sum over chunks of one bond if its
+    largest intermediate exceeds ``max_bytes`` (see :func:`_slicing_plan`).
+
+    The chunks are summed in a :func:`jax.lax.scan`. With ``checkpoint``,
+    the contraction of a chunk is checkpointed: reverse-mode AD keeps only
+    the inputs of the chunks and recomputes the intermediates.
+
+    Args:
+      network (:obj:`str`):
+        The einsum network.
+      tensors (:term:`sequence` of :obj:`jax.numpy.ndarray`):
+        The input tensors.
+      max_bytes (:obj:`int`):
+        Largest size of an intermediate without slicing; ``0`` disables
+        slicing.
+      checkpoint (:obj:`bool`):
+        Recompute the intermediates of a chunk in reverse-mode AD instead of
+        storing them.
+    Returns:
+      :obj:`jax.numpy.ndarray`:
+        The contracted tensor.
+    """
+    optimize = "optimal" if len(tensors) < 10 else "dp"
+    plan = None
+    if max_bytes > 0 and all(isinstance(d, int) for t in tensors for d in t.shape):
+        plan = _slicing_plan(
+            network,
+            tuple(t.shape for t in tensors),
+            jnp.result_type(*tensors).itemsize,
+            max_bytes,
+        )
+    if plan is None:
+        return jnp.einsum(network, *tensors, optimize=optimize)
+
+    bond, width, path = plan
+    inputs = network.split("->")[0].split(",")
+    owners = [k for k, i in enumerate(inputs) if bond in i]
+    dim = tensors[owners[0]].shape[inputs[owners[0]].index(bond)]
+    chunks = -(-dim // width)
+
+    sliced = []
+    for k in owners:
+        t = tensors[k]
+        axis = inputs[k].index(bond)
+        t = jnp.pad(
+            t, [(0, chunks * width - dim if a == axis else 0) for a in range(t.ndim)]
+        )
+        t = t.reshape(t.shape[:axis] + (chunks, width) + t.shape[axis + 1 :])
+        sliced.append(jnp.moveaxis(t, axis, 0))
+    others = [t for k, t in enumerate(tensors) if k not in owners]
+
+    def contract_chunk(chunk):
+        ts = list(others)
+        for k, c in zip(owners, chunk, strict=True):
+            ts.insert(k, c)
+        return jnp.einsum(network, *ts, optimize=list(path))
+
+    if checkpoint:
+        contract_chunk = jax.checkpoint(contract_chunk)
+
+    result = jax.eval_shape(partial(jnp.einsum, network, optimize=optimize), *tensors)
+    return jax.lax.scan(
+        lambda acc, chunk: (acc + contract_chunk(chunk), None),
+        jnp.zeros(result.shape, result.dtype),
+        tuple(sliced),
+    )[0]
 
 
 @partial(jax.jit, static_argnames=("name", "disable_identity_check"))
@@ -100,12 +255,11 @@ def apply_contraction(
 
     tensors += additional_tensors
 
-    tensor_shapes = tuple(tuple(e.shape) for e in tensors)
-
-    return jnp.einsum(
+    return _einsum(
         contraction["einsum_network"],
-        *tensors,
-        optimize="optimal" if len(tensors) < 10 else "dp",
+        tensors,
+        varipeps_config.contraction_slicing_max_bytes,
+        varipeps_config.contraction_slicing_checkpoint,
     )
 
 
