@@ -63,14 +63,13 @@ def _slicing_plan(network, shapes, itemsize, max_bytes):
     if largest <= max_bytes:
         return None
 
-    sizes = info.size_dict
     fitting = None
     smallest = None
     for bond in sorted(set(lhs) - set(output) - {","}):
         owners = tuple(
             (idx, s) for idx, s in zip(inputs, shapes, strict=True) if bond in idx
         )
-        if any(idx.count(bond) != 1 for idx, _ in owners):
+        if len(owners) != 2 or any(idx.count(bond) != 1 for idx, _ in owners):
             continue
         dim, other_dim = (s[idx.index(bond)] for idx, s in owners)
         if dim != other_dim or dim <= 1:
@@ -78,6 +77,7 @@ def _slicing_plan(network, shapes, itemsize, max_bytes):
         chunks = min(dim, math.ceil(largest / max_bytes))
         while True:
             width = -(-dim // chunks)
+            chunks = -(-dim // width)
             chunk_shapes = tuple(
                 tuple(width if i == bond else d for i, d in zip(idx, s, strict=True))
                 for idx, s in zip(inputs, shapes, strict=True)
