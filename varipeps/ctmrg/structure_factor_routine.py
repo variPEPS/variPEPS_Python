@@ -333,7 +333,7 @@ def calc_ctmrg_env_structure_factor(
                 for t in working_unitcell.get_unique_tensors()
                 for name in ("C1", "C2", "C3", "C4", "T1", "T2", "T3", "T4")
             ]
-            
+
             if old_shapes == new_shapes:
                 break
 
