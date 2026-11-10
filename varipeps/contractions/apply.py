@@ -33,7 +33,7 @@ def _slicing_plan(network, shapes, itemsize, max_bytes):
     exceeds ``max_bytes``.
 
     The candidates are the bonds that connect exactly two input tensors. For
-    each, the number of chunks is increased by one until every intermediate stays
+    each, the number of chunks is increased until every intermediate stays
     within ``max_bytes``. This includes the intermediates that do not depend
     on the bond: they are the same for all chunks, so XLA moves them out of
     the loop and computes them once in full. Among the plans examined, choose
@@ -91,7 +91,7 @@ def _slicing_plan(network, shapes, itemsize, max_bytes):
             smallest = min(smallest or plan, plan, key=lambda p: (p[1], p[0]))
             if chunks == dim:
                 break
-            chunks = min(dim, chunks + 1)
+            chunks = -(-dim // (width - 1))
 
     plan = fitting or smallest
     if plan is None or plan[1] >= largest:
