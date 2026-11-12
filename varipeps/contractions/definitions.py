@@ -120,6 +120,7 @@ class Definitions:
     def _convert_to_einsum(cls, network):
         max_contracted = 0
         min_open = 0
+        neg_shift = 1000
 
         result = tuple([] for _ in range(len(network)))
 
@@ -129,13 +130,18 @@ class Definitions:
                     min_open = i
                 elif i > 0 and i > max_contracted:
                     max_contracted = i
-                if max_contracted >= (min_open + 52):
+
+                eff_i = neg_shift + i if i < 0 else i
+
+                if max_contracted >= (min_open + neg_shift):
                     raise ValueError("Letters in conversion are overlapping.")
 
-                result[ti].append(opt_einsum.get_symbol(i))
+                result[ti].append(opt_einsum.get_symbol(eff_i))
 
         result = ["".join(e) for e in result]
-        open_result = [opt_einsum.get_symbol(i) for i in range(-1, min_open - 1, -1)]
+        open_result = [
+            opt_einsum.get_symbol(i + neg_shift) for i in range(-1, min_open - 1, -1)
+        ]
 
         result = f"{','.join(result)}->{''.join(open_result)}"
 
