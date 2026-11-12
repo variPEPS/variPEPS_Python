@@ -3,7 +3,11 @@ Helpers to apply contractions.
 """
 
 from functools import lru_cache, partial
+import hashlib
+import json
 import math
+from pathlib import Path
+import tempfile
 
 import jax
 import jax.numpy as jnp
@@ -26,8 +30,7 @@ def _path(network, shapes):
     )
 
 
-@lru_cache(maxsize=None)
-def _slicing_plan(network, shapes, itemsize, max_bytes):
+def _search_slicing_plan(network, shapes, itemsize, max_bytes):
     """
     Bond and number of chunks for a contraction whose largest intermediate
     exceeds ``max_bytes``.
@@ -99,7 +102,83 @@ def _slicing_plan(network, shapes, itemsize, max_bytes):
     return plan[2:]
 
 
-def _einsum(network, tensors, max_bytes, checkpoint):
+@lru_cache(maxsize=None)
+def _slicing_plan(network, shapes, itemsize, max_bytes, plan_dir=""):
+    """
+    :func:`_search_slicing_plan`, read from and saved to ``plan_dir`` if set.
+
+    Each plan is one JSON file ``<hash[:2]>/<hash>.json``, named by the SHA-256
+    of its inputs, which the file also stores and which are compared on
+    reading, so a stale or foreign file is never used. A plan of ``None`` (do
+    not slice) is saved too. A missing or unreadable file means the plan is
+    searched, a file that cannot be written is skipped. Files are written to a
+    temporary name and renamed (removed on failure), so concurrent jobs never
+    read a partial file.
+
+    Args:
+      network (:obj:`str`):
+        Einsum subscripts of the contraction.
+      shapes (:obj:`tuple`):
+        Shapes of the tensors.
+      itemsize (:obj:`int`):
+        Size of one element in bytes.
+      max_bytes (:obj:`int`):
+        Threshold for the largest intermediate above which to slice.
+      plan_dir (:obj:`str`):
+        Directory of saved slicing plans; ``""`` keeps them in memory only.
+    Returns:
+      :obj:`tuple` or :obj:`None`:
+        Bond, width and contraction path of the sliced contraction, or
+        ``None`` if it is not sliced.
+    """
+    if not plan_dir:
+        return _search_slicing_plan(network, shapes, itemsize, max_bytes)
+
+    key = {
+        "format": 1,
+        "network": network,
+        "shapes": [list(s) for s in shapes],
+        "itemsize": itemsize,
+        "max_bytes": max_bytes,
+    }
+    digest = hashlib.sha256(json.dumps(key).encode()).hexdigest()
+    path = Path(plan_dir) / digest[:2] / digest[2:4] / f"{digest}.json"
+
+    try:
+        stored = json.loads(path.read_text(encoding="utf-8"))
+        if stored["key"] == key:
+            plan = stored["plan"]
+            if plan is None:
+                return None
+            return plan["bond"], plan["width"], tuple(map(tuple, plan["path"]))
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+
+    plan = _search_slicing_plan(network, shapes, itemsize, max_bytes)
+    record = {
+        "key": key,
+        "plan": (
+            None
+            if plan is None
+            else {"bond": plan[0], "width": plan[1], "path": [list(c) for c in plan[2]]}
+        ),
+    }
+    tmp = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=path.parent, suffix=".tmp", delete=False
+        ) as f:
+            tmp = Path(f.name)
+            json.dump(record, f, ensure_ascii=False, indent=1)
+        tmp.replace(path)
+    except OSError:
+        if tmp is not None:
+            tmp.unlink(missing_ok=True)
+    return plan
+
+
+def _einsum(network, tensors, max_bytes, checkpoint, plan_dir=""):
     """
     Contract an einsum network, as a sum over chunks of one bond if its
     largest intermediate exceeds ``max_bytes`` (see :func:`_slicing_plan`).
@@ -119,6 +198,8 @@ def _einsum(network, tensors, max_bytes, checkpoint):
       checkpoint (:obj:`bool`):
         Recompute the intermediates of a chunk in reverse-mode AD instead of
         storing them.
+      plan_dir (:obj:`str`):
+        Directory of saved slicing plans; ``""`` keeps them in memory only.
     Returns:
       :obj:`jax.numpy.ndarray`:
         The contracted tensor.
@@ -131,6 +212,7 @@ def _einsum(network, tensors, max_bytes, checkpoint):
             tuple(t.shape for t in tensors),
             jnp.result_type(*tensors).itemsize,
             max_bytes,
+            plan_dir,
         )
     if plan is None:
         return jnp.einsum(network, *tensors, optimize=optimize)
@@ -260,6 +342,7 @@ def apply_contraction(
         tensors,
         varipeps_config.contraction_slicing_max_bytes,
         varipeps_config.contraction_slicing_checkpoint,
+        varipeps_config.contraction_slicing_plan_dir,
     )
 
 

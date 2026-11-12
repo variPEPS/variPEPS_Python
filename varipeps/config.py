@@ -235,6 +235,11 @@ class VariPEPS_Config:
         Recompute the intermediates of the chunks of a sliced contraction in
         reverse-mode AD instead of storing them. Read when a contraction is
         traced.
+      contraction_slicing_plan_dir (:obj:`str`):
+        Directory of saved slicing plans. If set, a plan is looked up there
+        before it is searched, and a searched plan is saved there, one JSON
+        file per contraction and threshold, in subdirectories by hash prefix.
+        ``""`` keeps plans in memory only. Read at trace time.
       ctmrg_convergence_eps (:obj:`float`):
         Convergence criterion for the CTMRG routine.
       ctmrg_enforce_elementwise_convergence (:obj:`bool`):
@@ -523,6 +528,7 @@ class VariPEPS_Config:
     checkpointing_projectors: bool = False
     contraction_slicing_max_bytes: int = 2**27
     contraction_slicing_checkpoint: bool = False
+    contraction_slicing_plan_dir: str = ""
 
     # CTMRG routine
     ctmrg_convergence_eps: float = 1e-7
