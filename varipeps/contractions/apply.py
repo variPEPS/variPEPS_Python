@@ -14,8 +14,10 @@ import jax.numpy as jnp
 import opt_einsum
 
 from varipeps import varipeps_config
+from varipeps.config import Contraction_Backend
 from varipeps.peps import PEPS_Tensor
 
+from . import tblis
 from .definitions import Definitions, Definition
 
 from typing import Sequence, List, Tuple, Dict, Union, Optional
@@ -185,7 +187,8 @@ def _einsum(network, tensors, max_bytes, checkpoint, plan_dir=""):
 
     The chunks are summed in a :func:`jax.lax.scan`. With ``checkpoint``,
     the contraction of a chunk is checkpointed: reverse-mode AD keeps only
-    the inputs of the chunks and recomputes the intermediates.
+    the inputs of the chunks and recomputes the intermediates. The einsum
+    implementation is selected by ``varipeps_config.contraction_backend``.
 
     Args:
       network (:obj:`str`):
@@ -204,6 +207,12 @@ def _einsum(network, tensors, max_bytes, checkpoint, plan_dir=""):
       :obj:`jax.numpy.ndarray`:
         The contracted tensor.
     """
+    backend = varipeps_config.contraction_backend
+    use_tblis = backend is Contraction_Backend.TBLIS or (
+        backend is Contraction_Backend.TBLIS_COMPLEX
+        and jnp.issubdtype(jnp.result_type(*tensors), jnp.complexfloating)
+    )
+    einsum = tblis.einsum if use_tblis else jnp.einsum
     optimize = "optimal" if len(tensors) < 10 else "dp"
     plan = None
     if max_bytes > 0 and all(isinstance(d, int) for t in tensors for d in t.shape):
@@ -215,7 +224,7 @@ def _einsum(network, tensors, max_bytes, checkpoint, plan_dir=""):
             plan_dir,
         )
     if plan is None:
-        return jnp.einsum(network, *tensors, optimize=optimize)
+        return einsum(network, *tensors, optimize=optimize)
 
     bond, width, path = plan
     inputs = network.split("->")[0].split(",")
@@ -238,7 +247,7 @@ def _einsum(network, tensors, max_bytes, checkpoint, plan_dir=""):
         ts = list(others)
         for k, c in zip(owners, chunk, strict=True):
             ts.insert(k, c)
-        return jnp.einsum(network, *ts, optimize=list(path))
+        return einsum(network, *ts, optimize=list(path))
 
     if checkpoint:
         contract_chunk = jax.checkpoint(contract_chunk)

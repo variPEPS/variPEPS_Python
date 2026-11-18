@@ -79,6 +79,13 @@ class SVD_Algorithm(IntEnum):
     POLAR = auto()  #: Polar decomposition based algorithm (gesvdp), GPU only
 
 
+@unique
+class Contraction_Backend(IntEnum):
+    JAX = auto()  #: :func:`jax.numpy.einsum` (XLA)
+    TBLIS = auto()  #: tblis (:mod:`varipeps.contractions.tblis`), not on Windows
+    TBLIS_COMPLEX = auto()  #: tblis for complex contractions, JAX otherwise
+
+
 #: Options which are not read from the global config inside traced code, but
 #: only outside of it or passed explicitly to the jitted functions (e.g. by
 #: :obj:`VariPEPS_Config.make_ctmrg_config`). A change of them does not need to
@@ -240,6 +247,9 @@ class VariPEPS_Config:
         before it is searched, and a searched plan is saved there, one JSON
         file per contraction and threshold, in subdirectories by hash prefix.
         ``""`` keeps plans in memory only. Read at trace time.
+      contraction_backend (:obj:`Contraction_Backend`):
+        Library used for the contractions in
+        :func:`~varipeps.contractions.apply_contraction`. Read at trace time.
       ctmrg_convergence_eps (:obj:`float`):
         Convergence criterion for the CTMRG routine.
       ctmrg_enforce_elementwise_convergence (:obj:`bool`):
@@ -529,6 +539,7 @@ class VariPEPS_Config:
     contraction_slicing_max_bytes: int = 2**27
     contraction_slicing_checkpoint: bool = False
     contraction_slicing_plan_dir: str = ""
+    contraction_backend: Contraction_Backend = Contraction_Backend.JAX
 
     # CTMRG routine
     ctmrg_convergence_eps: float = 1e-7
@@ -741,6 +752,7 @@ class ConfigModuleWrapper:
         "Grad_Fixed_Point_Method",
         "Slurm_Restart_Mode",
         "SVD_Algorithm",
+        "Contraction_Backend",
         "VariPEPS_Config",
         "_CTMRG_Inner_Config",
         "config",

@@ -1,0 +1,34 @@
+# Third-party software in the variPEPS extension modules
+
+The extension modules of variPEPS (GPL-3.0-or-later) contain code of the
+following projects, compiled from source when the package is built. Their
+license texts, with the copyright notices, conditions and disclaimers, are in
+the subdirectories next to this file.
+
+| Project | Version | License | Used in |
+|---|---|---|---|
+| tblis (https://github.com/MatthewsResearchGroup/tblis) | commit @TBLIS_COMMIT@ | BSD-3-Clause, `tblis/LICENSE` | `_tblis_contract` (static) |
+| marray, stl_ext, TCI (bundled with tblis) | as in tblis | BSD-3-Clause, `marray/`, `stl_ext/`, `tci/` | `_tblis_contract` (static) |
+| BLIS (https://github.com/flame/blis) | commit @BLIS_GIT_TAG@ | BSD-3-Clause, `blis/LICENSE` | `_tblis_contract` (static) |
+| TAPP reference implementation, API headers (https://github.com/TAPPorg/reference-implementation) | commit @TAPP_COMMIT@ | BSD-3-Clause, `tapp/LICENSE.md` | `_tblis_contract` (headers) |
+| nanobind (https://github.com/wjakob/nanobind) | @NANOBIND_VERSION@ | BSD-3-Clause, `nanobind/LICENSE` | `_tblis_contract`, `_svd_only_u_vt` (static) |
+
+Copyright holders named in the source files in addition to the license files:
+
+- tblis: The University of Texas at Austin, Southern Methodist University (files
+  derived from BLIS).
+- BLIS: The University of Texas at Austin, Advanced Micro Devices, Inc., Southern
+  Methodist University, SiFive, Inc., The University of Tokyo, Hewlett Packard
+  Enterprise Development LP, IBM Corp., Forschungszentrum Juelich, Linaro Limited,
+  Tactical Computing Laboratories, LLC, Oracle Labs, Oracle Corporation, Devin
+  Matthews, Field G. Van Zee, Dave Love (University of Manchester). Each of these
+  files carries the same BSD-3-Clause license as `blis/LICENSE`.
+- TAPP: the contributors listed in `tapp/AUTHORS.md`.
+
+On Linux, `_tblis_contract` is linked dynamically against the GCC runtime
+libraries libgomp, libatomic, libstdc++ and libgcc_s (GPL-3.0 with the GCC
+Runtime Library Exception; the GPL-3.0 text is the license of variPEPS itself,
+the exception is in `gcc_runtime/`). The wheels on PyPI contain copies of
+libgomp and libatomic (bundled by `auditwheel repair`); libstdc++ and libgcc_s
+are taken from the system. The macOS build links none of them (no OpenMP), only
+the system libraries of macOS (libc++, libSystem).

@@ -1,0 +1,53 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -430,29 +430,24 @@
+ set(TBLIS_PLUGIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/tblis/plugin)
+ file(MAKE_DIRECTORY ${TBLIS_PLUGIN_DIR})
+
+-get_target_property(TCI_INCLUDES tci-static INTERFACE_INCLUDE_DIRECTORIES)
+-string(REGEX REPLACE ";+" ";" TCI_INCLUDES ${TCI_INCLUDES})
+-list(TRANSFORM TCI_INCLUDES PREPEND -I)
+-set(PLUGIN_FLAGS
+-    -I${BLIS_INSTALL_DIR}/include
+-    -I${CMAKE_CURRENT_SOURCE_DIR}
+-    -I${CMAKE_CURRENT_SOURCE_DIR}/tblis
+-    -I${CMAKE_CURRENT_SOURCE_DIR}/tblis/external/marray
+-    -I${CMAKE_CURRENT_SOURCE_DIR}/tblis/external/tci
+-    -I${CMAKE_CURRENT_SOURCE_DIR}/tblis/external/tci/include
+-    -I${CMAKE_CURRENT_BINARY_DIR}
+-	-I${CMAKE_CURRENT_BINARY_DIR}/tblis/external/tci
+-	-I${CMAKE_CURRENT_BINARY_DIR}/tblis/external/tci/include
+-    ${TCI_INCLUDES}
+-)
++set(PLUGIN_INCLUDE_DIRS
++    ${BLIS_INSTALL_DIR}/include
++    ${CMAKE_CURRENT_SOURCE_DIR}
++    ${CMAKE_CURRENT_SOURCE_DIR}/tblis
++    ${CMAKE_CURRENT_SOURCE_DIR}/tblis/external/marray
++    ${CMAKE_CURRENT_BINARY_DIR}
++    ${CMAKE_CURRENT_BINARY_DIR}/tblis/external/tci
++    $<TARGET_PROPERTY:tci-static,INTERFACE_INCLUDE_DIRECTORIES>
++)
++set(PLUGIN_FLAGS "-I$<JOIN:${PLUGIN_INCLUDE_DIRS}, -I> ${OMP_SIMD_FLAG}")
+
+ add_custom_command(
+     OUTPUT ${TBLIS_PLUGIN_DIR}/config.mk
+     COMMAND ${BLIS_INSTALL_DIR}/share/blis/configure-plugin
+         CC=${CMAKE_C_COMPILER}
+         CXX=${CMAKE_CXX_COMPILER}
+-        CFLAGS="${PLUGIN_FLAGS} ${OMP_SIMD_FLAG}"
+-        CXXFLAGS="${PLUGIN_FLAGS} ${OMP_SIMD_FLAG} -std=c++20"
++        "CFLAGS=${PLUGIN_FLAGS}"
++        "CXXFLAGS=${PLUGIN_FLAGS} -std=c++20"
+         ${BLIS_DEBUG_FLAG}
+         -f --build
+         --path=${CMAKE_CURRENT_SOURCE_DIR}/tblis/plugin
+@@ -460,7 +455,7 @@
+     DEPENDS blis-install
+     COMMENT "Configuring BLIS plugin"
+     WORKING_DIRECTORY ${TBLIS_PLUGIN_DIR}
+-    COMMAND_EXPAND_LISTS
++    VERBATIM
+ )
+ add_custom_target(plugin-configure
+     DEPENDS ${TBLIS_PLUGIN_DIR}/config.mk

@@ -12,6 +12,7 @@ Contractions definitions and helper methods (:mod:`varipeps.contractions`)
 
    definitions
    apply
+   tblis
 
 .. automodule:: varipeps.contractions
    :members:

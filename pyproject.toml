@@ -67,3 +67,5 @@ build-type = "Release"
 [tool.cibuildwheel]
 # Disable building PyPy, musllinux and thread-freethreading on Mac and Windows wheels
 skip = ["*musllinux*", "*t-win*"]
+# Imports the wheel (with the bundled libraries) and checks the tblis backend
+test-command = "python {project}/.github/wheel_smoke_test.py"

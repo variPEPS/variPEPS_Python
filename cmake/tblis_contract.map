@@ -1,0 +1,4 @@
+{
+  global: PyInit__tblis_contract;
+  local: *;
+};
