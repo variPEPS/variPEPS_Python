@@ -235,13 +235,30 @@ class VariPEPS_Config:
         Enable AD checkpointing for the the calculation of the proejctors.
       contraction_slicing_max_bytes (:obj:`int`):
         Target size in bytes for the largest intermediate of
-        :func:`~varipeps.contractions.apply_contraction`. If no one-bond split
-        examined meets the target, use the smallest peak found, including
-        the unsliced contraction. ``0`` disables slicing. Read at trace time.
+        :func:`~varipeps.contractions.apply_contraction`, with
+        ``contraction_slicing_checkpoint`` for all intermediates allocated at
+        the same time. Bonds are sliced one at a time or several
+        together, with the fewest flops that meet the target, at most twice
+        the flops of the unsliced contraction; if no split examined meets it,
+        use one with about the smallest peak found, if that is at most 3/4 of
+        the unsliced one. ``0`` disables slicing. Negative (default): 256 MiB
+        on CPU (``jax.default_backend() == "cpu"``), 128 MiB on other backends
+        (larger chunks are faster on CPU; not measured elsewhere). On CPU without
+        ``contraction_slicing_checkpoint``, only contractions with an
+        intermediate above ``contraction_slicing_min_bytes`` are sliced. Read
+        at trace time.
       contraction_slicing_checkpoint (:obj:`bool`):
         Recompute the intermediates of the chunks of a sliced contraction in
-        reverse-mode AD instead of storing them. Read when a contraction is
-        traced.
+        reverse-mode AD instead of storing them. Without it, slicing lowers
+        the memory of gradients only if one huge intermediate dominates. Read
+        when a contraction is traced.
+      contraction_slicing_min_bytes (:obj:`int`):
+        On CPU and without ``contraction_slicing_checkpoint``, slice a
+        contraction only if its largest intermediate exceeds this size in bytes
+        (default 1 GiB): smaller ones cost time when sliced (and gradients may
+        need more memory). CPU means ``jax.default_backend() == "cpu"`` at
+        trace time (not the device of a computation placed explicitly). Read at
+        trace time.
       contraction_slicing_plan_dir (:obj:`str`):
         Directory of saved slicing plans. If set, a plan is looked up there
         before it is searched, and a searched plan is saved there, one JSON
@@ -536,8 +553,9 @@ class VariPEPS_Config:
     )
     checkpointing_ncon: bool = False
     checkpointing_projectors: bool = False
-    contraction_slicing_max_bytes: int = 2**27
+    contraction_slicing_max_bytes: int = -1
     contraction_slicing_checkpoint: bool = False
+    contraction_slicing_min_bytes: int = 2**30
     contraction_slicing_plan_dir: str = ""
     contraction_backend: Contraction_Backend = Contraction_Backend.JAX
 

@@ -31,7 +31,6 @@ except ImportError:  # built without tblis (Windows): JAX contractions only
 from typing import Sequence, Tuple, Union
 
 
-
 def _set_blis_arch():
     """
     Choose the BLIS kernels on AMD CPUs which the bundled BLIS does not detect
@@ -56,7 +55,9 @@ def _set_blis_arch():
         return
     if cpu.get("vendor_id") != "AuthenticAMD" or family < 0x19:
         return
-    if {"avx512f", "avx512dq", "avx512bw", "avx512vl"} <= set(cpu.get("flags", "").split()):
+    if {"avx512f", "avx512dq", "avx512bw", "avx512vl"} <= set(
+        cpu.get("flags", "").split()
+    ):
         os.environ["BLIS_ARCH_TYPE"] = "skx"
     elif family > 0x19:
         os.environ["BLIS_ARCH_TYPE"] = "zen3"
@@ -238,17 +239,28 @@ def contract(
     # forward-mode and vmap rules do not.
     free = [lab for lab in idx_out if lab not in idx_a or lab not in idx_b]
     # positions in free where the operand changes (two for X, Y, X')
-    breaks = [k for k in range(1, len(free)) if (free[k] in idx_a) != (free[k - 1] in idx_a)]
+    breaks = [
+        k for k in range(1, len(free)) if (free[k] in idx_a) != (free[k - 1] in idx_a)
+    ]
     extent = dict(zip(idx_a, jnp.shape(a))) | dict(zip(idx_b, jnp.shape(b)))
-    madds_per_entry = math.prod(extent.values()) / max(1, math.prod(extent[lab] for lab in idx_out))
+    madds_per_entry = math.prod(extent.values()) / max(
+        1, math.prod(extent[lab] for lab in idx_out)
+    )
     if (
         len(breaks) == 2
         and free[-1] == idx_out[-1]
         and 2 <= extent[free[-1]] < 8
-        and 0 < float(os.environ.get("VARIPEPS_TBLIS_OUT_LAYOUT") or 256) <= madds_per_entry
+        and 0
+        < float(os.environ.get("VARIPEPS_TBLIS_OUT_LAYOUT") or 256)
+        <= madds_per_entry
     ):
         k1, k2 = breaks  # X = free[:k1], Y = free[k1:k2], X' = free[k2:]
-        order = [lab for lab in idx_out if lab not in free] + free[k1:k2] + free[:k1] + free[k2:]
+        order = (
+            [lab for lab in idx_out if lab not in free]
+            + free[k1:k2]
+            + free[:k1]
+            + free[k2:]
+        )
         out = contract(a, b, idx_a, idx_b, tuple(order))
         return jnp.transpose(out, [order.index(lab) for lab in idx_out])
 
