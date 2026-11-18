@@ -1,0 +1,5 @@
+# C++ style of the extension modules (varipeps/utils/extensions):
+#   clang-format -i varipeps/utils/extensions/*.cpp varipeps/utils/extensions/*.h
+BasedOnStyle: Chromium
+ColumnLimit: 100
+InsertBraces: true

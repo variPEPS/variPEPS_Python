@@ -1,0 +1,12 @@
+# Formatters run on the staged files of each commit: install once with
+# `pre-commit install`; `pre-commit run --all-files` checks the whole tree.
+repos:
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v23.1.5
+    hooks:
+      - id: clang-format
+        types_or: [c, c++]
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 26.10.1
+    hooks:
+      - id: black

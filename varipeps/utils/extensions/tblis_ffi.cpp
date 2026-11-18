@@ -23,11 +23,11 @@
 #include "xla/ffi/api/ffi.h"
 
 #include <algorithm>
-#include <cmath>
 #include <atomic>
 #include <chrono>
-#include <cstdio>
+#include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <exception>
 #include <map>
@@ -90,12 +90,16 @@ template <TAPP_error (*Destroy)(intptr_t)>
 struct Owned {
   intptr_t value = 0;
   ~Owned() {
-    if (value) Destroy(value);
+    if (value) {
+      Destroy(value);
+    }
   }
 };
 
 ffi::Error TappError(TAPP_error err) {
-  if (!err) return ffi::Error::Success();
+  if (!err) {
+    return ffi::Error::Success();
+  }
   char message[256];
   TAPP_explain_error(err, sizeof(message), message);
   return ffi::Error(ffi::ErrorCode::kInvalidArgument, std::string("TAPP: ") + message);
@@ -139,16 +143,18 @@ int Find(const std::vector<int64_t>& idx, int64_t label) {
 
 double Size(const std::vector<int64_t>& dims) {
   double size = 1;
-  for (int64_t n : dims) size *= n;
+  for (int64_t n : dims) {
+    size *= n;
+  }
   return size;
 }
 
 // Machine parameters of the cost model, in multiply-adds of the data type.
 struct CostModel {
-  double min_part_work;  // work of the shortest part (kMinPartSeconds)
-  double move_cost;      // packing an operand element or adding up an element
-                         // of a partial result (both memory bound)
-  double reduce_cost;    // adding up an element of a partial result
+  double min_part_work;      // work of the shortest part (kMinPartSeconds)
+  double move_cost;          // packing an operand element or adding up an element
+                             // of a partial result (both memory bound)
+  double reduce_cost;        // adding up an element of a partial result
   double max_partial_bytes;  // memory of the partial results of a reduction split
   double even_parts;         // > 0: output splits into part counts dividing the extent (experiment)
   double fold_penalty;       // factor for splitting an inner label (strided parts)
@@ -161,21 +167,27 @@ struct CostModel {
 // count that divides the extent instead, if it is at least half as large.
 int64_t PartLen(int64_t extent, int64_t max_parts, int64_t min_len, bool even) {
   int64_t parts = std::min(extent, max_parts);
-  for (int64_t n = parts; even && n >= 2 && 2 * n >= parts; --n)
+  for (int64_t n = parts; even && n >= 2 && 2 * n >= parts; --n) {
     if (extent % n == 0) {
       parts = n;
       break;
     }
+  }
   return std::max((extent + parts - 1) / parts, min_len);
 }
 
 template <typename T>
 Split ChooseSplit(const Problem& p, int64_t num_threads, const CostModel& model) {
   std::map<int64_t, int64_t> extents;
-  for (const Tensor* t : {&p.a, &p.b})
-    for (size_t i = 0; i < t->idx.size(); ++i) extents[t->idx[i]] = t->dims[i];
+  for (const Tensor* t : {&p.a, &p.b}) {
+    for (size_t i = 0; i < t->idx.size(); ++i) {
+      extents[t->idx[i]] = t->dims[i];
+    }
+  }
   double work = 1;
-  for (const auto& [label, extent] : extents) work *= extent;
+  for (const auto& [label, extent] : extents) {
+    work *= extent;
+  }
 
   const int64_t max_parts =
       std::min<double>(static_cast<double>(num_threads), work / model.min_part_work);
@@ -189,13 +201,18 @@ Split ChooseSplit(const Problem& p, int64_t num_threads, const CostModel& model)
     split.part_len = PartLen(extent, max_parts, (kMinPartBytes + stride_bytes - 1) / stride_bytes,
                              model.even_parts > 0);
     split.parts = (extent + split.part_len - 1) / split.part_len;
-    if (split.parts < 2) continue;
+    if (split.parts < 2) {
+      continue;
+    }
 
     // A batch label repacks nothing, a label of only A (B) repacks B (A).
     double time = work * split.part_len / extent;
-    if (split.pos_a < 0 || split.pos_b < 0)
+    if (split.pos_a < 0 || split.pos_b < 0) {
       time += model.move_cost * Size(split.pos_a < 0 ? p.a.dims : p.b.dims);
-    if (i > 0 || split.pos_a > 0 || split.pos_b > 0) time *= model.fold_penalty;
+    }
+    if (i > 0 || split.pos_a > 0 || split.pos_b > 0) {
+      time *= model.fold_penalty;
+    }
     if (time < best_time) {
       best = split;
       best_time = time;
@@ -217,18 +234,23 @@ Split ChooseSplit(const Problem& p, int64_t num_threads, const CostModel& model)
     const char* str = std::getenv("VARIPEPS_TBLIS_REDUCTION_SPLIT");
     return !(str && std::string(str) == "0");
   }();
-  for (size_t i = 0; i < p.a.idx.size() && reduction_split && size_d > 0 && reduce_parts > 1;
-       ++i) {
+  for (size_t i = 0; i < p.a.idx.size() && reduction_split && size_d > 0 && reduce_parts > 1; ++i) {
     const int pos_b = Find(p.b.idx, p.a.idx[i]);
-    if (pos_b < 0 || Find(p.d.idx, p.a.idx[i]) >= 0) continue;
+    if (pos_b < 0 || Find(p.d.idx, p.a.idx[i]) >= 0) {
+      continue;
+    }
     const int64_t extent = p.a.dims[i];
     Split split{static_cast<int>(i), pos_b, -1};
     split.part_len = PartLen(extent, reduce_parts, 1, false);
     split.parts = (extent + split.part_len - 1) / split.part_len;
-    if (split.parts < 2 || (split.parts - 1) * size_d * sizeof(T) > model.max_partial_bytes) continue;
+    if (split.parts < 2 || (split.parts - 1) * size_d * sizeof(T) > model.max_partial_bytes) {
+      continue;
+    }
 
     double time = work * split.part_len / extent + model.reduce_cost * split.parts * size_d;
-    if (i > 0 || pos_b > 0) time *= model.fold_penalty;
+    if (i > 0 || pos_b > 0) {
+      time *= model.fold_penalty;
+    }
     if (time < best_time) {
       best = split;
       best_time = time;
@@ -239,8 +261,12 @@ Split ChooseSplit(const Problem& p, int64_t num_threads, const CostModel& model)
 
 // Contracts part `part` of `split` (the whole product if not split).
 template <ffi::DataType dtype>
-TAPP_error ContractPartImpl(const Problem& p, const Split& split, int64_t part,
-                        const void* a, const void* b, void* d) {
+TAPP_error ContractPartImpl(const Problem& p,
+                            const Split& split,
+                            int64_t part,
+                            const void* a,
+                            const void* b,
+                            void* d) {
   static TAPP_handle handle = [] {
     TAPP_handle h;
     TAPP_create_handle(&h);
@@ -271,26 +297,32 @@ TAPP_error ContractPartImpl(const Problem& p, const Split& split, int64_t part,
   auto [err_a, part_a] = slice(p.a, split.pos_a, static_cast<const T*>(a), info_a);
   auto [err_b, part_b] = slice(p.b, split.pos_b, static_cast<const T*>(b), info_b);
   auto [err_d, part_d] = slice(p.d, split.pos_d, static_cast<T*>(d), info_d);
-  if (err_a || err_b || err_d) return err_a ? err_a : err_b ? err_b : err_d;
+  if (err_a || err_b || err_d) {
+    return err_a ? err_a : err_b ? err_b : err_d;
+  }
 
-  TAPP_error err = TAPP_create_tensor_product(&plan.value, handle,
-                                              TAPP_IDENTITY, info_a.value, p.a.idx.data(),
-                                              TAPP_IDENTITY, info_b.value, p.b.idx.data(),
-                                              TAPP_IDENTITY, info_d.value, p.d.idx.data(),
-                                              TAPP_IDENTITY, info_d.value, p.d.idx.data(),
-                                              TAPP_DEFAULT_PREC);
-  if (err) return err;
+  TAPP_error err = TAPP_create_tensor_product(
+      &plan.value, handle, TAPP_IDENTITY, info_a.value, p.a.idx.data(), TAPP_IDENTITY, info_b.value,
+      p.b.idx.data(), TAPP_IDENTITY, info_d.value, p.d.idx.data(), TAPP_IDENTITY, info_d.value,
+      p.d.idx.data(), TAPP_DEFAULT_PREC);
+  if (err) {
+    return err;
+  }
 
   const T alpha(1), beta(0);
   TAPP_status status;
-  return TAPP_execute_product(plan.value, exec, &status, &alpha, part_a, part_b, &beta,
-                              nullptr, part_d);
+  return TAPP_execute_product(plan.value, exec, &status, &alpha, part_a, part_b, &beta, nullptr,
+                              part_d);
 }
 
 // Exceptions must not leave a pool task or the C ABI of the handler.
 template <ffi::DataType dtype>
-ffi::Error ContractPart(const Problem& p, const Split& split, int64_t part,
-                        const void* a, const void* b, void* d) {
+ffi::Error ContractPart(const Problem& p,
+                        const Split& split,
+                        int64_t part,
+                        const void* a,
+                        const void* b,
+                        void* d) {
   try {
     return TappError(ContractPartImpl<dtype>(p, split, part, a, b, d));
   } catch (const std::exception& e) {
@@ -304,7 +336,9 @@ ffi::Error ContractPart(const Problem& p, const Split& split, int64_t part,
 // not a positive number (with a warning).
 double EnvNumber(const char* name, double fallback) {
   const char* str = std::getenv(name);
-  if (!str) return fallback;
+  if (!str) {
+    return fallback;
+  }
   char* end = nullptr;
   const double value = std::strtod(str, &end);
   if (end == str || !(value > 0)) {
@@ -316,7 +350,9 @@ double EnvNumber(const char* name, double fallback) {
 
 // Rounds to the nearest power of two, so that the noise of the measurement
 // rarely changes the split (and with it the summation order of the results).
-double RoundToPowerOfTwo(double x) { return std::exp2(std::round(std::log2(x))); }
+double RoundToPowerOfTwo(double x) {
+  return std::exp2(std::round(std::log2(x)));
+}
 
 // Whether the parts of an output split should first map their own range of a new output
 // (PopulatePart), decided once per process by a test of this machine: `parts` threads write
@@ -344,29 +380,40 @@ double TimeFirstTouch(int64_t threads, bool mapped) {
                                    static_cast<size_t>(std::max(l3, 0L)) * 2}));
   void* raw =
       mmap(nullptr, bytes + kHuge, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (raw == MAP_FAILED) return -1;
+  if (raw == MAP_FAILED) {
+    return -1;
+  }
   char* data =
       reinterpret_cast<char*>((reinterpret_cast<uintptr_t>(raw) + kHuge - 1) & ~(kHuge - 1));
   std::atomic<bool> go{false}, failed{false};
   std::vector<std::thread> workers;
   try {
-    for (int64_t t = 0; t < threads; ++t)
+    for (int64_t t = 0; t < threads; ++t) {
       workers.emplace_back([&, t] {
-        while (!go.load(std::memory_order_acquire)) std::this_thread::yield();
-        if (failed.load()) return;
+        while (!go.load(std::memory_order_acquire)) {
+          std::this_thread::yield();
+        }
+        if (failed.load()) {
+          return;
+        }
         const size_t lo = bytes / threads * t / kHuge * kHuge;
         const size_t hi = t + 1 == threads ? bytes : bytes / threads * (t + 1) / kHuge * kHuge;
-        if (mapped && hi > lo && madvise(data + lo, hi - lo, MADV_POPULATE_WRITE) != 0)
+        if (mapped && hi > lo && madvise(data + lo, hi - lo, MADV_POPULATE_WRITE) != 0) {
           failed.store(true);
-        for (size_t at = t * kSlice; at < bytes; at += threads * kSlice)
+        }
+        for (size_t at = t * kSlice; at < bytes; at += threads * kSlice) {
           std::fill(data + at, data + std::min(at + kSlice, bytes), char(1));
+        }
       });
+    }
   } catch (...) {  // a thread could not be started: release and join the others
     failed.store(true);
   }
   const auto start = std::chrono::steady_clock::now();
   go.store(true, std::memory_order_release);
-  for (auto& w : workers) w.join();
+  for (auto& w : workers) {
+    w.join();
+  }
   const double seconds =
       std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
   munmap(raw, bytes + kHuge);
@@ -388,13 +435,15 @@ const Prefault& GetPrefault() {
     if (const char* n = std::getenv("TBLIS_NUM_THREADS"); n && *n)
       r.threads = std::min<int64_t>(r.threads, std::max<long>(1, std::strtol(n, nullptr, 10)));
     r.threads = std::min<int64_t>(r.threads, 64);
-    if (r.threads < 2) return r;
+    if (r.threads < 2)
+      return r;
     try {
       r.plain = r.mapped = 1e300;
       for (int rep = 0; rep < 3; ++rep) {
         const double plain = TimeFirstTouch(r.threads, false);
         const double mapped = TimeFirstTouch(r.threads, true);
-        if (plain < 0 || mapped < 0) return Prefault{false, 0, 0, r.threads};  // kernel < 5.14
+        if (plain < 0 || mapped < 0)
+          return Prefault{false, 0, 0, r.threads};  // kernel < 5.14
         r.plain = std::min(r.plain, plain);
         r.mapped = std::min(r.mapped, mapped);
       }
@@ -440,22 +489,27 @@ CostModel CalibrateCostModel() {
   GetPrefault();  // also tested here, from Python at trace time
   CostModel model{1 << 17, 32, 32, kMaxPartialBytes, 0, kFoldPenalty};
   const char* calibrate = std::getenv("VARIPEPS_TBLIS_CALIBRATE");
-  const bool measure = !std::getenv("VARIPEPS_TBLIS_MIN_PART_WORK") &&
-                       !(calibrate && std::string(calibrate) == "0");
+  const bool measure =
+      !std::getenv("VARIPEPS_TBLIS_MIN_PART_WORK") && !(calibrate && std::string(calibrate) == "0");
   double fma = 0;
   if (measure) {
     try {
       constexpr int64_t n = 64, runs = 40;  // 40 products per sample (timer resolution)
       std::vector<T> a(n * n, T(1)), b(n * n, T(1)), d(n * n);
       const Problem p{{{n, n}, {0, 1}}, {{n, n}, {1, 2}}, {{n, n}, {0, 2}}};
-      auto run = [&] { return ContractPartImpl<dtype>(p, Split{}, 0, a.data(), b.data(), d.data()); };
+      auto run = [&] {
+        return ContractPartImpl<dtype>(p, Split{}, 0, a.data(), b.data(), d.data());
+      };
       double best = 1e300;
       if (run() == 0) {  // warm-up: first use of tblis, page faults
         for (int rep = 0; rep < 7; ++rep) {
           const auto start = std::chrono::steady_clock::now();
-          for (int i = 0; i < runs; ++i) run();
-          best = std::min(best, std::chrono::duration<double>(
-                                    std::chrono::steady_clock::now() - start).count());
+          for (int i = 0; i < runs; ++i) {
+            run();
+          }
+          best = std::min(
+              best,
+              std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
         }
         fma = best / (runs * n * n * n);
       }
@@ -463,7 +517,9 @@ CostModel CalibrateCostModel() {
       fma = 0;
     }
   }
-  if (fma > 0) model.min_part_work = RoundToPowerOfTwo(std::clamp(kMinPartSeconds / fma, 1e4, 1e7));
+  if (fma > 0) {
+    model.min_part_work = RoundToPowerOfTwo(std::clamp(kMinPartSeconds / fma, 1e4, 1e7));
+  }
   // Overrides (benchmarks): scale or value of min_part_work, the costs, the memory limit.
   model.min_part_work *= EnvNumber("VARIPEPS_TBLIS_MIN_PART_SCALE", 1);
   model.min_part_work = EnvNumber("VARIPEPS_TBLIS_MIN_PART_WORK", model.min_part_work);
@@ -472,12 +528,13 @@ CostModel CalibrateCostModel() {
   model.max_partial_bytes = EnvNumber("VARIPEPS_TBLIS_MAX_PARTIAL_BYTES", model.max_partial_bytes);
   model.even_parts = EnvNumber("VARIPEPS_TBLIS_EVEN_PARTS", model.even_parts);
   model.fold_penalty = EnvNumber("VARIPEPS_TBLIS_FOLD_PENALTY", model.fold_penalty);
-  if (std::getenv("VARIPEPS_TBLIS_VERBOSE"))
+  if (std::getenv("VARIPEPS_TBLIS_VERBOSE")) {
     std::fprintf(stderr,
                  "varipeps tblis cost model (%zu-byte elements, %s): min_part_work=%.3g "
                  "move_cost=%.3g\n",
                  sizeof(T), fma > 0 ? "measured" : "defaults", model.min_part_work,
                  model.move_cost);
+  }
   return model;
 }
 
@@ -493,8 +550,9 @@ const CostModel& GetCostModel() {
 // efficiency core finishes late and holds up the whole contraction.
 int64_t MaxParts(const ffi::ThreadPool& pool) {
   static const int64_t limit = []() -> int64_t {
-    if (const char* str = std::getenv("TBLIS_NUM_THREADS"); str && *str)
+    if (const char* str = std::getenv("TBLIS_NUM_THREADS"); str && *str) {
       return std::max<int64_t>(1, std::strtol(str, nullptr, 10));
+    }
 #ifdef __APPLE__
     int cores = 0;
     size_t len = sizeof(cores);
@@ -525,21 +583,28 @@ void Schedule(ffi::ThreadPool& pool, F task) {
 // is a cheap page-table walk. Only where it pays off (GetPrefault).
 void PopulatePart(void* data, size_t bytes, int64_t part, int64_t parts) {
 #ifdef __linux__
-  if (bytes < kPrefaultBytes || !GetPrefault().on) return;
+  if (bytes < kPrefaultBytes || !GetPrefault().on) {
+    return;
+  }
   constexpr uintptr_t kHuge = 2 << 20;
   static const uintptr_t kPage = static_cast<uintptr_t>(sysconf(_SC_PAGESIZE));
   const uintptr_t begin = reinterpret_cast<uintptr_t>(data), end = begin + bytes;
   const auto bound = [&](int64_t k) -> uintptr_t {
-    if (k == 0) return begin & ~(kPage - 1);
-    if (k == parts) return (end + kPage - 1) & ~(kPage - 1);
+    if (k == 0) {
+      return begin & ~(kPage - 1);
+    }
+    if (k == parts) {
+      return (end + kPage - 1) & ~(kPage - 1);
+    }
     const uintptr_t at = begin + bytes / parts * k;
     return std::min((at + kHuge - 1) & ~(kHuge - 1), (end + kPage - 1) & ~(kPage - 1));
   };
   static std::atomic<bool> supported{true};  // false after EINVAL (kernel < 5.14, sandboxes)
   const uintptr_t lo = bound(part), hi = bound(part + 1);
   if (hi > lo && supported.load(std::memory_order_relaxed) &&
-      madvise(reinterpret_cast<void*>(lo), hi - lo, MADV_POPULATE_WRITE) != 0 && errno == EINVAL)
+      madvise(reinterpret_cast<void*>(lo), hi - lo, MADV_POPULATE_WRITE) != 0 && errno == EINVAL) {
     supported.store(false, std::memory_order_relaxed);  // other errors: ignored
+  }
 #else
   (void)data, (void)bytes, (void)part, (void)parts;
 #endif
@@ -547,7 +612,8 @@ void PopulatePart(void* data, size_t bytes, int64_t part, int64_t parts) {
 
 template <ffi::DataType dtype>
 ffi::Future TblisContractImpl(ffi::ThreadPool pool,
-                              ffi::Buffer<dtype> a, ffi::Buffer<dtype> b,
+                              ffi::Buffer<dtype> a,
+                              ffi::Buffer<dtype> b,
                               ffi::ResultBuffer<dtype> d,
                               ffi::Span<const int64_t> idx_a,
                               ffi::Span<const int64_t> idx_b,
@@ -561,8 +627,8 @@ ffi::Future TblisContractImpl(ffi::ThreadPool pool,
     return future;
   }
 
-  auto problem = std::make_shared<const Problem>(Problem{
-      {a.dimensions(), idx_a}, {b.dimensions(), idx_b}, {d->dimensions(), idx_d}});
+  auto problem = std::make_shared<const Problem>(
+      Problem{{a.dimensions(), idx_a}, {b.dimensions(), idx_b}, {d->dimensions(), idx_d}});
   const Split split =
       ChooseSplit<ffi::NativeType<dtype>>(*problem, MaxParts(pool), GetCostModel<dtype>());
   const void* data_a = a.untyped_data();
@@ -593,8 +659,11 @@ ffi::Future TblisContractImpl(ffi::ThreadPool pool,
       state->partial.reserve(split.parts - 1);
       for (int64_t part = 1; part < split.parts; ++part) {
         // Cache-line aligned like the XLA buffers (malloc: 16 bytes for large sizes).
-        T* buffer = static_cast<T*>(std::aligned_alloc(64, (size_d * sizeof(T) + 63) & ~size_t(63)));
-        if (!buffer) throw std::bad_alloc();
+        T* buffer =
+            static_cast<T*>(std::aligned_alloc(64, (size_d * sizeof(T) + 63) & ~size_t(63)));
+        if (!buffer) {
+          throw std::bad_alloc();
+        }
         state->partial.emplace_back(buffer);
       }
     } catch (...) {
@@ -610,15 +679,22 @@ ffi::Future TblisContractImpl(ffi::ThreadPool pool,
         std::lock_guard<std::mutex> lock(state->mutex);
         state->error = err;
       }
-      if (state->remaining.fetch_sub(1, std::memory_order_acq_rel) != 1) return;
-      if (!state->error.success()) return state->promise.SetError(state->error);
+      if (state->remaining.fetch_sub(1, std::memory_order_acq_rel) != 1) {
+        return;
+      }
+      if (!state->error.success()) {
+        return state->promise.SetError(state->error);
+      }
       // Blocked, so that D is traversed once.
       T* out = static_cast<T*>(data_d);
       constexpr size_t kBlock = 4096;
       for (size_t k0 = 0; k0 < size_d; k0 += kBlock) {
         const size_t k1 = std::min(size_d, k0 + kBlock);
-        for (const auto& partial : state->partial)
-          for (size_t k = k0; k < k1; ++k) out[k] += partial[k];
+        for (const auto& partial : state->partial) {
+          for (size_t k = k0; k < k1; ++k) {
+            out[k] += partial[k];
+          }
+        }
       }
       state->promise.SetAvailable();
     };
@@ -652,17 +728,16 @@ ffi::Future TblisContractImpl(ffi::ThreadPool pool,
 
 }  // namespace
 
-#define DEFINE_TBLIS_CONTRACT(fname, dtype)                    \
-  XLA_FFI_DEFINE_HANDLER_SYMBOL(                               \
-      fname, TblisContractImpl<dtype>,                         \
-      ffi::Ffi::Bind()                                         \
-          .Ctx<ffi::ThreadPool>()                              \
-          .Arg<ffi::Buffer<dtype>>(/*a*/)                      \
-          .Arg<ffi::Buffer<dtype>>(/*b*/)                      \
-          .Ret<ffi::Buffer<dtype>>(/*d*/)                      \
-          .Attr<ffi::Span<const int64_t>>("idx_a")             \
-          .Attr<ffi::Span<const int64_t>>("idx_b")             \
-          .Attr<ffi::Span<const int64_t>>("idx_d"))
+#define DEFINE_TBLIS_CONTRACT(fname, dtype)                                  \
+  XLA_FFI_DEFINE_HANDLER_SYMBOL(fname, TblisContractImpl<dtype>,             \
+                                ffi::Ffi::Bind()                             \
+                                    .Ctx<ffi::ThreadPool>()                  \
+                                    .Arg<ffi::Buffer<dtype>>(/*a*/)          \
+                                    .Arg<ffi::Buffer<dtype>>(/*b*/)          \
+                                    .Ret<ffi::Buffer<dtype>>(/*d*/)          \
+                                    .Attr<ffi::Span<const int64_t>>("idx_a") \
+                                    .Attr<ffi::Span<const int64_t>>("idx_b") \
+                                    .Attr<ffi::Span<const int64_t>>("idx_d"))
 
 DEFINE_TBLIS_CONTRACT(tblis_contract_f32, ffi::DataType::F32);
 DEFINE_TBLIS_CONTRACT(tblis_contract_f64, ffi::DataType::F64);
@@ -670,67 +745,90 @@ DEFINE_TBLIS_CONTRACT(tblis_contract_c64, ffi::DataType::C64);
 DEFINE_TBLIS_CONTRACT(tblis_contract_c128, ffi::DataType::C128);
 
 template <typename T>
-static nb::capsule EncapsulateFfiCall(T *fn) {
-  static_assert(std::is_invocable_r_v<XLA_FFI_Error *, T, XLA_FFI_CallFrame *>,
+static nb::capsule EncapsulateFfiCall(T* fn) {
+  static_assert(std::is_invocable_r_v<XLA_FFI_Error*, T, XLA_FFI_CallFrame*>,
                 "Encapsulated function must be and XLA FFI handler");
-  return nb::capsule(reinterpret_cast<void *>(fn));
+  return nb::capsule(reinterpret_cast<void*>(fn));
 }
 
 // Split chosen for a contraction (for benchmarks and reports): kind "serial",
 // "output" or "reduction", label, number of parts, part length.
 template <ffi::DataType dtype>
-std::tuple<std::string, int64_t, int64_t, int64_t> SplitPlan(
-    const std::vector<int64_t>& idx_a, const std::vector<int64_t>& idx_b,
-    const std::vector<int64_t>& idx_d, const std::vector<int64_t>& dims_a,
-    const std::vector<int64_t>& dims_b, const std::vector<int64_t>& dims_d, int64_t threads,
-    const std::vector<double>& overrides) {
+std::tuple<std::string, int64_t, int64_t, int64_t> SplitPlan(const std::vector<int64_t>& idx_a,
+                                                             const std::vector<int64_t>& idx_b,
+                                                             const std::vector<int64_t>& idx_d,
+                                                             const std::vector<int64_t>& dims_a,
+                                                             const std::vector<int64_t>& dims_b,
+                                                             const std::vector<int64_t>& dims_d,
+                                                             int64_t threads,
+                                                             const std::vector<double>& overrides) {
   const Problem p{{dims_a, idx_a}, {dims_b, idx_b}, {dims_d, idx_d}};
   CostModel model = GetCostModel<dtype>();
-  double* fields[] = {&model.min_part_work, &model.move_cost,  &model.reduce_cost,
+  double* fields[] = {&model.min_part_work,     &model.move_cost,  &model.reduce_cost,
                       &model.max_partial_bytes, &model.even_parts, &model.fold_penalty};
-  for (size_t i = 0; i < std::min<size_t>(overrides.size(), 6); ++i)
-    if (overrides[i] > 0) *fields[i] = overrides[i];
+  for (size_t i = 0; i < std::min<size_t>(overrides.size(), 6); ++i) {
+    if (overrides[i] > 0) {
+      *fields[i] = overrides[i];
+    }
+  }
   const Split s = ChooseSplit<ffi::NativeType<dtype>>(p, threads, model);
-  if (s.parts < 2) return {"serial", -1, 1, 0};
-  if (s.pos_d >= 0) return {"output", p.d.idx[s.pos_d], s.parts, s.part_len};
+  if (s.parts < 2) {
+    return {"serial", -1, 1, 0};
+  }
+  if (s.pos_d >= 0) {
+    return {"output", p.d.idx[s.pos_d], s.parts, s.part_len};
+  }
   return {"reduction", p.a.idx[s.pos_a], s.parts, s.part_len};
 }
 
 NB_MODULE(_tblis_contract, m) {
-  m.def("split_plan", [](const std::vector<int64_t>& idx_a, const std::vector<int64_t>& idx_b,
-                         const std::vector<int64_t>& idx_d, const std::vector<int64_t>& dims_a,
-                         const std::vector<int64_t>& dims_b, const std::vector<int64_t>& dims_d,
-                         const std::string& dtype, int64_t threads, const std::vector<double>& overrides) {
-    if (dtype != "f32" && dtype != "f64" && dtype != "c64" && dtype != "c128")
-      throw std::invalid_argument("dtype must be f32, f64, c64 or c128");
-    auto plan = dtype == "f32"   ? SplitPlan<ffi::DataType::F32>
-                : dtype == "f64" ? SplitPlan<ffi::DataType::F64>
-                : dtype == "c64" ? SplitPlan<ffi::DataType::C64>
-                                 : SplitPlan<ffi::DataType::C128>;
-    return plan(idx_a, idx_b, idx_d, dims_a, dims_b, dims_d, threads, overrides);
-  }, nb::arg("idx_a"), nb::arg("idx_b"), nb::arg("idx_d"), nb::arg("dims_a"), nb::arg("dims_b"),
-     nb::arg("dims_d"), nb::arg("dtype"), nb::arg("threads"), nb::arg("overrides") = std::vector<double>{},
-     "Split of the contraction D = A * B chosen for `threads` threads: (kind, label, parts, "
-     "part_len); overrides: (min_part_work, move_cost, reduce_cost, max_partial_bytes, even_parts, "
-     "fold_penalty), values "
-     "> 0 replace the cost model. For benchmarks and reports.");
-  m.def("cost_model", [](const std::string& dtype) {
-    if (dtype != "f32" && dtype != "f64" && dtype != "c64" && dtype != "c128")
-      throw std::invalid_argument("dtype must be f32, f64, c64 or c128");
-    const CostModel& c = dtype == "f32"   ? GetCostModel<ffi::DataType::F32>()
-                         : dtype == "f64" ? GetCostModel<ffi::DataType::F64>()
-                         : dtype == "c64" ? GetCostModel<ffi::DataType::C64>()
-                                          : GetCostModel<ffi::DataType::C128>();
-    return std::make_tuple(c.min_part_work, c.move_cost, c.reduce_cost, c.max_partial_bytes);
-  }, nb::call_guard<nb::gil_scoped_release>(),
-     "Cost model of the thread split for dtype f32/f64/c64/c128: (min_part_work, "
-     "move_cost, reduce_cost, max_partial_bytes), measured on the first call.");
-  m.def("prefault", []() {
-    const Prefault& p = GetPrefault();
-    return std::make_tuple(p.on, p.plain, p.mapped, p.threads);
-  }, nb::call_guard<nb::gil_scoped_release>(),
-     "Whether new outputs of output splits are mapped first: (on, seconds without, seconds "
-     "with, threads) of the test of this machine (0 if not tested).");
+  m.def(
+      "split_plan",
+      [](const std::vector<int64_t>& idx_a, const std::vector<int64_t>& idx_b,
+         const std::vector<int64_t>& idx_d, const std::vector<int64_t>& dims_a,
+         const std::vector<int64_t>& dims_b, const std::vector<int64_t>& dims_d,
+         const std::string& dtype, int64_t threads, const std::vector<double>& overrides) {
+        if (dtype != "f32" && dtype != "f64" && dtype != "c64" && dtype != "c128") {
+          throw std::invalid_argument("dtype must be f32, f64, c64 or c128");
+        }
+        auto plan = dtype == "f32"   ? SplitPlan<ffi::DataType::F32>
+                    : dtype == "f64" ? SplitPlan<ffi::DataType::F64>
+                    : dtype == "c64" ? SplitPlan<ffi::DataType::C64>
+                                     : SplitPlan<ffi::DataType::C128>;
+        return plan(idx_a, idx_b, idx_d, dims_a, dims_b, dims_d, threads, overrides);
+      },
+      nb::arg("idx_a"), nb::arg("idx_b"), nb::arg("idx_d"), nb::arg("dims_a"), nb::arg("dims_b"),
+      nb::arg("dims_d"), nb::arg("dtype"), nb::arg("threads"),
+      nb::arg("overrides") = std::vector<double>{},
+      "Split of the contraction D = A * B chosen for `threads` threads: (kind, label, parts, "
+      "part_len); overrides: (min_part_work, move_cost, reduce_cost, max_partial_bytes, "
+      "even_parts, "
+      "fold_penalty), values "
+      "> 0 replace the cost model. For benchmarks and reports.");
+  m.def(
+      "cost_model",
+      [](const std::string& dtype) {
+        if (dtype != "f32" && dtype != "f64" && dtype != "c64" && dtype != "c128") {
+          throw std::invalid_argument("dtype must be f32, f64, c64 or c128");
+        }
+        const CostModel& c = dtype == "f32"   ? GetCostModel<ffi::DataType::F32>()
+                             : dtype == "f64" ? GetCostModel<ffi::DataType::F64>()
+                             : dtype == "c64" ? GetCostModel<ffi::DataType::C64>()
+                                              : GetCostModel<ffi::DataType::C128>();
+        return std::make_tuple(c.min_part_work, c.move_cost, c.reduce_cost, c.max_partial_bytes);
+      },
+      nb::call_guard<nb::gil_scoped_release>(),
+      "Cost model of the thread split for dtype f32/f64/c64/c128: (min_part_work, "
+      "move_cost, reduce_cost, max_partial_bytes), measured on the first call.");
+  m.def(
+      "prefault",
+      []() {
+        const Prefault& p = GetPrefault();
+        return std::make_tuple(p.on, p.plain, p.mapped, p.threads);
+      },
+      nb::call_guard<nb::gil_scoped_release>(),
+      "Whether new outputs of output splits are mapped first: (on, seconds without, seconds "
+      "with, threads) of the test of this machine (0 if not tested).");
   m.def("tblis_contract_f32", []() { return EncapsulateFfiCall(tblis_contract_f32); });
   m.def("tblis_contract_f64", []() { return EncapsulateFfiCall(tblis_contract_f64); });
   m.def("tblis_contract_c64", []() { return EncapsulateFfiCall(tblis_contract_c64); });

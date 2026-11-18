@@ -11,38 +11,24 @@ namespace ffi = xla::ffi;
 XLA_FFI_REGISTER_ENUM_ATTR_DECODING(UVtMode);
 
 template <ffi::DataType dtype>
-static ffi::Error SvdOnlyUVtImpl(
-    ffi::Buffer<dtype> x,
-    ffi::ResultBuffer<dtype> x_out,
-    ffi::ResultBuffer<ffi::ToReal(dtype)> s,
-    ffi::ResultBuffer<dtype> u_or_vt,
-    ffi::ResultBuffer<ffi::DataType::S32> info,
-    UVtMode mode) {
-
+static ffi::Error SvdOnlyUVtImpl(ffi::Buffer<dtype> x,
+                                 ffi::ResultBuffer<dtype> x_out,
+                                 ffi::ResultBuffer<ffi::ToReal(dtype)> s,
+                                 ffi::ResultBuffer<dtype> u_or_vt,
+                                 ffi::ResultBuffer<ffi::DataType::S32> info,
+                                 UVtMode mode) {
   using MachineType = ffi::NativeType<dtype>;
   using RealType = ffi::NativeType<ffi::ToReal(dtype)>;
-  using FnSig = std::conditional_t<ffi::IsComplexType<dtype>(),
-                                   void(char const* jobz,
-                                        lapack_int const* m, lapack_int const* n,
-                                        MachineType* A, lapack_int const* lda,
-                                        RealType* S,
-                                        MachineType* U, lapack_int const* ldu,
-                                        MachineType* VT, lapack_int const* ldvt,
-                                        MachineType* work, lapack_int const* lwork,
-                                        RealType* rwork,
-                                        lapack_int* iwork,
-                                        lapack_int* info
-                                        ),
-                                   void(char const* jobz,
-                                        lapack_int const* m, lapack_int const* n,
-                                        MachineType* A, lapack_int const* lda,
-                                        RealType* S,
-                                        MachineType* U, lapack_int const* ldu,
-                                        MachineType* VT, lapack_int const* ldvt,
-                                        MachineType* work, lapack_int const* lwork,
-                                        lapack_int* iwork,
-                                        lapack_int* info
-                                        )>;
+  using FnSig = std::conditional_t<
+      ffi::IsComplexType<dtype>(),
+      void(char const* jobz, lapack_int const* m, lapack_int const* n, MachineType* A,
+           lapack_int const* lda, RealType* S, MachineType* U, lapack_int const* ldu,
+           MachineType* VT, lapack_int const* ldvt, MachineType* work, lapack_int const* lwork,
+           RealType* rwork, lapack_int* iwork, lapack_int* info),
+      void(char const* jobz, lapack_int const* m, lapack_int const* n, MachineType* A,
+           lapack_int const* lda, RealType* S, MachineType* U, lapack_int const* ldu,
+           MachineType* VT, lapack_int const* ldvt, MachineType* work, lapack_int const* lwork,
+           lapack_int* iwork, lapack_int* info)>;
 
   FnSig* fn = nullptr;
 
@@ -69,7 +55,7 @@ static ffi::Error SvdOnlyUVtImpl(
     if constexpr (dtype == ffi::DataType::C128) {
       fn = reinterpret_cast<FnSig*>(get_lapack_ptr("zgesdd"));
     }
-  } catch (const nb::python_error &e) {
+  } catch (const nb::python_error& e) {
     std::cerr << e.what() << std::endl;
     throw;
   }
@@ -90,9 +76,10 @@ static ffi::Error SvdOnlyUVtImpl(
   }
 
   if (x_rows > lapack_int_max || x_cols > lapack_int_max) [[unlikely]] {
-    return ffi::Error(ffi::ErrorCode::kOutOfRange, "Dimension of input out of range for lapack integer.");
+    return ffi::Error(ffi::ErrorCode::kOutOfRange,
+                      "Dimension of input out of range for lapack integer.");
   }
-  
+
   const lapack_int x_rows_lapack = static_cast<lapack_int>(x_rows);
   const lapack_int x_cols_lapack = static_cast<lapack_int>(x_cols);
 
@@ -129,17 +116,11 @@ static ffi::Error SvdOnlyUVtImpl(
   }
 
   if constexpr (ffi::IsComplexType<dtype>()) {
-    fn(&jobz, &x_rows_lapack, &x_cols_lapack, nullptr,
-       &x_rows_lapack, nullptr, nullptr,
-       &ldu, nullptr, &ldvt, &work_size,
-       &lwork, nullptr, nullptr, info_data
-       );
+    fn(&jobz, &x_rows_lapack, &x_cols_lapack, nullptr, &x_rows_lapack, nullptr, nullptr, &ldu,
+       nullptr, &ldvt, &work_size, &lwork, nullptr, nullptr, info_data);
   } else {
-    fn(&jobz, &x_rows_lapack, &x_cols_lapack, nullptr,
-       &x_rows_lapack, nullptr, nullptr,
-       &ldu, nullptr, &ldvt,
-       &work_size, &lwork, nullptr, info_data
-       );
+    fn(&jobz, &x_rows_lapack, &x_cols_lapack, nullptr, &x_rows_lapack, nullptr, nullptr, &ldu,
+       nullptr, &ldvt, &work_size, &lwork, nullptr, info_data);
   }
 
   if (*info_data != 0) {
@@ -148,36 +129,32 @@ static ffi::Error SvdOnlyUVtImpl(
   }
 
   if (std::real(work_size) > lapack_int_max) [[unlikely]] {
-    return ffi::Error(ffi::ErrorCode::kOutOfRange, "Workspace size out of range for lapack integer.");
+    return ffi::Error(ffi::ErrorCode::kOutOfRange,
+                      "Workspace size out of range for lapack integer.");
   }
   lwork = static_cast<lapack_int>(std::real(work_size));
 
   const auto min_dim = std::min(x_rows, x_cols);
   const auto max_dim = std::max(x_rows, x_cols);
-  
+
   auto work = std::unique_ptr<ffi::NativeType<dtype>[]>(new ffi::NativeType<dtype>[lwork]);
 
-  auto iwork = std::unique_ptr<lapack_int[]>(new lapack_int[8*min_dim]);
+  auto iwork = std::unique_ptr<lapack_int[]>(new lapack_int[8 * min_dim]);
 
   std::unique_ptr<ffi::NativeType<ffi::ToReal(dtype)>[]> rwork;
   if constexpr (ffi::IsComplexType<dtype>()) {
     const auto rwork_size = std::max(5 * min_dim * min_dim + 5 * min_dim,
                                      2 * max_dim * min_dim + 2 * min_dim * min_dim + min_dim);
-    rwork = std::unique_ptr<ffi::NativeType<ffi::ToReal(dtype)>[]>(new ffi::NativeType<ffi::ToReal(dtype)>[rwork_size]);
+    rwork = std::unique_ptr<ffi::NativeType<ffi::ToReal(dtype)>[]>(
+        new ffi::NativeType<ffi::ToReal(dtype)>[rwork_size]);
   }
 
   if constexpr (ffi::IsComplexType<dtype>()) {
-    fn(&jobz, &x_rows_lapack, &x_cols_lapack, x_out_data,
-       &x_rows_lapack, s_data, u_data,
-       &ldu, vt_data, &ldvt, work.get(),
-       &lwork, rwork.get(), iwork.get(), info_data
-       );
+    fn(&jobz, &x_rows_lapack, &x_cols_lapack, x_out_data, &x_rows_lapack, s_data, u_data, &ldu,
+       vt_data, &ldvt, work.get(), &lwork, rwork.get(), iwork.get(), info_data);
   } else {
-    fn(&jobz, &x_rows_lapack, &x_cols_lapack, x_out_data,
-       &x_rows_lapack, s_data, u_data,
-       &ldu, vt_data, &ldvt,
-       work.get(), &lwork, iwork.get(), info_data
-       );
+    fn(&jobz, &x_rows_lapack, &x_cols_lapack, x_out_data, &x_rows_lapack, s_data, u_data, &ldu,
+       vt_data, &ldvt, work.get(), &lwork, iwork.get(), info_data);
   }
 
   // if (*info_data != 0) {
@@ -188,42 +165,30 @@ static ffi::Error SvdOnlyUVtImpl(
 }
 
 template <ffi::DataType dtype>
-static ffi::Error SvdOnlyUVtQRImpl(
-    ffi::Buffer<dtype> x,
-    ffi::ResultBuffer<dtype> x_out,
-    ffi::ResultBuffer<ffi::ToReal(dtype)> s,
-    ffi::ResultBuffer<dtype> u_or_vt,
-    ffi::ResultBuffer<ffi::DataType::S32> info,
-    UVtMode mode) {
-
+static ffi::Error SvdOnlyUVtQRImpl(ffi::Buffer<dtype> x,
+                                   ffi::ResultBuffer<dtype> x_out,
+                                   ffi::ResultBuffer<ffi::ToReal(dtype)> s,
+                                   ffi::ResultBuffer<dtype> u_or_vt,
+                                   ffi::ResultBuffer<ffi::DataType::S32> info,
+                                   UVtMode mode) {
   using MachineType = ffi::NativeType<dtype>;
   using RealType = ffi::NativeType<ffi::ToReal(dtype)>;
-  using FnSig = std::conditional_t<ffi::IsComplexType<dtype>(),
-                                   void(char const* jobu, char const* jobvt,
-                                        lapack_int const* m, lapack_int const* n,
-                                        MachineType* A, lapack_int const* lda,
-                                        RealType* S,
-                                        MachineType* U, lapack_int const* ldu,
-                                        MachineType* VT, lapack_int const* ldvt,
-                                        MachineType* work, lapack_int const* lwork,
-                                        RealType* rwork,
-                                        lapack_int* info
-                                        ),
-                                   void(char const* jobu, char const* jobvt,
-                                        lapack_int const* m, lapack_int const* n,
-                                        MachineType* A, lapack_int const* lda,
-                                        RealType* S,
-                                        MachineType* U, lapack_int const* ldu,
-                                        MachineType* VT, lapack_int const* ldvt,
-                                        MachineType* work, lapack_int const* lwork,
-                                        lapack_int* info
-                                        )>;
+  using FnSig = std::conditional_t<
+      ffi::IsComplexType<dtype>(),
+      void(char const* jobu, char const* jobvt, lapack_int const* m, lapack_int const* n,
+           MachineType* A, lapack_int const* lda, RealType* S, MachineType* U,
+           lapack_int const* ldu, MachineType* VT, lapack_int const* ldvt, MachineType* work,
+           lapack_int const* lwork, RealType* rwork, lapack_int* info),
+      void(char const* jobu, char const* jobvt, lapack_int const* m, lapack_int const* n,
+           MachineType* A, lapack_int const* lda, RealType* S, MachineType* U,
+           lapack_int const* ldu, MachineType* VT, lapack_int const* ldvt, MachineType* work,
+           lapack_int const* lwork, lapack_int* info)>;
 
   FnSig* fn = nullptr;
 
   try {
     nb::gil_scoped_acquire gil;
-    
+
     nb::module_ cython_lapack = nb::module_::import_("scipy.linalg.cython_lapack");
 
     nb::dict lapack_capi = cython_lapack.attr("__pyx_capi__");
@@ -244,7 +209,7 @@ static ffi::Error SvdOnlyUVtQRImpl(
     if constexpr (dtype == ffi::DataType::C128) {
       fn = reinterpret_cast<FnSig*>(get_lapack_ptr("zgesvd"));
     }
-  } catch (const nb::python_error &e) {
+  } catch (const nb::python_error& e) {
     std::cerr << e.what() << std::endl;
     throw;
   }
@@ -265,7 +230,8 @@ static ffi::Error SvdOnlyUVtQRImpl(
   }
 
   if (x_rows > lapack_int_max || x_cols > lapack_int_max) [[unlikely]] {
-    return ffi::Error(ffi::ErrorCode::kOutOfRange, "Dimension of input out of range for lapack integer.");
+    return ffi::Error(ffi::ErrorCode::kOutOfRange,
+                      "Dimension of input out of range for lapack integer.");
   }
 
   const lapack_int x_rows_lapack = static_cast<lapack_int>(x_rows);
@@ -323,17 +289,11 @@ static ffi::Error SvdOnlyUVtQRImpl(
   }
 
   if constexpr (ffi::IsComplexType<dtype>()) {
-    fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, nullptr,
-       &x_rows_lapack, nullptr, nullptr,
-       &ldu, nullptr, &ldvt, &work_size,
-       &lwork, nullptr, info_data
-       );
+    fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, nullptr, &x_rows_lapack, nullptr, nullptr,
+       &ldu, nullptr, &ldvt, &work_size, &lwork, nullptr, info_data);
   } else {
-    fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, nullptr,
-       &x_rows_lapack, nullptr, nullptr,
-       &ldu, nullptr, &ldvt,
-       &work_size, &lwork, info_data
-       );
+    fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, nullptr, &x_rows_lapack, nullptr, nullptr,
+       &ldu, nullptr, &ldvt, &work_size, &lwork, info_data);
   }
 
   if (*info_data != 0) {
@@ -342,7 +302,8 @@ static ffi::Error SvdOnlyUVtQRImpl(
   }
 
   if (std::real(work_size) > lapack_int_max) [[unlikely]] {
-    return ffi::Error(ffi::ErrorCode::kOutOfRange, "Workspace size out of range for lapack integer.");
+    return ffi::Error(ffi::ErrorCode::kOutOfRange,
+                      "Workspace size out of range for lapack integer.");
   }
   lwork = static_cast<lapack_int>(std::real(work_size));
 
@@ -354,21 +315,16 @@ static ffi::Error SvdOnlyUVtQRImpl(
   std::unique_ptr<ffi::NativeType<ffi::ToReal(dtype)>[]> rwork;
   if constexpr (ffi::IsComplexType<dtype>()) {
     const auto rwork_size = 5 * min_dim;
-    rwork = std::unique_ptr<ffi::NativeType<ffi::ToReal(dtype)>[]>(new ffi::NativeType<ffi::ToReal(dtype)>[rwork_size]);
+    rwork = std::unique_ptr<ffi::NativeType<ffi::ToReal(dtype)>[]>(
+        new ffi::NativeType<ffi::ToReal(dtype)>[rwork_size]);
   }
 
   if constexpr (ffi::IsComplexType<dtype>()) {
-    fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, x_out_data,
-       &x_rows_lapack, s_data, u_data,
-       &ldu, vt_data, &ldvt, work.get(),
-       &lwork, rwork.get(), info_data
-       );
+    fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, x_out_data, &x_rows_lapack, s_data, u_data,
+       &ldu, vt_data, &ldvt, work.get(), &lwork, rwork.get(), info_data);
   } else {
-    fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, x_out_data,
-       &x_rows_lapack, s_data, u_data,
-       &ldu, vt_data, &ldvt,
-       work.get(), &lwork, info_data
-       );
+    fn(&jobu, &jobvt, &x_rows_lapack, &x_cols_lapack, x_out_data, &x_rows_lapack, s_data, u_data,
+       &ldu, vt_data, &ldvt, work.get(), &lwork, info_data);
   }
 
   // if (*info_data != 0) {
@@ -378,54 +334,50 @@ static ffi::Error SvdOnlyUVtQRImpl(
   return ffi::Error::Success();
 }
 
-#define DEFINE_REAL_SVD_ONLY_VT(fname, dtype)             \
-  XLA_FFI_DEFINE_HANDLER_SYMBOL(                          \
-      fname, SvdOnlyUVtImpl<dtype>,                        \
-      ffi::Ffi::Bind()                                    \
-          .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
-          .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
-          .Ret<ffi::Buffer<dtype>>(/*s*/)                 \
-          .Ret<ffi::Buffer<dtype>>(/*u_or_vt*/)           \
-          .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
-          .Attr<UVtMode>("mode"))
+#define DEFINE_REAL_SVD_ONLY_VT(fname, dtype)                                       \
+  XLA_FFI_DEFINE_HANDLER_SYMBOL(fname, SvdOnlyUVtImpl<dtype>,                       \
+                                ffi::Ffi::Bind()                                    \
+                                    .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
+                                    .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
+                                    .Ret<ffi::Buffer<dtype>>(/*s*/)                 \
+                                    .Ret<ffi::Buffer<dtype>>(/*u_or_vt*/)           \
+                                    .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
+                                    .Attr<UVtMode>("mode"))
 
-#define DEFINE_COMPLEX_SVD_ONLY_VT(fname, dtype)          \
-  XLA_FFI_DEFINE_HANDLER_SYMBOL(                          \
-      fname, SvdOnlyUVtImpl<dtype>,                        \
-      ffi::Ffi::Bind()                                    \
-          .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
-          .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
-          .Ret<ffi::Buffer<ffi::ToReal(dtype)>>(/*s*/)    \
-          .Ret<ffi::Buffer<dtype>>(/*u_or_vt*/)           \
-          .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
-          .Attr<UVtMode>("mode"))
+#define DEFINE_COMPLEX_SVD_ONLY_VT(fname, dtype)                                    \
+  XLA_FFI_DEFINE_HANDLER_SYMBOL(fname, SvdOnlyUVtImpl<dtype>,                       \
+                                ffi::Ffi::Bind()                                    \
+                                    .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
+                                    .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
+                                    .Ret<ffi::Buffer<ffi::ToReal(dtype)>>(/*s*/)    \
+                                    .Ret<ffi::Buffer<dtype>>(/*u_or_vt*/)           \
+                                    .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
+                                    .Attr<UVtMode>("mode"))
 
 DEFINE_REAL_SVD_ONLY_VT(svd_only_u_vt_f32, ffi::DataType::F32);
 DEFINE_REAL_SVD_ONLY_VT(svd_only_u_vt_f64, ffi::DataType::F64);
 DEFINE_COMPLEX_SVD_ONLY_VT(svd_only_u_vt_c64, ffi::DataType::C64);
 DEFINE_COMPLEX_SVD_ONLY_VT(svd_only_u_vt_c128, ffi::DataType::C128);
 
-#define DEFINE_REAL_SVD_ONLY_VT_QR(fname, dtype)          \
-  XLA_FFI_DEFINE_HANDLER_SYMBOL(                          \
-      fname, SvdOnlyUVtQRImpl<dtype>,                      \
-      ffi::Ffi::Bind()                                    \
-          .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
-          .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
-          .Ret<ffi::Buffer<dtype>>(/*s*/)                 \
-          .Ret<ffi::Buffer<dtype>>(/*u_or_vt*/)           \
-          .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
-          .Attr<UVtMode>("mode"))
+#define DEFINE_REAL_SVD_ONLY_VT_QR(fname, dtype)                                    \
+  XLA_FFI_DEFINE_HANDLER_SYMBOL(fname, SvdOnlyUVtQRImpl<dtype>,                     \
+                                ffi::Ffi::Bind()                                    \
+                                    .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
+                                    .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
+                                    .Ret<ffi::Buffer<dtype>>(/*s*/)                 \
+                                    .Ret<ffi::Buffer<dtype>>(/*u_or_vt*/)           \
+                                    .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
+                                    .Attr<UVtMode>("mode"))
 
-#define DEFINE_COMPLEX_SVD_ONLY_VT_QR(fname, dtype)       \
-  XLA_FFI_DEFINE_HANDLER_SYMBOL(                          \
-      fname, SvdOnlyUVtQRImpl<dtype>,                      \
-      ffi::Ffi::Bind()                                    \
-          .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
-          .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
-          .Ret<ffi::Buffer<ffi::ToReal(dtype)>>(/*s*/)    \
-          .Ret<ffi::Buffer<dtype>>(/*u_or_vt*/)           \
-          .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
-          .Attr<UVtMode>("mode"))
+#define DEFINE_COMPLEX_SVD_ONLY_VT_QR(fname, dtype)                                 \
+  XLA_FFI_DEFINE_HANDLER_SYMBOL(fname, SvdOnlyUVtQRImpl<dtype>,                     \
+                                ffi::Ffi::Bind()                                    \
+                                    .Arg<ffi::Buffer<dtype>>(/*x*/)                 \
+                                    .Ret<ffi::Buffer<dtype>>(/*x_out*/)             \
+                                    .Ret<ffi::Buffer<ffi::ToReal(dtype)>>(/*s*/)    \
+                                    .Ret<ffi::Buffer<dtype>>(/*u_or_vt*/)           \
+                                    .Ret<ffi::Buffer<ffi::DataType::S32>>(/*info*/) \
+                                    .Attr<UVtMode>("mode"))
 
 DEFINE_REAL_SVD_ONLY_VT_QR(svd_only_u_vt_qr_f32, ffi::DataType::F32);
 DEFINE_REAL_SVD_ONLY_VT_QR(svd_only_u_vt_qr_f64, ffi::DataType::F64);
@@ -433,10 +385,10 @@ DEFINE_COMPLEX_SVD_ONLY_VT_QR(svd_only_u_vt_qr_c64, ffi::DataType::C64);
 DEFINE_COMPLEX_SVD_ONLY_VT_QR(svd_only_u_vt_qr_c128, ffi::DataType::C128);
 
 template <typename T>
-static nb::capsule EncapsulateFfiCall(T *fn) {
-  static_assert(std::is_invocable_r_v<XLA_FFI_Error *, T, XLA_FFI_CallFrame *>,
+static nb::capsule EncapsulateFfiCall(T* fn) {
+  static_assert(std::is_invocable_r_v<XLA_FFI_Error*, T, XLA_FFI_CallFrame*>,
                 "Encapsulated function must be and XLA FFI handler");
-  return nb::capsule(reinterpret_cast<void *>(fn));
+  return nb::capsule(reinterpret_cast<void*>(fn));
 }
 
 NB_MODULE(_svd_only_u_vt, m) {
