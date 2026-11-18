@@ -18,5 +18,5 @@ pre-commit:
     paths:
       - .cache/pre-commit
   script:
-    - python -m pip install pre-commit==4.7.0
+    - pipx install pre-commit==4.7.0
     - pre-commit run --all-files --show-diff-on-failure
