@@ -40,11 +40,6 @@ nanobind_add_module(
   # Name of the extension
   _svd_only_u_vt
 
-  # Target the stable ABI for Python 3.12+, which reduces
-  # the number of binary wheels that must be built. This
-  # does nothing on older Python versions
-  STABLE_ABI
-
   # Build libnanobind statically and merge it into the
   # extension (which itself remains a shared library)
   #
@@ -241,9 +236,10 @@ set(TAPP_SOURCE_DIR ${SOURCE_DIR})
 
 nanobind_add_module(
   _tblis_contract
-  STABLE_ABI
   NB_STATIC
   FREE_THREADED
+  # -O3 instead of nanobind's -Os
+  NOMINSIZE
   varipeps/utils/extensions/tblis_ffi.cpp
   varipeps/utils/extensions/tapp_tblis.cpp
 )
