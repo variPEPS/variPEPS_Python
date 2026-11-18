@@ -1,0 +1,22 @@
+# Runs the hooks of .pre-commit-config.yaml (clang-format, black) on all files
+
+workflow:
+  rules:  # merge request pipelines, else branch pipelines (no duplicates)
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+pre-commit:
+  image: stable-python
+  variables:
+    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
+  cache:
+    key:
+      files:
+        - .pre-commit-config.yaml
+    paths:
+      - .cache/pre-commit
+  script:
+    - python -m pip install pre-commit==4.7.0
+    - pre-commit run --all-files --show-diff-on-failure
