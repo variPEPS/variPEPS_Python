@@ -242,10 +242,9 @@ class VariPEPS_Config:
         the flops of the unsliced contraction; if no split examined meets it,
         use one with about the smallest peak found, if that is at most 3/4 of
         the unsliced one. ``0`` disables slicing. Negative (default): 256 MiB
-        on CPU (``jax.default_backend() == "cpu"``), 128 MiB on other backends
-        (larger chunks are faster on CPU; not measured elsewhere). On CPU without
-        ``contraction_slicing_checkpoint``, only contractions with an
-        intermediate above ``contraction_slicing_min_bytes`` are sliced. Read
+        on CPU (``jax.default_backend() == "cpu"``), 128 MiB on other backends.
+        On CPU without ``contraction_slicing_checkpoint``, only contractions with
+        an intermediate above ``contraction_slicing_min_bytes`` are sliced. Read
         at trace time.
       contraction_slicing_checkpoint (:obj:`bool`):
         Recompute the intermediates of the chunks of a sliced contraction in

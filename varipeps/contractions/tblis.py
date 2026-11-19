@@ -7,7 +7,7 @@ jax, i.e. without explicit transposes of the operands. Use
 contractions in :func:`~varipeps.contractions.apply_contraction`. tblis
 itself runs single-threaded; large contractions are split into independent
 parts which run on the intra-op thread pool of XLA (no extra threads).
-``TBLIS_NUM_THREADS`` limits the number of parts (default: size of the pool,).
+``TBLIS_NUM_THREADS`` limits the number of parts (default: size of the pool).
 The split uses a cost model which is calibrated on this machine at
 the first contraction, see :func:`cost_model`.
 """
@@ -139,7 +139,8 @@ _contract_p.def_impl(_contract_impl)
 
 @_contract_p.def_abstract_eval
 def _contract_abstract_eval(a, b, *, idx_a, idx_b, idx_out):
-    extents = dict(zip(idx_a, a.shape)) | dict(zip(idx_b, b.shape))
+    extents = dict(zip(idx_a, a.shape, strict=True))
+    extents.update(zip(idx_b, b.shape, strict=True))
     return jax.core.ShapedArray(tuple(extents[i] for i in idx_out), a.dtype)
 
 
@@ -186,6 +187,50 @@ def _contract_batch(args, dims, *, idx_a, idx_b, idx_out):
 batching.primitive_batchers[_contract_p] = _contract_batch
 
 
+def _out_layout_order(idx_a, idx_b, idx_out, shape_a, shape_b, dtype):
+    """
+    Order of the output labels in which :func:`contract` lets tblis compute the
+    result before XLA transposes it, or ``None`` to compute ``idx_out``
+    directly. The order (batch labels, Y, X, X') is used if
+
+    * the free (non-batch) labels of the output form exactly three blocks
+      X, Y, X' (X and X' from one operand, Y from the other),
+    * the labels of Y are in another order in their operand than in the output
+      (in the same order, tblis writes the result about as fast),
+    * the last output label is free and has 2 to 7 values (complex: not 4, the
+      block size of tblis for complex numbers), and
+    * every output entry takes at least ``VARIPEPS_TBLIS_OUT_LAYOUT``
+      multiply-adds (default 1024, so that the transpose is cheap in
+      comparison; 0 disables the rule; read when :func:`contract` is traced).
+    """
+    free = [lab for lab in idx_out if lab not in idx_a or lab not in idx_b]
+    # positions in free where the operand changes (two for X, Y, X')
+    breaks = [
+        k for k in range(1, len(free)) if (free[k] in idx_a) != (free[k - 1] in idx_a)
+    ]
+    if len(breaks) != 2 or free[-1] != idx_out[-1]:
+        return None
+    k1, k2 = breaks  # X = free[:k1], Y = free[k1:k2], X' = free[k2:]
+    y = free[k1:k2]
+    extent = dict(zip(idx_a, shape_a, strict=True))
+    extent.update(zip(idx_b, shape_b, strict=True))
+    last = extent[free[-1]]
+    madds_per_entry = math.prod(extent.values()) / max(
+        1, math.prod(extent[lab] for lab in idx_out)
+    )
+    min_madds = float(os.environ.get("VARIPEPS_TBLIS_OUT_LAYOUT") or 1024)
+    if (
+        [lab for lab in (idx_a if y[0] in idx_a else idx_b) if lab in y] != y
+        and 2 <= last < 8
+        and not (jnp.issubdtype(dtype, jnp.complexfloating) and last % 4 == 0)
+        and 0 < min_madds <= madds_per_entry
+    ):
+        return tuple(
+            [lab for lab in idx_out if lab not in free] + y + free[:k1] + free[k2:]
+        )
+    return None
+
+
 def contract(
     a: jnp.ndarray,
     b: jnp.ndarray,
@@ -222,48 +267,17 @@ def contract(
         raise ValueError(f"Unsupported dtype {dtype} for tblis contraction.")
     cost_model(dtype)  # measure now (trace time), not during an XLA execution
 
-    # Output layout. tblis writes the result slowly if its last (fastest
-    # varying) index is short and separated from the other free indices of the
-    # same operand, e.g. in purity_ctrmg_proj_phys_1x1_top
+    # Output layout. tblis writes the result slowly in some layouts, e.g. in
+    # purity_ctrmg_proj_phys_1x1_top
     #   a[c,r,s,h,l,q] b[m,c,h,n,t,l,o,p] -> out[m,n,o,p, q,r,s, t]  (t: 2 values)
     # with m,n,o,p,t from b and q,r,s from a. Then the result is computed as
-    # out[q,r,s, m,n,o,p,t] and XLA transposes it. In general, if
-    #   - the free (non-batch) indices of the output form exactly three blocks
-    #     X, Y, X' (X and X' from one operand, Y from the other),
-    #   - the last output index is free and has 2 to 7 values, and
-    #   - every output entry takes at least VARIPEPS_TBLIS_OUT_LAYOUT
-    #     multiply-adds (default 256, so that the transpose is cheap in
-    #     comparison; 0 disables the rule; read when the function is traced),
-    # the order (batch indices, Y, X, X') is computed instead. The gradient
-    # contractions (transpose rules above) use this function too; the
-    # forward-mode and vmap rules do not.
-    free = [lab for lab in idx_out if lab not in idx_a or lab not in idx_b]
-    # positions in free where the operand changes (two for X, Y, X')
-    breaks = [
-        k for k in range(1, len(free)) if (free[k] in idx_a) != (free[k - 1] in idx_a)
-    ]
-    extent = dict(zip(idx_a, jnp.shape(a))) | dict(zip(idx_b, jnp.shape(b)))
-    madds_per_entry = math.prod(extent.values()) / max(
-        1, math.prod(extent[lab] for lab in idx_out)
-    )
-    if (
-        len(breaks) == 2
-        and free[-1] == idx_out[-1]
-        and 2 <= extent[free[-1]] < 8
-        and 0
-        < float(os.environ.get("VARIPEPS_TBLIS_OUT_LAYOUT") or 256)
-        <= madds_per_entry
-    ):
-        k1, k2 = breaks  # X = free[:k1], Y = free[k1:k2], X' = free[k2:]
-        order = (
-            [lab for lab in idx_out if lab not in free]
-            + free[k1:k2]
-            + free[:k1]
-            + free[k2:]
-        )
-        out = contract(a, b, idx_a, idx_b, tuple(order))
+    # out[q,r,s, m,n,o,p,t] and XLA transposes it, see _out_layout_order for
+    # when. The gradient contractions (transpose rules above) use this function
+    # too; the forward-mode and vmap rules do not.
+    order = _out_layout_order(idx_a, idx_b, idx_out, jnp.shape(a), jnp.shape(b), dtype)
+    if order is not None:
+        out = contract(a, b, idx_a, idx_b, order)
         return jnp.transpose(out, [order.index(lab) for lab in idx_out])
-
     return _contract_p.bind(
         jnp.asarray(a, dtype),
         jnp.asarray(b, dtype),
