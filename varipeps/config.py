@@ -261,9 +261,9 @@ class VariPEPS_Config:
         trace time.
       contraction_slicing_plan_dir (:obj:`str`):
         Directory of saved slicing plans. If set, a plan is looked up there
-        before it is searched, and a searched plan is saved there, one JSON
-        file per contraction and threshold, in subdirectories by hash prefix.
-        ``""`` keeps plans in memory only. Read at trace time.
+        before it is searched, and a searched plan is saved there, all in one
+        HDF5 file ``slicing_plans.hdf5`` that concurrent jobs may share. ``""``
+        keeps plans in memory only. Read at trace time.
       contraction_backend (:obj:`Contraction_Backend`):
         Library used for the contractions in
         :func:`~varipeps.contractions.apply_contraction`. Read at trace time.

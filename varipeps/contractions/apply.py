@@ -2,15 +2,19 @@
 Helpers to apply contractions.
 """
 
+import contextlib
 from functools import lru_cache, partial
 import hashlib
-import json
 import math
 from pathlib import Path
-import tempfile
+import random
+import time
+import uuid
 
+import h5py
 import jax
 import jax.numpy as jnp
+import numpy as np
 import opt_einsum
 
 from varipeps import varipeps_config
@@ -102,7 +106,11 @@ def _largest(network, shapes):
     """Entries of the largest intermediate of the unsliced contraction."""
     lhs, output = network.split("->")
     inputs = lhs.split(",")
-    extents = {c: d for idx, s in zip(inputs, shapes) for c, d in zip(idx, s)}
+    extents = {
+        c: d
+        for idx, s in zip(inputs, shapes, strict=True)
+        for c, d in zip(idx, s, strict=True)
+    }
     return _cost(*_steps(inputs, output, _path(network, shapes)), extents, 1)[1]
 
 
@@ -287,13 +295,24 @@ def _slicing_plan(network, shapes, itemsize, max_bytes, live=False, plan_dir="")
     """
     :func:`_search_slicing_plan`, read from and saved to ``plan_dir`` if set.
 
-    Each plan is one JSON file ``<hash[:2]>/<hash[2:4]>/<hash>.json``, named by the SHA-256
-    of its inputs, which the file also stores and which are compared on
-    reading, so a stale or foreign file is never used. A plan of ``None`` (do
-    not slice) is saved too. A missing or unreadable file means the plan is
-    searched, a file that cannot be written is skipped. Files are written to a
-    temporary name and renamed (removed on failure), so concurrent jobs never
-    read a partial file.
+    All plans of a directory are kept in the HDF5 file ``slicing_plans.hdf5``,
+    one group per plan, named by the SHA-256 of its inputs. The attributes of
+    a group are the inputs (``format``, ``network``, ``shapes`` as one list,
+    ``itemsize``, ``max_bytes``, ``live``) and the plan: the sliced ``bonds``
+    (one character each), their chunk ``widths`` and the ``path`` of a chunk
+    (pairs of operands); a plan of ``None`` (do not slice) has none of these
+    three. The inputs are compared on reading, so a stale or foreign record
+    is never used. A missing or unreadable record means the plan is searched.
+
+    Concurrent jobs may share the file. To save a plan, the new record and
+    those of the file (copied as they are) are written to a temporary file in
+    the same directory, which then replaces the plan file (an atomic rename).
+    Readers thus see the old or the new file, never a partial one, and no
+    locks are needed. A concurrent job may replace the file between the copy
+    and the rename, so the record is checked afterwards and the merge
+    repeated, after a random wait, up to 8 times; a record lost after that is
+    searched again next time. A plan file that stays unreadable is replaced,
+    other errors skip the saving.
 
     Args:
       network (:obj:`str`):
@@ -320,48 +339,67 @@ def _slicing_plan(network, shapes, itemsize, max_bytes, live=False, plan_dir="")
     key = {
         "format": 2,
         "network": network,
-        "shapes": [list(s) for s in shapes],
+        "shapes": [d for s in shapes for d in s],
         "itemsize": itemsize,
         "max_bytes": max_bytes,
         "live": live,
     }
-    digest = hashlib.sha256(json.dumps(key).encode()).hexdigest()
-    path = Path(plan_dir) / digest[:2] / digest[2:4] / f"{digest}.json"
+    name = hashlib.sha256(repr(key).encode()).hexdigest()
+    path = Path(plan_dir) / "slicing_plans.hdf5"
+    # Without HDF5's file locks, which fail on some cluster file systems and
+    # are not needed: the plan file is never changed, only replaced.
+    open_plans = partial(h5py.File, locking=False)
 
     try:
-        stored = json.loads(path.read_text(encoding="utf-8"))
-        if stored["key"] == key:
-            plan = stored["plan"]
-            if plan is None:
+        with open_plans(path, "r") as f:
+            attrs = dict(f[name].attrs)
+        if all(np.array_equal(attrs[k], v) for k, v in key.items()):
+            if "bonds" not in attrs:
                 return None
-            return tuple(map(tuple, plan["bonds"])), tuple(map(tuple, plan["path"]))
-    except (OSError, ValueError, KeyError, TypeError):
+            return (
+                tuple(zip(attrs["bonds"], attrs["widths"].tolist(), strict=True)),
+                tuple(map(tuple, attrs["path"].tolist())),
+            )
+    except (OSError, KeyError, ValueError):
         pass
 
     plan = _search_slicing_plan(network, shapes, itemsize, max_bytes, live)
-    record = {
-        "key": key,
-        "plan": (
-            None
-            if plan is None
-            else {
-                "bonds": [list(b) for b in plan[0]],
-                "path": [list(c) for c in plan[1]],
-            }
-        ),
-    }
-    tmp = None
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=path.parent, suffix=".tmp", delete=False
-        ) as f:
-            tmp = Path(f.name)
-            json.dump(record, f, ensure_ascii=False, indent=1)
-        tmp.replace(path)
-    except OSError:
-        if tmp is not None:
-            tmp.unlink(missing_ok=True)
+    record = dict(key)
+    if plan is not None:
+        record |= {
+            "bonds": "".join(b for b, _ in plan[0]),
+            "widths": [w for _, w in plan[0]],
+            "path": plan[1],
+        }
+    for attempt in range(8):
+        if attempt > 1:
+            time.sleep(random.uniform(0, 0.05 * attempt))
+        # unique name in the same directory (the rename stays atomic); new
+        # file, so its permissions follow the umask as for the plan file
+        tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open_plans(tmp, "w-") as f:
+                f.create_group(name).attrs.update(record)
+                try:
+                    with open_plans(path, "r") as old:
+                        if name in old:
+                            break  # saved, by this or a concurrent job
+                        for n in old:
+                            old.copy(old[n], f)
+                except FileNotFoundError:
+                    pass
+                except (OSError, KeyError, ValueError):
+                    # being replaced: try again; still unreadable at the end:
+                    # damaged, replace it
+                    if attempt < 7:
+                        continue
+            tmp.replace(path)
+        except (OSError, ValueError):
+            break
+        finally:
+            with contextlib.suppress(OSError):
+                tmp.unlink()
     return plan
 
 
