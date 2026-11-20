@@ -24,8 +24,8 @@ import numpy as np
 import opt_einsum
 
 try:
-    from varipeps.utils.extensions import _tblis_contract as _tblis_contract_lib
-except ImportError:  # built without tblis (Windows): JAX contractions only
+    import varipeps.utils.extensions._tblis_contract as _tblis_contract_lib
+except ModuleNotFoundError:  # built without tblis (Windows): JAX contractions only
     _tblis_contract_lib = None
 
 from typing import Sequence, Tuple, Union

@@ -5,7 +5,6 @@ include(ExternalProject)
 # Variables
 set_directory_properties(PROPERTIES EP_BASE ${CMAKE_BINARY_DIR}/third_party)
 get_directory_property(THIRDPARTY_BASE_PATH EP_BASE)
-set(THIRDPARTY_INSTALL_PATH ${THIRDPARTY_BASE_PATH}/install)
 
 set(TBLIS_COMMIT eb719e718976572e0ab53975f4e0c799faeb35f2)
 set(BLIS_GIT_TAG a8037cfc4330030c726efaec1ffeb1f93d468aa3)
@@ -77,8 +76,6 @@ message(STATUS "tblis backend: ${VARIPEPS_WITH_TBLIS}")
 if(VARIPEPS_WITH_TBLIS)
 
 # Download and build the tblis lib.
-set(TBLIS_ROOT ${THIRDPARTY_INSTALL_PATH}/tblis CACHE INTERNAL "")
-
 file(WRITE
   "${CMAKE_BINARY_DIR}/blis-git-tag"
   "${BLIS_GIT_TAG}\n"
@@ -174,8 +171,33 @@ if(APPLE)
   endif()
 endif()
 message(STATUS "tblis: OpenMP ${VARIPEPS_TBLIS_OPENMP}, hwloc ${VARIPEPS_TBLIS_HWLOC}, env ${VARIPEPS_TBLIS_ENV}")
+list(APPEND VARIPEPS_TBLIS_ARGS
+  -DBLIS_CONFIG_FAMILY=${VARIPEPS_BLIS_CONFIG_FAMILY}
+  -DENABLE_HWLOC=${VARIPEPS_TBLIS_HWLOC}
+  -DCMAKE_BUILD_TYPE=Release
+  -DCMAKE_VERBOSE_MAKEFILE=ON
+  -DCMAKE_CXX_STANDARD=20)
+
+# tblis configures BLIS and its BLIS plugin only once per build directory and
+# caches its checks (e.g. for hwloc), so a changed setting would be ignored in
+# an existing build directory. Hence one directory per configuration, named
+# after a hash of everything that goes into the build; the others are removed.
+file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tblis-plugin-flags.patch" VARIPEPS_TBLIS_PATCH_HASH)
+set(VARIPEPS_TBLIS_KEY ${TBLIS_COMMIT} ${BLIS_GIT_TAG} ${VARIPEPS_TBLIS_PATCH_HASH} ${VARIPEPS_TBLIS_ENV}
+  ${VARIPEPS_TBLIS_ARGS} ${CMAKE_C_COMPILER_VERSION} ${CMAKE_CXX_COMPILER_VERSION})
+string(SHA256 VARIPEPS_TBLIS_KEY "${VARIPEPS_TBLIS_KEY}")
+string(SUBSTRING "${VARIPEPS_TBLIS_KEY}" 0 12 VARIPEPS_TBLIS_KEY)
+set(VARIPEPS_TBLIS_PREFIX ${THIRDPARTY_BASE_PATH}/tblis-${VARIPEPS_TBLIS_KEY})
+file(GLOB VARIPEPS_TBLIS_OLD LIST_DIRECTORIES true ${THIRDPARTY_BASE_PATH}/tblis-*)
+list(REMOVE_ITEM VARIPEPS_TBLIS_OLD ${VARIPEPS_TBLIS_PREFIX})
+if(VARIPEPS_TBLIS_OLD)
+  file(REMOVE_RECURSE ${VARIPEPS_TBLIS_OLD})
+endif()
+set(TBLIS_ROOT ${VARIPEPS_TBLIS_PREFIX}/install CACHE INTERNAL "")
+message(STATUS "tblis build directory: ${VARIPEPS_TBLIS_PREFIX}")
 
 ExternalProject_Add(tblis
+    PREFIX ${VARIPEPS_TBLIS_PREFIX}
     GIT_REPOSITORY https://github.com/MatthewsResearchGroup/tblis.git
     GIT_TAG ${TBLIS_COMMIT}
     GIT_SHALLOW FALSE
@@ -194,13 +216,8 @@ ExternalProject_Add(tblis
         ${CMAKE_COMMAND} -E env ${VARIPEPS_TBLIS_ENV}
         ${CMAKE_COMMAND}
         <SOURCE_DIR>
-        -DBLIS_CONFIG_FAMILY=${VARIPEPS_BLIS_CONFIG_FAMILY}
         ${VARIPEPS_TBLIS_ARGS}
-        -DENABLE_HWLOC=${VARIPEPS_TBLIS_HWLOC}
-        -DCMAKE_BUILD_TYPE=Release
         -DCMAKE_INSTALL_PREFIX=${TBLIS_ROOT}
-        -DCMAKE_VERBOSE_MAKEFILE=ON
-        -DCMAKE_CXX_STANDARD=20
 
     BUILD_COMMAND
         ${CMAKE_COMMAND} -E env ${VARIPEPS_TBLIS_ENV}
