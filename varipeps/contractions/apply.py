@@ -487,7 +487,7 @@ def _einsum(network, tensors, max_bytes, checkpoint, plan_dir=""):
             current = [c for c in current if c not in ops] + [n]
         return einsum(
             ",".join(idx[o] for o in leaves) + "->" + out,
-            *(values[o] for o in leaves),
+            *(jnp.asarray(values[o], result.dtype) for o in leaves),
             optimize=sub,
         )
 

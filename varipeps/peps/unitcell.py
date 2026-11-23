@@ -1325,6 +1325,12 @@ class PEPS_Unit_Cell:
                         config_dict["ad_custom_fixed_point_method"]
                     )
                 )
+            if "contraction_backend" in config_dict:
+                config_dict["contraction_backend"] = (
+                    varipeps.config.Contraction_Backend(
+                        config_dict["contraction_backend"]
+                    )
+                )
             if config_dict.get("svd_algorithm"):
                 config_dict["svd_algorithm"] = varipeps.config.SVD_Algorithm(
                     config_dict["svd_algorithm"]

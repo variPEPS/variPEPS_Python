@@ -327,7 +327,10 @@ def einsum(
       :obj:`jax.numpy.ndarray`:
         The contracted tensor.
     """
-    operands = list(operands)
+    dtype = jnp.result_type(*operands)
+    operands = [
+        x if jnp.result_type(x) == dtype else jnp.asarray(x, dtype) for x in operands
+    ]
     _, contractions = opt_einsum.contract_path(
         subscripts, *operands, einsum_call=True, optimize=optimize
     )
