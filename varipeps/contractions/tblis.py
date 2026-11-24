@@ -9,7 +9,9 @@ itself runs single-threaded; large contractions are split into independent
 parts which run on the intra-op thread pool of XLA (no extra threads).
 ``TBLIS_NUM_THREADS`` limits the number of parts (default: size of the pool).
 The split uses a cost model which is calibrated on this machine at
-the first contraction, see :func:`cost_model`.
+the first contraction, see :func:`cost_model`. The contractions have no
+sharding rule: XLA gathers sharded operands onto every device, so use the JAX
+backend for sharded arrays.
 """
 
 from functools import partial
@@ -21,6 +23,7 @@ import jax.numpy as jnp
 from jax.extend.core import Primitive
 from jax.interpreters import ad, batching, mlir
 import numpy as np
+from numpy.lib.array_utils import normalize_axis_index
 import opt_einsum
 
 try:
@@ -31,17 +34,18 @@ except ModuleNotFoundError:  # built without tblis (Windows): JAX contractions o
 from typing import Sequence, Tuple, Union
 
 
-def _set_blis_arch():
+def _blis_arch():
     """
-    Choose the BLIS kernels on AMD CPUs which the bundled BLIS does not detect
-    well: it takes the AVX2 kernels (``zen3``) on Zen 4 and the slow reference
-    kernels (``generic``) on Zen 5 and later (CPU family 0x1A and above). With
-    AVX-512 this sets ``BLIS_ARCH_TYPE=skx`` (AVX-512 kernels), otherwise
-    ``zen3`` from family 0x1A on. A value set by the user is kept. BLIS reads
-    the variable at the first contraction.
+    BLIS kernels for AMD CPUs which the bundled BLIS does not detect well: it
+    takes the AVX2 kernels (``zen3``) on Zen 4 and the slow reference kernels
+    (``generic``) on Zen 5 and later (CPU family 0x1A and above). With AVX-512
+    ``"skx"`` (AVX-512 kernels), otherwise ``"zen3"`` from family 0x1A on.
+    ``""`` (the choice of BLIS) on other CPUs, if ``BLIS_ARCH_TYPE`` is set
+    (BLIS uses it) or if the bundled BLIS was built without these kernels (see
+    ``VARIPEPS_BLIS_CONFIG_FAMILY`` in CMakeLists.txt).
     """
     if "BLIS_ARCH_TYPE" in os.environ:
-        return
+        return ""
     cpu = {}
     try:
         with open("/proc/cpuinfo") as f:
@@ -52,18 +56,28 @@ def _set_blis_arch():
                 cpu[key.strip()] = value.strip()
         family = int(cpu.get("cpu family", 0))
     except (OSError, ValueError):
-        return
+        return ""
     if cpu.get("vendor_id") != "AuthenticAMD" or family < 0x19:
-        return
+        return ""
     if {"avx512f", "avx512dq", "avx512bw", "avx512vl"} <= set(
         cpu.get("flags", "").split()
     ):
-        os.environ["BLIS_ARCH_TYPE"] = "skx"
+        arch = "skx"
     elif family > 0x19:
-        os.environ["BLIS_ARCH_TYPE"] = "zen3"
+        arch = "zen3"
+    else:
+        return ""
+    # BLIS config families with these kernels, else a single one
+    configs = {"x86_64": ("skx", "zen3"), "intel64": ("skx",), "amd64": ("zen3",)}
+    built = _tblis_contract_lib.blis_config_family
+    return arch if arch in configs.get(built, (built,)) else ""
 
 
-_set_blis_arch()
+# Only for the bundled BLIS: the extension sets BLIS_ARCH_TYPE while BLIS is
+# initialized (BLIS reads it once) and then removes it, so that other BLIS
+# libraries of the process do not see it (one without these kernels aborts).
+if _tblis_contract_lib is not None and (_arch := _blis_arch()):
+    _tblis_contract_lib.init_blis(_arch)
 
 _DTYPE_SUFFIX = {
     jnp.dtype(jnp.float32): "f32",
@@ -130,8 +144,15 @@ _contract_p = Primitive("tblis_contract")
 
 
 @partial(jax.jit, static_argnames=("idx_a", "idx_b", "idx_out"))
-def _contract_impl(a, b, *, idx_a, idx_b, idx_out):
+def _contract_jit(a, b, *, idx_a, idx_b, idx_out):
     return _contract_p.bind(a, b, idx_a=idx_a, idx_b=idx_b, idx_out=idx_out)
+
+
+def _contract_impl(a, b, **params):
+    # Eager evaluation compiles the primitive. Under jax.disable_jit(), the jit
+    # would run its body eagerly instead and bind the primitive again, forever.
+    with jax.disable_jit(False):
+        return _contract_jit(a, b, **params)
 
 
 _contract_p.def_impl(_contract_impl)
@@ -140,7 +161,12 @@ _contract_p.def_impl(_contract_impl)
 @_contract_p.def_abstract_eval
 def _contract_abstract_eval(a, b, *, idx_a, idx_b, idx_out):
     extents = dict(zip(idx_a, a.shape, strict=True))
-    extents.update(zip(idx_b, b.shape, strict=True))
+    for label, n in zip(idx_b, b.shape, strict=True):
+        if extents.setdefault(label, n) != n:
+            raise ValueError(
+                f"Label {label} has {extents[label]} values in the first operand "
+                f"and {n} in the second."
+            )
     return jax.core.ShapedArray(tuple(extents[i] for i in idx_out), a.dtype)
 
 
@@ -290,9 +316,14 @@ def contract(
 def _pairwise(einsum_str, x, y):
     inputs, output = einsum_str.split("->")
     ix, iy = inputs.split(",")
-    # Sum out labels tblis cannot handle (only in one operand or repeated).
-    kept_x = "".join(dict.fromkeys(c for c in ix if c in iy or c in output))
-    kept_y = "".join(dict.fromkeys(c for c in iy if c in ix or c in output))
+    # Drop axes of one value that are broadcast against the other operand (as
+    # jnp.einsum does), then sum out labels tblis cannot handle (only in one
+    # operand or repeated).
+    ex, ey = dict(zip(ix, jnp.shape(x))), dict(zip(iy, jnp.shape(y)))
+    ix_b = "".join(c for c in ix if not (ex[c] == 1 < ey.get(c, 1)))
+    iy_b = "".join(c for c in iy if not (ey[c] == 1 < ex.get(c, 1)))
+    kept_x = "".join(dict.fromkeys(c for c in ix_b if c in iy_b or c in output))
+    kept_y = "".join(dict.fromkeys(c for c in iy_b if c in ix_b or c in output))
     if kept_x != ix:
         x = jnp.einsum(f"{ix}->{kept_x}", x)
     if kept_y != iy:
@@ -366,9 +397,13 @@ def tensordot(
         axes of ``b``.
     """
     if isinstance(axes, int):
+        if not 0 <= axes <= min(a.ndim, b.ndim):
+            raise ValueError(f"Number of axes {axes} exceeds the ranks of a and b.")
         axes = (range(a.ndim - axes, a.ndim), range(axes))
-    axes_a = [i % a.ndim for i in np.atleast_1d(axes[0])]
-    axes_b = [i % b.ndim for i in np.atleast_1d(axes[1])]
+    axes_a = [normalize_axis_index(int(i), a.ndim) for i in np.atleast_1d(axes[0])]
+    axes_b = [normalize_axis_index(int(i), b.ndim) for i in np.atleast_1d(axes[1])]
+    if len(set(axes_a)) < len(axes_a) or len(set(axes_b)) < len(axes_b):
+        raise ValueError("Repeated axis in tensordot.")
 
     idx_a = tuple(range(a.ndim))
     idx_b = list(range(a.ndim, a.ndim + b.ndim))

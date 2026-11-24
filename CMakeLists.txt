@@ -277,6 +277,8 @@ elseif(APPLE)
 endif()
 target_include_directories(_tblis_contract PRIVATE
   "${jaxlib_INCLUDE_DIR}" "${TAPP_SOURCE_DIR}/api/include" "${TBLIS_ROOT}/include")
+target_compile_definitions(_tblis_contract PRIVATE
+  VARIPEPS_BLIS_CONFIG_FAMILY="${VARIPEPS_BLIS_CONFIG_FAMILY}")
 set(TBLIS_LIBS
   ${TBLIS_ROOT}/lib/libtblis.a
   ${TBLIS_ROOT}/lib/tblis/libblis_tblis.a

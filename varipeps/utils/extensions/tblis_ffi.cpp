@@ -57,6 +57,8 @@
 namespace nb = nanobind;
 namespace ffi = xla::ffi;
 
+extern "C" void bli_init(void);  // of the bundled BLIS, linked into this module
+
 namespace {
 
 // Shortest runtime of a part: a few times the wake-up latency of a pool thread
@@ -762,6 +764,21 @@ std::tuple<std::string, int64_t, int64_t, int64_t> SplitPlan(const std::vector<i
                                                              const std::vector<int64_t>& dims_d,
                                                              int64_t threads,
                                                              const std::vector<double>& overrides) {
+  std::map<int64_t, int64_t> extents;
+  for (const auto& [idx, dims] :
+       {std::pair{&idx_a, &dims_a}, std::pair{&idx_b, &dims_b}, std::pair{&idx_d, &dims_d}}) {
+    if (idx->size() != dims->size()) {
+      throw std::invalid_argument("split_plan: one extent per label needed");
+    }
+    for (size_t i = 0; i < idx->size(); ++i) {
+      if ((*dims)[i] < 0 || extents.emplace((*idx)[i], (*dims)[i]).first->second != (*dims)[i]) {
+        throw std::invalid_argument("split_plan: extents must be >= 0 and equal for a label");
+      }
+    }
+  }
+  if (threads < 1) {
+    throw std::invalid_argument("split_plan: threads must be >= 1");
+  }
   const Problem p{{dims_a, idx_a}, {dims_b, idx_b}, {dims_d, idx_d}};
   CostModel model = GetCostModel<dtype>();
   double* fields[] = {&model.min_part_work,     &model.move_cost,  &model.reduce_cost,
@@ -829,6 +846,20 @@ NB_MODULE(_tblis_contract, m) {
       nb::call_guard<nb::gil_scoped_release>(),
       "Whether new outputs of output splits are mapped first: (on, seconds without, seconds "
       "with, threads) of the test of this machine (0 if not tested).");
+  m.def(
+      "init_blis",
+      [](const std::string& arch) {
+        // BLIS reads BLIS_ARCH_TYPE once, when it is initialized (an unknown or missing
+        // configuration aborts): set only for that, so that other BLIS libraries of the process
+        // do not see it.
+        setenv("BLIS_ARCH_TYPE", arch.c_str(), 1);
+        bli_init();
+        unsetenv("BLIS_ARCH_TYPE");
+      },
+      nb::arg("arch"),
+      "Initialize the bundled BLIS with the kernels `arch` (a configuration of "
+      "blis_config_family; BLIS_ARCH_TYPE must not be set). Before the first contraction.");
+  m.attr("blis_config_family") = VARIPEPS_BLIS_CONFIG_FAMILY;
   m.def("tblis_contract_f32", []() { return EncapsulateFfiCall(tblis_contract_f32); });
   m.def("tblis_contract_f64", []() { return EncapsulateFfiCall(tblis_contract_f64); });
   m.def("tblis_contract_c64", []() { return EncapsulateFfiCall(tblis_contract_c64); });

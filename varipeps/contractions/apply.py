@@ -296,13 +296,15 @@ def _slicing_plan(network, shapes, itemsize, max_bytes, live=False, plan_dir="")
     :func:`_search_slicing_plan`, read from and saved to ``plan_dir`` if set.
 
     All plans of a directory are kept in the HDF5 file ``slicing_plans.hdf5``,
-    one group per plan, named by the SHA-256 of its inputs. The attributes of
-    a group are the inputs (``format``, ``network``, ``shapes`` as one list,
+    one group per plan, named by the SHA-256 of its inputs. The attributes of a
+    group are the inputs (``format``, ``network``, ``shapes`` as one list,
     ``itemsize``, ``max_bytes``, ``live``) and the plan: the sliced ``bonds``
     (one character each), their chunk ``widths`` and the ``path`` of a chunk
-    (pairs of operands); a plan of ``None`` (do not slice) has none of these
-    three. The inputs are compared on reading, so a stale or foreign record
-    is never used. A missing or unreadable record means the plan is searched.
+    (pairs of operands; a path with other steps, e.g. of one operand for a
+    trace, as ``steps``, padded with -1, which older versions do not read); a
+    plan of ``None`` (do not slice) has none of these. The inputs are compared
+    on reading, so a stale or foreign record is never used. A missing or
+    unreadable record means the plan is searched.
 
     Concurrent jobs may share the file. To save a plan, the new record and
     those of the file (copied as they are) are written to a temporary file in
@@ -356,9 +358,10 @@ def _slicing_plan(network, shapes, itemsize, max_bytes, live=False, plan_dir="")
         if all(np.array_equal(attrs[k], v) for k, v in key.items()):
             if "bonds" not in attrs:
                 return None
+            steps = attrs["path"] if "path" in attrs else attrs["steps"]
             return (
                 tuple(zip(attrs["bonds"], attrs["widths"].tolist(), strict=True)),
-                tuple(map(tuple, attrs["path"].tolist())),
+                tuple(tuple(i for i in step if i >= 0) for step in steps.tolist()),
             )
     except (OSError, KeyError, ValueError):
         pass
@@ -366,10 +369,14 @@ def _slicing_plan(network, shapes, itemsize, max_bytes, live=False, plan_dir="")
     plan = _search_slicing_plan(network, shapes, itemsize, max_bytes, live)
     record = dict(key)
     if plan is not None:
+        pairs = all(len(step) == 2 for step in plan[1])
+        width = max(map(len, plan[1]), default=2)
         record |= {
             "bonds": "".join(b for b, _ in plan[0]),
             "widths": [w for _, w in plan[0]],
-            "path": plan[1],
+            "path" if pairs else "steps": [
+                [*step] + [-1] * (width - len(step)) for step in plan[1]
+            ],
         }
     for attempt in range(8):
         if attempt > 1:
