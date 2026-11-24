@@ -22,7 +22,7 @@ from .projectors import (
     calc_bottom_projectors_split_transfer,
 )
 from varipeps.expectation.one_site import calc_one_site_single_gate_obj
-from varipeps.config import VariPEPS_Config, Projector_Method
+from varipeps.config import VariPEPS_Config
 from varipeps.global_state import VariPEPS_Global_State
 
 from typing import Sequence, Tuple, List, Dict, Literal
@@ -153,7 +153,7 @@ def do_left_absorption(
         column_views = [view for view in iter_columns]
 
         for x, view in column_views:
-            if projector_method is Projector_Method.FULL_QR:
+            if projector_method.uses_qr_isometries:
                 left_proj, smallest_S, (new_qr_left, new_qr_right) = (
                     calc_left_projectors(
                         *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"),
@@ -286,7 +286,7 @@ def do_right_absorption(
         column_views = [view for view in iter_columns]
 
         for x, view in column_views:
-            if projector_method is Projector_Method.FULL_QR:
+            if projector_method.uses_qr_isometries:
                 right_proj, smallest_S, (new_qr_left, new_qr_right) = (
                     calc_right_projectors(
                         *_get_ctmrg_2x2_structure(peps_tensors, view, "top-right"),
@@ -416,7 +416,7 @@ def do_top_absorption(
         row_views = [view for view in iter_rows]
 
         for y, view in row_views:
-            if projector_method is Projector_Method.FULL_QR:
+            if projector_method.uses_qr_isometries:
                 top_proj, smallest_S, (new_qr_left, new_qr_right) = calc_top_projectors(
                     *_get_ctmrg_2x2_structure(peps_tensors, view, "top-left"),
                     config,
@@ -544,7 +544,7 @@ def do_bottom_absorption(
         row_views = [view for view in iter_rows]
 
         for y, view in row_views:
-            if projector_method is Projector_Method.FULL_QR:
+            if projector_method.uses_qr_isometries:
                 bottom_proj, smallest_S, (new_qr_left, new_qr_right) = (
                     calc_bottom_projectors(
                         *_get_ctmrg_2x2_structure(peps_tensors, view, "bottom-left"),

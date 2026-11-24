@@ -15,7 +15,7 @@ import jax.debug as jdebug
 from jax.flatten_util import ravel_pytree
 
 from varipeps import varipeps_config, varipeps_global_state
-from varipeps.config import Grad_Fixed_Point_Method, Projector_Method, VariPEPS_Config
+from varipeps.config import Grad_Fixed_Point_Method, VariPEPS_Config
 from varipeps.peps import PEPS_Tensor, PEPS_Tensor_Split_Transfer, PEPS_Unit_Cell
 from varipeps.utils.debug_print import debug_print
 from .absorption import do_absorption_step, do_absorption_step_split_transfer
@@ -921,10 +921,11 @@ def calc_ctmrg_env(
         ):
             if (
                 varipeps_global_state.ctmrg_projector_method is None
-                and varipeps_config.ctmrg_full_projector_method
-                is Projector_Method.FULL_QR
+                and varipeps_config.ctmrg_full_projector_method.uses_qr_isometries
             ):
-                varipeps_global_state.ctmrg_projector_method = Projector_Method.FULL
+                varipeps_global_state.ctmrg_projector_method = (
+                    varipeps_config.ctmrg_full_projector_method.full_svd_method
+                )
                 reset_qr = True
 
             step_result = _ctmrg_body_func(

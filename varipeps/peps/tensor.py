@@ -15,7 +15,6 @@ from jax.tree_util import register_pytree_node_class
 import h5py
 
 from varipeps import varipeps_config
-from varipeps.config import Projector_Method
 from varipeps.utils.random import PEPS_Random_Number_Generator
 from varipeps.utils.svd import gauge_fixed_svd
 from varipeps.utils.qr import qr_oversampled_dim
@@ -322,7 +321,7 @@ class PEPS_Tensor:
             max_chi=max_chi,
         )
 
-        if varipeps_config.ctmrg_full_projector_method is Projector_Method.FULL_QR:
+        if varipeps_config.ctmrg_full_projector_method.uses_qr_isometries:
             result._random_initialize_qr()
 
         return result
@@ -422,7 +421,7 @@ class PEPS_Tensor:
             max_chi=max_chi,
         )
 
-        if varipeps_config.ctmrg_full_projector_method is Projector_Method.FULL_QR:
+        if varipeps_config.ctmrg_full_projector_method.uses_qr_isometries:
             result._random_initialize_qr()
 
         return result

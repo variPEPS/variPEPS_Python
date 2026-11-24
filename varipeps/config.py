@@ -37,6 +37,22 @@ class Projector_Method(IntEnum):
     FULL_QR = (
         auto()
     )  #: Use full network for projector calculation applying the QR subspace projection
+    FISHMAN_QR = (
+        auto()
+    )  #: Use the Fishman method applying the QR subspace projection to the two halves
+
+    @property
+    def uses_qr_isometries(self) -> bool:
+        """Whether the method keeps QR subspace isometries in the tensors."""
+        return self in (Projector_Method.FULL_QR, Projector_Method.FISHMAN_QR)
+
+    @property
+    def full_svd_method(self) -> "Projector_Method":
+        """The method with full SVDs that a QR subspace method approximates."""
+        return {
+            Projector_Method.FULL_QR: Projector_Method.FULL,
+            Projector_Method.FISHMAN_QR: Projector_Method.FISHMAN,
+        }.get(self, self)
 
 
 @unique
@@ -330,9 +346,12 @@ class VariPEPS_Config:
         If disabled, the result converged so far is returned.
       ctmrg_full_projector_method (:obj:`~varipeps.config.Projector_Method`):
         Set which projector method should be used as default (full) projector
-        method during the CTMRG routine. Sensible values are
-        :obj:`~varipeps.config.Projector_Method.FULL` or
-        :obj:`~varipeps.config.Projector_Method.FISHMAN`.
+        method during the CTMRG routine. The square-lattice two-layer CTMRG
+        supports :obj:`~varipeps.config.Projector_Method.FULL` and
+        :obj:`~varipeps.config.Projector_Method.FISHMAN` and their subspace
+        variants :obj:`~varipeps.config.Projector_Method.FULL_QR` and
+        :obj:`~varipeps.config.Projector_Method.FISHMAN_QR`. Set the QR method
+        before creating the PEPS tensors to initialize the isometries.
       ctmrg_increase_truncation_eps (:obj:`bool`):
         Flag if the CTMRG routine should try higher truncation thresholds for
         the SVD based projector methods if the routine does not converge in the
@@ -358,16 +377,21 @@ class VariPEPS_Config:
         Step size for the heuristic environment bond dimension decrease.
       ctmrg_qr_power_iterations (:obj:`int`):
         Number of subspace iterations per projector and CTMRG step for
-        :obj:`~varipeps.config.Projector_Method.FULL_QR`. One iteration applies
-        the network matrix M and M^dagger once each (alternating
-        orthonormalization).
+        :obj:`~varipeps.config.Projector_Method.FULL_QR` and
+        :obj:`~varipeps.config.Projector_Method.FISHMAN_QR`. Each iteration
+        applies the full network (FULL_QR) or each half (FISHMAN_QR) and its
+        adjoint once.
       ctmrg_qr_oversampling_factor (:obj:`float`):
         Relative oversampling of the FULL_QR isometries: they have
         ``max(ceil(chi * (1 + factor)), chi + ctmrg_qr_min_oversampling)``
         columns. Larger values help if the spectrum is flat or degenerate
         (symmetric states) around the truncation.
       ctmrg_qr_min_oversampling (:obj:`int`):
-        Minimal absolute oversampling of the FULL_QR isometries.
+        Minimal absolute oversampling for both QR methods.
+      ctmrg_fishman_qr_oversampling_factor (:obj:`float`):
+        Relative oversampling for FISHMAN_QR, used in place of
+        ``ctmrg_qr_oversampling_factor``. Each half has its own subspace
+        and can require more columns than the full network.
       triangular_ctmrg_use_split (:obj:`bool`):
         Flag if the split projector method should be used in the
         triangular CTMRG.
@@ -587,6 +611,7 @@ class VariPEPS_Config:
     ctmrg_qr_power_iterations: int = 2
     ctmrg_qr_oversampling_factor: float = 0.2
     ctmrg_qr_min_oversampling: int = 10
+    ctmrg_fishman_qr_oversampling_factor: float = 5.0
 
     # Triangular CTMRG routine
     triangular_ctmrg_use_split: bool = False

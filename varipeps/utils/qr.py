@@ -5,6 +5,7 @@ import jax.numpy as jnp
 from jax import custom_jvp, lax
 
 from varipeps import varipeps_config
+from varipeps.config import Projector_Method
 
 from jax._src.lax.linalg import _tril
 
@@ -53,17 +54,39 @@ def _thin_qr_jvp(primals, tangents):
 
 def qr_oversampled_dim(chi: int, *dims: int) -> int:
     """
-    Number of columns of the FULL_QR subspace isometries for a target bond
+    Number of columns of the QR subspace isometries for a target bond
     dimension ``chi``. Clipped to the dimensions of the matrices the isometries
     act on, since the thin QR needs at least as many rows as columns.
     """
+    factor = (
+        varipeps_config.ctmrg_fishman_qr_oversampling_factor
+        if varipeps_config.ctmrg_full_projector_method is Projector_Method.FISHMAN_QR
+        else varipeps_config.ctmrg_qr_oversampling_factor
+    )
     p = max(
-        math.ceil(chi * (1 + varipeps_config.ctmrg_qr_oversampling_factor)),
+        math.ceil(chi * (1 + factor)),
         chi + varipeps_config.ctmrg_qr_min_oversampling,
     )
     if len(dims) > 0:
         p = min(p, *dims)
     return int(p)
+
+
+def apply_product(mats, x, adjoint=False):
+    """Apply a matrix product or its adjoint to x without forming the product."""
+    if adjoint:
+        for m in mats:
+            x = m.T.conj() @ x
+    else:
+        for m in reversed(mats):
+            x = m @ x
+    return x
+
+
+def orthonormalize(x):
+    """Return the thin QR basis of the norm-scaled columns."""
+    q, _ = thin_qr(x / jnp.linalg.norm(x))
+    return q
 
 
 def qr_subspace_iteration(mats, qr_left, qr_right, n_iter: int):
@@ -89,25 +112,12 @@ def qr_subspace_iteration(mats, qr_left, qr_right, n_iter: int):
       matrix ``Q_L @ M @ Q_R`` without applying M again.
     """
 
-    def apply_M(x):
-        for m in reversed(mats):
-            x = m @ x
-        return x
-
-    def apply_MH(x):
-        for m in mats:
-            x = m.T.conj() @ x
-        return x
-
     if n_iter < 1:
-        return qr_left, qr_right, apply_M(qr_right)
+        return qr_left, qr_right, apply_product(mats, qr_right)
 
     for _ in range(n_iter):
-        y = apply_MH(qr_left.T.conj())
-        qr_right, _ = thin_qr(y / jnp.linalg.norm(y))
-
-        mq_right = apply_M(qr_right)
-        q, _ = thin_qr(mq_right / jnp.linalg.norm(mq_right))
-        qr_left = q.T.conj()
+        qr_right = orthonormalize(apply_product(mats, qr_left.T.conj(), adjoint=True))
+        mq_right = apply_product(mats, qr_right)
+        qr_left = orthonormalize(mq_right).T.conj()
 
     return qr_left, qr_right, mq_right

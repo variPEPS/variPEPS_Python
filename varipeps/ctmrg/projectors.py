@@ -7,7 +7,12 @@ from jax import jit, checkpoint
 from varipeps.peps import PEPS_Tensor
 from varipeps.contractions import apply_contraction, apply_contraction_jitted
 from varipeps.utils.svd import gauge_fixed_svd, svd_singular_value_power
-from varipeps.utils.qr import thin_qr, qr_subspace_iteration
+from varipeps.utils.qr import (
+    thin_qr,
+    qr_subspace_iteration,
+    apply_product,
+    orthonormalize,
+)
 from varipeps.utils.projector_dict import (
     Left_Projectors,
     Right_Projectors,
@@ -87,16 +92,18 @@ def _calc_ctmrg_quarters(
     return top_left, top_right, bottom_left, bottom_right
 
 
-def _fix_qr_phases(new_qr_left, new_qr_right, *, config, return_phases=False):
-    abs_left = jnp.abs(new_qr_left)
-    normalized = abs_left / jnp.max(abs_left, axis=1, keepdims=True)
+def _row_phases(matrix, *, config):
+    abs_matrix = jnp.abs(matrix)
+    normalized = abs_matrix / jnp.max(abs_matrix, axis=1, keepdims=True)
     phases_index = jnp.argmax(normalized >= config.svd_sign_fix_eps, axis=1)
-    phases = jnp.take_along_axis(new_qr_left, phases_index[:, jnp.newaxis], axis=1)[
-        :, 0
-    ]
+    phases = jnp.take_along_axis(matrix, phases_index[:, jnp.newaxis], axis=1)[:, 0]
     # Rows which are exactly zero (rank deficient environment) have no phase
     phases = jnp.where(phases == 0, 1, phases)
-    phases /= jnp.abs(phases)
+    return phases / jnp.abs(phases)
+
+
+def _fix_qr_phases(new_qr_left, new_qr_right, *, config, return_phases=False):
+    phases = _row_phases(new_qr_left, config=config)
     result = (
         new_qr_left * phases.conj()[:, jnp.newaxis],
         new_qr_right * phases[jnp.newaxis, :],
@@ -230,6 +237,13 @@ def _vertical_cut(
     )
 
 
+def _fishman_root(S_matrix, truncation_eps):
+    """Return the retained singular values and their square-root block."""
+    S = jnp.real(jnp.diag(S_matrix))
+    keep = (S > 0) & (S / jnp.where(S[0] > 0, S[0], 1) >= truncation_eps)
+    return jnp.where(keep, S, 0), svd_singular_value_power(S_matrix, keep, 0.5)
+
+
 def _fishman_svd(matrix, only_u_or_vh=None, *, truncation_eps, config, normalize=False):
     """SVD factors with the truncated square root absorbed into U and Vh."""
     result = gauge_fixed_svd(matrix, only_u_or_vh, config=config, return_s_matrix=True)
@@ -239,10 +253,7 @@ def _fishman_svd(matrix, only_u_or_vh=None, *, truncation_eps, config, normalize
         U, S_matrix = result
     else:
         S_matrix, Vh = result
-    S = jnp.real(jnp.diag(S_matrix))
-    keep = (S > 0) & (S / jnp.where(S[0] > 0, S[0], 1) >= truncation_eps)
-    S_sqrt = svd_singular_value_power(S_matrix, keep, 0.5)
-    S = jnp.where(keep, S, 0)
+    S, S_sqrt = _fishman_root(S_matrix, truncation_eps)
     if normalize:
         S_sqrt /= jnp.sqrt(jnp.sum(S))
     if only_u_or_vh is None or only_u_or_vh == "U":
@@ -254,6 +265,46 @@ def _fishman_svd(matrix, only_u_or_vh=None, *, truncation_eps, config, normalize
     if only_u_or_vh == "Vh":
         return S, Vh
     return U, S, Vh
+
+
+def _fishman_qr_factors(x_mats, y_mats, qr_x, qr_y, truncation_eps, n_iter, *, config):
+    """Fishman factors of the halves X and Y restricted to their QR subspaces.
+
+    In the final iteration the SVDs of qr_x @ X and Y @ qr_y also supply
+    the singular vectors for the QR updates of the two independent bases.
+    """
+    if n_iter > 1:
+        qr_x = qr_subspace_iteration(x_mats, qr_x, None, n_iter - 1)[0]
+        y_adjoint = [m.T.conj() for m in reversed(y_mats)]
+        qr_y = qr_subspace_iteration(y_adjoint, qr_y.T.conj(), None, n_iter - 1)[0]
+        qr_y = qr_y.T.conj()
+
+    S_x, Vh_x = gauge_fixed_svd(
+        apply_product(x_mats, qr_x.T.conj(), adjoint=True).T.conj(),
+        only_u_or_vh="Vh",
+        config=config,
+        return_s_matrix=True,
+    )
+    U_y, S_y = gauge_fixed_svd(
+        apply_product(y_mats, qr_y),
+        only_u_or_vh="U",
+        config=config,
+        return_s_matrix=True,
+    )
+    x_factor = _fishman_root(S_x, truncation_eps)[1] @ Vh_x
+    y_factor = U_y @ _fishman_root(S_y, truncation_eps)[1]
+
+    x_factor /= jnp.linalg.norm(x_factor)
+    y_factor /= jnp.linalg.norm(y_factor)
+
+    if n_iter < 1:
+        return x_factor, y_factor, (qr_x, qr_y)
+
+    new_qr_x = orthonormalize(apply_product(x_mats, Vh_x.T.conj())).T.conj()
+    new_qr_y = orthonormalize(apply_product(y_mats, U_y, adjoint=True)).T
+    new_qr_x *= _row_phases(new_qr_x, config=config).conj()[:, jnp.newaxis]
+    new_qr_y *= _row_phases(new_qr_y, config=config).conj()[:, jnp.newaxis]
+    return x_factor, y_factor, (new_qr_x, new_qr_y.T)
 
 
 def _fishman_horizontal_cut(
@@ -682,7 +733,7 @@ def _left_projectors_workhorse(
         bottom_matrix = bottom_Vh
         top_matrix /= jnp.linalg.norm(top_matrix)
         bottom_matrix /= jnp.linalg.norm(bottom_matrix)
-    elif projector_method is Projector_Method.FULL_QR:
+    elif projector_method.uses_qr_isometries:
         (
             top_left_matrix,
             top_right_matrix,
@@ -693,17 +744,28 @@ def _left_projectors_workhorse(
         qr_left = peps_tensor_objs[1][1].qr_right_traced_top
         qr_right = peps_tensor_objs[0][1].qr_right_traced_bottom
 
-        new_qr_left, new_qr_right, mq_right = qr_subspace_iteration(
-            (
-                bottom_right_matrix,
-                bottom_left_matrix,
-                top_left_matrix,
-                top_right_matrix,
-            ),
-            qr_left,
-            qr_right,
-            qr_power_iterations,
+        mats = (
+            bottom_right_matrix,
+            bottom_left_matrix,
+            top_left_matrix,
+            top_right_matrix,
         )
+        if projector_method is Projector_Method.FULL_QR:
+            new_qr_left, new_qr_right, mq_right = qr_subspace_iteration(
+                mats, qr_left, qr_right, qr_power_iterations
+            )
+        else:
+            bottom_matrix, top_matrix, (new_qr_left, new_qr_right) = (
+                _fishman_qr_factors(
+                    mats[:2],
+                    mats[2:],
+                    qr_left,
+                    qr_right,
+                    truncation_eps,
+                    qr_power_iterations,
+                    config=config,
+                )
+            )
     else:
         raise ValueError("Invalid projector method!")
 
@@ -754,7 +816,7 @@ def _left_projectors_workhorse(
         bottom_left.shape[5],
     )
 
-    if projector_method is Projector_Method.FULL_QR:
+    if projector_method.uses_qr_isometries:
         return (
             Left_Projectors(top=projector_left_top, bottom=projector_left_bottom),
             smallest_S,
@@ -867,7 +929,7 @@ def _right_projectors_workhorse(
         bottom_matrix = bottom_U
         top_matrix /= jnp.linalg.norm(top_matrix)
         bottom_matrix /= jnp.linalg.norm(bottom_matrix)
-    elif projector_method is Projector_Method.FULL_QR:
+    elif projector_method.uses_qr_isometries:
         (
             top_left_matrix,
             top_right_matrix,
@@ -878,17 +940,28 @@ def _right_projectors_workhorse(
         qr_left = peps_tensor_objs[0][0].qr_left_traced_bottom
         qr_right = peps_tensor_objs[1][0].qr_left_traced_top
 
-        new_qr_left, new_qr_right, mq_right = qr_subspace_iteration(
-            (
-                top_left_matrix,
-                top_right_matrix,
-                bottom_right_matrix,
-                bottom_left_matrix,
-            ),
-            qr_left,
-            qr_right,
-            qr_power_iterations,
+        mats = (
+            top_left_matrix,
+            top_right_matrix,
+            bottom_right_matrix,
+            bottom_left_matrix,
         )
+        if projector_method is Projector_Method.FULL_QR:
+            new_qr_left, new_qr_right, mq_right = qr_subspace_iteration(
+                mats, qr_left, qr_right, qr_power_iterations
+            )
+        else:
+            top_matrix, bottom_matrix, (new_qr_left, new_qr_right) = (
+                _fishman_qr_factors(
+                    mats[:2],
+                    mats[2:],
+                    qr_left,
+                    qr_right,
+                    truncation_eps,
+                    qr_power_iterations,
+                    config=config,
+                )
+            )
     else:
         raise ValueError("Invalid projector method!")
 
@@ -939,7 +1012,7 @@ def _right_projectors_workhorse(
         projector_right_bottom.shape[1],
     )
 
-    if projector_method is Projector_Method.FULL_QR:
+    if projector_method.uses_qr_isometries:
         return (
             Right_Projectors(top=projector_right_top, bottom=projector_right_bottom),
             smallest_S,
@@ -1052,7 +1125,7 @@ def _top_projectors_workhorse(
         right_matrix = right_U
         left_matrix /= jnp.linalg.norm(left_matrix)
         right_matrix /= jnp.linalg.norm(right_matrix)
-    elif projector_method is Projector_Method.FULL_QR:
+    elif projector_method.uses_qr_isometries:
         (
             top_left_matrix,
             top_right_matrix,
@@ -1063,17 +1136,28 @@ def _top_projectors_workhorse(
         qr_left = peps_tensor_objs[1][0].qr_bottom_traced_right
         qr_right = peps_tensor_objs[1][1].qr_bottom_traced_left
 
-        new_qr_left, new_qr_right, mq_right = qr_subspace_iteration(
-            (
-                bottom_left_matrix,
-                top_left_matrix,
-                top_right_matrix,
-                bottom_right_matrix,
-            ),
-            qr_left,
-            qr_right,
-            qr_power_iterations,
+        mats = (
+            bottom_left_matrix,
+            top_left_matrix,
+            top_right_matrix,
+            bottom_right_matrix,
         )
+        if projector_method is Projector_Method.FULL_QR:
+            new_qr_left, new_qr_right, mq_right = qr_subspace_iteration(
+                mats, qr_left, qr_right, qr_power_iterations
+            )
+        else:
+            left_matrix, right_matrix, (new_qr_left, new_qr_right) = (
+                _fishman_qr_factors(
+                    mats[:2],
+                    mats[2:],
+                    qr_left,
+                    qr_right,
+                    truncation_eps,
+                    qr_power_iterations,
+                    config=config,
+                )
+            )
     else:
         raise ValueError("Invalid projector method!")
 
@@ -1124,7 +1208,7 @@ def _top_projectors_workhorse(
         projector_top_right.shape[1],
     )
 
-    if projector_method is Projector_Method.FULL_QR:
+    if projector_method.uses_qr_isometries:
         return (
             Top_Projectors(left=projector_top_left, right=projector_top_right),
             smallest_S,
@@ -1237,7 +1321,7 @@ def _bottom_projectors_workhorse(
         right_matrix = right_Vh
         left_matrix /= jnp.linalg.norm(left_matrix)
         right_matrix /= jnp.linalg.norm(right_matrix)
-    elif projector_method is Projector_Method.FULL_QR:
+    elif projector_method.uses_qr_isometries:
         (
             top_left_matrix,
             top_right_matrix,
@@ -1248,17 +1332,28 @@ def _bottom_projectors_workhorse(
         qr_left = peps_tensor_objs[0][1].qr_top_traced_left
         qr_right = peps_tensor_objs[0][0].qr_top_traced_right
 
-        new_qr_left, new_qr_right, mq_right = qr_subspace_iteration(
-            (
-                top_right_matrix,
-                bottom_right_matrix,
-                bottom_left_matrix,
-                top_left_matrix,
-            ),
-            qr_left,
-            qr_right,
-            qr_power_iterations,
+        mats = (
+            top_right_matrix,
+            bottom_right_matrix,
+            bottom_left_matrix,
+            top_left_matrix,
         )
+        if projector_method is Projector_Method.FULL_QR:
+            new_qr_left, new_qr_right, mq_right = qr_subspace_iteration(
+                mats, qr_left, qr_right, qr_power_iterations
+            )
+        else:
+            right_matrix, left_matrix, (new_qr_left, new_qr_right) = (
+                _fishman_qr_factors(
+                    mats[:2],
+                    mats[2:],
+                    qr_left,
+                    qr_right,
+                    truncation_eps,
+                    qr_power_iterations,
+                    config=config,
+                )
+            )
     else:
         raise ValueError("Invalid projector method!")
 
@@ -1309,7 +1404,7 @@ def _bottom_projectors_workhorse(
         bottom_right.shape[5],
     )
 
-    if projector_method is Projector_Method.FULL_QR:
+    if projector_method.uses_qr_isometries:
         return (
             Bottom_Projectors(left=projector_bottom_left, right=projector_bottom_right),
             smallest_S,
